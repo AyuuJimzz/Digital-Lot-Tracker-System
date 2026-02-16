@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "workspaces": [
+    "front-end",
+    "back-end"
+  ],
+  "dependencies": {
+    "express": "^5.2.1",
+    "mysql2": "^3.17.1"
+  }
+}
