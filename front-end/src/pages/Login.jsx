@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Login.css";
 import logo from "../assets/golden-dragon-logo.png";
 
 function Login() {
+	const navigate = useNavigate();
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
@@ -25,6 +27,7 @@ function Login() {
 			if (response.ok) {
 				localStorage.setItem("token", data.token);
 				console.log("Login successful!");
+				navigate("/admin");
 			} else {
 				setError(data.message || "Login failed");
 			}
@@ -69,6 +72,10 @@ function Login() {
 							Sign In →
 						</button>
 					</form>
+
+					<a href="#" className="forgot-password">
+						Forgot Password?
+					</a>
 				</div>
 			</div>
 		</div>

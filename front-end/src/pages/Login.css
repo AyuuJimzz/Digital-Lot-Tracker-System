@@ -131,6 +131,19 @@
 	background-color: #f0f0f0;
 }
 
+.forgot-password {
+	display: block;
+	text-align: center;
+	margin-top: 20px;
+	color: #0066cc;
+	text-decoration: none;
+	font-size: 14px;
+}
+
+.forgot-password:hover {
+	text-decoration: underline;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
 	.login-container {

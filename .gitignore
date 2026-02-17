@@ -25,3 +25,5 @@ dist-ssr
 *.sln
 *.sw?
 readm.md
+DEVELOPMENT_GUIDE.md
+golden_dragon_corp.sql
