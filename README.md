@@ -1,16 +1,50 @@
-# React + Vite
+# Golden Dragon Estate Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A digital lot tracking system for Golden Dragon Estate Corporation, designed to replace manual paper-based lot tracking with an interactive digital solution.
 
-Currently, two official plugins are available:
+## 📋 Project Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This capstone project provides a real estate management platform where staff can:
 
-## React Compiler
+- Track lot availability status (Available, Pending, Sold, Reserved)
+- Manage employee accounts
+- View lot information digitally
+- Update lot statuses with automatic color coding
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🎨 Color Palette
 
-## Expanding the ESLint configuration
+### Primary Colors
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```css
+--primary-gold: #b8860b; /* Golden Dragon main color */
+--primary-dark: #8b6914; /* Darker gold for hover states */
+--primary-light: #daa520; /* Light gold for highlights */
+```
+
+### Neutral Colors
+
+```css
+--neutral-white: #ffffff; /* Backgrounds, cards */
+--neutral-light: #f5f5f5; /* Light backgrounds */
+--neutral-gray: #e0e0e0; /* Borders, dividers */
+--neutral-dark: #424242; /* Text, headings */
+--neutral-black: #1a1a1a; /* Primary text */
+```
+
+### Status Colors (for Lot Tracking)
+
+```css
+--status-available: #4caf50; /* Green - Available lots */
+--status-pending: #ffc107; /* Yellow/Amber - Pending */
+--status-sold: #f44336; /* Red - Sold */
+--status-reserved: #ff9800; /* Orange - Reserved */
+```
+
+### UI Colors
+
+```css
+--success: #28a745;
+--error: #dc3545;
+--warning: #ffc107;
+--info: #17a2b8;
+```

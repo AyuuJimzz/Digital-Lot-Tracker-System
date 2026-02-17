@@ -1,7 +1,7 @@
-import Example from "./components/example";
+import Login from "./pages/Login";
 
 function App() {
-  return <Example />;
+	return <Login />;
 }
 
 export default App;

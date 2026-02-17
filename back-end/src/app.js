@@ -1,15 +1,17 @@
 const express = require("express");
 const cors = require("cors");
 const employeeRoutes = require("./routes/employeeRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.get("/", (req, res) => {
-  res.json({ message: "Server is running" });
+	res.json({ message: "Server is running" });
 });
 
 app.use("/api/employees", employeeRoutes);
+app.use("/api/auth", authRoutes);
 
 module.exports = app;
