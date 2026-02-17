@@ -6,28 +6,48 @@ const loginEmployee = async (req, res) => {
 		if (!username || !password) {
 			return res.status(400).json({ message: "Username and password are required" });
 		}
-		const query = "SELECT * FROM employees WHERE email = ?";
-		const [results] = await db.query(query, [username]);
+//---------------------------------------------
+		// Check employees table first
+		const employeeQuery = "SELECT * FROM employees WHERE email = ?";
+		const [employeeResults] = await db.query(employeeQuery, [username]);
 
-		if (results.length === 0) {
-			return res.status(401).json({ message: "Invalid username or password" });
+		if (employeeResults.length > 0) {
+			const employee = employeeResults[0];
+			if (password === employee.password) {
+				const { password: pwd, ...employeeData } = employee;
+				return res.status(200).json({
+					message: "Login successful",
+					token: "dummy-token-" + employee.employee_id,
+					user: employeeData,
+					role: "employee",
+				});
+			}
 		}
-		const employee = results[0];
+//-----------------------------------------------
+		// Check admins table if not found in employees
+		const adminQuery = "SELECT * FROM admins WHERE email = ?";
+		const [adminResults] = await db.query(adminQuery, [username]);
 
-		if (password !== employee.password) {
-			return res.status(401).json({ message: "Invalid username or password" });
+		if (adminResults.length > 0) {
+			const admin = adminResults[0];
+			if (password === admin.password) {
+				const { password: pwd, ...adminData } = admin;
+				return res.status(200).json({
+					message: "Login successful",
+					token: "dummy-token-admin-" + admin.admin_id,
+					user: adminData,
+					role: "admin",
+				});
+			}
 		}
-		const { password: pwd, ...employeeData } = employee;
-		res.status(200).json({
-			message: "Login successful",
-			token: "dummy-token-" + employee.employee_id, 
-			employee: employeeData,
-		});
+//---------------------------------------------
+		return res.status(401).json({ message: "Invalid username or password" });
 	} catch (error) {
 		console.error("Login error:", error);
 		res.status(500).json({ message: "Server error" });
 	}
 };
+
 module.exports = {
 	loginEmployee,
 };
