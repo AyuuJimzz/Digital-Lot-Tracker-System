@@ -27,7 +27,13 @@ function Login() {
 			if (response.ok) {
 				localStorage.setItem("token", data.token);
 				console.log("Login successful!");
-				navigate("/admin");
+				
+				// Navigate based on user role
+				if (data.role === "admin") {
+					navigate("/admin");
+				} else {
+					navigate("/employee");
+				}
 			} else {
 				setError(data.message || "Login failed");
 			}
