@@ -27,3 +27,4 @@ dist-ssr
 readm.md
 DEVELOPMENT_GUIDE.md
 golden_dragon_corp.sql
+.env

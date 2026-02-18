@@ -1,13 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Login.css";
 import logo from "../assets/golden-dragon-logo.png";
 
-function Login() {
+function Login({ setRole }) {
 	const navigate = useNavigate();
-	const [username, setUsername] = useState("");
+	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
+
+	//  already logged in
+	useEffect(() => {
+		fetch("http://localhost:5000/api/auth/check-session", {
+			credentials: "include",
+		})
+			.then((res) => {
+				if (!res.ok) throw new Error("Not logged in");
+				return res.json();
+			})
+			.then((data) => {
+				if (data.role === "admin") navigate("/admin-panel");
+				else if (data.role === "employee") navigate("/employee-panel");
+			})
+			.catch(() => {});
+	}, [navigate]);
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -16,24 +32,19 @@ function Login() {
 		try {
 			const response = await fetch("http://localhost:5000/api/auth/login", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({ username, password }),
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ email, password }),
 			});
 
 			const data = await response.json();
 
 			if (response.ok) {
-				localStorage.setItem("token", data.token);
-				console.log("Login successful!");
-				
-				// Navigate based on user role
-				if (data.role === "admin") {
-					navigate("/admin");
-				} else {
-					navigate("/employee");
-				}
+				localStorage.setItem("role", data.role);
+				setRole(data.role);
+
+				if (data.role === "admin") navigate("/admin-panel");
+				else if (data.role === "employee") navigate("/employee-panel");
 			} else {
 				setError(data.message || "Login failed");
 			}
@@ -63,7 +74,7 @@ function Login() {
 						<div className="input-group">
 							<div className="input-wrapper">
 								<span className="input-icon">👤</span>
-								<input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+								<input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
 							</div>
 						</div>
 
@@ -79,12 +90,13 @@ function Login() {
 						</button>
 					</form>
 
-					<a href="#" className="forgot-password">
+					<button type="button" className="forgot-password" onClick={() => alert("Forgot Password feature coming soon")}>
 						Forgot Password?
-					</a>
+					</button>
 				</div>
 			</div>
 		</div>
 	);
 }
+
 export default Login;
