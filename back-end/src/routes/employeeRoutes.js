@@ -1,10 +1,17 @@
-const { verifyToken } = require("../middleware/authMiddleware");
 const express = require("express");
 const router = express.Router();
-const employeeController = require("../controllers/employeeControllers");
 
-// Protect the routes
-router.get("/", verifyToken, employeeController.getAllEmployees);
-router.post("/", verifyToken, employeeController.createEmployee);
+// Employee controller
+const {
+  getAllEmployees,
+  createEmployee,
+} = require("../controllers/employeeController");
+
+// Auth controller for session middleware
+const { requireLogin } = require("../controllers/authController");
+
+// Protected routes
+router.get("/", requireLogin, getAllEmployees);
+router.post("/", requireLogin, createEmployee);
 
 module.exports = router;

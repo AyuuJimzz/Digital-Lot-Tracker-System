@@ -1,17 +1,42 @@
 const express = require("express");
 const cors = require("cors");
+const session = require("express-session");
+const { verifyToken } = require("./middleware/authMiddleware");
 const employeeRoutes = require("./routes/employeeRoutes");
 const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
-app.get("/", (req, res) => {
-	res.json({ message: "Server is running" });
-});
+// Middleware
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  }),
+);
 
-app.use("/api/employees", employeeRoutes);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session setup
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "default-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 2 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+    },
+  }),
+);
+
+app.get("/", (req, res) => {
+  res.json({ message: "Server is running" });
+});
 app.use("/api/auth", authRoutes);
+app.use("/api/employees", verifyToken, employeeRoutes);
 
 module.exports = app;
