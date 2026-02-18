@@ -1,14 +1,11 @@
+// routes/employeeRoutes.js
 const express = require("express");
 const router = express.Router();
-
-// Employee controller
 const {
   getAllEmployees,
   createEmployee,
 } = require("../controllers/employeeController");
-
-// Auth controller for session middleware
-const { requireLogin } = require("../controllers/authController");
+const requireLogin = require("../middleware/requiredLogin");
 
 // Protected routes
 router.get("/", requireLogin, getAllEmployees);

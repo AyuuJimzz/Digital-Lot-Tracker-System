@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Login.css";
-import logo from "../assets/golden-dragon-logo.png";
+import logo from "../assets/image/golden-dragon-logo.png";
 
 function Login({ setRole }) {
 	const navigate = useNavigate();
@@ -9,7 +9,7 @@ function Login({ setRole }) {
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 
-	//  already logged in
+	// Already logged in
 	useEffect(() => {
 		fetch("http://localhost:5000/api/auth/check-session", {
 			credentials: "include",

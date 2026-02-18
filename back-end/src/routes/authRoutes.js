@@ -1,10 +1,10 @@
+// routes/authRoutes.js
 const express = require("express");
 const router = express.Router();
-const { loginEmployee, logout, checkSession } = require("../controllers/authController");
+const { login, logout, checkSession } = require("../controllers/authController");
 
-router.post("/login", loginEmployee);
+router.post("/login", login);
 router.post("/logout", logout);
-//verify front-end session
-router.get("/check-session", checkSession);
+router.get("/check-session", checkSession); // verify session
 
 module.exports = router;
