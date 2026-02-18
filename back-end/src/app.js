@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const session = require("express-session");
-const { verifyToken } = require("./middleware/authMiddleware");
+const requireLogin = require("./middleware/requiredLogin");
 const employeeRoutes = require("./routes/employeeRoutes");
 const authRoutes = require("./routes/authRoutes");
 
@@ -37,6 +37,6 @@ app.get("/", (req, res) => {
   res.json({ message: "Server is running" });
 });
 app.use("/api/auth", authRoutes);
-app.use("/api/employees", verifyToken, employeeRoutes);
+app.use("/api/employees", requireLogin, employeeRoutes);
 
 module.exports = app;

@@ -1,60 +1,29 @@
-const db = require("../../config/database_connection");
+// controllers/authController.js
+const { loginAdmin } = require("./adminAuth");
+const { loginEmployee } = require("./employeeAuth");
 
-const loginEmployee = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+// LOGIN
+const login = async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password)
+    return res.status(400).json({ message: "Email and password are required" });
 
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
-    }
-
-    const [employeeResults] = await db.query(
-      "SELECT * FROM employees WHERE email = ?",
-      [email],
-    );
-
-    if (employeeResults.length > 0) {
-      const employee = employeeResults[0];
-      if (password === employee.password) {
-        req.session.user = {
-          id: employee.employee_id,
-          email: employee.email,
-          role: "employee",
-        };
-        return res
-          .status(200)
-          .json({ message: "Login successful", role: "employee" });
-      }
-    }
-
-    const [adminResults] = await db.query(
-      "SELECT * FROM admins WHERE email = ?",
-      [email],
-    );
-
-    if (adminResults.length > 0) {
-      const admin = adminResults[0];
-      if (password === admin.password) {
-        req.session.user = {
-          id: admin.admin_id,
-          email: admin.email,
-          role: "admin",
-        };
-        return res
-          .status(200)
-          .json({ message: "Login successful", role: "admin" });
-      }
-    }
-
-    return res.status(401).json({ message: "Invalid email or password" });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: "Server error" });
+  const employeeResult = await loginEmployee(email, password);
+  if (employeeResult.success) {
+    req.session.user = { ...employeeResult.user, role: "employee" };
+    return res.json(employeeResult);
   }
+
+  const adminResult = await loginAdmin(email, password);
+  if (adminResult.success) {
+    req.session.user = { ...adminResult.user, role: "admin" };
+    return res.json(adminResult);
+  }
+
+  res.status(401).json({ message: "Invalid email or password" });
 };
 
+// LOGOUT
 const logout = (req, res) => {
   req.session.destroy((err) => {
     if (err) return res.status(500).json({ message: "Logout failed" });
@@ -63,6 +32,7 @@ const logout = (req, res) => {
   });
 };
 
+// CHECK SESSION
 const checkSession = (req, res) => {
   if (req.session.user) {
     return res.json({
@@ -73,17 +43,4 @@ const checkSession = (req, res) => {
   return res.status(401).json({ message: "Not logged in" });
 };
 
-// PROTECT ROUTES
-const requireLogin = (req, res, next) => {
-  if (!req.session.user) {
-    return res.status(401).json({ message: "Please log in first" });
-  }
-  next();
-};
-
-module.exports = {
-  loginEmployee,
-  logout,
-  checkSession,
-  requireLogin,
-};
+module.exports = { login, logout, checkSession };

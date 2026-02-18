@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "./Login.css";
-import logo from "../assets/golden-dragon-logo.png";
+import logo from "../assets/image/golden-dragon-logo.png";
 
 function Login({ setRole }) {
   const navigate = useNavigate();
@@ -9,7 +8,7 @@ function Login({ setRole }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  //  already logged in
+  // Already logged in
   useEffect(() => {
     fetch("http://localhost:5000/api/auth/check-session", {
       credentials: "include",
@@ -55,57 +54,76 @@ function Login({ setRole }) {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-left">
-        <div className="logo-section">
-          <img src={logo} alt="Golden Dragon Logo" className="logo" />
-          <h1 className="company-name">Golden Dragon</h1>
-          <h2 className="company-subtitle">Estate Corporation</h2>
+    <div className="flex flex-col md:flex-row h-screen w-screen font-sans">
+      {/* Left side */}
+      <div className="flex-1 bg-white flex items-center justify-center p-10">
+        <div className="flex flex-col items-center text-center">
+          <img
+            src={logo}
+            alt="Golden Dragon Logo"
+            className="block mx-auto w-64 h-64 object-contain mb-5 md:mb-8"
+          />
+          <h1 className="text-4xl md:text-5xl font-bold tracking-wider text-black mb-2">
+            Golden Dragon
+          </h1>
+          <h2 className="text-2xl md:text-3xl font-medium tracking-wide text-gray-700">
+            Estate Corporation
+          </h2>
         </div>
       </div>
 
-      <div className="login-right">
-        <div className="signin-box">
-          <h2 className="signin-title">SIGN IN</h2>
+      {/* Right side */}
+      <div className="flex-1 bg-gray-400 flex items-center justify-center p-10">
+        <div className="bg-gray-300 p-10 md:p-12 rounded-xl w-full max-w-md shadow-lg">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">
+            SIGN IN
+          </h2>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && (
+            <div className="bg-red-100 text-red-700 p-2 rounded mb-6 text-center text-sm">
+              {error}
+            </div>
+          )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="input-group">
-              <div className="input-wrapper">
-                <span className="input-icon">👤</span>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
+            <div className="flex items-center bg-white rounded px-3 py-1">
+              <span className="text-xl mr-3">👤</span>
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="flex-1 outline-none p-3 text-base placeholder-gray-500 bg-transparent"
+              />
             </div>
 
-            <div className="input-group">
-              <div className="input-wrapper">
-                <span className="input-icon">🔒</span>
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
+            {/* Password */}
+            <div className="flex items-center bg-white rounded px-3 py-1">
+              <span className="text-xl mr-3">🔒</span>
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="flex-1 outline-none p-3 text-base placeholder-gray-500 bg-transparent"
+              />
             </div>
 
-            <button type="submit" className="signin-btn">
+            <button
+              type="submit"
+              className="w-full py-3 bg-white text-black font-semibold rounded hover:bg-gray-100 transition-colors"
+            >
               Sign In →
             </button>
           </form>
 
           <button
             type="button"
-            className="forgot-password"
             onClick={() => alert("Forgot Password feature coming soon")}
+            className="block mt-5 text-center text-blue-700 text-sm hover:underline"
           >
             Forgot Password?
           </button>
