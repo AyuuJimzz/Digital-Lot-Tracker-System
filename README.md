@@ -8,6 +8,12 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 
 ## 📑 Table of Contents
 
+### ✅ Progress Tracking
+- [Development Progress Checklist](#-development-progress-checklist)
+  - [Phase 1: Core Features](#-phase-1-core-features-must-have)
+  - [Phase 2: Advanced Features](#-phase-2-advanced-features)
+  - [Phase 3: Nice to Have](#-phase-3-nice-to-have)
+
 ### 🎯 Planning & Features
 
 - [Admin Features](#-admin-features)
@@ -40,6 +46,208 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 ### 🎨 Design
 
 - [Color Palette](#-color-palette)
+
+---
+
+## ✅ DEVELOPMENT PROGRESS CHECKLIST
+
+### 📌 Phase 1: Core Features (Must Have)
+
+#### Backend API Development
+- [x] Employee CRUD APIs
+  - [x] GET /api/employees - View all
+  - [x] POST /api/employees - Add new
+  - [x] PUT /api/employees/:id - Update
+  - [x] DELETE /api/employees/:id - Delete
+- [ ] Property CRUD APIs
+  - [ ] GET /api/properties - View all
+  - [ ] POST /api/properties - Add new
+  - [ ] PUT /api/properties/:id - Update
+  - [ ] DELETE /api/properties/:id - Delete
+  - [ ] PATCH /api/properties/:id/status - Toggle status
+- [ ] Lot CRUD APIs
+  - [ ] GET /api/lots - View all lots
+  - [ ] GET /api/lots/:propertyId - View lots by property
+  - [ ] POST /api/lots - Add new lot
+  - [ ] PUT /api/lots/:id - Update lot
+  - [ ] DELETE /api/lots/:id - Delete lot
+  - [ ] PATCH /api/lots/:id/status - Update lot status
+- [ ] Client CRUD APIs
+  - [ ] GET /api/clients - View all clients
+  - [ ] POST /api/clients - Add new client
+  - [ ] PUT /api/clients/:id - Update client
+  - [ ] DELETE /api/clients/:id - Delete client
+- [ ] Transaction APIs
+  - [ ] POST /api/transactions - Record sale (cash only)
+  - [ ] GET /api/transactions - View all transactions
+  - [ ] GET /api/transactions/:id - View transaction details
+- [ ] Basic Reports APIs
+  - [ ] GET /api/reports/sales-summary - Total sales
+  - [ ] GET /api/reports/lot-status - Available/Sold counts
+  - [ ] GET /api/reports/employee-performance - Sales per employee
+
+#### Frontend Pages (Admin)
+- [x] Admin Dashboard
+- [x] Manage Employees Page
+  - [x] View all employees
+  - [x] Add new employee form
+  - [x] Edit employee form
+  - [x] Delete employee
+- [ ] Manage Properties Page
+  - [ ] View all properties
+  - [ ] Add new property form
+  - [ ] Edit property form
+  - [ ] Delete property
+  - [ ] Toggle status (active/inactive)
+- [ ] Manage Lots Page
+  - [ ] View all lots (table/list view)
+  - [ ] Filter by property
+  - [ ] Filter by status
+  - [ ] Add new lot form
+  - [ ] Edit lot form
+  - [ ] Delete lot
+  - [ ] Update lot status
+- [ ] Manage Clients Page
+  - [ ] View all clients
+  - [ ] Add new client form
+  - [ ] Edit client form
+  - [ ] View client purchase history
+- [ ] Record Sale Page
+  - [ ] Select client
+  - [ ] Select available lot
+  - [ ] Cash payment form
+  - [ ] Generate receipt/confirmation
+- [ ] Reports Page
+  - [ ] Sales summary report
+  - [ ] Lot status overview
+  - [ ] Employee performance
+
+#### Frontend Pages (Employee)
+- [x] Employee Dashboard
+- [ ] View Available Lots
+  - [ ] List of available lots
+  - [ ] Filter/search functionality
+  - [ ] View lot details
+- [ ] My Clients Page
+  - [ ] View my client list
+  - [ ] Add new client
+  - [ ] Edit client info
+- [ ] Record Sale Page
+  - [ ] Select/add client
+  - [ ] Select available lot
+  - [ ] Cash payment form
+- [ ] My Reports
+  - [ ] My sales summary
+  - [ ] My commission
+  - [ ] My client list
+
+#### Database Setup
+- [x] employees table
+- [x] admins table
+- [ ] properties table
+- [ ] lots table
+- [ ] clients table
+- [ ] transactions table
+- [ ] payments table (basic for cash)
+
+#### Authentication & Security
+- [x] Session-based authentication
+- [x] Admin/Employee role separation
+- [x] Protected routes (middleware)
+- [x] Access denied page
+- [ ] Password hashing (bcrypt - currently commented out)
+
+---
+
+### 📌 Phase 2: Advanced Features
+
+#### Payment System
+- [ ] Installment payment tracking
+  - [ ] Payment schedule generation
+  - [ ] Record monthly payments
+  - [ ] Calculate balance
+  - [ ] Track overdue payments
+- [ ] Payment reminders
+  - [ ] Email notifications
+  - [ ] SMS notifications (optional)
+- [ ] Payment reports
+  - [ ] Collection reports
+  - [ ] Outstanding balance reports
+
+#### Advanced Lot Management
+- [ ] Map view for lots
+  - [ ] Google Maps API integration
+  - [ ] Visual lot layout
+  - [ ] Interactive lot selection
+- [ ] Bulk lot upload (CSV/Excel)
+- [ ] Lot reservation system (temporary hold)
+  - [ ] Set reservation expiry
+  - [ ] Auto-release expired reservations
+
+#### Advanced Reports
+- [ ] Charts and graphs
+  - [ ] Sales trends (monthly/quarterly)
+  - [ ] Revenue analytics
+  - [ ] Performance dashboards
+- [ ] Export reports (PDF/Excel)
+- [ ] Custom date range filters
+- [ ] Advanced search and filtering
+
+#### Notifications
+- [ ] Email notifications
+  - [ ] Sale confirmations
+  - [ ] Payment due reminders
+  - [ ] System announcements
+- [ ] In-app notifications
+  - [ ] Real-time updates
+  - [ ] Notification center
+
+---
+
+### 📌 Phase 3: Nice to Have
+
+#### Client Portal
+- [ ] Client login system
+- [ ] View purchase details
+- [ ] View payment history
+- [ ] Download receipts
+- [ ] Payment reminders
+
+#### Mobile App
+- [ ] React Native mobile app
+- [ ] Employee mobile access
+- [ ] Quick lot status updates
+- [ ] Mobile receipts
+
+#### Advanced Analytics
+- [ ] Predictive analytics
+- [ ] Sales forecasting
+- [ ] Market trends
+- [ ] Customer insights
+
+#### System Enhancements
+- [ ] Audit logs
+- [ ] Activity tracking
+- [ ] Multi-language support
+- [ ] Dark mode
+- [ ] Print templates customization
+
+---
+
+### 📊 Overall Progress
+
+**Phase 1:** 🟨 15% Complete (2/13 major features)
+- ✅ Authentication System
+- ✅ Employee Management
+- ⏳ Property Management
+- ⏳ Lot Management
+- ⏳ Client Management
+- ⏳ Transaction Recording (Cash)
+- ⏳ Basic Reports
+
+**Phase 2:** 🔲 0% Complete (Not started)
+
+**Phase 3:** 🔲 0% Complete (Not started)
 
 ---
 
