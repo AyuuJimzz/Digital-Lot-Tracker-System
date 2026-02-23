@@ -9,6 +9,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 ## 📑 Table of Contents
 
 ### ✅ Progress Tracking
+
 - [Development Progress Checklist](#-development-progress-checklist)
   - [Phase 1: Core Features](#-phase-1-core-features-must-have)
   - [Phase 2: Advanced Features](#-phase-2-advanced-features)
@@ -51,9 +52,10 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 
 ## ✅ DEVELOPMENT PROGRESS CHECKLIST
 
-### 📌 Phase 1: Core Features (Must Have)
+### 📌 Phase 1: Core Features
 
 #### Backend API Development
+
 - [x] Employee CRUD APIs
   - [x] GET /api/employees - View all
   - [x] POST /api/employees - Add new
@@ -87,6 +89,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
   - [ ] GET /api/reports/employee-performance - Sales per employee
 
 #### Frontend Pages (Admin)
+
 - [x] Admin Dashboard
 - [x] Manage Employees Page
   - [x] View all employees
@@ -123,6 +126,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
   - [ ] Employee performance
 
 #### Frontend Pages (Employee)
+
 - [x] Employee Dashboard
 - [ ] View Available Lots
   - [ ] List of available lots
@@ -142,6 +146,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
   - [ ] My client list
 
 #### Database Setup
+
 - [x] employees table
 - [x] admins table
 - [ ] properties table
@@ -151,6 +156,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 - [ ] payments table (basic for cash)
 
 #### Authentication & Security
+
 - [x] Session-based authentication
 - [x] Admin/Employee role separation
 - [x] Protected routes (middleware)
@@ -162,6 +168,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 ### 📌 Phase 2: Advanced Features
 
 #### Payment System
+
 - [ ] Installment payment tracking
   - [ ] Payment schedule generation
   - [ ] Record monthly payments
@@ -175,6 +182,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
   - [ ] Outstanding balance reports
 
 #### Advanced Lot Management
+
 - [ ] Map view for lots
   - [ ] Google Maps API integration
   - [ ] Visual lot layout
@@ -185,6 +193,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
   - [ ] Auto-release expired reservations
 
 #### Advanced Reports
+
 - [ ] Charts and graphs
   - [ ] Sales trends (monthly/quarterly)
   - [ ] Revenue analytics
@@ -194,6 +203,7 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 - [ ] Advanced search and filtering
 
 #### Notifications
+
 - [ ] Email notifications
   - [ ] Sale confirmations
   - [ ] Payment due reminders
@@ -204,39 +214,20 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 
 ---
 
-### 📌 Phase 3: Nice to Have
-
-#### Client Portal
-- [ ] Client login system
-- [ ] View purchase details
-- [ ] View payment history
-- [ ] Download receipts
-- [ ] Payment reminders
-
-#### Mobile App
-- [ ] React Native mobile app
-- [ ] Employee mobile access
-- [ ] Quick lot status updates
-- [ ] Mobile receipts
-
-#### Advanced Analytics
-- [ ] Predictive analytics
-- [ ] Sales forecasting
-- [ ] Market trends
-- [ ] Customer insights
+### 📌 Phase 3: Optional
 
 #### System Enhancements
+
 - [ ] Audit logs
 - [ ] Activity tracking
-- [ ] Multi-language support
 - [ ] Dark mode
-- [ ] Print templates customization
 
 ---
 
 ### 📊 Overall Progress
 
 **Phase 1:** 🟨 15% Complete (2/13 major features)
+
 - ✅ Authentication System
 - ✅ Employee Management
 - ⏳ Property Management
