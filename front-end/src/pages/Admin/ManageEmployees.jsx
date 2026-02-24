@@ -155,119 +155,139 @@ const ManageEmployees = () => {
 	// RENDER UI
 	// ============================================================
 	if (loading) {
-		return <div>Loading employees...</div>;
+		return <div className="flex items-center justify-center h-64">Loading employees...</div>;
 	}
 
 	if (error) {
-		return <div>Error: {error}</div>;
+		return <div className="text-red-600 p-4">Error: {error}</div>;
 	}
 
 	return (
-		<div>
-			<h1>Manage Employees</h1>
+		<div className="space-y-6">
+			{/* Header Section */}
+			<div className="flex items-center justify-between">
+				<h1 className="text-2xl font-bold text-gray-900">Manage Employees</h1>
+				<button onClick={() => setShowForm(!showForm)} className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+					{showForm ? "Cancel" : "+ Add New Employee"}
+				</button>
+			</div>
 
-			<button onClick={() => navigate("/admin-panel")}>Back to Dashboard</button>
-
-			<button onClick={() => setShowForm(!showForm)}>{showForm ? "Cancel" : "Add New Employee"}</button>
-
+			{/* Form Section */}
 			{showForm && (
-				<div>
-					<h2>{editingEmployee ? "Edit Employee" : "Add New Employee"}</h2>
-					<form onSubmit={handleSubmit}>
-						<div>
-							<label>First Name:</label>
-							<input type="text" name="first_name" value={formData.first_name} onChange={handleInputChange} required />
-						</div>
-
-						<div>
-							<label>Last Name:</label>
-							<input type="text" name="last_name" value={formData.last_name} onChange={handleInputChange} required />
-						</div>
-
-						<div>
-							<label>Email:</label>
-							<input type="email" name="email" value={formData.email} onChange={handleInputChange} required />
-						</div>
-
-						{!editingEmployee && (
+				<div className="bg-white shadow rounded-lg p-6">
+					<h2 className="text-lg font-semibold text-gray-900 mb-4">{editingEmployee ? "Edit Employee" : "Add New Employee"}</h2>
+					<form onSubmit={handleSubmit} className="space-y-4">
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div>
-								<label>Password:</label>
-								<input type="password" name="password" value={formData.password} onChange={handleInputChange} required={!editingEmployee} />
+								<label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+								<input type="text" name="first_name" value={formData.first_name} onChange={handleInputChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
 							</div>
-						)}
 
-						<div>
-							<label>Date of Birth:</label>
-							<input type="date" name="date_of_birth" value={formData.date_of_birth} onChange={handleInputChange} />
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+								<input type="text" name="last_name" value={formData.last_name} onChange={handleInputChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+								<input type="email" name="email" value={formData.email} onChange={handleInputChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+							</div>
+
+							{!editingEmployee && (
+								<div>
+									<label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+									<input type="password" name="password" value={formData.password} onChange={handleInputChange} required={!editingEmployee} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+								</div>
+							)}
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+								<input type="date" name="date_of_birth" value={formData.date_of_birth} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+								<select name="gender" value={formData.gender} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+									<option value="">Select Gender</option>
+									<option value="Male">Male</option>
+									<option value="Female">Female</option>
+									<option value="Other">Other</option>
+								</select>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+								<input type="tel" name="phone_number" value={formData.phone_number} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+							</div>
 						</div>
 
 						<div>
-							<label>Gender:</label>
-							<select name="gender" value={formData.gender} onChange={handleInputChange}>
-								<option value="">Select Gender</option>
-								<option value="Male">Male</option>
-								<option value="Female">Female</option>
-								<option value="Other">Other</option>
-							</select>
+							<label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+							<textarea name="address" value={formData.address} onChange={handleInputChange} rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
 						</div>
 
-						<div>
-							<label>Phone Number:</label>
-							<input type="tel" name="phone_number" value={formData.phone_number} onChange={handleInputChange} />
+						<div className="flex gap-3 pt-4">
+							<button type="submit" className="inline-flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+								{editingEmployee ? "Update Employee" : "Add Employee"}
+							</button>
+							<button type="button" onClick={resetForm} className="inline-flex justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+								Cancel
+							</button>
 						</div>
-
-						<div>
-							<label>Address:</label>
-							<textarea name="address" value={formData.address} onChange={handleInputChange} rows="3" />
-						</div>
-
-						<button type="submit">{editingEmployee ? "Update Employee" : "Add Employee"}</button>
-						<button type="button" onClick={resetForm}>
-							Cancel
-						</button>
 					</form>
 				</div>
 			)}
 
-			<div>
-				<h2>Employee List</h2>
-				<table>
-					<thead>
-						<tr>
-							<th>ID</th>
-							<th>First Name</th>
-							<th>Last Name</th>
-							<th>Email</th>
-							<th>Phone</th>
-							<th>Gender</th>
-							<th>Date of Birth</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						{employees.length === 0 ? (
+			{/* Table Section */}
+			<div className="bg-white shadow rounded-lg overflow-hidden">
+				<div className="px-6 py-4 border-b border-gray-200">
+					<h2 className="text-lg font-semibold text-gray-900">Employee List ({employees.length})</h2>
+				</div>
+				<div className="overflow-x-auto">
+					<table className="min-w-full divide-y divide-gray-200">
+						<thead className="bg-gray-50">
 							<tr>
-								<td colSpan="8">No employees found</td>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Birth</th>
+								<th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
 							</tr>
-						) : (
-							employees.map((employee) => (
-								<tr key={employee.employee_id}>
-									<td>{employee.employee_id}</td>
-									<td>{employee.first_name}</td>
-									<td>{employee.last_name}</td>
-									<td>{employee.email}</td>
-									<td>{employee.phone_number || "N/A"}</td>
-									<td>{employee.gender || "N/A"}</td>
-									<td>{employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : "N/A"}</td>
-									<td>
-										<button onClick={() => handleEdit(employee)}>Edit</button>
-										<button onClick={() => handleDelete(employee.employee_id)}>Delete</button>
+						</thead>
+						<tbody className="bg-white divide-y divide-gray-200">
+							{employees.length === 0 ? (
+								<tr>
+									<td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+										No employees found
 									</td>
 								</tr>
-							))
-						)}
-					</tbody>
-				</table>
+							) : (
+								employees.map((employee) => (
+									<tr key={employee.employee_id} className="hover:bg-gray-50">
+										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.employee_id}</td>
+										<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+											{employee.first_name} {employee.last_name}
+										</td>
+										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.email}</td>
+										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.phone_number || "N/A"}</td>
+										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.gender || "N/A"}</td>
+										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : "N/A"}</td>
+										<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+											<button onClick={() => handleEdit(employee)} className="text-blue-600 hover:text-blue-900 mr-3">
+												Edit
+											</button>
+											<button onClick={() => handleDelete(employee.employee_id)} className="text-red-600 hover:text-red-900">
+												Delete
+											</button>
+										</td>
+									</tr>
+								))
+							)}
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 	);

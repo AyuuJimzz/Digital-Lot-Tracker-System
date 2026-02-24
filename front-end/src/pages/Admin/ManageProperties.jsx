@@ -181,101 +181,123 @@ const ManageProperties = () => {
 	// RENDER UI
 	// ============================================================
 	if (loading) {
-		return <div>Loading properties...</div>;
+		return <div className="flex items-center justify-center h-64">Loading properties...</div>;
 	}
 
 	if (error) {
-		return <div>Error: {error}</div>;
+		return <div className="text-red-600 p-4">Error: {error}</div>;
 	}
 
 	return (
-		<div>
-			<h1>Manage Properties</h1>
+		<div className="space-y-6">
+			{/* Header Section */}
+			<div className="flex items-center justify-between">
+				<h1 className="text-2xl font-bold text-gray-900">Manage Properties</h1>
+				<button onClick={() => setShowForm(!showForm)} className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+					{showForm ? "Cancel" : "+ Add New Property"}
+				</button>
+			</div>
 
-			<button onClick={() => navigate("/admin-panel")}>Back to Dashboard</button>
-
-			<button onClick={() => setShowForm(!showForm)}>{showForm ? "Cancel" : "Add New Property"}</button>
-
+			{/* Form Section */}
 			{showForm && (
-				<div>
-					<h2>{editingProperty ? "Edit Property" : "Add New Property"}</h2>
-					<form onSubmit={handleSubmit}>
-						<div>
-							<label>Property Name:</label>
-							<input type="text" name="property_name" value={formData.property_name} onChange={handleInputChange} required />
+				<div className="bg-white shadow rounded-lg p-6">
+					<h2 className="text-lg font-semibold text-gray-900 mb-4">{editingProperty ? "Edit Property" : "Add New Property"}</h2>
+					<form onSubmit={handleSubmit} className="space-y-4">
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Property Name *</label>
+								<input type="text" name="property_name" value={formData.property_name} onChange={handleInputChange} required className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">Total Lots</label>
+								<input type="number" name="total_lots" value={formData.total_lots} onChange={handleInputChange} min="0" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+							</div>
 						</div>
 
 						<div>
-							<label>Location:</label>
-							<textarea name="location" value={formData.location} onChange={handleInputChange} rows="2" required />
+							<label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+							<textarea name="location" value={formData.location} onChange={handleInputChange} rows="2" required className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
 						</div>
 
 						<div>
-							<label>Description:</label>
-							<textarea name="description" value={formData.description} onChange={handleInputChange} rows="3" />
+							<label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+							<textarea name="description" value={formData.description} onChange={handleInputChange} rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
 						</div>
 
 						<div>
-							<label>Total Lots:</label>
-							<input type="number" name="total_lots" value={formData.total_lots} onChange={handleInputChange} min="0" />
-						</div>
-
-						<div>
-							<label>Status:</label>
-							<select name="status" value={formData.status} onChange={handleInputChange}>
+							<label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+							<select name="status" value={formData.status} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
 								<option value="active">Active</option>
 								<option value="inactive">Inactive</option>
 							</select>
 						</div>
 
-						<button type="submit">{editingProperty ? "Update Property" : "Add Property"}</button>
-						<button type="button" onClick={resetForm}>
-							Cancel
-						</button>
+						<div className="flex gap-3 pt-4">
+							<button type="submit" className="inline-flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+								{editingProperty ? "Update Property" : "Add Property"}
+							</button>
+							<button type="button" onClick={resetForm} className="inline-flex justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+								Cancel
+							</button>
+						</div>
 					</form>
 				</div>
 			)}
 
-			<div>
-				<h2>Property List</h2>
-				<table>
-					<thead>
-						<tr>
-							<th>ID</th>
-							<th>Property Name</th>
-							<th>Location</th>
-							<th>Total Lots</th>
-							<th>Status</th>
-							<th>Created</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						{properties.length === 0 ? (
+			{/* Table Section */}
+			<div className="bg-white shadow rounded-lg overflow-hidden">
+				<div className="px-6 py-4 border-b border-gray-200">
+					<h2 className="text-lg font-semibold text-gray-900">Property List ({properties.length})</h2>
+				</div>
+				<div className="overflow-x-auto">
+					<table className="min-w-full divide-y divide-gray-200">
+						<thead className="bg-gray-50">
 							<tr>
-								<td colSpan="7">No properties found</td>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Property Name</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Lots</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+								<th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
 							</tr>
-						) : (
-							properties.map((property) => (
-								<tr key={property.property_id}>
-									<td>{property.property_id}</td>
-									<td>{property.property_name}</td>
-									<td>{property.location}</td>
-									<td>{property.total_lots}</td>
-									<td>
-										<span style={{ color: property.status === "active" ? "green" : "red" }}>{property.status.toUpperCase()}</span>
-									</td>
-									<td>{new Date(property.created_at).toLocaleDateString()}</td>
-									<td>
-										<button onClick={() => handleEdit(property)}>Edit</button>
-										<button onClick={() => handleToggleStatus(property.property_id, property.status)}>{property.status === "active" ? "Deactivate" : "Activate"}</button>
-										<button onClick={() => handleDelete(property.property_id)}>Delete</button>
+						</thead>
+						<tbody className="bg-white divide-y divide-gray-200">
+							{properties.length === 0 ? (
+								<tr>
+									<td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+										No properties found
 									</td>
 								</tr>
-							))
-						)}
-					</tbody>
-				</table>
+							) : (
+								properties.map((property) => (
+									<tr key={property.property_id} className="hover:bg-gray-50">
+										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{property.property_id}</td>
+										<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{property.property_name}</td>
+										<td className="px-6 py-4 text-sm text-gray-500">{property.location}</td>
+										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{property.total_lots}</td>
+										<td className="px-6 py-4 whitespace-nowrap">
+											<span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${property.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{property.status.toUpperCase()}</span>
+										</td>
+										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(property.created_at).toLocaleDateString()}</td>
+										<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+											<button onClick={() => handleEdit(property)} className="text-blue-600 hover:text-blue-900 mr-3">
+												Edit
+											</button>
+											<button onClick={() => handleToggleStatus(property.property_id, property.status)} className="text-yellow-600 hover:text-yellow-900 mr-3">
+												{property.status === "active" ? "Deactivate" : "Activate"}
+											</button>
+											<button onClick={() => handleDelete(property.property_id)} className="text-red-600 hover:text-red-900">
+												Delete
+											</button>
+										</td>
+									</tr>
+								))
+							)}
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 	);
