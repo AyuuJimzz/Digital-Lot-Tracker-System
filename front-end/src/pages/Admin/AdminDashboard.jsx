@@ -9,13 +9,15 @@ function AdminDashboard() {
 		{ title: "Available Lots", count: 0 },
 		{ title: "Sold Lots", count: 0 },
 		{ title: "Employees", count: 1 },
-	];
+	]; 
 
-	const actions = ["Add Property", "View Lots", "Manage Employees", "Reports"];
+	const actions = ["Manage Properties", "Manage Employees","View Lots",  "Reports"];
 
 	const handleActionClick = (action) => {
 		if (action === "Manage Employees") {
 			navigate("/manage-employees");
+		} else if (action === "Manage Properties") {
+			navigate("/manage-properties");
 		}
 	};
 
