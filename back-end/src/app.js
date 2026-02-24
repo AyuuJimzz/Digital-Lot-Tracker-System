@@ -22,22 +22,22 @@ app.use(express.urlencoded({ extended: true }));
 
 // Session Configuration
 app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "dev_secret_only",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 2 * 60 * 60 * 1000, // 2 hours
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false, // Set to true if using HTTPS
-    },
-  }),
+	session({
+		secret: process.env.SESSION_SECRET || "dev_secret_only",
+		resave: false,
+		saveUninitialized: false,
+		cookie: {
+			maxAge: 2 * 60 * 60 * 1000, // 2 hours
+			httpOnly: true,
+			sameSite: "lax",
+			secure: false, // Set to true if using HTTPS
+		},
+	}),
 );
 
 // Test route
 app.get("/", (req, res) => {
-  res.json({ message: "Server is running" });
+	res.json({ message: "Server is running" });
 });
 
 // Routes
