@@ -1,23 +1,32 @@
-// routes/employeeRoutes.js
+// employeeRoutes.js
 const express = require("express");
 const router = express.Router();
-const { getAllEmployees, createEmployee, updateEmployee, deleteEmployee } = require("../controllers/employeeController");
-const requireLogin = require("../middleware/requiredLogin");
+const sessionOrToken = require("../middleware/session_or_token");
+const {
+  getAllEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+} = require("../controllers/Employee/employeeController");
 
-// ============================================================
-// EMPLOYEE ROUTES - All routes protected with requireLogin
-// ============================================================
+// GET all employees
+router.get(
+  "/",
+  sessionOrToken({ roles: ["admin", "employee"] }),
+  getAllEmployees,
+);
 
-// GET /api/employees - View all employees
-router.get("/", requireLogin, getAllEmployees);
+// CREATE employee
+router.post("/", sessionOrToken({ roles: ["admin"] }), createEmployee);
 
-// POST /api/employees - Add new employee
-router.post("/", requireLogin, createEmployee);
+// UPDATE employee
+router.put("/:id", sessionOrToken({ roles: ["admin"] }), updateEmployee);
 
-// PUT /api/employees/:id - Update employee
-router.put("/:id", requireLogin, updateEmployee);
-
-// DELETE /api/employees/:id - Delete employee
-router.delete("/:id", requireLogin, deleteEmployee);
+// DELETE employee
+router.delete(
+  "/:id",
+  sessionOrToken({ roles: ["admin"], permission: "isHeadAdmin" }),
+  deleteEmployee,
+);
 
 module.exports = router;

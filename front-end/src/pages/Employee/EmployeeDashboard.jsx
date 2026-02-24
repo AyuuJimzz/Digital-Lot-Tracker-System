@@ -5,14 +5,22 @@ function EmployeeDashboard() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Function to fetch employees
+  // Fetch employees
   const fetchEmployees = useCallback(() => {
     setLoading(true);
     fetch("http://localhost:5000/api/employees", {
       credentials: "include",
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch employees");
+      .then(async (res) => {
+        if (!res.ok) {
+          if (res.status === 403) {
+            window.location.href = "/forbidden";
+          } else if (res.status === 401) {
+            window.location.href = "/access-denied";
+          }
+          const text = await res.text();
+          throw new Error(text || "Failed to fetch employees");
+        }
         return res.json();
       })
       .then((data) => {
@@ -20,31 +28,32 @@ function EmployeeDashboard() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error(err);
+        console.error("Fetch error:", err);
         setLoading(false);
       });
   }, []);
 
-  // Check session and fetch employees after validation
+  // Check session
   useEffect(() => {
     fetch("http://localhost:5000/api/auth/check-session", {
       credentials: "include",
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Not logged in");
+      .then(async (res) => {
+        if (!res.ok) {
+          window.location.href = "/access-denied";
+          throw new Error("Not logged in");
+        }
         return res.json();
       })
       .then((data) => {
-        if (data.role !== "employee") {
-          alert("Access denied. Please log in as an employee.");
-          window.location.href = "/";
+        if (data.role !== "employee" && data.role !== "admin") {
+          window.location.href = "/forbidden";
         } else {
-          fetchEmployees(); // Fetch employees after session verified
+          fetchEmployees();
         }
       })
       .catch(() => {
-        alert("Please log in first");
-        window.location.href = "/";
+        window.location.href = "/access-denied";
       });
   }, [fetchEmployees]);
 
@@ -56,9 +65,7 @@ function EmployeeDashboard() {
     window.location.href = "/";
   };
 
-  // Optional: Example function to simulate adding a new employee
   const handleAddEmployee = async () => {
-    // Call your backend create employee API
     const response = await fetch("http://localhost:5000/api/employees", {
       method: "POST",
       credentials: "include",
@@ -70,8 +77,11 @@ function EmployeeDashboard() {
         password: "123456",
       }),
     });
+
     if (response.ok) {
-      fetchEmployees(); // Refetch employees immediately
+      fetchEmployees();
+    } else if (response.status === 403) {
+      window.location.href = "/forbidden";
     } else {
       console.error("Failed to add employee");
     }
