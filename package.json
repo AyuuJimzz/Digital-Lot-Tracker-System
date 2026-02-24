@@ -5,6 +5,7 @@
     "back-end"
   ],
   "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
     "mysql2": "^3.17.1"

@@ -5,9 +5,10 @@ const sessionOrToken = require("./middleware/session_or_token");
 const employeeRoutes = require("./routes/employeeRoutes");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+
 const app = express();
 
-// CORS
+// CORS Configuration
 app.use(
   cors({
     origin: "http://localhost:3000",
@@ -18,17 +19,17 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session
+// Session Configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "dev_secret_only",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 2 * 60 * 60 * 1000,
+      maxAge: 2 * 60 * 60 * 1000, // 2 hours
       httpOnly: true,
       sameSite: "lax",
-      secure: false,
+      secure: false, // Set to true if using HTTPS
     },
   }),
 );
@@ -41,6 +42,11 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
-app.use("/api/admin", sessionOrToken, adminRoutes);
+
+/**
+ * FIX: Added parentheses () to sessionOrToken.
+ * This executes the factory and returns the actual middleware function.
+ */
+app.use("/api/admin", sessionOrToken({ roles: ["admin"] }), adminRoutes);
 
 module.exports = app;
