@@ -1,4 +1,4 @@
-const db = require("../../config/database_connection");
+const db = require("../../../config/database_connection");
 // const bcrypt = require("bcryptjs");
 
 const loginAdmin = async (email, password) => {
