@@ -1,11 +1,33 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 import StatCard from "../../components/admin/StatCard";
 import RecentTransactions from "../../components/admin/RecentTransactions";
+import ForcePasswordChange from "../../components/ForcePasswordChange";
 
 const AdminDashboard = () => {
+	const [showPasswordChange, setShowPasswordChange] = useState(false);
+
+	useEffect(() => {
+		// Check if password reset is required
+		const passwordResetRequired = localStorage.getItem("password_reset_required");
+		// Check for 'true', '1', or 1
+		if (passwordResetRequired === "true" || passwordResetRequired === "1" || passwordResetRequired === 1) {
+			setShowPasswordChange(true);
+		}
+	}, []);
+
+	const handlePasswordChanged = () => {
+		// Clear the flag and refresh the page
+		localStorage.setItem("password_reset_required", "false");
+		setShowPasswordChange(false);
+		window.location.reload();
+	};
+
 	return (
 		<div className="space-y-6">
+			{/* Force Password Change Modal */}
+			{showPasswordChange && <ForcePasswordChange onPasswordChanged={handlePasswordChanged} />}
+
 			{/* Page Title */}
 			<div>
 				<h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard Overview</h1>

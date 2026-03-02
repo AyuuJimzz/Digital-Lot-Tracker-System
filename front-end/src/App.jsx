@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 // Pages
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import EmployeeDashboard from "./pages/Employee/EmployeeDashboard";
 import ManageEmployees from "./pages/Admin/ManageEmployees";
@@ -27,6 +28,8 @@ function App() {
 				<Routes>
 					{/* Public Routes */}
 					<Route path="/" element={<Login setRole={setRole} />} />
+					<Route path="/login" element={<Login setRole={setRole} />} />
+					<Route path="/forgot-password" element={<ForgotPassword />} />
 					<Route path="/access-denied" element={<AccessDenied />} />
 					<Route path="/forbidden" element={<Forbidden />} />
 
