@@ -18,14 +18,10 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+md/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-readm.md
-DEVELOPMENT_GUIDE.md
-FEATURE_PLANNING.md
-FORGOT_PASSWORD.md
-cre email.txt
