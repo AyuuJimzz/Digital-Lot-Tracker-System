@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Layouts & Components
 import { AdminLayout } from "./components/admin/AdminLayout";
+import { EmployeeLayout } from "./components/employee/EmployeeLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Pages
@@ -45,15 +46,15 @@ function App() {
 						<Route path="/manage-properties" element={<ManageProperties />} />
 					</Route>
 
-					{/* Employee & Admin Routes */}
+					{/* Employee Routes wrapped in EmployeeLayout */}
 					<Route
-						path="/employee-panel"
 						element={
 							<ProtectedRoute allowedRoles={["employee", "admin"]}>
-								<EmployeeDashboard />
+								<EmployeeLayout />
 							</ProtectedRoute>
-						}
-					/>
+						}>
+						<Route path="/employee-panel" element={<EmployeeDashboard />} />
+					</Route>
 
 					{/* Fallback */}
 					<Route path="*" element={<Navigate to="/" />} />
