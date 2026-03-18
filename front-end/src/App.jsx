@@ -8,7 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Layouts & Components
-import { AdminLayout } from "./components/admin/AdminLayout";
+import { AdminLayout } from "./components/Admin/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Pages
@@ -16,7 +16,9 @@ import Login from "./pages/Login";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import EmployeeDashboard from "./pages/Employee/EmployeeDashboard";
 import ManageEmployees from "./pages/Admin/ManageEmployees";
+import ManageProperties from "./pages/Admin/ManageProperties";
 import AccessDenied from "./view/AccessDenied";
+import EstateMap from "./pages/Admin/LotsMap";
 import Forbidden from "./view/forbidden";
 
 const queryClient = new QueryClient();
@@ -26,15 +28,12 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Removed TooltipProvider, Toaster, and Sonner */}
       <Router>
         <Routes>
-          {/* Public Routes */}
           <Route path="/" element={<Login setRole={setRole} />} />
           <Route path="/access-denied" element={<AccessDenied />} />
           <Route path="/forbidden" element={<Forbidden />} />
 
-          {/* Admin Routes wrapped in AdminLayout */}
           <Route
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
@@ -44,9 +43,10 @@ function App() {
           >
             <Route path="/admin-panel" element={<AdminDashboard />} />
             <Route path="/manage-employees" element={<ManageEmployees />} />
+            <Route path="/manage-properties" element={<ManageProperties />} />
+            <Route path="/manage-lots" element={<EstateMap />} />
           </Route>
 
-          {/* Employee & Admin Routes */}
           <Route
             path="/employee-panel"
             element={
@@ -56,7 +56,6 @@ function App() {
             }
           />
 
-          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>

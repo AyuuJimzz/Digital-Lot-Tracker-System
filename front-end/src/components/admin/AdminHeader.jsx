@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // Use the router's navigation hook
+import { useNavigate } from "react-router-dom";
 import { User, LogOut, Settings, UserCircle } from "lucide-react";
+import axios from "axios";
 
 export function AdminHeader() {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,15 +21,20 @@ export function AdminHeader() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:5000/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await axios.post(
+        "http://localhost:5000/api/auth/logout",
+        {},
+        {
+          withCredentials: true,
+        },
+      );
 
       setIsOpen(false);
       navigate("/", { replace: true });
     } catch (error) {
       console.error("Logout failed:", error);
+      setIsOpen(false);
+      navigate("/", { replace: true });
     }
   };
 

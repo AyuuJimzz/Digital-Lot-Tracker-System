@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import "./Login.css";
 import logo from "../assets/image/golden-dragon-logo.png";
 
@@ -11,16 +12,13 @@ function Login({ setRole }) {
 
   // Check if already logged in
   useEffect(() => {
-    fetch("http://localhost:5000/api/auth/check-session", {
-      credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Not logged in");
-        return res.json();
+    axios
+      .get("http://localhost:5000/api/auth/check-session", {
+        withCredentials: true,
       })
-      .then((data) => {
-        if (data.role === "admin") navigate("/admin-panel");
-        else if (data.role === "employee") navigate("/employee-panel");
+      .then((response) => {
+        if (response.data.role === "admin") navigate("/admin-panel");
+        else if (response.data.role === "employee") navigate("/employee-panel");
       })
       .catch(() => {});
   }, [navigate]);
@@ -30,28 +28,23 @@ function Login({ setRole }) {
     setError("");
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        { email, password },
+        { withCredentials: true },
+      );
 
-      const data = await response.json();
+      const userRole = response.data.user.role;
 
-      if (response.ok) {
-        const userRole = data.user.role;
+      localStorage.setItem("role", userRole);
+      setRole(userRole);
 
-        localStorage.setItem("role", userRole);
-        setRole(userRole);
-
-        if (userRole === "admin") navigate("/admin-panel");
-        else if (userRole === "employee") navigate("/employee-panel");
-      } else {
-        setError(data.message || "Login failed");
-      }
+      if (userRole === "admin") navigate("/admin-panel");
+      else if (userRole === "employee") navigate("/employee-panel");
     } catch (err) {
-      setError("Unable to connect to server");
+      const errorMessage =
+        err.response?.data?.message || err.message || "Login failed";
+      setError(errorMessage);
       console.error("Login error:", err);
     }
   };

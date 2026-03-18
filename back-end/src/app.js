@@ -5,6 +5,8 @@ const sessionOrToken = require("./middleware/session_or_token");
 const employeeRoutes = require("./routes/employeeRoutes");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const propertyRoutes = require("./routes/propertyRoutes");
+const lotRoutes = require("./routes/lotRoutes");
 
 const app = express();
 
@@ -22,7 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 // Session Configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "dev_secret_only",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -42,11 +44,17 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
-
-/**
- * FIX: Added parentheses () to sessionOrToken.
- * This executes the factory and returns the actual middleware function.
- */
+app.use("/api/properties", propertyRoutes);
+app.use("/api/lots", lotRoutes);
 app.use("/api/admin", sessionOrToken({ roles: ["admin"] }), adminRoutes);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Service Unavailable",
+    message: "The requested resource was not found",
+    status: 404,
+  });
+});
 
 module.exports = app;

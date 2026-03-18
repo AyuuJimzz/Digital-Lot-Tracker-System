@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import axios from "axios";
 
 function EmployeeDashboard() {
   const [employees, setEmployees] = useState([]);
@@ -9,23 +10,22 @@ function EmployeeDashboard() {
   // Fetch employees
   const fetchEmployees = useCallback(() => {
     setLoading(true);
-    fetch("http://localhost:5000/api/employees", {
-      credentials: "include",
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          if (res.status === 403) window.location.href = "/forbidden";
-          else if (res.status === 401) window.location.href = "/access-denied";
-          const text = await res.text();
-          throw new Error(text || "Failed to fetch employees");
-        }
-        return res.json();
+    axios
+      .get("http://localhost:5000/api/employees", {
+        withCredentials: true,
       })
-      .then((data) => {
-        setEmployees(Array.isArray(data) ? data : data.employees || []);
+      .then((response) => {
+        setEmployees(
+          Array.isArray(response.data)
+            ? response.data
+            : response.data.employees || [],
+        );
         setLoading(false);
       })
       .catch((err) => {
+        if (err.response?.status === 403) window.location.href = "/forbidden";
+        else if (err.response?.status === 401)
+          window.location.href = "/access-denied";
         console.error("Fetch error:", err);
         setLoading(false);
       });
@@ -33,21 +33,17 @@ function EmployeeDashboard() {
 
   // Check session
   useEffect(() => {
-    fetch("http://localhost:5000/api/auth/check-session", {
-      credentials: "include",
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          window.location.href = "/access-denied";
-          throw new Error("Not logged in");
-        }
-        return res.json();
+    axios
+      .get("http://localhost:5000/api/auth/check-session", {
+        withCredentials: true,
       })
-      .then((data) => {
-        if (data.role !== "employee" && data.role !== "admin") {
+      .then((response) => {
+        if (
+          response.data.role !== "employee" &&
+          response.data.role !== "admin"
+        ) {
           window.location.href = "/forbidden";
         } else {
-          // NEW: Only set authorized to true after checking role
           setIsAuthorized(true);
           fetchEmployees();
         }
@@ -58,29 +54,41 @@ function EmployeeDashboard() {
   }, [fetchEmployees]);
 
   const handleLogout = async () => {
-    await fetch("http://localhost:5000/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    });
-    window.location.href = "/";
+    try {
+      await axios.post(
+        "http://localhost:5000/api/auth/logout",
+        {},
+        {
+          withCredentials: true,
+        },
+      );
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      window.location.href = "/";
+    }
   };
 
   const handleAddEmployee = async () => {
-    const response = await fetch("http://localhost:5000/api/employees", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        first_name: "New",
-        last_name: "Employee",
-        email: `new${Date.now()}@example.com`,
-        password: "123456",
-      }),
-    });
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/employees",
+        {
+          first_name: "New",
+          last_name: "Employee",
+          email: `new${Date.now()}@example.com`,
+          password: "123456",
+        },
+        {
+          withCredentials: true,
+        },
+      );
 
-    if (response.ok) fetchEmployees();
-    else if (response.status === 403) window.location.href = "/forbidden";
-    else console.error("Failed to add employee");
+      if (response.status === 200) fetchEmployees();
+    } catch (err) {
+      if (err.response?.status === 403) window.location.href = "/forbidden";
+      else console.error("Failed to add employee:", err);
+    }
   };
 
   // NEW: Prevent the structure from rendering until authorized

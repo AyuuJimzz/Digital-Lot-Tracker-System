@@ -1,7 +1,7 @@
 import React from "react";
 
-import StatCard from "../../components/admin/StatCard";
-import RecentTransactions from "../../components/admin/RecentTransactions";
+import StatCard from "../../components/Admin/StatCard";
+import RecentTransactions from "../../components/Admin/RecentTransactions";
 
 const AdminDashboard = () => {
   return (

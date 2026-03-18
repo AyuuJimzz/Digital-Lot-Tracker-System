@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
+import axios from "axios";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const [auth, setAuth] = useState({ loading: true, isAuthorized: false });
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/auth/check-session", {
-      credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Unauthorized");
-        return res.json();
+    axios
+      .get("http://localhost:5000/api/auth/check-session", {
+        withCredentials: true,
       })
-      .then((data) => {
-        const hasAccess = allowedRoles.includes(data.role);
+      .then((response) => {
+        const hasAccess = allowedRoles.includes(response.data.role);
         setAuth({ loading: false, isAuthorized: hasAccess });
       })
       .catch(() => {

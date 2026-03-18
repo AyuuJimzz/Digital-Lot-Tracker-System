@@ -29,3 +29,7 @@ DEVELOPMENT_GUIDE.md
 FEATURE_PLANNING.md
 golden_dragon_corp.sql
 .env
+
+# Data files and lotData
+back-end/src/data/
+back-end/src/data/lotData.js
