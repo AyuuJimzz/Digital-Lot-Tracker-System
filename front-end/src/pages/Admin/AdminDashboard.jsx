@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 
-import StatCard from "../../components/admin/StatCard";
-import RecentTransactions from "../../components/admin/AdminRecentTransactions";
-import ForcePasswordChange from "../../components/ForcePasswordChange";
+import StatCard from "../../components/Admin/StatCard";
+import RecentTransactions from "../../components/Admin/RecentTransactions";
 
 const AdminDashboard = () => {
 	const [showPasswordChange, setShowPasswordChange] = useState(false);

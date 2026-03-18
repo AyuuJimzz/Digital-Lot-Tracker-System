@@ -1,48 +1,92 @@
-import React, { useState, useEffect } from "react";
-import StatCard from "../../components/admin/StatCard";
-import EmployeeTransactions from "../../components/employee/EmployeeRecentTransactions";
-import ForcePasswordChange from "../../components/ForcePasswordChange";
+import React, { useEffect, useState, useCallback } from "react";
+import axios from "axios";
 
 const EmployeeDashboard = () => {
 	const [showPasswordChange, setShowPasswordChange] = useState(false);
 
-	useEffect(() => {
-		// Check if password reset is required
-		const passwordResetRequired = localStorage.getItem("password_reset_required");
-		// Check for 'true', '1', or 1
-		if (passwordResetRequired === "true" || passwordResetRequired === "1" || passwordResetRequired === 1) {
-			setShowPasswordChange(true);
-		}
-	}, []);
+  // Fetch employees
+  const fetchEmployees = useCallback(() => {
+    setLoading(true);
+    axios
+      .get("http://localhost:5000/api/employees", {
+        withCredentials: true,
+      })
+      .then((response) => {
+        setEmployees(
+          Array.isArray(response.data)
+            ? response.data
+            : response.data.employees || [],
+        );
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err.response?.status === 403) window.location.href = "/forbidden";
+        else if (err.response?.status === 401)
+          window.location.href = "/access-denied";
+        console.error("Fetch error:", err);
+        setLoading(false);
+      });
+  }, []);
 
-	const handlePasswordChanged = () => {
-		// Clear the flag and refresh the page
-		localStorage.setItem("password_reset_required", "false");
-		setShowPasswordChange(false);
-		window.location.reload();
-	};
+  // Check session
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/auth/check-session", {
+        withCredentials: true,
+      })
+      .then((response) => {
+        if (
+          response.data.role !== "employee" &&
+          response.data.role !== "admin"
+        ) {
+          window.location.href = "/forbidden";
+        } else {
+          setIsAuthorized(true);
+          fetchEmployees();
+        }
+      })
+      .catch(() => {
+        window.location.href = "/access-denied";
+      });
+  }, [fetchEmployees]);
 
-	return (
-		<div className="space-y-6">
-			{/* Force Password Change Modal */}
-			{showPasswordChange && <ForcePasswordChange onPasswordChanged={handlePasswordChanged} />}
+  const handleLogout = async () => {
+    try {
+      await axios.post(
+        "http://localhost:5000/api/auth/logout",
+        {},
+        {
+          withCredentials: true,
+        },
+      );
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      window.location.href = "/";
+    }
+  };
 
-			{/* Page Title */}
-			<div>
-				<h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard Overview</h1>
-			</div>
-			{/* Top Row Stats */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-				<StatCard title="Properties Assigned" value="5" />
-				<StatCard title="Total Sales" value="8" />
-				<StatCard title="Sales Revenue" value="₱3.2M" />
-			</div>
+  const handleAddEmployee = async () => {
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/employees",
+        {
+          first_name: "New",
+          last_name: "Employee",
+          email: `new${Date.now()}@example.com`,
+          password: "123456",
+        },
+        {
+          withCredentials: true,
+        },
+      );
 
-			{/* Secondary Row Stats */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-				<StatCard title="Pending Sales" value="2" />
-				<StatCard title="Completed Sales" value="6" />
-			</div>
+      if (response.status === 200) fetchEmployees();
+    } catch (err) {
+      if (err.response?.status === 403) window.location.href = "/forbidden";
+      else console.error("Failed to add employee:", err);
+    }
+  };
 
 			{/* Recent Sales Table */}
 			<div className="pt-2">

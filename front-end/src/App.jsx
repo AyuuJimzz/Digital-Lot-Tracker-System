@@ -3,8 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Layouts & Components
-import { AdminLayout } from "./components/admin/AdminLayout";
-import { EmployeeLayout } from "./components/employee/EmployeeLayout";
+import { AdminLayout } from "./components/Admin/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Pages
@@ -15,6 +14,7 @@ import EmployeeDashboard from "./pages/Employee/EmployeeDashboard";
 import ManageEmployees from "./pages/Admin/ManageEmployees";
 import ManageProperties from "./pages/Admin/ManageProperties";
 import AccessDenied from "./view/AccessDenied";
+import EstateMap from "./pages/Admin/LotsMap";
 import Forbidden from "./view/forbidden";
 
 const queryClient = new QueryClient();
@@ -22,46 +22,41 @@ const queryClient = new QueryClient();
 function App() {
 	const [, setRole] = useState(localStorage.getItem("role") || null);
 
-	return (
-		<QueryClientProvider client={queryClient}>
-			{/* Removed TooltipProvider, Toaster, and Sonner */}
-			<Router>
-				<Routes>
-					{/* Public Routes */}
-					<Route path="/" element={<Login setRole={setRole} />} />
-					<Route path="/login" element={<Login setRole={setRole} />} />
-					<Route path="/forgot-password" element={<ForgotPassword />} />
-					<Route path="/access-denied" element={<AccessDenied />} />
-					<Route path="/forbidden" element={<Forbidden />} />
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Login setRole={setRole} />} />
+          <Route path="/access-denied" element={<AccessDenied />} />
+          <Route path="/forbidden" element={<Forbidden />} />
 
-					{/* Admin Routes wrapped in AdminLayout */}
-					<Route
-						element={
-							<ProtectedRoute allowedRoles={["admin"]}>
-								<AdminLayout />
-							</ProtectedRoute>
-						}>
-						<Route path="/admin-panel" element={<AdminDashboard />} />
-						<Route path="/manage-employees" element={<ManageEmployees />} />
-						<Route path="/manage-properties" element={<ManageProperties />} />
-					</Route>
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/admin-panel" element={<AdminDashboard />} />
+            <Route path="/manage-employees" element={<ManageEmployees />} />
+            <Route path="/manage-properties" element={<ManageProperties />} />
+            <Route path="/manage-lots" element={<EstateMap />} />
+          </Route>
 
-					{/* Employee Routes wrapped in EmployeeLayout */}
-					<Route
-						element={
-							<ProtectedRoute allowedRoles={["employee", "admin"]}>
-								<EmployeeLayout />
-							</ProtectedRoute>
-						}>
-						<Route path="/employee-panel" element={<EmployeeDashboard />} />
-					</Route>
+          <Route
+            path="/employee-panel"
+            element={
+              <ProtectedRoute allowedRoles={["employee", "admin"]}>
+                <EmployeeDashboard />
+              </ProtectedRoute>
+            }
+          />
 
-					{/* Fallback */}
-					<Route path="*" element={<Navigate to="/" />} />
-				</Routes>
-			</Router>
-		</QueryClientProvider>
-	);
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </Router>
+    </QueryClientProvider>
+  );
 }
 
 export default App;

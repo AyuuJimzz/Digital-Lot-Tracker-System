@@ -1,27 +1,34 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, BarChart3, Map, Users, Building2, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  BarChart3,
+  Map,
+  Users,
+  Building2,
+  Settings,
+} from "lucide-react";
 
 const navItems = [
-	{
-		title: "Dashboard",
-		url: "/admin-panel",
-		icon: LayoutDashboard,
-	},
-	{ title: "Manage Employees", url: "/manage-employees", icon: Users },
-	{ title: "Manage Properties", url: "/manage-properties", icon: Building2 },
-	{ title: "Analytics", url: "/analytics", icon: BarChart3 },
-	{ title: "Lots Map", url: "/lots-map", icon: Map },
-	{ title: "Settings", url: "/settings", icon: Settings },
+  {
+    title: "Dashboard",
+    url: "/admin-panel",
+    icon: LayoutDashboard,
+  },
+  { title: "Manage Employees", url: "/manage-employees", icon: Users },
+  { title: "Manage Properties", url: "/manage-properties", icon: Building2 },
+  { title: "Analytics", url: "/analytics", icon: BarChart3 },
+  { title: "Lots Map", url: "/manage-lots", icon: Map },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AdminSidebar() {
-	return (
-		<aside className="w-56 min-h-screen bg-gray-50 text-gray-700 flex flex-col shrink-0 border-r border-gray-200">
-			{/* Sidebar Logo / Header */}
-			<div className="p-6 text-center border-b border-gray-200">
-				<h2 className="text-lg font-bold text-gray-900 tracking-tight">LOGO</h2>
-			</div>
+  return (
+    <aside className="w-56 min-h-screen bg-gray-50 text-gray-700 flex flex-col shrink-0 border-r border-gray-200">
+      {/* Sidebar Logo / Header */}
+      <div className="p-4 text-center border-b border-gray-200">
+        <h2 className="text-lg font-bold text-gray-900 tracking-tight">LOGO</h2>
+      </div>
 
 			{/* Navigation Links */}
 			<nav className="flex-1 p-3 space-y-1">
