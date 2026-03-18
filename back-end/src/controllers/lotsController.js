@@ -3,11 +3,9 @@ const db = require("../../config/database_connection");
 
 exports.getAllLots = async (req, res) => {
   try {
-    console.log("Getting all lots...");
     const [rows] = await db.query(
       "SELECT * FROM lots ORDER BY property_id, lot_number",
     );
-    console.log("Found", rows.length, "lots");
     res.json(rows);
   } catch (err) {
     console.error("Error in getAllLots:", err);
@@ -32,7 +30,6 @@ exports.getLotsByProperty = async (req, res) => {
 
 exports.getLotById = async (req, res) => {
   const { id } = req.params;
-  console.log("Getting lot by ID:", id);
 
   try {
     const [rows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
@@ -41,7 +38,6 @@ exports.getLotById = async (req, res) => {
       return res.status(404).json({ error: "Lot not found" });
     }
 
-    console.log("Found lot:", rows[0]);
     res.json(rows[0]);
   } catch (err) {
     console.error("Error in getLotById:", err);
@@ -51,7 +47,6 @@ exports.getLotById = async (req, res) => {
 
 exports.getMapData = async (req, res) => {
   try {
-    // Get all lots with coordinates
     const [rows] = await db.query(
       `SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates 
        FROM lots 
