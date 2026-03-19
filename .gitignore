@@ -18,18 +18,10 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+md/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-readm.md
-DEVELOPMENT_GUIDE.md
-FEATURE_PLANNING.md
-golden_dragon_corp.sql
-.env
-
-# Data files and lotData
-back-end/src/data/
-back-end/src/data/lotData.js

@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, LogOut, Settings, UserCircle } from "lucide-react";
-import axios from "axios";
 
-export function AdminHeader() {
+export function EmployeeHeader() {
 	const [isOpen, setIsOpen] = useState(false);
 	const dropdownRef = useRef(null);
 	const navigate = useNavigate();
@@ -35,7 +34,7 @@ export function AdminHeader() {
 
 	return (
 		<header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 relative">
-			<span className="font-medium text-gray-900">Admin Panel</span>
+			<span className="font-medium text-gray-900">Employee Panel</span>
 
 			<div className="relative" ref={dropdownRef}>
 				<button onClick={() => setIsOpen(!isOpen)} className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors duration-200 ${isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"}`} aria-label="User profile">

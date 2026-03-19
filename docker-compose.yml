@@ -1,0 +1,93 @@
+services:
+  # ─────────────────────────────────────
+  # MySQL Database
+  # ─────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: golden_dragon_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-golden_dragon_corp}
+    ports:
+      - "3306:3306"
+    volumes:
+      # Persist database data even after container stops
+      - mysql_data:/var/lib/mysql
+      # Auto-run SQL files on first startup (alphabetical order)
+      - ./database_Backup:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ─────────────────────────────────────
+  # Backend (Node.js / Express)
+  # ─────────────────────────────────────
+  backend:
+    build:
+      context: ./back-end
+      dockerfile: Dockerfile
+    container_name: golden_dragon_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override DB_HOST to use Docker service name instead of localhost
+      DB_HOST: db
+      PORT: 5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Live reload — syncs your local back-end folder into the container
+      - ./back-end:/app
+      - /app/node_modules
+
+  # ─────────────────────────────────────
+  # phpMyAdmin (Database GUI)
+  # ─────────────────────────────────────
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: golden_dragon_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ─────────────────────────────────────
+  # Frontend (React / CRA)
+  # ─────────────────────────────────────
+  frontend:
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+    container_name: golden_dragon_frontend
+    restart: unless-stopped
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - CI=false
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      # Live reload — syncs your local front-end folder into the container
+      - ./front-end:/app
+      - /app/node_modules
+
+# ─────────────────────────────────────
+# Named Volumes
+# ─────────────────────────────────────
+volumes:
+  mysql_data:
+    driver: local
