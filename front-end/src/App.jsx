@@ -8,7 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Layouts & Components
-import { AdminLayout } from "./components/Admin/AdminLayout";
+import { AdminLayout } from "./components/admin/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Pages
