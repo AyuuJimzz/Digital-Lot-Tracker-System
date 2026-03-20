@@ -10,44 +10,44 @@ function Login({ setRole }) {
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 
-  // Check if already logged in
-  useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/auth/check-session", {
-        withCredentials: true,
-      })
-      .then((response) => {
-        if (response.data.role === "admin") navigate("/admin-panel");
-        else if (response.data.role === "employee") navigate("/employee-panel");
-      })
-      .catch(() => {});
-  }, [navigate]);
+	// Check if already logged in
+	useEffect(() => {
+		axios
+			.get("http://localhost:5000/api/auth/check-session", {
+				withCredentials: true,
+			})
+			.then((response) => {
+				localStorage.setItem("role", response.data.role || "");
+				localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
+				setRole(response.data.role || null);
+				if (response.data.role === "admin") navigate("/admin-panel");
+				else if (response.data.role === "employee") navigate("/employee-panel");
+			})
+			.catch(() => {});
+	}, [navigate, setRole]);
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setError("");
 
-    try {
-      const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        { email, password },
-        { withCredentials: true },
-      );
+		try {
+			const response = await axios.post("http://localhost:5000/api/auth/login", { email, password }, { withCredentials: true });
 
-      const userRole = response.data.user.role;
+			const userRole = response.data.user.role;
+			const passwordResetRequired = response.data.password_reset_required;
 
-      localStorage.setItem("role", userRole);
-      setRole(userRole);
+			localStorage.setItem("role", userRole);
+			localStorage.setItem("password_reset_required", passwordResetRequired ? "true" : "false");
+			setRole(userRole);
 
-      if (userRole === "admin") navigate("/admin-panel");
-      else if (userRole === "employee") navigate("/employee-panel");
-    } catch (err) {
-      const errorMessage =
-        err.response?.data?.message || err.message || "Login failed";
-      setError(errorMessage);
-      console.error("Login error:", err);
-    }
-  };
+			if (userRole === "admin") navigate("/admin-panel");
+			else if (userRole === "employee") navigate("/employee-panel");
+		} catch (err) {
+			const errorMessage = err.response?.data?.message || err.message || "Login failed";
+			setError(errorMessage);
+			console.error("Login error:", err);
+		}
+	};
 
 	return (
 		<div className="login-container">

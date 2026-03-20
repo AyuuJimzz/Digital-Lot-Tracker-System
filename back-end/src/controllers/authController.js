@@ -93,6 +93,7 @@ const checkSession = (req, res) => {
 				email: user.email,
 				isHeadAdmin: user.isHeadAdmin,
 				canManageEmployees: user.canManageEmployees,
+				password_reset_required: user.password_reset_required || false,
 			});
 
 		const authHeader = req.headers.authorization;
@@ -105,6 +106,7 @@ const checkSession = (req, res) => {
 				email: decoded.email,
 				isHeadAdmin: decoded.isHeadAdmin,
 				canManageEmployees: decoded.canManageEmployees,
+				password_reset_required: decoded.password_reset_required || false,
 			});
 		}
 
