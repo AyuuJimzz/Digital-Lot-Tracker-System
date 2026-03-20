@@ -25,10 +25,6 @@ md/
 *.njsproj
 *.sln
 *.sw?
-readm.md
-DEVELOPMENT_GUIDE.md
-FEATURE_PLANNING.md
-golden_dragon_corp.sql
 .env
 
 # Data files and lotData
