@@ -107,6 +107,19 @@ body {
   color: #000;
 }
 
+.password-toggle-icon {
+  font-size: 20px;
+  margin-left: 10px;
+  color: #000;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s;
+}
+
+.password-toggle-icon:hover {
+  opacity: 0.7;
+}
+
 .input-wrapper input {
   flex: 1;
   border: none;
