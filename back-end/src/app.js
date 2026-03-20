@@ -6,17 +6,17 @@ const employeeRoutes = require("./routes/employeeRoutes");
 const propertyRoutes = require("./routes/propertyRoutes");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-const propertyRoutes = require("./routes/propertyRoutes");
+// const propertyRoutes = require("./routes/propertyRoutes");
 const lotRoutes = require("./routes/lotRoutes");
 
 const app = express();
 
 // CORS Configuration
 app.use(
-	cors({
-		origin: "http://localhost:3000",
-		credentials: true,
-	}),
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  }),
 );
 
 app.use(express.json());
@@ -39,7 +39,7 @@ app.use(
 
 // Test route
 app.get("/", (req, res) => {
-	res.json({ message: "Server is running" });
+  res.json({ message: "Server is running" });
 });
 
 // Routes
