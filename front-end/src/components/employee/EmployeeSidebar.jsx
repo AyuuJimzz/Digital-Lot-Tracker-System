@@ -8,10 +8,10 @@ const navItems = [
 		url: "/employee-panel",
 		icon: LayoutDashboard,
 	},
-	{ title: "My Properties", url: "/my-properties", icon: Home },
-	{ title: "My Sales", url: "/my-sales", icon: FileText },
-	{ title: "Analytics", url: "/analytics", icon: BarChart3 },
-	{ title: "Settings", url: "/settings", icon: Settings },
+	{ title: "My Properties", url: "/employee/my-properties", icon: Home },
+	{ title: "My Sales", url: "/employee/my-sales", icon: FileText },
+	{ title: "Analytics", url: "/employee/analytics", icon: BarChart3 },
+	{ title: "Settings", url: "/employee/settings", icon: Settings },
 ];
 
 export function EmployeeSidebar() {
