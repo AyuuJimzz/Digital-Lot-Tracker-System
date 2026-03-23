@@ -1,0 +1,16 @@
+node_modules/
+**/node_modules/
+dist/
+build/
+coverage/
+.vscode/
+
+# lockfiles
+package-lock.json
+
+# database dumps / backups
+database_Backup/*.sql
+
+# env files
+.env
+.env.*

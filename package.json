@@ -4,6 +4,10 @@
     "front-end",
     "back-end"
   ],
+  "scripts": {
+    "format": "npx prettier . --write",
+    "format:check": "npx prettier . --check"
+  },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
     "bcryptjs": "^3.0.3",
