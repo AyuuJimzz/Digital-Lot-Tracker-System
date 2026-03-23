@@ -4,6 +4,12 @@
 
 A comprehensive property and lot management system for Golden Dragon Estate Corporation, designed to streamline real estate sales, client management, and transaction tracking.
 
+## ⚡ Team Build Reminder
+
+- Run frontend production build from repo root using: `npm run build:front`
+- This command uses the root shortcut script and builds the app in `front-end`
+- Avoid running `npm run build` at root (no root build script)
+
 ---
 
 ## 📑 Table of Contents
@@ -74,11 +80,6 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
   - [ ] PUT /api/lots/:id - Update lot
   - [ ] DELETE /api/lots/:id - Delete lot
   - [ ] PATCH /api/lots/:id/status - Update lot status
-- [ ] Client CRUD APIs
-  - [ ] GET /api/clients - View all clients
-  - [ ] POST /api/clients - Add new client
-  - [ ] PUT /api/clients/:id - Update client
-  - [ ] DELETE /api/clients/:id - Delete client
 - [ ] Transaction APIs
   - [ ] POST /api/transactions - Record sale (cash only)
   - [ ] GET /api/transactions - View all transactions
@@ -110,11 +111,6 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
   - [ ] Edit lot form
   - [ ] Delete lot
   - [ ] Update lot status
-- [ ] Manage Clients Page
-  - [ ] View all clients
-  - [ ] Add new client form
-  - [ ] Edit client form
-  - [ ] View client purchase history
 - [ ] Record Sale Page
   - [ ] Select client
   - [ ] Select available lot
@@ -132,10 +128,6 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
   - [ ] List of available lots
   - [ ] Filter/search functionality
   - [ ] View lot details
-- [ ] My Clients Page
-  - [ ] View my client list
-  - [ ] Add new client
-  - [ ] Edit client info
 - [ ] Record Sale Page
   - [ ] Select/add client
   - [ ] Select available lot
@@ -151,7 +143,6 @@ A comprehensive property and lot management system for Golden Dragon Estate Corp
 - [x] admins table
 - [ ] properties table
 - [ ] lots table
-- [ ] clients table
 - [ ] transactions table
 - [ ] payments table (basic for cash)
 

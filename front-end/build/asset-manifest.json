@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/static/css/main.99e292cd.css",
+    "main.js": "/static/js/main.e751193a.js",
+    "static/media/golden-dragon-logo.png": "/static/media/golden-dragon-logo.aa6902d7008a549b19f7.png",
+    "index.html": "/index.html",
+    "main.99e292cd.css.map": "/static/css/main.99e292cd.css.map",
+    "main.e751193a.js.map": "/static/js/main.e751193a.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.99e292cd.css",
+    "static/js/main.e751193a.js"
+  ]
+}

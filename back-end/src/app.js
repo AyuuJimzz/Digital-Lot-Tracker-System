@@ -16,7 +16,7 @@ app.use(
   cors({
     origin: "http://localhost:3000",
     credentials: true,
-  }),
+  })
 );
 
 app.use(express.json());
@@ -34,7 +34,7 @@ app.use(
       sameSite: "lax",
       secure: false, // Set to true if using HTTPS
     },
-  }),
+  })
 );
 
 // Test route

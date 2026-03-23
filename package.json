@@ -5,6 +5,7 @@
     "back-end"
   ],
   "scripts": {
+    "build:front": "npm --prefix front-end run build",
     "format": "npx prettier . --write",
     "format:check": "npx prettier . --check"
   },
@@ -13,6 +14,7 @@
     "bcryptjs": "^3.0.3",
     "express": "^5.2.1",
     "mysql2": "^3.17.1",
+    "node-schedule": "^2.1.1",
     "nodemailer": "^8.0.3"
   }
 }

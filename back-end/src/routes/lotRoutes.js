@@ -16,8 +16,6 @@ const {
 router.get("/map-data", getMapData);
 router.get("/all", getAllLots);
 router.get("/property/:propertyId", getLotsByProperty);
-router.get("/:id", getLotById);
-router.get("/:id/with-customer", getLotWithCustomer);
 
 // Test route
 router.get("/test-db", async (req, res) => {
@@ -30,9 +28,7 @@ router.get("/test-db", async (req, res) => {
     });
   } catch (error) {
     console.error("Database test error:", error);
-    res
-      .status(500)
-      .json({ error: "Database connection failed", details: error.message });
+    res.status(500).json({ error: "Database connection failed", details: error.message });
   }
 });
 
@@ -44,11 +40,9 @@ router.get("/debug/:id", async (req, res) => {
 
     console.log("Debug checking lot ID:", id);
 
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [
-      id,
-    ]);
+    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
     const [allLots] = await db.query(
-      "SELECT lot_id, lot_number, status FROM lots ORDER BY lot_id LIMIT 10",
+      "SELECT lot_id, lot_number, status FROM lots ORDER BY lot_id LIMIT 10"
     );
 
     res.json({
@@ -63,6 +57,9 @@ router.get("/debug/:id", async (req, res) => {
     res.status(500).json({ error: "Debug failed", details: error.message });
   }
 });
+
+router.get("/:id/with-customer", getLotWithCustomer);
+router.get("/:id", getLotById);
 
 // Update routes
 router.put("/:id/status", updateLotStatus);

@@ -13,7 +13,7 @@ const server = app.listen(PORT, () => {
 // =======================
 const schedule = require("node-schedule");
 
-const reminderJob = schedule.scheduleJob("0 * * * *", async () => {
+const reminderJob = schedule.scheduleJob("* * * * *", async () => {
   try {
     const mockReq = {};
     const mockRes = {
