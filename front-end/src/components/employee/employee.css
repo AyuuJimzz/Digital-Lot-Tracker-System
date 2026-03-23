@@ -5,6 +5,15 @@
   width: 100%;
 }
 
+/* Custom pin clickability */
+.custom-pin-clickable {
+  pointer-events: auto !important;
+}
+
+.custom-pin-clickable div {
+  pointer-events: auto !important;
+}
+
 /* Responsive sidebar */
 @media (max-width: 768px) {
   .employee-layout aside {

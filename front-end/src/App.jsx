@@ -1,5 +1,10 @@
 import React, { useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Layouts & Components
@@ -23,14 +28,18 @@ const queryClient = new QueryClient();
 function EmployeePlaceholder({ title }) {
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold text-foreground tracking-tight">{title}</h1>
-      <p className="text-sm text-gray-500 mt-2">This page is under development.</p>
+      <h1 className="text-2xl font-bold text-foreground tracking-tight">
+        {title}
+      </h1>
+      <p className="text-sm text-gray-500 mt-2">
+        This page is under development.
+      </p>
     </div>
   );
 }
 
 function App() {
-	const [, setRole] = useState(localStorage.getItem("role") || null);
+  const [, setRole] = useState(localStorage.getItem("role") || null);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -53,8 +62,14 @@ function App() {
             <Route path="/manage-employees" element={<ManageEmployees />} />
             <Route path="/manage-properties" element={<ManageProperties />} />
             <Route path="/manage-lots" element={<EstateMap />} />
-            <Route path="/analytics" element={<EmployeePlaceholder title="Analytics" />} />
-            <Route path="/settings" element={<EmployeePlaceholder title="Settings" />} />
+            <Route
+              path="/analytics"
+              element={<EmployeePlaceholder title="Analytics" />}
+            />
+            <Route
+              path="/settings"
+              element={<EmployeePlaceholder title="Settings" />}
+            />
           </Route>
 
           <Route
@@ -65,10 +80,22 @@ function App() {
             }
           >
             <Route path="/employee-panel" element={<EmployeeDashboard />} />
-            <Route path="/employee/my-properties" element={<EmployeePlaceholder title="My Properties" />} />
-            <Route path="/employee/my-sales" element={<EmployeePlaceholder title="My Sales" />} />
-            <Route path="/employee/analytics" element={<EmployeePlaceholder title="Analytics" />} />
-            <Route path="/employee/settings" element={<EmployeePlaceholder title="Settings" />} />
+            <Route
+              path="/employee/my-properties"
+              element={<EmployeePlaceholder title="My Properties" />}
+            />
+            <Route
+              path="/employee/my-sales"
+              element={<EmployeePlaceholder title="My Sales" />}
+            />
+            <Route
+              path="/employee/analytics"
+              element={<EmployeePlaceholder title="Analytics" />}
+            />
+            <Route
+              path="/employee/settings"
+              element={<EmployeePlaceholder title="Settings" />}
+            />
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />

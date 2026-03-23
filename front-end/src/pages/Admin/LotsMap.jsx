@@ -15,6 +15,8 @@ import axios from "axios";
 
 import L from "leaflet";
 
+import LotOffcanvas from "../../components/admin/LotOffcanvas";
+
 import "leaflet/dist/leaflet.css";
 
 // Automatically centers the map on the lots without changing zoom
@@ -27,7 +29,7 @@ function ZoomToCenter({ lots }) {
       const bounds = lots.map((l) => l.coordinates).flat();
 
       const center = L.latLngBounds(bounds).getCenter();
-      map.panTo([center.lat - 0.0002, center.lng + 0.0005]);
+      map.panTo([center.lat + 0.0005, center.lng + 0.0005]);
     }
   }, [lots, map]);
 
@@ -36,6 +38,8 @@ function ZoomToCenter({ lots }) {
 
 const EstateMap = () => {
   const [mapData, setMapData] = useState(null);
+  const [selectedLot, setSelectedLot] = useState(null);
+  const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
 
   useEffect(() => {
     axios
@@ -63,6 +67,40 @@ const EstateMap = () => {
       default:
         return "#94a3b8";
     }
+  };
+
+  // Function to handle pin click
+  const handlePinClick = async (lot) => {
+    // If lot is pending, fetch customer data
+    if (lot.status === "Pending") {
+      try {
+        const lotWithCustomer = await axios.get(
+          `http://localhost:5000/api/lots/${lot.lot_id}/with-customer`,
+          { withCredentials: true },
+        );
+        setSelectedLot(lotWithCustomer.data);
+      } catch (error) {
+        console.error("Error fetching customer data:", error);
+        setSelectedLot(lot); // Fallback to basic lot data
+      }
+    } else {
+      setSelectedLot(lot);
+    }
+    setIsOffcanvasOpen(true);
+  };
+
+  // Function to close offcanvas
+  const handleCloseOffcanvas = () => {
+    setIsOffcanvasOpen(false);
+    setSelectedLot(null);
+  };
+
+  // Function to refresh map data when lot is updated
+  const handleLotUpdated = () => {
+    axios
+      .get("http://localhost:5000/api/lots/map-data", { withCredentials: true })
+      .then((res) => setMapData(res.data))
+      .catch((err) => console.error("Map Refresh Error:", err));
   };
 
   // Function to create the Pin Icon
@@ -183,6 +221,9 @@ const EstateMap = () => {
               <Marker
                 position={[pinLat, centerLng]}
                 icon={createPinIcon(lot.status)}
+                eventHandlers={{
+                  click: () => handlePinClick(lot),
+                }}
               >
                 <Tooltip permanent={false} direction="top" offset={[0, -10]}>
                   <div className="text-center text-xs leading-tight">
@@ -207,6 +248,14 @@ const EstateMap = () => {
 
         <ZoomToCenter lots={mapData.lots} />
       </MapContainer>
+
+      {/* LotOffcanvas Component */}
+      <LotOffcanvas
+        selectedLot={selectedLot}
+        isOpen={isOffcanvasOpen}
+        onClose={handleCloseOffcanvas}
+        onLotUpdated={handleLotUpdated}
+      />
     </div>
   );
 };
