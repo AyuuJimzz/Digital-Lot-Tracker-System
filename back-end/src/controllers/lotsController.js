@@ -55,7 +55,7 @@ exports.testEmail = async (req, res) => {
     const testResult = await sendEmail(
       process.env.EMAIL_USER, // Send to yourself for testing
       "Test Email - Golden Dragon Estate Corporation",
-      "<h1>Test Email</h1><p>If you receive this, email configuration is working!</p>",
+      "<h1>Test Email</h1><p>If you receive this, email configuration is working!</p>"
     );
 
     if (testResult.success) {
@@ -85,9 +85,7 @@ exports.testEmail = async (req, res) => {
 
 exports.getAllLots = async (req, res) => {
   try {
-    const [rows] = await db.query(
-      "SELECT * FROM lots ORDER BY property_id, lot_number",
-    );
+    const [rows] = await db.query("SELECT * FROM lots ORDER BY property_id, lot_number");
     res.json(rows);
   } catch (err) {
     console.error("Error in getAllLots:", err);
@@ -99,10 +97,9 @@ exports.getLotsByProperty = async (req, res) => {
   const { propertyId } = req.params;
 
   try {
-    const [rows] = await db.query(
-      "SELECT * FROM lots WHERE property_id = ? ORDER BY lot_number",
-      [propertyId],
-    );
+    const [rows] = await db.query("SELECT * FROM lots WHERE property_id = ? ORDER BY lot_number", [
+      propertyId,
+    ]);
     res.json(rows);
   } catch (err) {
     console.error("Error in getLotsByProperty:", err);
@@ -133,7 +130,7 @@ exports.getMapData = async (req, res) => {
       `SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates 
        FROM lots 
        WHERE coordinates IS NOT NULL 
-       ORDER BY property_id, lot_number`,
+       ORDER BY property_id, lot_number`
     );
 
     // Format the data similar to the original lotData structure
@@ -151,9 +148,7 @@ exports.getMapData = async (req, res) => {
         area_sqm: lot.area_sqm,
         status: lot.status,
         coordinates:
-          typeof lot.coordinates === "string"
-            ? JSON.parse(lot.coordinates)
-            : lot.coordinates,
+          typeof lot.coordinates === "string" ? JSON.parse(lot.coordinates) : lot.coordinates,
       })),
     };
 
@@ -174,7 +169,7 @@ exports.getLotWithCustomer = async (req, res) => {
        FROM lots l 
        LEFT JOIN properties p ON l.property_id = p.property_id 
        WHERE l.lot_id = ?`,
-      [id],
+      [id]
     );
 
     if (lotRows.length === 0) {
@@ -188,15 +183,13 @@ exports.getLotWithCustomer = async (req, res) => {
       `SELECT customer_id, email, created_at, updated_at 
        FROM customers 
        WHERE lot_id = ?`,
-      [id],
+      [id]
     );
 
     const result = {
       ...lot,
       coordinates:
-        typeof lot.coordinates === "string"
-          ? JSON.parse(lot.coordinates)
-          : lot.coordinates,
+        typeof lot.coordinates === "string" ? JSON.parse(lot.coordinates) : lot.coordinates,
       customer: customerRows.length > 0 ? customerRows[0] : null,
     };
 
@@ -221,16 +214,12 @@ exports.updateLotStatus = async (req, res) => {
     const validStatuses = ["Available", "Pending", "Sold"];
     if (!validStatuses.includes(status)) {
       console.log("Invalid status:", status);
-      return res
-        .status(400)
-        .json({ error: "Invalid status. Must be Available, Pending, or Sold" });
+      return res.status(400).json({ error: "Invalid status. Must be Available, Pending, or Sold" });
     }
 
     // Check if lot exists
     console.log("Checking if lot exists for ID:", id);
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [
-      id,
-    ]);
+    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
     console.log("Lot query result:", lotRows.length, "rows");
 
     if (lotRows.length === 0) {
@@ -256,23 +245,20 @@ exports.updateLotStatus = async (req, res) => {
       }
 
       // Check if customer already exists for this lot
-      const [existingCustomer] = await db.query(
-        "SELECT * FROM customers WHERE lot_id = ?",
-        [id],
-      );
+      const [existingCustomer] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
 
       if (existingCustomer.length > 0) {
         // Update existing customer
-        await db.query(
-          "UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?",
-          [email, id],
-        );
+        await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?", [
+          email,
+          id,
+        ]);
         console.log("Updated existing customer email");
       } else {
         // Create new customer
         await db.query(
           "INSERT INTO customers (customer_id, lot_id, email, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
-          [id, id, email],
+          [id, id, email]
         );
         console.log("Created new customer record");
       }
@@ -288,15 +274,13 @@ exports.updateLotStatus = async (req, res) => {
       }
 
       // Setting to Pending (from Available or Sold) - record timestamp
-      await db.query("UPDATE lots SET pending_since = NOW() WHERE lot_id = ?", [
-        id,
-      ]);
+      await db.query("UPDATE lots SET pending_since = NOW() WHERE lot_id = ?", [id]);
       console.log("Set pending_since timestamp");
     } else if (lot.status === "Pending" && status !== "Pending") {
       // Changing from Pending to something else - clear timestamps
       await db.query(
         "UPDATE lots SET pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
-        [id],
+        [id]
       );
       console.log("Cleared pending timestamps");
     }
@@ -329,16 +313,14 @@ exports.sendPendingLotReminders = async (req, res) => {
       LEFT JOIN customers c ON l.lot_id = c.lot_id
       WHERE l.status = 'Pending' 
         AND l.pending_since IS NOT NULL
-        AND l.pending_since < DATE_SUB(NOW(), INTERVAL 1 MINUTE)
+        AND l.pending_since < DATE_SUB(NOW(), INTERVAL 24 HOUR)
         AND l.last_reminder_sent IS NULL
         AND c.email IS NOT NULL
     `);
 
     console.log(`Found ${pendingLots.length} lots eligible for reminders`);
     pendingLots.forEach((lot) => {
-      console.log(
-        `- Lot ${lot.lot_id}: ${lot.email}, Pending since: ${lot.pending_since}`,
-      );
+      console.log(`- Lot ${lot.lot_id}: ${lot.email}, Pending since: ${lot.pending_since}`);
     });
 
     let emailsSent = 0;
@@ -361,7 +343,7 @@ exports.sendPendingLotReminders = async (req, res) => {
             <p><strong>Status:</strong> Pending</p>
             <p><strong>Reserved Since:</strong> ${new Date(lot.pending_since).toLocaleString()}</p>
           </div>
-          <p>Your lot reservation has been pending for over 1 minute. Please complete your purchase or contact us for assistance.</p>
+          <p>Your lot reservation has been pending for over 24 hours. Please complete your purchase or contact us for assistance.</p>
           <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
             If you have any questions or need assistance, please don't hesitate to contact our support team.
           </p>
@@ -376,7 +358,7 @@ exports.sendPendingLotReminders = async (req, res) => {
       const emailResult = await sendEmail(
         lot.email,
         "Lot Reservation Reminder - Golden Dragon Estate Corporations",
-        emailHtml,
+        emailHtml
       );
 
       console.log(`Email result for lot ${lot.lot_id}:`, emailResult);
@@ -385,21 +367,14 @@ exports.sendPendingLotReminders = async (req, res) => {
         emailsSent++;
         console.log(`Email sent successfully to ${lot.email}`);
         // Mark that email was sent to avoid duplicate emails
-        await db.query(
-          "UPDATE lots SET last_reminder_sent = NOW() WHERE lot_id = ?",
-          [lot.lot_id],
-        );
+        await db.query("UPDATE lots SET last_reminder_sent = NOW() WHERE lot_id = ?", [lot.lot_id]);
       } else {
         console.log(`Email failed for lot ${lot.lot_id}: ${emailResult.error}`);
-        errors.push(
-          `Failed to send email for lot ${lot.lot_id}: ${emailResult.error}`,
-        );
+        errors.push(`Failed to send email for lot ${lot.lot_id}: ${emailResult.error}`);
       }
     }
 
-    console.log(
-      `Final results: ${emailsSent} emails sent, ${errors.length} errors`,
-    );
+    console.log(`Final results: ${emailsSent} emails sent, ${errors.length} errors`);
 
     res.json({
       message: "Pending lot reminder process completed",
@@ -427,30 +402,25 @@ exports.createOrUpdateCustomer = async (req, res) => {
     }
 
     // Check if lot exists
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [
-      id,
-    ]);
+    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
     if (lotRows.length === 0) {
       return res.status(404).json({ error: "Lot not found" });
     }
 
     // Check if customer already exists for this lot
-    const [existingCustomer] = await db.query(
-      "SELECT * FROM customers WHERE lot_id = ?",
-      [id],
-    );
+    const [existingCustomer] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
 
     if (existingCustomer.length > 0) {
       // Update existing customer
-      await db.query(
-        "UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?",
-        [email, id],
-      );
+      await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?", [
+        email,
+        id,
+      ]);
     } else {
       // Create new customer
       await db.query(
         "INSERT INTO customers (customer_id, lot_id, email, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
-        [id, id, email],
+        [id, id, email]
       );
     }
 

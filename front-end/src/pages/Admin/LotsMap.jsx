@@ -76,7 +76,7 @@ const EstateMap = () => {
       try {
         const lotWithCustomer = await axios.get(
           `http://localhost:5000/api/lots/${lot.lot_id}/with-customer`,
-          { withCredentials: true },
+          { withCredentials: true }
         );
         setSelectedLot(lotWithCustomer.data);
       } catch (error) {
@@ -143,10 +143,7 @@ const EstateMap = () => {
     });
   };
 
-  if (!mapData)
-    return (
-      <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>
-    );
+  if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
 
   return (
     <div className="w-full h-full" style={{ height: "calc(100vh - 3.5rem)" }}>
@@ -164,12 +161,10 @@ const EstateMap = () => {
 
         {mapData.lots.map((lot, index) => {
           const centerLat =
-            lot.coordinates.reduce((sum, coord) => sum + coord[0], 0) /
-            lot.coordinates.length;
+            lot.coordinates.reduce((sum, coord) => sum + coord[0], 0) / lot.coordinates.length;
 
           const centerLng =
-            lot.coordinates.reduce((sum, coord) => sum + coord[1], 0) /
-            lot.coordinates.length;
+            lot.coordinates.reduce((sum, coord) => sum + coord[1], 0) / lot.coordinates.length;
 
           const pinLat = centerLat + 0.00012;
 
@@ -184,9 +179,9 @@ const EstateMap = () => {
 
                   fillColor: statusColor,
 
-                  fillOpacity: 0.4,
+                  fillOpacity: 0.6,
 
-                  weight: 2,
+                  weight: 3,
                 }}
               >
                 <Popup>
@@ -195,8 +190,7 @@ const EstateMap = () => {
                     <br />
                     Area: {lot.area_sqm} SQM
                     <br />
-                    Status:{" "}
-                    <strong style={{ color: statusColor }}>{lot.status}</strong>
+                    Status: <strong style={{ color: statusColor }}>{lot.status}</strong>
                   </div>
                 </Popup>
               </Polygon>
@@ -233,10 +227,7 @@ const EstateMap = () => {
                       {lot.area_sqm} sqm
                     </div>
 
-                    <div
-                      className="mb-1 text-[12px] font-bold"
-                      style={{ color: statusColor }}
-                    >
+                    <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
                       {lot.status}
                     </div>
                   </div>
