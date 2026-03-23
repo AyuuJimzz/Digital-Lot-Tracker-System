@@ -9,7 +9,6 @@ const {
   updateLotStatus,
   sendPendingLotReminders,
   createOrUpdateCustomer,
-  testEmail,
 } = require("../controllers/lotsController");
 
 // Database routes

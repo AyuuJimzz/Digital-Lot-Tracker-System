@@ -2,25 +2,21 @@
 const db = require("../../config/database_connection");
 const nodemailer = require("nodemailer");
 
-// =======================
 // EMAIL TRANSPORTER SETUP
-// =======================
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
-  secure: false, // true for 465, false for other ports
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
   },
   tls: {
-    rejectUnauthorized: false, // Helps with some email providers
+    rejectUnauthorized: false,
   },
 });
 
-// =======================
 // SEND EMAIL HELPER
-// =======================
 const sendEmail = async (to, subject, html) => {
   try {
     await transporter.sendMail({
@@ -33,53 +29,6 @@ const sendEmail = async (to, subject, html) => {
   } catch (error) {
     console.error("Email error:", error);
     return { success: false, error: error.message };
-  }
-};
-
-// =======================
-// TEST EMAIL FUNCTION
-// =======================
-exports.testEmail = async (req, res) => {
-  try {
-    console.log("Testing email configuration...");
-    console.log("Email Host:", process.env.EMAIL_HOST);
-    console.log("Email Port:", process.env.EMAIL_PORT);
-    console.log("Email User:", process.env.EMAIL_USER);
-    console.log("Email From:", process.env.EMAIL_FROM);
-
-    // Verify transporter configuration
-    await transporter.verify();
-    console.log("Email transporter verified successfully!");
-
-    // Send test email
-    const testResult = await sendEmail(
-      process.env.EMAIL_USER, // Send to yourself for testing
-      "Test Email - Golden Dragon Estate Corporation",
-      "<h1>Test Email</h1><p>If you receive this, email configuration is working!</p>"
-    );
-
-    if (testResult.success) {
-      res.json({
-        message: "Test email sent successfully!",
-        config: {
-          host: process.env.EMAIL_HOST,
-          port: process.env.EMAIL_PORT,
-          user: process.env.EMAIL_USER,
-          from: process.env.EMAIL_FROM,
-        },
-      });
-    } else {
-      res.status(500).json({
-        message: "Failed to send test email",
-        error: testResult.error,
-      });
-    }
-  } catch (error) {
-    console.error("Test email error:", error);
-    res.status(500).json({
-      message: "Email configuration error",
-      error: error.message,
-    });
   }
 };
 
