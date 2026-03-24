@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 
 import {
   MapContainer,
@@ -19,19 +19,46 @@ import LotOffcanvas from "../../components/admin/LotOffcanvas";
 
 import "leaflet/dist/leaflet.css";
 
-// Automatically centers the map on the lots without changing zoom
-
-function ZoomToCenter({ lots }) {
+function ZoomToCenter({ lots, propertyCoords }) {
   const map = useMap();
 
   useEffect(() => {
-    if (lots && lots.length > 0) {
+    if (propertyCoords) {
+      // Always center on property coordinates, not lot bounds
+      map.panTo(propertyCoords);
+    } else if (lots && lots.length > 0) {
+      // Fallback to lot bounds if no property coordinates provided
       const bounds = lots.map((l) => l.coordinates).flat();
-
       const center = L.latLngBounds(bounds).getCenter();
       map.panTo([center.lat + 0.0005, center.lng + 0.0005]);
     }
-  }, [lots, map]);
+  }, [lots, map, propertyCoords]);
+
+  return null;
+}
+
+function MapController({ selectedProperty, setSelectedProperty }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const handleNavigateToProperty = (event) => {
+      const { coordinates } = event.detail;
+      map.panTo(coordinates);
+    };
+
+    const handlePropertySelect = (event) => {
+      const { propertyId } = event.detail;
+      setSelectedProperty(propertyId);
+    };
+
+    window.addEventListener("navigateToProperty", handleNavigateToProperty);
+    window.addEventListener("selectProperty", handlePropertySelect);
+
+    return () => {
+      window.removeEventListener("navigateToProperty", handleNavigateToProperty);
+      window.removeEventListener("selectProperty", handlePropertySelect);
+    };
+  }, [map, setSelectedProperty]);
 
   return null;
 }
@@ -40,6 +67,21 @@ const EstateMap = () => {
   const [mapData, setMapData] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
+  // Get selected property from localStorage, default to Property 1 if not found
+  const [selectedProperty, setSelectedProperty] = useState(() => {
+    const savedProperty = localStorage.getItem("selectedProperty");
+    return savedProperty ? parseInt(savedProperty) : 1;
+  });
+
+  // Property locations (same as AdminHeader) - wrapped in useMemo to prevent re-creation on every render
+  const properties = useMemo(
+    () => [
+      { id: 1, name: "Property 1", coordinates: [10.7367 + 0.0005, 122.4998] },
+      { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
+      { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33628474716154] },
+    ],
+    []
+  );
 
   useEffect(() => {
     axios
@@ -50,6 +92,37 @@ const EstateMap = () => {
 
       .catch((err) => console.error("Map Load Error:", err));
   }, []);
+
+  // Center map on selected property when it changes
+  useEffect(() => {
+    if (selectedProperty) {
+      const coords = properties.find((p) => p.id === selectedProperty)?.coordinates;
+      if (coords) {
+        // Emit event to center the map
+        window.dispatchEvent(
+          new CustomEvent("navigateToProperty", {
+            detail: { coordinates: coords },
+          })
+        );
+      }
+    }
+  }, [selectedProperty, properties]);
+
+  // Save selected property to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("selectedProperty", selectedProperty.toString());
+  }, [selectedProperty]);
+
+  // Filter lots by selected property
+  const filteredLots = mapData
+    ? mapData.lots.filter((lot) => lot.property_id === selectedProperty)
+    : [];
+
+  // Get selected property coordinates
+  const selectedPropertyCoords = properties.find((p) => p.id === selectedProperty)?.coordinates || [
+    10.7367 + 0.0005,
+    122.4998,
+  ];
 
   // Helper function to get color based on status
 
@@ -148,8 +221,8 @@ const EstateMap = () => {
   return (
     <div className="w-full h-full" style={{ height: "calc(100vh - 3.5rem)" }}>
       <MapContainer
-        center={[10.7367 + 0.0005, 122.4998]}
-        zoom={20}
+        center={selectedPropertyCoords}
+        zoom={19}
         maxZoom={22}
         style={{ height: "100%", width: "100%" }}
       >
@@ -159,7 +232,7 @@ const EstateMap = () => {
           maxNativeZoom={18}
         />
 
-        {mapData.lots.map((lot, index) => {
+        {filteredLots.map((lot, index) => {
           const centerLat =
             lot.coordinates.reduce((sum, coord) => sum + coord[0], 0) / lot.coordinates.length;
 
@@ -237,7 +310,11 @@ const EstateMap = () => {
           );
         })}
 
-        <ZoomToCenter lots={mapData.lots} />
+        <ZoomToCenter lots={filteredLots} propertyCoords={selectedPropertyCoords} />
+        <MapController
+          selectedProperty={selectedProperty}
+          setSelectedProperty={setSelectedProperty}
+        />
       </MapContainer>
 
       {/* LotOffcanvas Component */}

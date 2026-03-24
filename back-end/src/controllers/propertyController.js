@@ -6,9 +6,7 @@ const db = require("../../config/database_connection");
 // ============================================================
 exports.getAllProperties = async (req, res) => {
   try {
-    const [rows] = await db.query(
-      "SELECT * FROM properties ORDER BY created_at DESC",
-    );
+    const [rows] = await db.query("SELECT * FROM properties ORDER BY property_id ASC");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -22,10 +20,7 @@ exports.getPropertyById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [rows] = await db.query(
-      "SELECT * FROM properties WHERE property_id = ?",
-      [id],
-    );
+    const [rows] = await db.query("SELECT * FROM properties WHERE property_id = ?", [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: "Property not found" });
@@ -44,9 +39,7 @@ exports.createProperty = async (req, res) => {
   const { property_name, location, total_lots, status } = req.body;
 
   if (!property_name || !location) {
-    return res
-      .status(400)
-      .json({ error: "Property name and location are required" });
+    return res.status(400).json({ error: "Property name and location are required" });
   }
 
   const query = `
@@ -62,12 +55,10 @@ exports.createProperty = async (req, res) => {
       total_lots || 0,
       status || "active",
     ]);
-    res
-      .status(201)
-      .json({
-        message: "Property added successfully",
-        property_id: result.insertId,
-      });
+    res.status(201).json({
+      message: "Property added successfully",
+      property_id: result.insertId,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -88,13 +79,7 @@ exports.updateProperty = async (req, res) => {
   `;
 
   try {
-    const [result] = await db.query(query, [
-      property_name,
-      location,
-      total_lots,
-      status,
-      id,
-    ]);
+    const [result] = await db.query(query, [property_name, location, total_lots, status, id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Property not found" });
@@ -114,16 +99,14 @@ exports.updatePropertyStatus = async (req, res) => {
   const { status } = req.body;
 
   if (!status || !["active", "inactive"].includes(status)) {
-    return res
-      .status(400)
-      .json({ error: "Status must be 'active' or 'inactive'" });
+    return res.status(400).json({ error: "Status must be 'active' or 'inactive'" });
   }
 
   try {
-    const [result] = await db.query(
-      "UPDATE properties SET status = ? WHERE property_id = ?",
-      [status, id],
-    );
+    const [result] = await db.query("UPDATE properties SET status = ? WHERE property_id = ?", [
+      status,
+      id,
+    ]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Property not found" });
@@ -142,10 +125,7 @@ exports.deleteProperty = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [result] = await db.query(
-      "DELETE FROM properties WHERE property_id = ?",
-      [id],
-    );
+    const [result] = await db.query("DELETE FROM properties WHERE property_id = ?", [id]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Property not found" });

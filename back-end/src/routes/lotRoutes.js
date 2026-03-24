@@ -32,30 +32,30 @@ router.get("/test-db", async (req, res) => {
 });
 
 // Debug route to check specific lot
-router.get("/debug/:id", async (req, res) => {
-  try {
-    const db = require("../../config/database_connection");
-    const { id } = req.params;
+// router.get("/debug/:id", async (req, res) => {
+//   try {
+//     const db = require("../../config/database_connection");
+//     const { id } = req.params;
 
-    console.log("Debug checking lot ID:", id);
+//     console.log("Debug checking lot ID:", id);
 
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
-    const [allLots] = await db.query(
-      "SELECT lot_id, lot_number, status FROM lots ORDER BY lot_id LIMIT 10"
-    );
+//     const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+//     const [allLots] = await db.query(
+//       "SELECT lot_id, lot_number, status FROM lots ORDER BY lot_id LIMIT 10"
+//     );
 
-    res.json({
-      requestedId: id,
-      lotExists: lotRows.length > 0,
-      lotDetails: lotRows[0] || null,
-      sampleLots: allLots,
-      totalLotCount: allLots.length,
-    });
-  } catch (error) {
-    console.error("Debug route error:", error);
-    res.status(500).json({ error: "Debug failed", details: error.message });
-  }
-});
+//     res.json({
+//       requestedId: id,
+//       lotExists: lotRows.length > 0,
+//       lotDetails: lotRows[0] || null,
+//       sampleLots: allLots,
+//       totalLotCount: allLots.length,
+//     });
+//   } catch (error) {
+//     console.error("Debug route error:", error);
+//     res.status(500).json({ error: "Debug failed", details: error.message });
+//   }
+// });
 
 router.get("/:id/with-customer", getLotWithCustomer);
 router.get("/:id", getLotById);
