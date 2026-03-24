@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Home, FileText, BarChart3, Settings, Map } from "lucide-react";
+import { LayoutDashboard, Home, FileText, BarChart3, Settings, Map, Users } from "lucide-react";
 
 const navItems = [
   {
@@ -11,6 +11,7 @@ const navItems = [
   { title: "Map View", url: "/employee/map-view", icon: Map },
   { title: "My Properties", url: "/employee/my-properties", icon: Home },
   { title: "My Sales", url: "/employee/my-sales", icon: FileText },
+  { title: "My Clients", url: "/employee/my-clients", icon: Users },
   { title: "Analytics", url: "/employee/analytics", icon: BarChart3 },
   { title: "Settings", url: "/employee/settings", icon: Settings },
 ];

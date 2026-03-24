@@ -1,15 +1,31 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 
-const LotOffcanvas = ({ selectedLot, isOpen, onClose, onLotUpdated }) => {
+const LotOffcanvas = ({ selectedLot, isOpen, onClose, onLotUpdated, allowedStatuses = ["Available", "Pending", "Sold"] }) => {
   const [status, setStatus] = useState(selectedLot?.status || "Available");
   const [email, setEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [customerEmail, setCustomerEmail] = useState(""); // Store existing customer email
 
+  // Client dropdown state
+  const [clients, setClients] = useState([]);
+  const [selectedClientId, setSelectedClientId] = useState("");
+
+  // Fetch clients when offcanvas opens
+  useEffect(() => {
+    if (isOpen) {
+      axios
+        .get("http://localhost:5000/api/clients", { withCredentials: true })
+        .then((res) => setClients(Array.isArray(res.data) ? res.data : []))
+        .catch(() => setClients([]));
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (selectedLot) {
       setStatus(selectedLot.status);
+      setSelectedClientId("");
 
       // If lot has customer data, set the customer email
       if (selectedLot.customer && selectedLot.customer.email) {
@@ -23,6 +39,18 @@ const LotOffcanvas = ({ selectedLot, isOpen, onClose, onLotUpdated }) => {
       setSaveMessage("");
     }
   }, [selectedLot]);
+
+  // When a client is selected from dropdown, auto-fill email
+  const handleClientSelect = (e) => {
+    const clientId = e.target.value;
+    setSelectedClientId(clientId);
+    if (clientId) {
+      const client = clients.find((c) => String(c.client_id) === clientId);
+      setEmail(client ? client.email : "");
+    } else {
+      setEmail("");
+    }
+  };
 
   const getStatusColorClasses = (status) => {
     switch (status) {
@@ -176,22 +204,23 @@ const LotOffcanvas = ({ selectedLot, isOpen, onClose, onLotUpdated }) => {
                     status,
                   )}`}
                 >
-                  <option className="text-green-600" value="Available">
-                    Available
-                  </option>
-                  <option className="text-yellow-600" value="Pending">
-                    Pending
-                  </option>
-                  <option className="text-red-600" value="Sold">
-                    Sold
-                  </option>
+                  {["Available", "Pending", "Sold"]
+                    .filter((s) => allowedStatuses.includes(s))
+                    .map((s) => (
+                      <option key={s} value={s} className={
+                        s === "Available" ? "text-green-600" :
+                        s === "Pending" ? "text-yellow-600" : "text-red-600"
+                      }>{s}</option>
+                    ))
+                  }
                 </select>
               </div>
 
-              {/* Email Input */}
+              {/* Client Selection — only show for Pending or Sold */}
+              {(status === "Pending" || status === "Sold") && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email for Reservation
+                  Assign Client
                 </label>
                 {customerEmail ? (
                   <div className="relative">
@@ -219,13 +248,30 @@ const LotOffcanvas = ({ selectedLot, isOpen, onClose, onLotUpdated }) => {
                     </div>
                   </div>
                 ) : (
-                  <input
-                    type="email"
-                    placeholder="Enter your email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <>
+                    <select
+                      value={selectedClientId}
+                      onChange={handleClientSelect}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">-- Select a client --</option>
+                      {clients.map((client) => (
+                        <option key={client.client_id} value={client.client_id}>
+                          {client.full_name} ({client.email})
+                        </option>
+                      ))}
+                    </select>
+                    {email && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Email: <span className="font-medium">{email}</span>
+                      </p>
+                    )}
+                    {clients.length === 0 && (
+                      <p className="mt-1 text-xs text-yellow-600">
+                        No clients found. Add clients first via My Clients page.
+                      </p>
+                    )}
+                  </>
                 )}
                 {customerEmail && (
                   <p className="mt-1 text-xs text-gray-500">
@@ -234,6 +280,7 @@ const LotOffcanvas = ({ selectedLot, isOpen, onClose, onLotUpdated }) => {
                   </p>
                 )}
               </div>
+              )}
             </div>
           </div>
 

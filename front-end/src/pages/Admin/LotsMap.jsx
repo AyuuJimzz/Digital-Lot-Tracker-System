@@ -63,6 +63,16 @@ function MapController({ selectedProperty, setSelectedProperty }) {
   return null;
 }
 
+// Fix Leaflet gray map on first load inside React layouts
+function InvalidateSize() {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => map.invalidateSize(), 200);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+}
+
 const EstateMap = () => {
   const [mapData, setMapData] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
@@ -315,6 +325,7 @@ const EstateMap = () => {
           selectedProperty={selectedProperty}
           setSelectedProperty={setSelectedProperty}
         />
+        <InvalidateSize />
       </MapContainer>
 
       {/* LotOffcanvas Component */}

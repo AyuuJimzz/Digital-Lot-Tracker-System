@@ -15,6 +15,7 @@ import EmployeeDashboard from "./pages/Employee/EmployeeDashboard";
 import EmployeeMapView from "./pages/Employee/EmployeeMapView";
 import MyProperties from "./pages/Employee/MyProperties";
 import MySales from "./pages/Employee/MySales";
+import MyClients from "./pages/Employee/MyClients";
 import ManageEmployees from "./pages/Admin/ManageEmployees";
 import ManageProperties from "./pages/Admin/ManageProperties";
 import AccessDenied from "./view/AccessDenied";
@@ -70,6 +71,7 @@ function App() {
             <Route path="/employee-panel" element={<EmployeeDashboard />} />
             <Route path="/employee/my-properties" element={<MyProperties />} />
             <Route path="/employee/my-sales" element={<MySales />} />
+            <Route path="/employee/my-clients" element={<MyClients />} />
             <Route path="/employee/map-view" element={<EmployeeMapView />} />
             <Route path="/employee/analytics" element={<EmployeePlaceholder title="Analytics" />} />
             <Route path="/employee/settings" element={<EmployeePlaceholder title="Settings" />} />

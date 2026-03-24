@@ -250,9 +250,7 @@ exports.updateLotStatus = async (req, res) => {
 // =======================
 exports.sendPendingLotReminders = async (req, res) => {
   try {
-    // Find lots that have been pending for more than 1 minute and haven't received any reminder yet
-    console.log("Checking for pending lots to send reminders...");
-
+    // Find lots that have been pending for more than 24 hours and haven't received any reminder yet
     const [pendingLots] = await db.query(`
       SELECT l.lot_id, l.lot_number, l.property_id, l.pending_since,
              p.property_name, p.location,
@@ -266,6 +264,9 @@ exports.sendPendingLotReminders = async (req, res) => {
         AND l.last_reminder_sent IS NULL
         AND c.email IS NOT NULL
     `);
+
+    // Only log if there are lots to process
+    if (pendingLots.length === 0) return res.json({ message: "No pending lots eligible for reminders", pendingLotsFound: 0, emailsSent: 0 });
 
     console.log(`Found ${pendingLots.length} lots eligible for reminders`);
     pendingLots.forEach((lot) => {

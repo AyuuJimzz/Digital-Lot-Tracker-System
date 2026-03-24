@@ -13,7 +13,8 @@ const server = app.listen(PORT, () => {
 // =======================
 const schedule = require("node-schedule");
 
-const reminderJob = schedule.scheduleJob("* * * * *", async () => {
+// Runs every hour — checks for lots pending 24+ hours
+const reminderJob = schedule.scheduleJob("0 * * * *", async () => {
   try {
     const mockReq = {};
     const mockRes = {
