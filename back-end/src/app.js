@@ -6,10 +6,6 @@ const employeeRoutes = require("./routes/employeeRoutes");
 const propertyRoutes = require("./routes/propertyRoutes");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-<<<<<<< HEAD
-=======
-// const propertyRoutes = require("./routes/propertyRoutes");
->>>>>>> main
 const lotRoutes = require("./routes/lotRoutes");
 const clientRoutes = require("./routes/clientRoutes");
 
@@ -28,19 +24,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Session Configuration
 app.use(
-<<<<<<< HEAD
-	session({
-		secret: process.env.SESSION_SECRET,
-		resave: false,
-		saveUninitialized: false,
-		cookie: {
-			maxAge: 2 * 60 * 60 * 1000, // 2 hours
-			httpOnly: true,
-			sameSite: "lax",
-			secure: false, // Set to true if using HTTPS
-		},
-	}),
-=======
   session({
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -52,7 +35,6 @@ app.use(
       secure: false, // Set to true if using HTTPS
     },
   })
->>>>>>> main
 );
 
 // Test route
