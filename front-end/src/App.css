@@ -40,3 +40,11 @@
 .read-the-docs {
   color: #888;
 }
+
+/* FIX: Removes faint white grid lines from Leaflet map caused by browser scaling/zoom */
+.leaflet-tile-container img.leaflet-tile,
+.leaflet-layer,
+.leaflet-tile {
+    width: 256.5px !important;
+    height: 256.5px !important;
+}
