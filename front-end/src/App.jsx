@@ -12,7 +12,6 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import EmployeeDashboard from "./pages/Employee/EmployeeDashboard";
-import EmployeeMapView from "./pages/Employee/EmployeeMapView";
 import MyProperties from "./pages/Employee/MyProperties";
 import MySales from "./pages/Employee/MySales";
 import MyClients from "./pages/Employee/MyClients";
@@ -72,7 +71,7 @@ function App() {
             <Route path="/employee/my-properties" element={<MyProperties />} />
             <Route path="/employee/my-sales" element={<MySales />} />
             <Route path="/employee/my-clients" element={<MyClients />} />
-            <Route path="/employee/map-view" element={<EmployeeMapView />} />
+            <Route path="/employee/map-view" element={<EstateMap allowedStatuses={["Available", "Pending"]} />} />
             <Route path="/employee/analytics" element={<EmployeePlaceholder title="Analytics" />} />
             <Route path="/employee/settings" element={<EmployeePlaceholder title="Settings" />} />
           </Route>

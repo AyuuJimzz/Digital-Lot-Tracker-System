@@ -45,7 +45,7 @@ const LotOffcanvas = ({ selectedLot, isOpen, onClose, onLotUpdated, allowedStatu
     const clientId = e.target.value;
     setSelectedClientId(clientId);
     if (clientId) {
-      const client = clients.find((c) => String(c.client_id) === clientId);
+      const client = clients.find((c) => String(c.customer_id) === clientId);
       setEmail(client ? client.email : "");
     } else {
       setEmail("");
@@ -256,7 +256,7 @@ const LotOffcanvas = ({ selectedLot, isOpen, onClose, onLotUpdated, allowedStatu
                     >
                       <option value="">-- Select a client --</option>
                       {clients.map((client) => (
-                        <option key={client.client_id} value={client.client_id}>
+                        <option key={client.customer_id} value={client.customer_id}>
                           {client.full_name} ({client.email})
                         </option>
                       ))}

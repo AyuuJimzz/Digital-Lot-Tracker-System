@@ -193,21 +193,30 @@ exports.updateLotStatus = async (req, res) => {
         return res.status(400).json({ error: "Valid email is required" });
       }
 
-      // Check if customer already exists for this lot
-      const [existingCustomer] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
+      // First: unlink any OLD customer previously assigned to this lot
+      await db.query(
+        "UPDATE customers SET lot_id = NULL, updated_at = NOW() WHERE lot_id = ? AND email != ?",
+        [id, email]
+      );
 
-      if (existingCustomer.length > 0) {
-        // Update existing customer
-        await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?", [
-          email,
-          id,
-        ]);
-        console.log("Updated existing customer email");
-      } else {
-        // Create new customer
+      // Second: find existing customer record by email (added via My Clients)
+      const [existingByEmail] = await db.query(
+        "SELECT * FROM customers WHERE email = ? LIMIT 1",
+        [email]
+      );
+
+      if (existingByEmail.length > 0) {
+        // Link existing customer to this lot
         await db.query(
-          "INSERT INTO customers (customer_id, lot_id, email, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
-          [id, id, email]
+          "UPDATE customers SET lot_id = ?, updated_at = NOW() WHERE customer_id = ?",
+          [id, existingByEmail[0].customer_id]
+        );
+        console.log("Linked existing customer to lot");
+      } else {
+        // No existing record — create new
+        await db.query(
+          "INSERT INTO customers (lot_id, email, created_at, updated_at) VALUES (?, ?, NOW(), NOW())",
+          [id, email]
         );
         console.log("Created new customer record");
       }
@@ -232,6 +241,12 @@ exports.updateLotStatus = async (req, res) => {
         [id]
       );
       console.log("Cleared pending timestamps");
+    }
+
+    // NEW: If changing to Available, unlink it from any customer
+    if (status === "Available") {
+      await db.query("UPDATE customers SET lot_id = NULL, updated_at = NOW() WHERE lot_id = ?", [id]);
+      console.log("Unlinked lot from customer because status is Available");
     }
 
     res.json({

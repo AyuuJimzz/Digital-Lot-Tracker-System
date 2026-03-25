@@ -73,7 +73,7 @@ function InvalidateSize() {
   return null;
 }
 
-const EstateMap = () => {
+const EstateMap = ({ allowedStatuses }) => {
   const [mapData, setMapData] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
@@ -334,6 +334,7 @@ const EstateMap = () => {
         isOpen={isOffcanvasOpen}
         onClose={handleCloseOffcanvas}
         onLotUpdated={handleLotUpdated}
+        allowedStatuses={allowedStatuses}
       />
     </div>
   );

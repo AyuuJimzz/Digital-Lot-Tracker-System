@@ -1,13 +1,14 @@
 // controllers/clientsController.js
+// Now uses the `customers` table (merged — no more separate clients table)
 const db = require("../../config/database_connection");
 
 // =======================
-// GET ALL CLIENTS
+// GET ALL CUSTOMERS (as clients list)
 // =======================
 exports.getAllClients = async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT * FROM clients ORDER BY created_at DESC"
+      "SELECT * FROM customers WHERE full_name IS NOT NULL ORDER BY created_at DESC"
     );
     res.json(rows);
   } catch (err) {
@@ -23,7 +24,7 @@ exports.getClientById = async (req, res) => {
   const { id } = req.params;
   try {
     const [rows] = await db.query(
-      "SELECT * FROM clients WHERE client_id = ?",
+      "SELECT * FROM customers WHERE customer_id = ?",
       [id]
     );
     if (rows.length === 0) {
@@ -37,19 +38,11 @@ exports.getClientById = async (req, res) => {
 };
 
 // =======================
-// CREATE CLIENT
+// CREATE CLIENT (insert into customers without lot_id)
 // =======================
 exports.createClient = async (req, res) => {
-  const {
-    full_name,
-    contact_number,
-    email,
-    address,
-    valid_id_type,
-    valid_id_number,
-  } = req.body;
+  const { full_name, contact_number, email, address } = req.body;
 
-  // Validation
   if (!full_name?.trim()) {
     return res.status(400).json({ message: "Full name is required." });
   }
@@ -67,27 +60,15 @@ exports.createClient = async (req, res) => {
   }
 
   try {
-    // Get the employee ID from session if available
-    const created_by = req.session?.user?.id || null;
-
     const [result] = await db.query(
-      `INSERT INTO clients 
-        (full_name, contact_number, email, address, valid_id_type, valid_id_number, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        full_name.trim(),
-        contact_number.trim(),
-        email.trim(),
-        address.trim(),
-        valid_id_type?.trim() || null,
-        valid_id_number?.trim() || null,
-        created_by,
-      ]
+      `INSERT INTO customers (email, full_name, contact_number, address)
+       VALUES (?, ?, ?, ?)`,
+      [email.trim(), full_name.trim(), contact_number.trim(), address.trim()]
     );
 
     res.status(201).json({
       message: "Client added successfully.",
-      client_id: result.insertId,
+      customer_id: result.insertId,
     });
   } catch (err) {
     console.error("Error in createClient:", err);
@@ -100,18 +81,11 @@ exports.createClient = async (req, res) => {
 // =======================
 exports.updateClient = async (req, res) => {
   const { id } = req.params;
-  const {
-    full_name,
-    contact_number,
-    email,
-    address,
-    valid_id_type,
-    valid_id_number,
-  } = req.body;
+  const { full_name, contact_number, email, address } = req.body;
 
   try {
     const [existing] = await db.query(
-      "SELECT * FROM clients WHERE client_id = ?",
+      "SELECT * FROM customers WHERE customer_id = ?",
       [id]
     );
     if (existing.length === 0) {
@@ -119,22 +93,18 @@ exports.updateClient = async (req, res) => {
     }
 
     await db.query(
-      `UPDATE clients SET
+      `UPDATE customers SET
         full_name = ?,
         contact_number = ?,
         email = ?,
         address = ?,
-        valid_id_type = ?,
-        valid_id_number = ?,
         updated_at = NOW()
-       WHERE client_id = ?`,
+       WHERE customer_id = ?`,
       [
         full_name?.trim() || existing[0].full_name,
         contact_number?.trim() || existing[0].contact_number,
         email?.trim() || existing[0].email,
         address?.trim() || existing[0].address,
-        valid_id_type?.trim() || existing[0].valid_id_type,
-        valid_id_number?.trim() || existing[0].valid_id_number,
         id,
       ]
     );
@@ -153,14 +123,14 @@ exports.deleteClient = async (req, res) => {
   const { id } = req.params;
   try {
     const [existing] = await db.query(
-      "SELECT * FROM clients WHERE client_id = ?",
+      "SELECT * FROM customers WHERE customer_id = ?",
       [id]
     );
     if (existing.length === 0) {
       return res.status(404).json({ error: "Client not found" });
     }
 
-    await db.query("DELETE FROM clients WHERE client_id = ?", [id]);
+    await db.query("DELETE FROM customers WHERE customer_id = ?", [id]);
     res.json({ message: "Client deleted successfully." });
   } catch (err) {
     console.error("Error in deleteClient:", err);
