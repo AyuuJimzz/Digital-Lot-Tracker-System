@@ -15,7 +15,7 @@ const EmployeeDashboard = () => {
     soldLots: 0,
     availableLots: 0,
     teamMembers: 0,
-    totalClients: 0,
+    totalCustomer: 0,
   });
   const [recentLotUpdates, setRecentLotUpdates] = useState([]);
 
@@ -33,23 +33,23 @@ const EmployeeDashboard = () => {
 
         setIsAuthorized(true);
 
-        const [mapDataResponse, employeesResponse, clientsResponse] = await Promise.all([
+        const [mapDataResponse, employeesResponse, customersResponse] = await Promise.all([
           axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
           axios.get("http://localhost:5000/api/employees", { withCredentials: true }),
-          axios.get("http://localhost:5000/api/clients", { withCredentials: true }),
+          axios.get("http://localhost:5000/api/customers", { withCredentials: true }),
         ]);
 
         const summary = mapDataResponse?.data?.summary || {};
         const lots = Array.isArray(mapDataResponse?.data?.lots) ? mapDataResponse.data.lots : [];
         const employees = Array.isArray(employeesResponse?.data) ? employeesResponse.data : [];
-        const clients = Array.isArray(clientsResponse?.data) ? clientsResponse.data : [];
+        const customers = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
 
         setStats({
           totalLots: summary.totalLots || 0,
           soldLots: summary.soldLots || 0,
           availableLots: summary.availableLots || 0,
           teamMembers: employees.length || 0,
-          totalClients: clients.length || 0,
+          totalCustomer: customers.length || 0,
         });
 
         const updates = lots
@@ -132,7 +132,7 @@ const EmployeeDashboard = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard title="Employee Team" value={String(stats.teamMembers)} />
-        <StatCard title="Total Clients" value={String(stats.totalClients)} />
+        <StatCard title="Total Customers" value={String(stats.totalCustomer)} />
       </div>
 
       <div className="pt-2">

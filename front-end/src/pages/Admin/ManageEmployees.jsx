@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { Edit, Trash2, Plus, X } from "lucide-react";
 
 const ManageEmployees = () => {
   // ============================================================
@@ -77,14 +78,9 @@ const ManageEmployees = () => {
 
       await fetchEmployees();
       resetForm();
-      alert(
-        editingEmployee
-          ? "Employee updated successfully"
-          : "Employee added successfully",
-      );
+      alert(editingEmployee ? "Employee updated successfully" : "Employee added successfully");
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.error || err.message || "Failed to save employee";
+      const errorMessage = err.response?.data?.error || err.message || "Failed to save employee";
       alert(errorMessage);
     }
   };
@@ -96,9 +92,7 @@ const ManageEmployees = () => {
       last_name: employee.last_name,
       email: employee.email,
       password: "",
-      date_of_birth: employee.date_of_birth
-        ? employee.date_of_birth.split("T")[0]
-        : "",
+      date_of_birth: employee.date_of_birth ? employee.date_of_birth.split("T")[0] : "",
       gender: employee.gender || "",
       phone_number: employee.phone_number || "",
       address: employee.address || "",
@@ -145,11 +139,7 @@ const ManageEmployees = () => {
   // RENDER UI
   // ============================================================
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        Loading employees...
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64">Loading employees...</div>;
   }
 
   if (error) {
@@ -157,7 +147,7 @@ const ManageEmployees = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Manage Employees</h1>
@@ -165,7 +155,17 @@ const ManageEmployees = () => {
           onClick={() => setShowForm(!showForm)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          {showForm ? "Cancel" : "+ Add New Employee"}
+          {showForm ? (
+            <>
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Employee
+            </>
+          )}
         </button>
       </div>
 
@@ -178,9 +178,7 @@ const ManageEmployees = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  First Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                 <input
                   type="text"
                   name="first_name"
@@ -192,9 +190,7 @@ const ManageEmployees = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Last Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
                 <input
                   type="text"
                   name="last_name"
@@ -206,9 +202,7 @@ const ManageEmployees = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                 <input
                   type="email"
                   name="email"
@@ -221,9 +215,7 @@ const ManageEmployees = () => {
 
               {!editingEmployee && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                   <input
                     type="password"
                     name="password"
@@ -249,9 +241,7 @@ const ManageEmployees = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Gender
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                 <select
                   name="gender"
                   value={formData.gender}
@@ -266,9 +256,7 @@ const ManageEmployees = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                 <input
                   type="tel"
                   name="phone_number"
@@ -280,9 +268,7 @@ const ManageEmployees = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
               <textarea
                 name="address"
                 value={formData.address}
@@ -348,10 +334,7 @@ const ManageEmployees = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {employees.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="px-6 py-4 text-center text-sm text-gray-500"
-                  >
+                  <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
                     No employees found
                   </td>
                 </tr>
@@ -383,13 +366,13 @@ const ManageEmployees = () => {
                         onClick={() => handleEdit(employee)}
                         className="text-blue-600 hover:text-blue-900 mr-3"
                       >
-                        Edit
+                        <Edit className="h-4 w-4 inline mr-1" />
                       </button>
                       <button
                         onClick={() => handleDelete(employee.employee_id)}
                         className="text-red-600 hover:text-red-900"
                       >
-                        Delete
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </td>
                   </tr>

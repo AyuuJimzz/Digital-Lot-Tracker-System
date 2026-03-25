@@ -3,8 +3,9 @@ import { useSearchParams } from "react-router-dom";
 
 const getStatusClass = (status) => {
   const normalizedStatus = String(status || "").toLowerCase();
-  if (normalizedStatus === "sold") return "bg-green-100 text-green-800";
+  if (normalizedStatus === "sold") return "bg-red-100 text-red-800";
   if (normalizedStatus === "pending") return "bg-yellow-100 text-yellow-800";
+  if (normalizedStatus === "available") return "bg-green-100 text-green-800";
   return "bg-gray-100 text-gray-700";
 };
 

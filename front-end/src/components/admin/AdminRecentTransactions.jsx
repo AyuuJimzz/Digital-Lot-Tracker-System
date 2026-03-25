@@ -72,9 +72,7 @@ const RecentTransactions = () => {
   const [filter, setFilter] = useState("All");
 
   const filtered =
-    filter === "All"
-      ? MOCK_TRANSACTIONS
-      : MOCK_TRANSACTIONS.filter((t) => t.status === filter);
+    filter === "All" ? MOCK_TRANSACTIONS : MOCK_TRANSACTIONS.filter((t) => t.status === filter);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -107,50 +105,57 @@ const RecentTransactions = () => {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {["Transaction ID", "Client", "Lot #", "Property", "Date", "Amount", "Payment", "Status"].map(
-                (col) => (
-                  <th
-                    key={col}
-                    className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
-                  >
-                    {col}
-                  </th>
-                )
-              )}
+              {[
+                "Transaction ID",
+                "Client",
+                "Lot #",
+                "Property",
+                "Date",
+                "Amount",
+                "Payment",
+                "Status",
+              ].map((col) => (
+                <th
+                  key={col}
+                  className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  {col}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-5 py-6 text-sm text-gray-400 text-center">
+                <td colSpan={8} className="px-3 py-6 text-sm text-gray-400 text-center">
                   No transactions found.
                 </td>
               </tr>
             ) : (
               filtered.map((txn) => (
                 <tr key={txn.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
                     {txn.id}
                   </td>
-                  <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
                     {txn.client}
                   </td>
-                  <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
                     {txn.lot_number}
                   </td>
-                  <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-700">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
                     {txn.property}
                   </td>
-                  <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                     {txn.sale_date}
                   </td>
-                  <td className="px-5 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {formatCurrency(txn.total_price)}
                   </td>
-                  <td className="px-5 py-4 whitespace-nowrap">
+                  <td className="px-3 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         PAYMENT_STYLES[txn.payment_type] || "bg-gray-100 text-gray-700"
@@ -159,7 +164,7 @@ const RecentTransactions = () => {
                       {txn.payment_type}
                     </span>
                   </td>
-                  <td className="px-5 py-4 whitespace-nowrap">
+                  <td className="px-3 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         STATUS_STYLES[txn.status] || "bg-gray-100 text-gray-800"
@@ -177,7 +182,9 @@ const RecentTransactions = () => {
 
       {/* Footer */}
       <div className="px-6 py-3 border-t border-gray-100 text-xs text-gray-400 flex justify-between items-center">
-        <span>Showing {filtered.length} of {MOCK_TRANSACTIONS.length} transactions</span>
+        <span>
+          Showing {filtered.length} of {MOCK_TRANSACTIONS.length} transactions
+        </span>
       </div>
     </div>
   );

@@ -3,6 +3,20 @@ import axios from "axios";
 
 const ROWS_PER_PAGE = 10;
 
+// Status color function
+const getStatusColor = (status) => {
+  switch (status) {
+    case "Available":
+      return "bg-green-100 text-green-800";
+    case "Pending":
+      return "bg-yellow-100 text-yellow-800";
+    case "Sold":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
+
 const MySales = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -197,7 +211,11 @@ const MySales = () => {
                             {sale.area_sqm ?? "-"}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {sale.status ?? "Unknown"}
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(sale.status)}`}
+                            >
+                              {sale.status ?? "Unknown"}
+                            </span>
                           </td>
                         </tr>
                       ))}

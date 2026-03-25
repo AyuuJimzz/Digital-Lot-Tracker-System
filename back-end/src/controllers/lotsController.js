@@ -108,55 +108,14 @@ exports.getMapData = async (req, res) => {
   }
 };
 
-exports.getLotWithCustomer = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    // Get lot details
-    const [lotRows] = await db.query(
-      `SELECT l.*, p.property_name, p.location 
-       FROM lots l 
-       LEFT JOIN properties p ON l.property_id = p.property_id 
-       WHERE l.lot_id = ?`,
-      [id]
-    );
-
-    if (lotRows.length === 0) {
-      return res.status(404).json({ error: "Lot not found" });
-    }
-
-    const lot = lotRows[0];
-
-    // Get customer information for this lot
-    const [customerRows] = await db.query(
-      `SELECT customer_id, email, created_at, updated_at 
-       FROM customers 
-       WHERE lot_id = ?`,
-      [id]
-    );
-
-    const result = {
-      ...lot,
-      coordinates:
-        typeof lot.coordinates === "string" ? JSON.parse(lot.coordinates) : lot.coordinates,
-      customer: customerRows.length > 0 ? customerRows[0] : null,
-    };
-
-    res.json(result);
-  } catch (err) {
-    console.error("Error in getLotWithCustomer:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
-
 // =======================
 // UPDATE LOT STATUS
 // =======================
 exports.updateLotStatus = async (req, res) => {
   const { id } = req.params;
-  const { status, email } = req.body;
+  const { status, email, fullName, contactNumber, address } = req.body;
 
-  console.log("updateLotStatus called:", { id, status, email });
+  console.log("updateLotStatus called:", { id, status, email, fullName, contactNumber, address });
 
   try {
     // Validate status
@@ -184,13 +143,32 @@ exports.updateLotStatus = async (req, res) => {
     await db.query("UPDATE lots SET status = ? WHERE lot_id = ?", [status, id]);
     console.log("Lot status updated successfully");
 
-    // Handle email update if provided
+    // Handle customer information update if provided
     if (email) {
-      console.log("Updating customer email to:", email);
+      console.log("Updating customer information");
 
       // Validate email
       if (!email.includes("@")) {
         return res.status(400).json({ error: "Valid email is required" });
+      }
+
+      // For Pending status, require all customer fields
+      if (status === "Pending") {
+        if (!fullName?.trim()) {
+          return res
+            .status(400)
+            .json({ error: "Full name is required when setting lot status to Pending" });
+        }
+        if (!contactNumber?.trim()) {
+          return res
+            .status(400)
+            .json({ error: "Contact number is required when setting lot status to Pending" });
+        }
+        if (!address?.trim()) {
+          return res
+            .status(400)
+            .json({ error: "Address is required when setting lot status to Pending" });
+        }
       }
 
       // Check if customer already exists for this lot
@@ -198,27 +176,47 @@ exports.updateLotStatus = async (req, res) => {
 
       if (existingCustomer.length > 0) {
         // Update existing customer
-        await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?", [
-          email,
-          id,
-        ]);
-        console.log("Updated existing customer email");
+        if (status === "Pending") {
+          await db.query(
+            `UPDATE customers SET 
+             full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
+             WHERE lot_id = ?`,
+            [fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), id]
+          );
+        } else {
+          // For non-pending status, just update email
+          await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?", [
+            email,
+            id,
+          ]);
+        }
+        console.log("Updated existing customer");
       } else {
-        // Create new customer
-        await db.query(
-          "INSERT INTO customers (customer_id, lot_id, email, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
-          [id, id, email]
-        );
+        // Create new customer (only if all fields are provided)
+        if (fullName?.trim() && contactNumber?.trim() && address?.trim()) {
+          await db.query(
+            `INSERT INTO customers (lot_id, full_name, contact_number, email, address, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+            [id, fullName.trim(), contactNumber.trim(), email.trim(), address.trim()]
+          );
+        } else if (status !== "Pending") {
+          // For non-pending status, create with just email
+          await db.query(
+            "INSERT INTO customers (lot_id, email, created_at, updated_at) VALUES (?, ?, NOW(), NOW())",
+            [id, email]
+          );
+        }
         console.log("Created new customer record");
       }
     }
 
     // Handle timestamp logic based on status change
     if (status === "Pending" && lot.status !== "Pending") {
-      // Require email for Pending status
-      if (!email) {
+      // Require all customer fields for Pending status
+      if (!email || !fullName?.trim() || !contactNumber?.trim() || !address?.trim()) {
         return res.status(400).json({
-          error: "Email is required when setting lot status to Pending",
+          error:
+            "All customer fields (email, full name, contact number, address) are required when setting lot status to Pending",
         });
       }
 
@@ -266,7 +264,12 @@ exports.sendPendingLotReminders = async (req, res) => {
     `);
 
     // Only log if there are lots to process
-    if (pendingLots.length === 0) return res.json({ message: "No pending lots eligible for reminders", pendingLotsFound: 0, emailsSent: 0 });
+    if (pendingLots.length === 0)
+      return res.json({
+        message: "No pending lots eligible for reminders",
+        pendingLotsFound: 0,
+        emailsSent: 0,
+      });
 
     console.log(`Found ${pendingLots.length} lots eligible for reminders`);
     pendingLots.forEach((lot) => {
@@ -334,49 +337,6 @@ exports.sendPendingLotReminders = async (req, res) => {
     });
   } catch (err) {
     console.error("Error in sendPendingLotReminders:", err);
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// =======================
-// CREATE/UPDATE CUSTOMER FOR LOT
-// =======================
-exports.createOrUpdateCustomer = async (req, res) => {
-  const { id } = req.params;
-  const { email } = req.body;
-
-  try {
-    // Validate email
-    if (!email || !email.includes("@")) {
-      return res.status(400).json({ error: "Valid email is required" });
-    }
-
-    // Check if lot exists
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
-    if (lotRows.length === 0) {
-      return res.status(404).json({ error: "Lot not found" });
-    }
-
-    // Check if customer already exists for this lot
-    const [existingCustomer] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
-
-    if (existingCustomer.length > 0) {
-      // Update existing customer
-      await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?", [
-        email,
-        id,
-      ]);
-    } else {
-      // Create new customer
-      await db.query(
-        "INSERT INTO customers (customer_id, lot_id, email, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())",
-        [id, id, email]
-      );
-    }
-
-    res.json({ message: "Customer information saved successfully" });
-  } catch (err) {
-    console.error("Error in createOrUpdateCustomer:", err);
     res.status(500).json({ error: err.message });
   }
 };

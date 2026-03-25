@@ -25,7 +25,7 @@ export function AdminHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Check if current page is LotsMap
+  // Check if current page is AdminViewMap
   const isLotsMapPage = location.pathname === "/manage-lots";
 
   // Property locations
@@ -78,7 +78,7 @@ export function AdminHeader() {
       <span className="font-medium text-gray-900">Admin Panel</span>
 
       <div className="flex items-center gap-3">
-        {/* Property Dropdown - Only show on LotsMap page */}
+        {/* Property Dropdown - Only show on AdminViewMap page */}
         {isLotsMapPage && (
           <div className="relative" ref={propertyDropdownRef}>
             <button

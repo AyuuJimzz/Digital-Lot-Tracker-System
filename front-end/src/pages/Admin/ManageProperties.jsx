@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { Edit, Trash2, Plus, Eye, EyeOff, X } from "lucide-react";
 
 const ManageProperties = () => {
   const [properties, setProperties] = useState([]);
@@ -72,14 +73,9 @@ const ManageProperties = () => {
 
       await fetchProperties();
       resetForm();
-      alert(
-        editingProperty
-          ? "Property updated successfully"
-          : "Property added successfully",
-      );
+      alert(editingProperty ? "Property updated successfully" : "Property added successfully");
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.error || err.message || "Failed to save property";
+      const errorMessage = err.response?.data?.error || err.message || "Failed to save property";
       alert(errorMessage);
     }
   };
@@ -108,7 +104,7 @@ const ManageProperties = () => {
       await axios.patch(
         `http://localhost:5000/api/properties/${propertyId}/status`,
         { status: newStatus },
-        { withCredentials: true },
+        { withCredentials: true }
       );
 
       await fetchProperties();
@@ -156,11 +152,7 @@ const ManageProperties = () => {
   // RENDER UI
   // ============================================================
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        Loading properties...
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64">Loading properties...</div>;
   }
 
   if (error) {
@@ -168,7 +160,7 @@ const ManageProperties = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 w-full">
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Manage Properties</h1>
@@ -176,13 +168,23 @@ const ManageProperties = () => {
           onClick={() => setShowForm(!showForm)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          {showForm ? "Cancel" : "+ Add New Property"}
+          {showForm ? (
+            <>
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Property
+            </>
+          )}
         </button>
       </div>
 
       {/* Form Section */}
       {showForm && (
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white shadow rounded-lg p-6 max-w-4xl mx-auto">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             {editingProperty ? "Edit Property" : "Add New Property"}
           </h2>
@@ -203,9 +205,7 @@ const ManageProperties = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Total Lots
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Total Lots</label>
                 <input
                   type="number"
                   name="total_lots"
@@ -218,9 +218,7 @@ const ManageProperties = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
               <textarea
                 name="location"
                 value={formData.location}
@@ -232,9 +230,7 @@ const ManageProperties = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 name="status"
                 value={formData.status}
@@ -273,7 +269,7 @@ const ManageProperties = () => {
           </h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -302,10 +298,7 @@ const ManageProperties = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {properties.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="px-6 py-4 text-center text-sm text-gray-500"
-                  >
+                  <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
                     No properties found
                   </td>
                 </tr>
@@ -318,7 +311,7 @@ const ManageProperties = () => {
                     <td className="px-6 py-3 text-center whitespace-nowrap text-sm font-medium text-gray-900">
                       {property.property_name}
                     </td>
-                    <td className="px-6 py-3  whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-3 text-center whitespace-nowrap text-sm text-gray-500">
                       {property.location}
                     </td>
                     <td className="px-6 py-3 text-center whitespace-nowrap text-sm text-gray-500">
@@ -334,31 +327,33 @@ const ManageProperties = () => {
                     <td className="px-6 py-3 text-center whitespace-nowrap text-sm text-gray-500">
                       {new Date(property.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-3 text-center whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-3 text-center whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => handleEdit(property)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
+                        className="inline-flex items-center justify-center w-8 h-8 text-blue-600 hover:text-blue-900"
                       >
-                        Edit
+                        <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() =>
-                          handleToggleStatus(
-                            property.property_id,
-                            property.status,
-                          )
-                        }
-                        className="text-yellow-600 hover:text-yellow-900 mr-3"
+                        onClick={() => handleToggleStatus(property.property_id, property.status)}
+                        className={`inline-flex items-center justify-center w-8 h-8 rounded-md shadow-sm text-sm font-medium mx-2 ${
+                          property.status === "active"
+                            ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                            : "bg-green-100 text-green-800 hover:bg-green-200"
+                        }`}
+                        title={property.status === "active" ? "Deactivate" : "Activate"}
                       >
-                        {property.status === "active"
-                          ? "Deactivate"
-                          : "Activate"}
+                        {property.status === "active" ? (
+                          <Eye className="h-4 w-4" />
+                        ) : (
+                          <EyeOff className="h-4 w-4" />
+                        )}
                       </button>
                       <button
                         onClick={() => handleDelete(property.property_id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="inline-flex items-center justify-center w-8 h-8 text-red-600 hover:text-red-900"
                       >
-                        Delete
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </td>
                   </tr>

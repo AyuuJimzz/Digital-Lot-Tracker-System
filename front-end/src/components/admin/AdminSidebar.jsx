@@ -1,13 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import {
-  LayoutDashboard,
-  BarChart3,
-  Map,
-  Users,
-  Building2,
-  Settings,
-} from "lucide-react";
+import { LayoutDashboard, BarChart3, Map, Users, Building2, Settings } from "lucide-react";
 
 const navItems = [
   {
@@ -18,7 +11,7 @@ const navItems = [
   { title: "Manage Employees", url: "/manage-employees", icon: Users },
   { title: "Manage Properties", url: "/manage-properties", icon: Building2 },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
-  { title: "Lots Map", url: "/manage-lots", icon: Map },
+  { title: "Map View", url: "/manage-lots", icon: Map },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

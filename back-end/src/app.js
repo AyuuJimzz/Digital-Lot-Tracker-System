@@ -8,7 +8,7 @@ const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 // const propertyRoutes = require("./routes/propertyRoutes");
 const lotRoutes = require("./routes/lotRoutes");
-const clientRoutes = require("./routes/clientRoutes");
+const customerRoutes = require("./routes/customerRoutes");
 
 const app = express();
 
@@ -48,7 +48,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/lots", lotRoutes);
-app.use("/api/clients", clientRoutes);
+app.use("/api/customers", customerRoutes);
 app.use("/api/admin", sessionOrToken({ roles: ["admin"] }), adminRoutes);
 
 // 404 handler

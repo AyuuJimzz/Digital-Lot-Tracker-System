@@ -1,22 +1,52 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { User, LogOut, Settings, UserCircle } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { User, LogOut, Settings, UserCircle, MapPin } from "lucide-react";
 
 export function EmployeeHeader() {
   const [isOpen, setIsOpen] = useState(false);
+  const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const propertyDropdownRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Close dropdown if user clicks outside of it
+  // Property locations (same as AdminHeader)
+  const properties = [
+    { id: 1, name: "Property 1", coordinates: [10.7367 + 0.0005, 122.4998] },
+    { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
+    { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33628474716154] },
+  ];
+
+  // Check if current page is EmployeeMapView
+  const isMapViewPage = location.pathname === "/employee/map-view";
+
+  // Close dropdowns if user clicks outside of them
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
       }
+      if (propertyDropdownRef.current && !propertyDropdownRef.current.contains(event.target)) {
+        setPropertyDropdownOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handlePropertySelect = (property) => {
+    // Save selected property to localStorage
+    localStorage.setItem("selectedProperty", property.id.toString());
+
+    // Emit event to center the map
+    window.dispatchEvent(
+      new CustomEvent("navigateToProperty", {
+        detail: { coordinates: property.coordinates },
+      })
+    );
+
+    setPropertyDropdownOpen(false);
+  };
 
   const handleLogout = async () => {
     try {
@@ -36,51 +66,86 @@ export function EmployeeHeader() {
     <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 relative z-[1000] overflow-visible">
       <span className="font-medium text-gray-900">Employee Panel</span>
 
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors duration-200 ${isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"}`}
-          aria-label="User profile"
-        >
-          <User className="h-4 w-4 text-gray-500" />
-        </button>
-
-        {/* Dropdown Menu */}
-        {isOpen && (
-          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[1100]">
+      <div className="flex items-center gap-3">
+        {/* Property Dropdown - Only show on EmployeeMapView page */}
+        {isMapViewPage && (
+          <div className="relative" ref={propertyDropdownRef}>
             <button
-              className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
-              onClick={() => {
-                console.log("Profile clicked");
-                setIsOpen(false);
-              }}
+              onClick={() => setPropertyDropdownOpen(!propertyDropdownOpen)}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors duration-200 ${
+                propertyDropdownOpen
+                  ? "bg-blue-100 text-blue-700 border border-blue-200"
+                  : "bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200"
+              }`}
             >
-              <UserCircle className="mr-2 h-4 w-4 text-gray-400" />
-              Profile
+              <MapPin className="h-4 w-4" />
+              Properties
             </button>
 
-            <button
-              className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
-              onClick={() => {
-                console.log("Settings clicked");
-                setIsOpen(false);
-              }}
-            >
-              <Settings className="mr-2 h-4 w-4 text-gray-400" />
-              Settings
-            </button>
-
-            <div className="border-t border-gray-100 my-1"></div>
-
-            <button
-              className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
-              onClick={handleLogout}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </button>
+            {/* Property Dropdown Menu */}
+            {propertyDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[9999]">
+                {properties.map((property) => (
+                  <button
+                    key={property.id}
+                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                    onClick={() => handlePropertySelect(property)}
+                  >
+                    <MapPin className="mr-2 h-4 w-4 text-gray-400" />
+                    {property.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
+
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors duration-200 ${isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"}`}
+            aria-label="User profile"
+          >
+            <User className="h-4 w-4 text-gray-500" />
+          </button>
+
+          {/* Dropdown Menu */}
+          {isOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[1100]">
+              <button
+                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                onClick={() => {
+                  console.log("Profile clicked");
+                  setIsOpen(false);
+                }}
+              >
+                <UserCircle className="mr-2 h-4 w-4 text-gray-400" />
+                Profile
+              </button>
+
+              <button
+                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                onClick={() => {
+                  console.log("Settings clicked");
+                  setIsOpen(false);
+                }}
+              >
+                <Settings className="mr-2 h-4 w-4 text-gray-400" />
+                Settings
+              </button>
+
+              <div className="border-t border-gray-100 my-1"></div>
+
+              <button
+                className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

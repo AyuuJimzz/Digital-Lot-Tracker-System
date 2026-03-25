@@ -5,10 +5,8 @@ const {
   getLotsByProperty,
   getLotById,
   getMapData,
-  getLotWithCustomer,
   updateLotStatus,
   sendPendingLotReminders,
-  createOrUpdateCustomer,
 } = require("../controllers/lotsController");
 
 // Database routes
@@ -57,13 +55,11 @@ router.get("/test-db", async (req, res) => {
 //   }
 // });
 
-router.get("/:id/with-customer", getLotWithCustomer);
 router.get("/:id", getLotById);
 
 // Update routes
 router.put("/:id/status", updateLotStatus);
 router.post("/send-pending-reminders", sendPendingLotReminders);
-router.post("/:id/customer", createOrUpdateCustomer);
 
 // Test PUT route
 router.put("/test-put/:id", (req, res) => {
