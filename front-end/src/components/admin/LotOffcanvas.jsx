@@ -14,7 +14,6 @@ const LotOffcanvas = ({
   const [address, setAddress] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
-  const [customerEmail, setCustomerEmail] = useState(""); // Store existing customer email
 
   useEffect(() => {
     if (selectedLot) {
@@ -22,13 +21,12 @@ const LotOffcanvas = ({
 
       // If lot has customer data, set the customer information
       if (selectedLot.customer) {
-        setCustomerEmail(selectedLot.customer.email || "");
         setEmail(selectedLot.customer.email || "");
         setFullName(selectedLot.customer.full_name || "");
         setContactNumber(selectedLot.customer.contact_number || "");
         setAddress(selectedLot.customer.address || "");
       } else {
-        setCustomerEmail("");
+        // Clear fields if no customer data
         setEmail("");
         setFullName("");
         setContactNumber("");
@@ -38,6 +36,17 @@ const LotOffcanvas = ({
       setSaveMessage("");
     }
   }, [selectedLot]);
+
+  // Handle status change to clear fields when going back to Available
+  useEffect(() => {
+    if (selectedLot && status === "Available" && selectedLot.status !== "Available") {
+      // Only clear fields if status was changed to Available (not initial load)
+      setEmail("");
+      setFullName("");
+      setContactNumber("");
+      setAddress("");
+    }
+  }, [status, selectedLot]);
 
   const getStatusColorClasses = (status) => {
     switch (status) {
@@ -131,7 +140,7 @@ const LotOffcanvas = ({
         <div className="h-full flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800">Lot Details</h2>
+            <h2 className="text-xl font-bold text-gray-800">Lot De tails</h2>
             <button
               onClick={onClose}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
@@ -204,7 +213,7 @@ const LotOffcanvas = ({
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Full Name
                     </label>
-                    {customerEmail ? (
+                    {status === "Pending" && selectedLot.status === "Pending" && email ? (
                       <input
                         type="text"
                         value={fullName}
@@ -227,7 +236,7 @@ const LotOffcanvas = ({
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Contact Number
                     </label>
-                    {customerEmail ? (
+                    {status === "Pending" && selectedLot.status === "Pending" && email ? (
                       <input
                         type="tel"
                         value={contactNumber}
@@ -248,7 +257,7 @@ const LotOffcanvas = ({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    {customerEmail ? (
+                    {status === "Pending" && selectedLot.status === "Pending" && email ? (
                       <div className="relative">
                         <input
                           type="email"
@@ -286,7 +295,7 @@ const LotOffcanvas = ({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                    {customerEmail ? (
+                    {status === "Pending" && selectedLot.status === "Pending" && email ? (
                       <textarea
                         value={address}
                         readOnly
@@ -305,7 +314,7 @@ const LotOffcanvas = ({
                     )}
                   </div>
 
-                  {customerEmail && (
+                  {status === "Pending" && selectedLot.status === "Pending" && email && (
                     <p className="text-xs text-gray-500">
                       Customer information is locked while lot is pending. Change status to
                       Available to modify.

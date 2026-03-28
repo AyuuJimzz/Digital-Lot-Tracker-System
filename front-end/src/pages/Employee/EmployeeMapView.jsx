@@ -24,7 +24,6 @@ function ZoomToCenter({ lots, propertyCoords }) {
 
   useEffect(() => {
     if (propertyCoords) {
-      // Always center on property coordinates, not lot bounds
       map.panTo(propertyCoords);
     } else if (lots && lots.length > 0) {
       // Fallback to lot bounds if no property coordinates provided
@@ -43,6 +42,13 @@ function MapController({ selectedProperty, setSelectedProperty }) {
   useEffect(() => {
     const handleNavigateToProperty = (event) => {
       const { coordinates } = event.detail;
+
+      // Validate coordinates before setting map view
+      if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
+        console.error("Invalid coordinates for navigation:", coordinates);
+        return;
+      }
+
       map.panTo(coordinates);
     };
 
@@ -63,7 +69,6 @@ function MapController({ selectedProperty, setSelectedProperty }) {
   return null;
 }
 
-// Fix Leaflet gray map on first load inside React layouts
 function InvalidateSize() {
   const map = useMap();
   useEffect(() => {
@@ -94,10 +99,37 @@ const EmployeeMapView = () => {
   );
 
   useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/lots/map-data", { withCredentials: true })
-      .then((res) => setMapData(res.data))
-      .catch((err) => console.error("Map Load Error:", err));
+    const fetchMapData = async () => {
+      try {
+        const [mapResponse] = await Promise.all([
+          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
+        ]);
+
+        // Fetch customer details for all pending/sold lots
+        const lotsWithCustomerData = await Promise.all(
+          mapResponse.data.lots.map(async (lot) => {
+            if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
+              try {
+                const lotDetails = await axios.get(`http://localhost:5000/api/lots/${lot.lot_id}`, {
+                  withCredentials: true,
+                });
+                return { ...lot, customer: lotDetails.data.customer };
+              } catch (error) {
+                console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
+                return lot;
+              }
+            }
+            return lot;
+          })
+        );
+
+        setMapData({ ...mapResponse.data, lots: lotsWithCustomerData });
+      } catch (err) {
+        console.error("Map Load Error:", err);
+      }
+    };
+
+    fetchMapData();
   }, []);
 
   // Center map on selected property when it changes
@@ -120,10 +152,8 @@ const EmployeeMapView = () => {
     localStorage.setItem("selectedProperty", selectedProperty.toString());
   }, [selectedProperty]);
 
-  // Filter lots by selected property
-  const filteredLots = mapData
-    ? mapData.lots.filter((lot) => lot.property_id === selectedProperty)
-    : [];
+  // Show all lots from all properties
+  const filteredLots = mapData ? mapData.lots : [];
 
   // Get selected property coordinates
   const selectedPropertyCoords = properties.find((p) => p.id === selectedProperty)?.coordinates || [
@@ -161,35 +191,19 @@ const EmployeeMapView = () => {
         box-shadow: 0 2px 6px rgba(0,0,0,0.5);
         cursor: pointer;
         transition: all 0.2s ease;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
       ":hover="
-        transform: scale(1.2);
+        transform: translate(-50%, -50%) scale(1.2);
         box-shadow: 0 3px 8px rgba(0,0,0,0.7);
       "></div>`,
 
-      iconSize: [16, 16],
+      iconSize: [24, 24], // Larger clickable area
 
-      iconAnchor: [8, 8], // Center of the circle
+      iconAnchor: [12, 24], // Anchor at bottom center of the clickable area
     });
-  };
-
-  // Function to handle pin click
-  const handlePinClick = async (lot) => {
-    // If lot is pending, fetch customer data
-    if (lot.status === "Pending") {
-      try {
-        const lotWithCustomer = await axios.get(
-          `http://localhost:5000/api/lots/${lot.lot_id}/with-customer`,
-          { withCredentials: true }
-        );
-        setSelectedLot(lotWithCustomer.data);
-      } catch (error) {
-        console.error("Error fetching customer data:", error);
-        setSelectedLot(lot); // Fallback to basic lot data
-      }
-    } else {
-      setSelectedLot(lot);
-    }
-    setIsOffcanvasOpen(true);
   };
 
   const handleCloseOffcanvas = () => {
@@ -199,10 +213,37 @@ const EmployeeMapView = () => {
 
   // Function to refresh map data when lot is updated
   const handleLotUpdated = () => {
-    axios
-      .get("http://localhost:5000/api/lots/map-data", { withCredentials: true })
-      .then((res) => setMapData(res.data))
-      .catch((err) => console.error("Map Refresh Error:", err));
+    const fetchMapData = async () => {
+      try {
+        const [mapResponse] = await Promise.all([
+          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
+        ]);
+
+        // Fetch customer details for all pending/sold lots
+        const lotsWithCustomerData = await Promise.all(
+          mapResponse.data.lots.map(async (lot) => {
+            if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
+              try {
+                const lotDetails = await axios.get(`http://localhost:5000/api/lots/${lot.lot_id}`, {
+                  withCredentials: true,
+                });
+                return { ...lot, customer: lotDetails.data.customer };
+              } catch (error) {
+                console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
+                return lot;
+              }
+            }
+            return lot;
+          })
+        );
+
+        setMapData({ ...mapResponse.data, lots: lotsWithCustomerData });
+      } catch (err) {
+        console.error("Map Refresh Error:", err);
+      }
+    };
+
+    fetchMapData();
   };
 
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
@@ -222,6 +263,14 @@ const EmployeeMapView = () => {
         />
 
         {filteredLots.map((lot, index) => {
+          // Skip lots with invalid or missing coordinates
+          if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
+            console.warn(
+              `Lot ${lot.lot_id} (${lot.lot_number}) has invalid coordinates, skipping...`
+            );
+            return null;
+          }
+
           const centerLat =
             lot.coordinates.reduce((sum, coord) => sum + coord[0], 0) / lot.coordinates.length;
 
@@ -271,18 +320,59 @@ const EmployeeMapView = () => {
                 position={[pinLat, centerLng]}
                 icon={createPinIcon(lot.status)}
                 eventHandlers={{
-                  click: () => handlePinClick(lot),
+                  click: async (e) => {
+                    e.originalEvent.stopPropagation();
+                    // Set basic lot data immediately to ensure it's available
+                    setSelectedLot(lot);
+                    setIsOffcanvasOpen(true);
+
+                    // Then fetch fresh data in background
+                    try {
+                      const lotDetails = await axios.get(
+                        `http://localhost:5000/api/lots/${lot.lot_id}`,
+                        {
+                          withCredentials: true,
+                        }
+                      );
+                      setSelectedLot(lotDetails.data);
+                    } catch (error) {
+                      console.error("Error fetching customer data:", error);
+                      // Keep the basic lot data if fetch fails
+                    }
+                  },
                 }}
               >
-                <Tooltip permanent={false} direction="top" offset={[0, -10]}>
-                  <div className="text-center text-xs leading-tight">
-                    <div className="mb-1">{lot.lot_number}</div>
-                    <div className="mb-1 text-[12px] font-bold text-gray-600">
-                      {lot.area_sqm} sqm
-                    </div>
+                <Tooltip
+                  permanent={false}
+                  direction="top"
+                  sticky={false}
+                  offset={[0, -25]}
+                  opacity={1}
+                  className="leaflet-tooltip-custom"
+                >
+                  <div className="flex flex-col items-center text-center text-xs leading-tight w-[150px] bg-white p-1">
+                    <div className="mb-1 font-bold truncate w-full">{lot.lot_number}</div>
+                    <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
                     <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
                       {lot.status}
                     </div>
+
+                    {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
+                      <div className="mt-2 pt-2 border-t border-gray-300 w-full">
+                        <div className="text-[11px] text-gray-700">
+                          <div className="font-semibold truncate">Customer Info:</div>
+                          <div className="truncate">{lot.customer.full_name || "N/A"}</div>
+
+                          <div className="text-gray-600 truncate">
+                            {lot.customer.email || "N/A"}
+                          </div>
+
+                          <div className="text-gray-600 truncate">
+                            {lot.customer.contact_number || "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </Tooltip>
               </Marker>

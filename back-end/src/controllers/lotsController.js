@@ -60,13 +60,23 @@ exports.getLotById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [rows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
 
-    if (rows.length === 0) {
+    if (lotRows.length === 0) {
       return res.status(404).json({ error: "Lot not found" });
     }
 
-    res.json(rows[0]);
+    const lot = lotRows[0];
+
+    // Get customer information if exists
+    const [customerRows] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
+
+    // Add customer information to lot object if exists
+    if (customerRows.length > 0) {
+      lot.customer = customerRows[0];
+    }
+
+    res.json(lot);
   } catch (err) {
     console.error("Error in getLotById:", err);
     res.status(500).json({ error: err.message });

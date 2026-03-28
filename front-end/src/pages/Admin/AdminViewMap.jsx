@@ -30,13 +30,20 @@ function MapController({ center, onLotUpdated }) {
     // Listen for property navigation events
     const handleNavigateToProperty = (event) => {
       const { coordinates } = event.detail;
+
+      // Validate coordinates before setting map view
+      if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
+        console.error("Invalid coordinates for navigation:", coordinates);
+        return;
+      }
+
       map.setView(coordinates, 19);
     };
 
     // Listen for property selection events
     const handleSelectProperty = (event) => {
-      const { coordinates } = event.detail;
-      map.setView(coordinates, 19);
+      // This event is for filtering, not navigation
+      // Navigation is handled by handleNavigateToProperty
     };
 
     window.addEventListener("navigateToProperty", handleNavigateToProperty);
@@ -109,28 +116,102 @@ function AdminViewMap() {
   // Function to create the Pin Icon
   const createPinIcon = (status) => {
     const color = getStatusColor(status);
+
     return L.divIcon({
-      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-      className: "custom-div-icon",
-      iconSize: [12, 12],
-      iconAnchor: [6, 6],
+      className: "custom-pin",
+
+      html: `<div style="
+        background-color: ${color}; 
+        width: 16px; 
+        height: 16px; 
+        border-radius: 50%;
+        border: 1px solid #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      ":hover="
+        transform: translate(-50%, -50%) scale(1.2);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.7);
+      "></div>`,
+
+      iconSize: [24, 24], // Larger clickable area
+
+      iconAnchor: [12, 24], // Anchor at bottom center of the clickable area
     });
   };
 
   // Fetch map data
   useEffect(() => {
-    axios
-      .get("http://localhost:5000/api/lots/map-data", { withCredentials: true })
-      .then((res) => setMapData(res.data))
-      .catch((err) => console.error("Map Data Error:", err));
+    const fetchMapData = async () => {
+      try {
+        const [mapResponse] = await Promise.all([
+          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
+        ]);
+
+        // Fetch customer details for all pending/sold lots
+        const lotsWithCustomerData = await Promise.all(
+          mapResponse.data.lots.map(async (lot) => {
+            if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
+              try {
+                const lotDetails = await axios.get(`http://localhost:5000/api/lots/${lot.lot_id}`, {
+                  withCredentials: true,
+                });
+                return { ...lot, customer: lotDetails.data.customer };
+              } catch (error) {
+                console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
+                return lot;
+              }
+            }
+            return lot;
+          })
+        );
+
+        setMapData({ ...mapResponse.data, lots: lotsWithCustomerData });
+      } catch (err) {
+        console.error("Map Data Error:", err);
+      }
+    };
+
+    fetchMapData();
   }, []);
 
   // Function to refresh map data when lot is updated
   const handleLotUpdated = () => {
-    axios
-      .get("http://localhost:5000/api/lots/map-data", { withCredentials: true })
-      .then((res) => setMapData(res.data))
-      .catch((err) => console.error("Map Refresh Error:", err));
+    const fetchMapData = async () => {
+      try {
+        const [mapResponse] = await Promise.all([
+          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
+        ]);
+
+        // Fetch customer details for all pending/sold lots
+        const lotsWithCustomerData = await Promise.all(
+          mapResponse.data.lots.map(async (lot) => {
+            if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
+              try {
+                const lotDetails = await axios.get(`http://localhost:5000/api/lots/${lot.lot_id}`, {
+                  withCredentials: true,
+                });
+                return { ...lot, customer: lotDetails.data.customer };
+              } catch (error) {
+                console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
+                return lot;
+              }
+            }
+            return lot;
+          })
+        );
+
+        setMapData({ ...mapResponse.data, lots: lotsWithCustomerData });
+      } catch (err) {
+        console.error("Map Refresh Error:", err);
+      }
+    };
+
+    fetchMapData();
   };
 
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
@@ -150,6 +231,14 @@ function AdminViewMap() {
         />
 
         {filteredLots.map((lot, index) => {
+          // Skip lots with invalid or missing coordinates
+          if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
+            console.warn(
+              `Lot ${lot.lot_id} (${lot.lot_number}) has invalid coordinates, skipping...`
+            );
+            return null;
+          }
+
           const centerLat =
             lot.coordinates.reduce((sum, coord) => sum + coord[0], 0) / lot.coordinates.length;
 
@@ -199,22 +288,50 @@ function AdminViewMap() {
                 position={[pinLat, centerLng]}
                 icon={createPinIcon(lot.status)}
                 eventHandlers={{
-                  click: () => {
-                    // Fetch lot details with customer information
-                    axios
-                      .get(`http://localhost:5000/api/lots/${lot.lot_id}/with-customer`, {
-                        withCredentials: true,
-                      })
-                      .then((res) => {
-                        setSelectedLot(res.data);
-                        setIsOffcanvasOpen(true);
-                      })
-                      .catch((err) => console.error("Lot Details Error:", err));
+                  click: async (e) => {
+                    e.originalEvent.stopPropagation();
+                    // Set basic lot data immediately to ensure it's available
+                    setSelectedLot(lot);
+                    setIsOffcanvasOpen(true);
+
+                    // Then fetch fresh data in background
+                    try {
+                      const lotDetails = await axios.get(
+                        `http://localhost:5000/api/lots/${lot.lot_id}`,
+                        {
+                          withCredentials: true,
+                        }
+                      );
+                      setSelectedLot(lotDetails.data);
+                    } catch (err) {
+                      console.error("Lot Details Error:", err);
+                      // Keep the basic lot data if fetch fails
+                    }
                   },
                 }}
               >
-                <Tooltip permanent={false} direction="bottom" offset={[0, 10]}>
-                  {lot.lot_number}
+                <Tooltip permanent={false} direction="top" offset={[0, -32]}>
+                  <div className="text-center text-xs leading-tight">
+                    <div className="mb-1 font-bold">{lot.lot_number}</div>
+                    <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
+                    <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
+                      {lot.status}
+                    </div>
+                    {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
+                      <>
+                        <div className="mt-2 pt-2 border-t border-gray-300">
+                          <div className="text-[11px] text-gray-700">
+                            <div className="font-semibold">Customer Info:</div>
+                            <div>{lot.customer.full_name || "N/A"}</div>
+                            <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
+                            <div className="text-gray-600">
+                              {lot.customer.contact_number || "N/A"}
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </Tooltip>
               </Marker>
             </React.Fragment>
