@@ -256,6 +256,71 @@ exports.updateLotStatus = async (req, res) => {
 // =======================
 // SEND PENDING LOT REMINDER EMAILS
 // =======================
+exports.updateLotCoordinates = async (req, res) => {
+  const { id } = req.params;
+  const { coordinates } = req.body;
+
+  try {
+    // Validate coordinates
+    if (!coordinates || !Array.isArray(coordinates) || coordinates.length === 0) {
+      return res.status(400).json({
+        error: "Invalid coordinates. Must be a non-empty array",
+      });
+    }
+
+    // Handle single coordinate [lat, lng] or polygon coordinates [[lat1, lng1], [lat2, lng2], ...]
+    if (
+      coordinates.length === 2 &&
+      typeof coordinates[0] === "number" &&
+      typeof coordinates[1] === "number"
+    ) {
+      // Single coordinate format [lat, lng]
+      const [lat, lng] = coordinates;
+      if (typeof lat !== "number" || typeof lng !== "number") {
+        return res.status(400).json({
+          error: "Invalid coordinates. Both latitude and longitude must be numbers",
+        });
+      }
+    } else {
+      // Polygon coordinates format [[lat1, lng1], [lat2, lng2], ...]
+      for (let i = 0; i < coordinates.length; i++) {
+        const coord = coordinates[i];
+        if (!Array.isArray(coord) || coord.length !== 2) {
+          return res.status(400).json({
+            error: `Invalid coordinate pair at index ${i}. Each coordinate must be [latitude, longitude]`,
+          });
+        }
+        const [lat, lng] = coord;
+        if (typeof lat !== "number" || typeof lng !== "number") {
+          return res.status(400).json({
+            error: `Invalid coordinates at index ${i}. Both latitude and longitude must be numbers`,
+          });
+        }
+      }
+    }
+
+    // Check if lot exists
+    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+    if (lotRows.length === 0) {
+      return res.status(404).json({ error: "Lot not found" });
+    }
+
+    // Update coordinates
+    await db.query("UPDATE lots SET coordinates = ? WHERE lot_id = ?", [
+      JSON.stringify(coordinates),
+      id,
+    ]);
+
+    res.json({
+      message: "Lot coordinates updated successfully",
+      coordinates,
+    });
+  } catch (err) {
+    console.error("Error in updateLotCoordinates:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.sendPendingLotReminders = async (req, res) => {
   try {
     // Find lots that have been pending for more than 24 hours and haven't received any reminder yet

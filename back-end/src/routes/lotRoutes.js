@@ -6,6 +6,7 @@ const {
   getLotById,
   getMapData,
   updateLotStatus,
+  updateLotCoordinates,
   sendPendingLotReminders,
 } = require("../controllers/lotsController");
 
@@ -59,6 +60,7 @@ router.get("/:id", getLotById);
 
 // Update routes
 router.put("/:id/status", updateLotStatus);
+router.put("/:id/coordinates", updateLotCoordinates);
 router.post("/send-pending-reminders", sendPendingLotReminders);
 
 // Test PUT route

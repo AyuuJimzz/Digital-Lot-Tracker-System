@@ -36,7 +36,7 @@ function ZoomToCenter({ lots, propertyCoords }) {
   return null;
 }
 
-function MapController({ selectedProperty, setSelectedProperty }) {
+function MapController({ selectedProperty, setSelectedProperty, setIsPropertyChanging }) {
   const map = useMap();
 
   useEffect(() => {
@@ -55,6 +55,8 @@ function MapController({ selectedProperty, setSelectedProperty }) {
     const handlePropertySelect = (event) => {
       const { propertyId } = event.detail;
       setSelectedProperty(propertyId);
+      // Set flag to indicate this is a user-initiated property change
+      setIsPropertyChanging(true);
     };
 
     window.addEventListener("navigateToProperty", handleNavigateToProperty);
@@ -64,7 +66,7 @@ function MapController({ selectedProperty, setSelectedProperty }) {
       window.removeEventListener("navigateToProperty", handleNavigateToProperty);
       window.removeEventListener("selectProperty", handlePropertySelect);
     };
-  }, [map, setSelectedProperty]);
+  }, [map, setSelectedProperty, setIsPropertyChanging]);
 
   return null;
 }
@@ -87,6 +89,8 @@ const EmployeeMapView = () => {
     const savedProperty = localStorage.getItem("selectedProperty");
     return savedProperty ? parseInt(savedProperty) : 1;
   });
+  // Track if property change is due to user interaction vs lot click
+  const [isPropertyChanging, setIsPropertyChanging] = useState(false);
 
   // Property locations (same as AdminHeader) - wrapped in useMemo to prevent re-creation on every render
   const properties = useMemo(
@@ -132,20 +136,24 @@ const EmployeeMapView = () => {
     fetchMapData();
   }, []);
 
-  // Center map on selected property when it changes
+  // Center map on selected property when it changes (but only due to user interaction)
   useEffect(() => {
-    if (selectedProperty) {
+    if (selectedProperty && isPropertyChanging) {
       const coords = properties.find((p) => p.id === selectedProperty)?.coordinates;
       if (coords) {
-        // Emit event to center the map
-        window.dispatchEvent(
-          new CustomEvent("navigateToProperty", {
-            detail: { coordinates: coords },
-          })
-        );
+        const timer = setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("navigateToProperty", {
+              detail: { coordinates: coords },
+            })
+          );
+          setIsPropertyChanging(false); // Reset the flag
+        }, 100);
+
+        return () => clearTimeout(timer);
       }
     }
-  }, [selectedProperty, properties]);
+  }, [selectedProperty, properties, isPropertyChanging]);
 
   // Save selected property to localStorage whenever it changes
   useEffect(() => {
@@ -322,6 +330,9 @@ const EmployeeMapView = () => {
                 eventHandlers={{
                   click: async (e) => {
                     e.originalEvent.stopPropagation();
+                    // Prevent any property navigation when clicking on lots
+                    e.originalEvent.preventDefault();
+
                     // Set basic lot data immediately to ensure it's available
                     setSelectedLot(lot);
                     setIsOffcanvasOpen(true);
@@ -384,6 +395,7 @@ const EmployeeMapView = () => {
         <MapController
           selectedProperty={selectedProperty}
           setSelectedProperty={setSelectedProperty}
+          setIsPropertyChanging={setIsPropertyChanging}
         />
         <InvalidateSize />
       </MapContainer>

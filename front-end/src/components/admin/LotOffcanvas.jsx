@@ -37,14 +37,23 @@ const LotOffcanvas = ({
     }
   }, [selectedLot]);
 
-  // Handle status change to clear fields when going back to Available
+  // Handle status change to clear fields when going back to Available or when changing from Available to Pending
   useEffect(() => {
-    if (selectedLot && status === "Available" && selectedLot.status !== "Available") {
-      // Only clear fields if status was changed to Available (not initial load)
-      setEmail("");
-      setFullName("");
-      setContactNumber("");
-      setAddress("");
+    if (selectedLot) {
+      // Clear fields if status was changed to Available (not initial load)
+      if (status === "Available" && selectedLot.status !== "Available") {
+        setEmail("");
+        setFullName("");
+        setContactNumber("");
+        setAddress("");
+      }
+      // Clear fields if changing from Available to Pending (new customer)
+      else if (status === "Pending" && selectedLot.status === "Available") {
+        setEmail("");
+        setFullName("");
+        setContactNumber("");
+        setAddress("");
+      }
     }
   }, [status, selectedLot]);
 

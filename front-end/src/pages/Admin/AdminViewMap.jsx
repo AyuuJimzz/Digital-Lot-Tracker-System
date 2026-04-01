@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 
 import {
   MapContainer,
@@ -23,7 +23,7 @@ L.Icon.Default.mergeOptions({
 });
 
 // Component to handle map centering and event listening
-function MapController({ center, onLotUpdated }) {
+function MapController({ center, onLotUpdated, setSelectedProperty, setIsPropertyChanging }) {
   const map = useMap();
 
   useEffect(() => {
@@ -37,13 +37,15 @@ function MapController({ center, onLotUpdated }) {
         return;
       }
 
-      map.setView(coordinates, 19);
+      map.panTo(coordinates);
     };
 
     // Listen for property selection events
     const handleSelectProperty = (event) => {
-      // This event is for filtering, not navigation
-      // Navigation is handled by handleNavigateToProperty
+      const { propertyId } = event.detail;
+      setSelectedProperty(propertyId);
+      // Set flag to indicate this is a user-initiated property change
+      setIsPropertyChanging(true);
     };
 
     window.addEventListener("navigateToProperty", handleNavigateToProperty);
@@ -53,12 +55,12 @@ function MapController({ center, onLotUpdated }) {
       window.removeEventListener("navigateToProperty", handleNavigateToProperty);
       window.removeEventListener("selectProperty", handleSelectProperty);
     };
-  }, [map]);
+  }, [map, setSelectedProperty, setIsPropertyChanging]);
 
   useEffect(() => {
-    if (center) {
-      map.setView(center, 19);
-    }
+    // Remove automatic centering to prevent map movement when offcanvas opens
+    // Map will only move when user explicitly navigates to a property
+    return () => {};
   }, [center, map]);
 
   return null;
@@ -68,26 +70,48 @@ function AdminViewMap() {
   const [mapData, setMapData] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
-  const [selectedProperty] = useState(() => {
+  const [selectedProperty, setSelectedProperty] = useState(() => {
     return parseInt(localStorage.getItem("selectedProperty")) || 1;
   });
+  // Track if property change is due to user interaction vs lot click
+  const [isPropertyChanging, setIsPropertyChanging] = useState(false);
 
   // Property locations
-  const properties = [
-    { id: 1, name: "Property 1", coordinates: [10.7367 + 0.0005, 122.4998] },
-    { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
-    { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33628474716154] },
-  ];
+  const properties = useMemo(
+    () => [
+      { id: 1, name: "Property 1", coordinates: [10.7367 + 0.0005, 122.4998] },
+      { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
+      { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33628474716154] },
+    ],
+    []
+  );
 
   // Save selected property to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("selectedProperty", selectedProperty.toString());
   }, [selectedProperty]);
 
-  // Filter lots by selected property
-  const filteredLots = mapData
-    ? mapData.lots.filter((lot) => lot.property_id === selectedProperty)
-    : [];
+  // Center map on selected property when it changes (but only due to user interaction)
+  useEffect(() => {
+    if (selectedProperty && isPropertyChanging) {
+      const coords = properties.find((p) => p.id === selectedProperty)?.coordinates;
+      if (coords) {
+        const timer = setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent("navigateToProperty", {
+              detail: { coordinates: coords },
+            })
+          );
+          setIsPropertyChanging(false); // Reset the flag
+        }, 100);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [selectedProperty, properties, isPropertyChanging]);
+
+  // Show all lots from all properties
+  const filteredLots = mapData ? mapData.lots : [];
 
   // Get selected property coordinates
   const selectedPropertyCoords = properties.find((p) => p.id === selectedProperty)?.coordinates || [
@@ -214,6 +238,19 @@ function AdminViewMap() {
     fetchMapData();
   };
 
+  // Listen for coordinate updates from AdminHeader
+  useEffect(() => {
+    const handleRefreshMapData = () => {
+      handleLotUpdated();
+    };
+
+    window.addEventListener("refreshMapData", handleRefreshMapData);
+
+    return () => {
+      window.removeEventListener("refreshMapData", handleRefreshMapData);
+    };
+  }, []);
+
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
 
   return (
@@ -290,6 +327,9 @@ function AdminViewMap() {
                 eventHandlers={{
                   click: async (e) => {
                     e.originalEvent.stopPropagation();
+                    // Prevent any property navigation when clicking on lots
+                    e.originalEvent.preventDefault();
+
                     // Set basic lot data immediately to ensure it's available
                     setSelectedLot(lot);
                     setIsOffcanvasOpen(true);
@@ -338,7 +378,12 @@ function AdminViewMap() {
           );
         })}
 
-        <MapController center={selectedPropertyCoords} onLotUpdated={handleLotUpdated} />
+        <MapController
+          center={selectedPropertyCoords}
+          onLotUpdated={handleLotUpdated}
+          setSelectedProperty={setSelectedProperty}
+          setIsPropertyChanging={setIsPropertyChanging}
+        />
       </MapContainer>
 
       {/* LotOffcanvas Component */}
