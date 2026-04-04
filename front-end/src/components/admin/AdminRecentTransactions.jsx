@@ -75,12 +75,12 @@ const RecentTransactions = () => {
     filter === "All" ? MOCK_TRANSACTIONS : MOCK_TRANSACTIONS.filter((t) => t.status === filter);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-200">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Recent Transactions</h3>
-          <p className="text-xs text-amber-600 mt-0.5">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Transactions</h3>
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
             ⚠️ UI Preview — using mock data. Will connect to real API soon.
           </p>
         </div>
@@ -93,8 +93,8 @@ const RecentTransactions = () => {
               onClick={() => setFilter(f)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                 filter === f
-                  ? "bg-gray-900 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  ? "bg-gray-900 dark:bg-slate-700 text-white"
+                  : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
               }`}
             >
               {f}
@@ -105,29 +105,15 @@ const RecentTransactions = () => {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="w-full divide-y divide-gray-200 dark:divide-slate-700">
+          <thead className="bg-gray-50 dark:bg-slate-800">
             <tr>
-              {[
-                "Transaction ID",
-                "Client",
-                "Lot #",
-                "Property",
-                "Date",
-                "Amount",
-                "Payment",
-                "Status",
-              ].map((col) => (
-                <th
-                  key={col}
-                  className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  {col}
-                </th>
+              {["Transaction ID", "Client", "Lot #", "Property", "Date", "Amount", "Payment", "Status"].map((col) => (
+                <th key={col} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">{col}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-3 py-6 text-sm text-gray-400 text-center">
@@ -136,42 +122,18 @@ const RecentTransactions = () => {
               </tr>
             ) : (
               filtered.map((txn) => (
-                <tr key={txn.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-3 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
-                    {txn.id}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {txn.client}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {txn.lot_number}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {txn.property}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {txn.sale_date}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {formatCurrency(txn.total_price)}
+                <tr key={txn.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                  <td className="px-3 py-4 whitespace-nowrap text-sm font-semibold text-blue-600 dark:text-blue-400">{txn.id}</td>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{txn.client}</td>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-400">{txn.lot_number}</td>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-400">{txn.property}</td>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-500">{txn.sale_date}</td>
+                  <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(txn.total_price)}</td>
+                  <td className="px-3 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${PAYMENT_STYLES[txn.payment_type] || "bg-gray-100 text-gray-700"}`}>{txn.payment_type}</span>
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        PAYMENT_STYLES[txn.payment_type] || "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {txn.payment_type}
-                    </span>
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        STATUS_STYLES[txn.status] || "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {txn.status}
-                    </span>
+                    <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_STYLES[txn.status] || "bg-gray-100 text-gray-800"}`}>{txn.status}</span>
                   </td>
                 </tr>
               ))

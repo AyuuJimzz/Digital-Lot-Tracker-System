@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, Settings, UserCircle, MapPin, Edit } from "lucide-react";
+import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun } from "lucide-react";
 import axios from "axios";
 import { EditCoordinatesModal } from "./EditCoordinatesModal";
 
@@ -13,10 +13,33 @@ export function AdminHeader() {
   const [coordinates, setCoordinates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [profileInitials, setProfileInitials] = useState(null);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
   const dropdownRef = useRef(null);
   const propertyDropdownRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const getInitials = (firstName, lastName) => {
+    if (!firstName && !lastName) return null;
+    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
+  };
+
+  // Fetch Profile data for initials
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/auth/profile", {
+          withCredentials: true,
+        });
+        const initials = getInitials(res.data.first_name, res.data.last_name);
+        setProfileInitials(initials);
+      } catch (err) {
+        console.error("Failed to load profile for header", err);
+      }
+    };
+    fetchProfile();
+  }, [location.pathname]); // Re-fetch occasionally when navigating
 
   // Close dropdown if user clicks outside of it
   useEffect(() => {
@@ -41,6 +64,17 @@ export function AdminHeader() {
     { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
     { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33628474716154] },
   ];
+
+  const handleToggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
 
   // Handle property selection
   const handlePropertySelect = (property) => {
@@ -197,8 +231,8 @@ export function AdminHeader() {
   };
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 relative">
-      <span className="font-medium text-gray-900">Admin Panel</span>
+    <header className="h-14 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 relative transition-colors duration-300">
+      <span className="font-medium text-gray-900 dark:text-white">Admin Panel</span>
 
       <div className="flex items-center gap-3">
         {/* Edit Coordinates Button - Only show on AdminViewMap page */}
@@ -245,13 +279,30 @@ export function AdminHeader() {
           </div>
         )}
 
+        {/* Global Theme Toggle Button */}
+        <button
+          onClick={handleToggleTheme}
+          className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700 transition-colors"
+          title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
+        >
+          {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+        </button>
+
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors duration-200 ${isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"}`}
+            className={`h-9 w-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 duration-200 overflow-hidden ${
+              profileInitials 
+                ? "bg-gradient-to-tr from-amber-500 to-orange-400 shadow-sm" 
+                : isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"
+            }`}
             aria-label="User profile"
           >
-            <User className="h-4 w-4 text-gray-500" />
+            {profileInitials ? (
+              <span className="text-white text-xs font-bold tracking-wider">{profileInitials}</span>
+            ) : (
+              <User className="h-4 w-4 text-gray-500" />
+            )}
           </button>
 
           {/* Dropdown Menu */}
@@ -259,7 +310,10 @@ export function AdminHeader() {
             <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[9999]">
               <button
                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate("/settings", { state: { tab: "profile" } });
+                }}
               >
                 <UserCircle className="mr-2 h-4 w-4 text-gray-400" />
                 Profile
@@ -267,7 +321,10 @@ export function AdminHeader() {
 
               <button
                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false);
+                  navigate("/settings", { state: { tab: "security" } });
+                }}
               >
                 <Settings className="mr-2 h-4 w-4 text-gray-400" />
                 Settings

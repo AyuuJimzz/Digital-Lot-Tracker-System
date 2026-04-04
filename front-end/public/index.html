@@ -6,9 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Digital Lot Tracking System</title>
     <link rel="shortcut icon" href="/golden-dragon-logo.png" type="image/png" />
+    <script>
+      // Must be set BEFORE tailwind loads
+      tailwind = window.tailwind || {};
+      window.tailwind = { config: { darkMode: 'class' } };
+    </script>
     <script src="/src/tailwind-css.js"></script>
+    <script>
+      // Apply saved theme on page load (no flash)
+      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
   </head>
-  <body>
+  <body class="bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
     <div id="root"></div>
     <!-- <script type="module" src="/src/main.jsx"></script> -->
   </body>

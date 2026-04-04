@@ -63,7 +63,7 @@ const AdminDashboard = () => {
 
       {/* Page Title */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard Overview</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Dashboard Overview</h1>
       </div>
 
       {/* Top Row Stats */}

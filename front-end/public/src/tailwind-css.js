@@ -2040,7 +2040,7 @@
     rc.exports = {
       content: [],
       presets: [],
-      darkMode: "media",
+      darkMode: "class",
       theme: {
         accentColor: ({ theme: r }) => ({ ...r("colors"), auto: "auto" }),
         animation: {

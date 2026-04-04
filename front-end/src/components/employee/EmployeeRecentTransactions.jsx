@@ -3,10 +3,10 @@ import { useSearchParams } from "react-router-dom";
 
 const getStatusClass = (status) => {
   const normalizedStatus = String(status || "").toLowerCase();
-  if (normalizedStatus === "sold") return "bg-red-100 text-red-800";
-  if (normalizedStatus === "pending") return "bg-yellow-100 text-yellow-800";
-  if (normalizedStatus === "available") return "bg-green-100 text-green-800";
-  return "bg-gray-100 text-gray-700";
+  if (normalizedStatus === "sold") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+  if (normalizedStatus === "pending") return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+  if (normalizedStatus === "available") return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+  return "bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300";
 };
 
 const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
@@ -160,8 +160,8 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
   ]);
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Lot Updates</h3>
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Lot Updates</h3>
 
       {!loading && !error && items.length > 0 && (
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -170,14 +170,14 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search lot id, lot number, property, status"
-            className="w-full lg:max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-500"
+            className="w-full lg:max-w-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
           />
 
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
-              className="w-full sm:w-40 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-500"
+              className="w-full sm:w-40 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
             >
               <option value="all">All Status</option>
               <option value="available">Available</option>
@@ -188,7 +188,7 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
             <select
               value={rowsPerPage}
               onChange={(event) => setRowsPerPage(Number(event.target.value))}
-              className="w-full sm:w-36 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-500"
+              className="w-full sm:w-36 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
             >
               {ROWS_PER_PAGE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -200,90 +200,60 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
         </div>
       )}
 
-      {loading && <div className="text-sm text-gray-500">Loading recent updates...</div>}
+      {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Loading recent updates...</div>}
 
-      {!loading && error && <div className="text-sm text-red-600">{error}</div>}
+      {!loading && error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
 
       {!loading && !error && items.length === 0 && (
-        <div className="text-sm text-gray-500">No recent lot updates found.</div>
+        <div className="text-sm text-gray-500 dark:text-slate-400">No recent lot updates found.</div>
       )}
 
       {!loading && !error && items.length > 0 && sortedItems.length === 0 && (
-        <div className="text-sm text-gray-500">No results match your search/filter.</div>
+        <div className="text-sm text-gray-500 dark:text-slate-400">No results match your search/filter.</div>
       )}
 
       {!loading && !error && sortedItems.length > 0 && (
         <>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("id")}
-                      className="inline-flex items-center gap-1"
-                    >
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    <button type="button" onClick={() => handleSort("id")} className="inline-flex items-center gap-1">
                       Lot ID <span>{getSortIndicator("id")}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("lotNumber")}
-                      className="inline-flex items-center gap-1"
-                    >
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    <button type="button" onClick={() => handleSort("lotNumber")} className="inline-flex items-center gap-1">
                       Lot Number <span>{getSortIndicator("lotNumber")}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("propertyId")}
-                      className="inline-flex items-center gap-1"
-                    >
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    <button type="button" onClick={() => handleSort("propertyId")} className="inline-flex items-center gap-1">
                       Property <span>{getSortIndicator("propertyId")}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("area")}
-                      className="inline-flex items-center gap-1"
-                    >
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    <button type="button" onClick={() => handleSort("area")} className="inline-flex items-center gap-1">
                       Area (sqm) <span>{getSortIndicator("area")}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button
-                      type="button"
-                      onClick={() => handleSort("status")}
-                      className="inline-flex items-center gap-1"
-                    >
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    <button type="button" onClick={() => handleSort("status")} className="inline-flex items-center gap-1">
                       Status <span>{getSortIndicator("status")}</span>
                     </button>
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                 {paginatedItems.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      #{item.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.lotNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      Property {item.propertyId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.area ?? "-"}
-                    </td>
+                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">#{item.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{item.lotNumber}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">Property {item.propertyId}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{item.area ?? "-"}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(item.status)}`}
-                      >
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(item.status)}`}>
                         {item.status}
                       </span>
                     </td>
@@ -293,20 +263,15 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
             </table>
           </div>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-            <span>
-              Showing {firstResultIndex}–{lastResultIndex} of {sortedItems.length} results
-            </span>
-
+          <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-slate-400">
+            <span>Showing {firstResultIndex}–{lastResultIndex} of {sortedItems.length} results</span>
             <div className="flex items-center gap-2">
-              <span>
-                Page {currentPage} of {totalPages}
-              </span>
+              <span>Page {currentPage} of {totalPages}</span>
               <button
                 type="button"
                 onClick={() => setCurrentPage((previous) => Math.max(1, previous - 1))}
                 disabled={currentPage === 1}
-                className="rounded-md border border-gray-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 Previous
               </button>
@@ -314,7 +279,7 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
                 type="button"
                 onClick={() => setCurrentPage((previous) => Math.min(totalPages, previous + 1))}
                 disabled={currentPage === totalPages}
-                className="rounded-md border border-gray-300 px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 Next
               </button>

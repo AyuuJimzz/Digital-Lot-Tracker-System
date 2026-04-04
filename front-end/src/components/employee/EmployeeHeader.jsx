@@ -1,14 +1,50 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, Settings, UserCircle, MapPin } from "lucide-react";
+import { User, LogOut, Settings, UserCircle, MapPin, Moon, Sun } from "lucide-react";
+import axios from "axios";
 
 export function EmployeeHeader() {
   const [isOpen, setIsOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
+  const [profileInitials, setProfileInitials] = useState(null);
   const dropdownRef = useRef(null);
   const propertyDropdownRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+  const handleToggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
+  const getInitials = (firstName, lastName) => {
+    if (!firstName && !lastName) return null;
+    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
+  };
+
+  // Fetch Profile data for initials
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/auth/profile", {
+          withCredentials: true,
+        });
+        const initials = getInitials(res.data.first_name, res.data.last_name);
+        setProfileInitials(initials);
+      } catch (err) {
+        console.error("Failed to load profile for header", err);
+      }
+    };
+    fetchProfile();
+  }, [location.pathname]); // Re-fetch occasionally when navigating
 
   // Property locations (same as AdminHeader)
   const properties = [
@@ -63,8 +99,8 @@ export function EmployeeHeader() {
   };
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 relative z-[1000] overflow-visible">
-      <span className="font-medium text-gray-900">Employee Panel</span>
+    <header className="h-14 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 relative z-[1000] overflow-visible transition-colors duration-300">
+      <span className="font-medium text-gray-900 dark:text-white">Employee Panel</span>
 
       <div className="flex items-center gap-3">
         {/* Property Dropdown - Only show on EmployeeMapView page */}
@@ -100,13 +136,30 @@ export function EmployeeHeader() {
           </div>
         )}
 
+        {/* Global Theme Toggle Button */}
+        <button
+          onClick={handleToggleTheme}
+          className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700 transition-colors"
+          title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
+        >
+          {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+        </button>
+
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={`h-9 w-9 rounded-full flex items-center justify-center transition-colors duration-200 ${isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"}`}
+            className={`h-9 w-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 duration-200 overflow-hidden ${
+              profileInitials 
+                ? "bg-gradient-to-tr from-amber-500 to-orange-400 shadow-sm" 
+                : isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"
+            }`}
             aria-label="User profile"
           >
-            <User className="h-4 w-4 text-gray-500" />
+            {profileInitials ? (
+              <span className="text-white text-xs font-bold tracking-wider">{profileInitials}</span>
+            ) : (
+              <User className="h-4 w-4 text-gray-500" />
+            )}
           </button>
 
           {/* Dropdown Menu */}
@@ -115,8 +168,8 @@ export function EmployeeHeader() {
               <button
                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
                 onClick={() => {
-                  console.log("Profile clicked");
                   setIsOpen(false);
+                  navigate("/employee/settings", { state: { tab: "profile" } });
                 }}
               >
                 <UserCircle className="mr-2 h-4 w-4 text-gray-400" />
@@ -126,8 +179,8 @@ export function EmployeeHeader() {
               <button
                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
                 onClick={() => {
-                  console.log("Settings clicked");
                   setIsOpen(false);
+                  navigate("/employee/settings", { state: { tab: "security" } });
                 }}
               >
                 <Settings className="mr-2 h-4 w-4 text-gray-400" />

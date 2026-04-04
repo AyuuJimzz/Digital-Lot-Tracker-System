@@ -6,7 +6,7 @@ import "./admin.css";
 
 export function AdminLayout() {
   return (
-    <div className="flex min-h-screen w-full bg-gray-50">
+    <div className="flex min-h-screen w-full bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Sidebar */}
       <AdminSidebar />
 
@@ -16,7 +16,7 @@ export function AdminLayout() {
         <AdminHeader />
 
         {/* Page content */}
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-hidden bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
           <Outlet />
         </main>
       </div>

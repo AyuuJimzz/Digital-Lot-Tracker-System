@@ -21,6 +21,7 @@ import ManageProperties from "./pages/Admin/ManageProperties";
 import AccessDenied from "./view/AccessDenied";
 import EstateMap from "./pages/Admin/AdminViewMap";
 import Forbidden from "./view/forbidden";
+import ProfileSettings from "./pages/Shared/ProfileSettings";
 
 const queryClient = new QueryClient();
 
@@ -58,7 +59,7 @@ function App() {
             <Route path="/manage-properties" element={<ManageProperties />} />
             <Route path="/manage-lots" element={<EstateMap />} />
             <Route path="/analytics" element={<EmployeePlaceholder title="Analytics" />} />
-            <Route path="/settings" element={<EmployeePlaceholder title="Settings" />} />
+            <Route path="/settings" element={<ProfileSettings />} />
           </Route>
 
           <Route
@@ -74,7 +75,7 @@ function App() {
             <Route path="/employee/my-clients" element={<Customers />} />
             <Route path="/employee/map-view" element={<EmployeeMapView />} />
             <Route path="/employee/analytics" element={<EmployeePlaceholder title="Analytics" />} />
-            <Route path="/employee/settings" element={<EmployeePlaceholder title="Settings" />} />
+            <Route path="/employee/settings" element={<ProfileSettings />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />

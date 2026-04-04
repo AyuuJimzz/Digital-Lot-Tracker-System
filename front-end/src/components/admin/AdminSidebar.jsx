@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, BarChart3, Map, Users, Building2, Settings } from "lucide-react";
+import logo from "../../assets/image/golden-dragon-logo.png";
 
 const navItems = [
   {
@@ -17,10 +18,14 @@ const navItems = [
 
 export function AdminSidebar() {
   return (
-    <aside className="w-56 min-h-screen bg-gray-50 text-gray-700 flex flex-col shrink-0 border-r border-gray-200">
+    <aside className="w-56 min-h-screen bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-300 flex flex-col shrink-0 border-r border-gray-200 dark:border-slate-800 transition-colors duration-300">
       {/* Sidebar Logo / Header */}
-      <div className="p-4 text-center border-b border-gray-200">
-        <h2 className="text-lg font-bold text-gray-900 tracking-tight">LOGO</h2>
+      <div className="p-4 text-center border-b border-gray-200 dark:border-slate-800">
+        <img
+          src={logo}
+          alt="Golden Dragon Logo"
+          className="mx-auto h-11 w-11 rounded-full object-cover ring-2 ring-amber-500/40"
+        />
       </div>
 
       {/* Navigation Links */}
@@ -33,8 +38,8 @@ export function AdminSidebar() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-2.5 rounded-md text-sm transition-colors duration-200 ${
                 isActive
-                  ? "bg-gray-200 text-gray-900 font-medium"
-                  : "text-gray-700 hover:bg-gray-200 hover:text-gray-900"
+                  ? "bg-gray-200 dark:bg-slate-800 text-gray-900 dark:text-white font-medium"
+                  : "text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white"
               }`
             }
           >
@@ -45,8 +50,8 @@ export function AdminSidebar() {
       </nav>
 
       {/* Optional Footer Space */}
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center gap-2 px-4 py-2 text-xs text-gray-500">
+      <div className="p-4 border-t border-gray-200 dark:border-slate-800">
+        <div className="flex items-center gap-2 px-4 py-2 text-xs text-gray-500 dark:text-slate-500">
           <span>Admin System v1.0</span>
         </div>
       </div>
