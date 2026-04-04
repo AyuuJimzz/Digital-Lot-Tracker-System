@@ -19,12 +19,14 @@ export function EditCoordinatesModal({
     <>
       {coordinatesModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-white dark:bg-slate-900 rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Edit Lot Coordinates</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Edit Lot Coordinates
+              </h2>
               <button
                 onClick={() => setCoordinatesModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -33,14 +35,16 @@ export function EditCoordinatesModal({
             <div className="space-y-4">
               {/* Lot ID Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Lot ID</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  Lot ID
+                </label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={selectedLotId}
                     onChange={(e) => setSelectedLotId(e.target.value)}
                     placeholder="Enter lot ID (e.g., 1, 2, 3)"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
                   />
                   <button
                     onClick={handleFetchLotData}
@@ -54,14 +58,14 @@ export function EditCoordinatesModal({
 
               {/* Lot Info Display */}
               {lotData && (
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <p className="text-sm text-gray-600">
+                <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-md">
+                  <p className="text-sm text-gray-600 dark:text-slate-300">
                     <strong>Lot Number:</strong> {lotData.lot_number}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-slate-300">
                     <strong>Property ID:</strong> {lotData.property_id}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-slate-300">
                     <strong>Status:</strong> {lotData.status}
                   </p>
                 </div>
@@ -71,7 +75,9 @@ export function EditCoordinatesModal({
               {lotData && (
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700">Coordinates</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+                      Coordinates
+                    </label>
                     <button
                       onClick={addCoordinatePair}
                       className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
@@ -90,7 +96,7 @@ export function EditCoordinatesModal({
                             value={coord.lat}
                             onChange={(e) => updateCoordinate(index, "lat", e.target.value)}
                             placeholder={`Latitude ${index + 1}`}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 dark:text-white"
                           />
                         </div>
                         <div className="flex-1">
@@ -100,7 +106,7 @@ export function EditCoordinatesModal({
                             value={coord.lng}
                             onChange={(e) => updateCoordinate(index, "lng", e.target.value)}
                             placeholder={`Longitude ${index + 1}`}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 dark:text-white"
                           />
                         </div>
                       </div>
@@ -108,7 +114,7 @@ export function EditCoordinatesModal({
                   </div>
 
                   {coordinates.length === 0 && (
-                    <p className="text-gray-500 text-sm text-center py-4">
+                    <p className="text-gray-500 dark:text-slate-400 text-sm text-center py-4">
                       No coordinates found. Click "Add Coordinate Pair" to add coordinates.
                     </p>
                   )}
@@ -126,7 +132,7 @@ export function EditCoordinatesModal({
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setCoordinatesModalOpen(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>
