@@ -14,7 +14,7 @@ export function AdminHeader() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [profileInitials, setProfileInitials] = useState(null);
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const dropdownRef = useRef(null);
   const propertyDropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -292,9 +292,11 @@ export function AdminHeader() {
           <button
             onClick={() => setIsOpen(!isOpen)}
             className={`h-9 w-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 duration-200 overflow-hidden ${
-              profileInitials 
-                ? "bg-gradient-to-tr from-amber-500 to-orange-400 shadow-sm" 
-                : isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"
+              profileInitials
+                ? "bg-gradient-to-tr from-amber-500 to-orange-400 shadow-sm"
+                : isOpen
+                  ? "bg-gray-200"
+                  : "bg-gray-100 hover:bg-gray-200"
             }`}
             aria-label="User profile"
           >
