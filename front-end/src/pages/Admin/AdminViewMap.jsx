@@ -352,6 +352,7 @@ function AdminViewMap() {
               >
                 <Tooltip permanent={false} direction="top" offset={[0, -32]}>
                   <div className="text-center text-xs leading-tight">
+                    <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
                     <div className="mb-1 font-bold">{lot.lot_number}</div>
                     <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
                     <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
