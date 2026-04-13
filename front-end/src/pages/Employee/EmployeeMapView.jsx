@@ -353,37 +353,27 @@ const EmployeeMapView = () => {
                   },
                 }}
               >
-                <Tooltip
-                  permanent={false}
-                  direction="top"
-                  sticky={false}
-                  offset={[0, -25]}
-                  opacity={1}
-                  className="leaflet-tooltip-custom"
-                >
-                  <div className="flex flex-col items-center text-center text-xs leading-tight w-[150px] bg-white p-1">
-                    <div className="mb-1 font-bold truncate w-full">Lot ID: {lot.lot_id}</div>
-                    <div className="mb-1 font-bold truncate w-full">{lot.lot_number}</div>
+                <Tooltip permanent={false} direction="top" offset={[0, -32]}>
+                  <div className="text-center text-xs leading-tight">
+                    <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
+                    <div className="mb-1 font-bold">{lot.lot_number}</div>
                     <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
                     <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
                       {lot.status}
                     </div>
-
                     {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
-                      <div className="mt-2 pt-2 border-t border-gray-300 w-full">
-                        <div className="text-[11px] text-gray-700">
-                          <div className="font-semibold truncate">Customer Info:</div>
-                          <div className="truncate">{lot.customer.full_name || "N/A"}</div>
-
-                          <div className="text-gray-600 truncate">
-                            {lot.customer.email || "N/A"}
-                          </div>
-
-                          <div className="text-gray-600 truncate">
-                            {lot.customer.contact_number || "N/A"}
+                      <>
+                        <div className="mt-2 pt-2 border-t border-gray-300">
+                          <div className="text-[11px] text-gray-700">
+                            <div className="font-semibold">Customer Info:</div>
+                            <div>{lot.customer.full_name || "N/A"}</div>
+                            <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
+                            <div className="text-gray-600">
+                              {lot.customer.contact_number || "N/A"}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 </Tooltip>
