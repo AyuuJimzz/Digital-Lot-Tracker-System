@@ -12,6 +12,7 @@ const LotOffcanvas = ({
   const [fullName, setFullName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
@@ -31,6 +32,13 @@ const LotOffcanvas = ({
         setFullName("");
         setContactNumber("");
         setAddress("");
+      }
+
+      // Set payment method if lot is sold and has payment method data
+      if (selectedLot.status === "Sold" && selectedLot.payment_method) {
+        setPaymentMethod(selectedLot.payment_method);
+      } else {
+        setPaymentMethod("Cash"); // Default to Cash for non-sold lots or lots without payment method
       }
 
       setSaveMessage("");
@@ -102,7 +110,14 @@ const LotOffcanvas = ({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ status, email, fullName, contactNumber, address }),
+        body: JSON.stringify({
+          status,
+          email,
+          fullName,
+          contactNumber,
+          address,
+          paymentMethod: status === "Sold" ? paymentMethod : null,
+        }),
       });
 
       if (!response.ok) {
@@ -142,20 +157,20 @@ const LotOffcanvas = ({
 
       {/* Offcanvas Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 md:w-96 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-[10000] ${
+        className={`fixed top-0 right-0 h-full w-80 md:w-96 bg-white dark:bg-slate-800 shadow-2xl transform transition-transform duration-300 ease-in-out z-[10000] ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800">Lot De tails</h2>
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white">Lot Details</h2>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-200"
             >
               <svg
-                className="w-6 h-6 text-gray-600"
+                className="w-6 h-6 text-gray-600 dark:text-gray-300"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -175,25 +190,37 @@ const LotOffcanvas = ({
             <div className="space-y-4">
               {/* Lot Number */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Lot Number</label>
-                <div className="text-lg font-semibold text-gray-900">{selectedLot.lot_number}</div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Lot Number
+                </label>
+                <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {selectedLot.lot_number}
+                </div>
               </div>
 
               {/* Area */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Area</label>
-                <div className="text-lg text-gray-900">{selectedLot.area_sqm} SQM</div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Area
+                </label>
+                <div className="text-lg text-gray-900 dark:text-white">
+                  {selectedLot.area_sqm} SQM
+                </div>
               </div>
 
               {/* Status */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Status
+                </label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
+                  disabled={status === "Sold"}
+                  title="Status cannot be changed while lot is sold"
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${getStatusColorClasses(
                     status
-                  )}`}
+                  )} ${status === "Sold" ? "cursor-not-allowed" : ""}`}
                 >
                   {["Available", "Pending", "Sold"]
                     .filter((s) => allowedStatuses.includes(s))
@@ -219,7 +246,7 @@ const LotOffcanvas = ({
               {(status === "Pending" || status === "Sold") && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Full Name
                     </label>
                     {status === "Pending" && selectedLot.status === "Pending" && email ? (
@@ -227,7 +254,7 @@ const LotOffcanvas = ({
                         type="text"
                         value={fullName}
                         readOnly
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 cursor-not-allowed"
                         title="Full name cannot be changed while lot is pending"
                       />
                     ) : (
@@ -235,49 +262,101 @@ const LotOffcanvas = ({
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={status === "Sold"}
+                        title="Full name cannot be changed while lot is sold"
+                        className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
+                          status === "Sold" ? "cursor-not-allowed" : ""
+                        }`}
                         placeholder="Enter customer's full name"
                       />
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Contact Number
-                    </label>
-                    {status === "Pending" && selectedLot.status === "Pending" && email ? (
-                      <input
-                        type="tel"
-                        value={contactNumber}
-                        readOnly
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
-                        title="Contact number cannot be changed while lot is pending"
-                      />
-                    ) : (
-                      <input
-                        type="tel"
-                        value={contactNumber}
-                        onChange={(e) => setContactNumber(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter contact number"
-                      />
-                    )}
-                  </div>
+                  {status === "Sold" ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Contact Number
+                        </label>
+                        <input
+                          type="tel"
+                          value={contactNumber}
+                          onChange={(e) => setContactNumber(e.target.value)}
+                          disabled={status === "Sold"}
+                          title="Contact number cannot be changed while lot is sold"
+                          className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
+                            status === "Sold" ? "cursor-not-allowed" : ""
+                          }`}
+                          placeholder="Enter contact number"
+                        />
+                      </div>
+
+                      {/* Payment Method - Only show when status is Sold */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Payment Method
+                        </label>
+                        <select
+                          value={paymentMethod}
+                          onChange={(e) => setPaymentMethod(e.target.value)}
+                          disabled={status === "Sold"}
+                          title="Payment method cannot be changed while lot is sold"
+                          className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
+                            status === "Sold" ? "cursor-not-allowed" : ""
+                          }`}
+                        >
+                          <option value="Cash">Cash</option>
+                          <option value="Installment">Installment</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                          <option value="Online Payment">Online Payment</option>
+                        </select>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Contact Number
+                      </label>
+                      {status === "Pending" && selectedLot.status === "Pending" && contactNumber ? (
+                        <input
+                          type="tel"
+                          value={contactNumber}
+                          readOnly
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 cursor-not-allowed"
+                          title="Contact number cannot be changed while lot is pending"
+                        />
+                      ) : (
+                        <input
+                          type="tel"
+                          value={contactNumber}
+                          onChange={(e) => setContactNumber(e.target.value)}
+                          disabled={status === "Sold"}
+                          title="Contact number cannot be changed while lot is sold"
+                          className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
+                            status === "Sold" ? "cursor-not-allowed" : ""
+                          }`}
+                          placeholder="Enter contact number"
+                        />
+                      )}
+                    </div>
+                  )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Email
+                    </label>
                     {status === "Pending" && selectedLot.status === "Pending" && email ? (
                       <div className="relative">
                         <input
                           type="email"
                           value={email}
                           readOnly
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 cursor-not-allowed"
                           title="Email cannot be changed while lot is pending"
                         />
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                           <svg
-                            className="w-4 h-4 text-gray-400"
+                            className="w-4 h-4 text-gray-400 dark:text-gray-500"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -296,35 +375,45 @@ const LotOffcanvas = ({
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={status === "Sold"}
+                        title="Email cannot be changed while lot is sold"
+                        className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
+                          status === "Sold" ? "cursor-not-allowed" : ""
+                        }`}
                         placeholder="Enter email address"
                       />
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Address
+                    </label>
                     {status === "Pending" && selectedLot.status === "Pending" && email ? (
                       <textarea
                         value={address}
                         readOnly
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed resize-none"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 cursor-not-allowed resize-none"
                         title="Address cannot be changed while lot is pending"
                       />
                     ) : (
                       <textarea
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
+                        disabled={status === "Sold"}
+                        title="Address cannot be changed while lot is sold"
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 dark:text-white dark:bg-slate-700 ${
+                          status === "Sold" ? "cursor-not-allowed" : ""
+                        }`}
                         placeholder="Enter customer's address"
                       />
                     )}
                   </div>
 
                   {status === "Pending" && selectedLot.status === "Pending" && email && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       Customer information is locked while lot is pending. Change status to
                       Available to modify.
                     </p>
@@ -335,14 +424,14 @@ const LotOffcanvas = ({
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-gray-200">
+          <div className="p-6 border-t border-gray-200 dark:border-slate-700">
             {/* Save Message */}
             {saveMessage && (
               <div
                 className={`mb-4 p-3 rounded-lg text-sm ${
                   saveMessage.includes("success")
-                    ? "bg-green-100 text-green-700 border border-green-200"
-                    : "bg-red-100 text-red-700 border border-red-200"
+                    ? "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+                    : "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800"
                 }`}
               >
                 {saveMessage}

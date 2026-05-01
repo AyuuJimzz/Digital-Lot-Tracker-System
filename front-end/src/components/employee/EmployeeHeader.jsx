@@ -12,7 +12,7 @@ export function EmployeeHeader() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
   const handleToggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
@@ -99,7 +99,7 @@ export function EmployeeHeader() {
   };
 
   return (
-    <header className="h-14 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 relative z-[1000] overflow-visible transition-colors duration-300">
+    <header className="fixed top-0 left-56 right-0 h-14 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 z-30 overflow-visible transition-colors duration-300">
       <span className="font-medium text-gray-900 dark:text-white">Employee Panel</span>
 
       <div className="flex items-center gap-3">
@@ -149,9 +149,11 @@ export function EmployeeHeader() {
           <button
             onClick={() => setIsOpen(!isOpen)}
             className={`h-9 w-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 duration-200 overflow-hidden ${
-              profileInitials 
-                ? "bg-gradient-to-tr from-amber-500 to-orange-400 shadow-sm" 
-                : isOpen ? "bg-gray-200" : "bg-gray-100 hover:bg-gray-200"
+              profileInitials
+                ? "bg-gradient-to-tr from-amber-500 to-orange-400 shadow-sm"
+                : isOpen
+                  ? "bg-gray-200"
+                  : "bg-gray-100 hover:bg-gray-200"
             }`}
             aria-label="User profile"
           >

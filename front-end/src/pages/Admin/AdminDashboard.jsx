@@ -29,22 +29,20 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [mapDataRes, clientsRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
-          axios.get("http://localhost:5000/api/clients", { withCredentials: true }),
-        ]);
+        const response = await axios.get("http://localhost:5000/api/lots/dashboard-stats");
 
-        const summary = mapDataRes?.data?.summary || {};
-        const clients = Array.isArray(clientsRes?.data) ? clientsRes.data : [];
+        console.log("Dashboard stats fetched:", response.data);
 
         setStats({
-          totalLots: summary.totalLots || 0,
-          soldLots: summary.soldLots || 0,
-          availableLots: summary.availableLots || 0,
-          pendingLots: summary.pendingLots || 0,
-          totalClients: clients.length || 0,
+          totalLots: response.data.totalLots || 0,
+          soldLots: response.data.soldLots || 0,
+          availableLots: response.data.availableLots || 0,
+          pendingLots: response.data.pendingLots || 0,
+          totalClients: response.data.totalClients || 0,
         });
-      } catch {}
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      }
     };
 
     fetchStats();
@@ -63,7 +61,9 @@ const AdminDashboard = () => {
 
       {/* Page Title */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Dashboard Overview</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+          Dashboard Overview
+        </h1>
       </div>
 
       {/* Top Row Stats */}

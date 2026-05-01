@@ -231,7 +231,7 @@ export function AdminHeader() {
   };
 
   return (
-    <header className="h-14 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 relative transition-colors duration-300">
+    <header className="fixed top-0 left-56 right-0 h-14 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 z-30 overflow-visible transition-colors duration-300">
       <span className="font-medium text-gray-900 dark:text-white">Admin Panel</span>
 
       <div className="flex items-center gap-3">

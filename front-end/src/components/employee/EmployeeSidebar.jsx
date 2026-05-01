@@ -19,7 +19,7 @@ const navItems = [
 
 export function EmployeeSidebar() {
   return (
-    <aside className="w-56 min-h-screen bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-300 flex flex-col shrink-0 border-r border-gray-200 dark:border-slate-800 transition-colors duration-300">
+    <aside className="fixed left-0 top-0 w-56 h-screen bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-300 flex flex-col shrink-0 border-r border-gray-200 dark:border-slate-800 transition-colors duration-300 z-40">
       {/* Sidebar Logo / Header */}
       <div className="p-6 text-center border-b border-gray-200 dark:border-slate-800">
         <img

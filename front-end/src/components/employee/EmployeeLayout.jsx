@@ -11,12 +11,12 @@ export function EmployeeLayout() {
       <EmployeeSidebar />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col ml-56">
         {/* Header */}
         <EmployeeHeader />
 
         {/* Page content */}
-        <main className="flex-1 overflow-hidden bg-gray-50 dark:bg-slate-950 transition-colors duration-300">
+        <main className="flex-1 overflow-hidden bg-gray-50 dark:bg-slate-950 transition-colors duration-300 pt-14">
           <Outlet />
         </main>
       </div>

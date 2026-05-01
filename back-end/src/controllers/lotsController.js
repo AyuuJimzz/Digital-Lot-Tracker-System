@@ -76,6 +76,18 @@ exports.getLotById = async (req, res) => {
       lot.customer = customerRows[0];
     }
 
+    // Get payment method from transactions if lot is sold
+    if (lot.status === "Sold") {
+      const [transactionRows] = await db.query(
+        "SELECT payment_type FROM transactions WHERE lot_id = ? ORDER BY transaction_date DESC LIMIT 1",
+        [id]
+      );
+
+      if (transactionRows.length > 0) {
+        lot.payment_method = transactionRows[0].payment_type;
+      }
+    }
+
     res.json(lot);
   } catch (err) {
     console.error("Error in getLotById:", err);
@@ -112,9 +124,40 @@ exports.getMapData = async (req, res) => {
     };
 
     res.json(mapData);
-  } catch (err) {
-    console.error("Error in getMapData:", err);
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error("Error fetching map data:", error);
+    res.status(500).json({ error: "Failed to fetch map data" });
+  }
+};
+
+// =======================
+// DASHBOARD STATISTICS
+// =======================
+exports.getDashboardStats = async (req, res) => {
+  try {
+    // Get all lots statistics
+    const [allLots] = await db.query(`SELECT status FROM lots`);
+
+    const totalLots = allLots.length;
+    const availableLots = allLots.filter((lot) => lot.status === "Available").length;
+    const pendingLots = allLots.filter((lot) => lot.status === "Pending").length;
+    const soldLots = allLots.filter((lot) => lot.status === "Sold").length;
+
+    // Get total customers
+    const [customers] = await db.query(`SELECT COUNT(*) as count FROM customers`);
+    const totalClients = customers[0].count;
+
+    const stats = {
+      totalLots,
+      availableLots,
+      pendingLots,
+      soldLots,
+      totalClients,
+    };
+    res.json(stats);
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    res.status(500).json({ error: "Failed to fetch dashboard stats" });
   }
 };
 
@@ -123,7 +166,7 @@ exports.getMapData = async (req, res) => {
 // =======================
 exports.updateLotStatus = async (req, res) => {
   const { id } = req.params;
-  const { status, email, fullName, contactNumber, address } = req.body;
+  const { status, email, fullName, contactNumber, address, paymentMethod } = req.body;
 
   console.log("updateLotStatus called:", { id, status, email, fullName, contactNumber, address });
 
@@ -233,6 +276,160 @@ exports.updateLotStatus = async (req, res) => {
       // Setting to Pending (from Available or Sold) - record timestamp
       await db.query("UPDATE lots SET pending_since = NOW() WHERE lot_id = ?", [id]);
       console.log("Set pending_since timestamp");
+
+      // Create transaction record for Pending status
+      const customerResult = await db.query("SELECT customer_id FROM customers WHERE lot_id = ?", [
+        id,
+      ]);
+
+      if (customerResult[0].length > 0) {
+        const customerId = customerResult[0][0].customer_id;
+
+        // Check if transaction already exists for this lot
+        const existingTransaction = await db.query(
+          "SELECT transaction_id FROM transactions WHERE lot_id = ?",
+          [id]
+        );
+
+        if (existingTransaction[0].length > 0) {
+          // Update existing transaction to Pending with current timestamp
+          await db.query(
+            "UPDATE transactions SET payment_type = 'No Downpayment', notes = ?, transaction_date = NOW() WHERE lot_id = ?",
+            [`Transaction updated for lot ${lot.lot_number} - Pending status`, id]
+          );
+          console.log("Updated existing transaction for Pending status");
+        } else {
+          // Create new transaction for Pending
+          await db.query(
+            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes) VALUES (?, ?, ?, ?)",
+            [
+              id,
+              customerId,
+              "No Downpayment",
+              `Transaction created for lot ${lot.lot_number} - Pending status`,
+            ]
+          );
+          console.log("Created new transaction for Pending status");
+        }
+      }
+    } else if (status === "Sold" && lot.status !== "Sold") {
+      // Setting to Sold - create/update transaction record
+      const customerResult = await db.query("SELECT customer_id FROM customers WHERE lot_id = ?", [
+        id,
+      ]);
+
+      if (customerResult[0].length > 0) {
+        const customerId = customerResult[0][0].customer_id;
+
+        // Check if transaction already exists
+        const existingTransaction = await db.query(
+          "SELECT transaction_id FROM transactions WHERE lot_id = ?",
+          [id]
+        );
+
+        if (existingTransaction[0].length > 0) {
+          // Update existing transaction to Sold with current timestamp
+          await db.query(
+            "UPDATE transactions SET payment_type = ?, notes = ?, transaction_date = NOW() WHERE lot_id = ?",
+            [
+              paymentMethod || "Cash",
+              `Transaction updated for lot ${lot.lot_number} - Sold status`,
+              id,
+            ]
+          );
+          console.log("Updated transaction for Sold status with new timestamp");
+        } else {
+          // Create new transaction for Sold
+          await db.query(
+            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, transaction_date) VALUES (?, ?, ?, ?, NOW())",
+            [
+              id,
+              customerId,
+              paymentMethod || "Cash",
+              `Transaction created for lot ${lot.lot_number} - Sold status`,
+            ]
+          );
+          console.log("Created transaction for Sold status");
+        }
+
+        // Schedule email to be sent after 5 minutes for Sold status
+        if (email) {
+          const schedule = require("node-schedule");
+          const emailDate = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+
+          schedule.scheduleJob(emailDate, async () => {
+            try {
+              console.log(`Sending sold confirmation email to ${email} for lot ${lot.lot_number}`);
+
+              // Get lot and customer details for email
+              const [lotDetails] = await db.query(
+                `
+                SELECT l.lot_number, l.property_id, p.property_name, p.location,
+                       c.full_name, c.email
+                FROM lots l
+                LEFT JOIN properties p ON l.property_id = p.property_id
+                LEFT JOIN customers c ON l.lot_id = c.lot_id
+                WHERE l.lot_id = ?
+              `,
+                [id]
+              );
+
+              if (lotDetails.length > 0) {
+                const lotInfo = lotDetails[0];
+
+                // Create sold confirmation email
+                const emailHtml = `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #2563eb;">Golden Dragon Estate Corporation - Lot Purchase Confirmation</h2>
+                    <p>Dear ${lotInfo.full_name || "Valued Customer"},</p>
+                    <p>Congratulations! Your lot purchase has been successfully completed.</p>
+                    <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                      <p><strong>Property:</strong> ${lotInfo.property_name}</p>
+                      <p><strong>Location:</strong> ${lotInfo.location}</p>
+                      <p><strong>Lot Number:</strong> ${lotInfo.lot_number}</p>
+                      <p><strong>Status:</strong> <span style="color: #059669; font-weight: bold;">SOLD</span></p>
+                      <p><strong>Payment Method:</strong> ${paymentMethod || "Cash"}</p>
+                      <p><strong>Purchase Date:</strong> ${new Date().toLocaleDateString()}</p>
+                    </div>
+                    <p>Thank you for choosing Golden Dragon Estate Corporation for your property investment. We are pleased to welcome you to our community.</p>
+                    <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+                      If you have any questions about your purchase or need assistance with documentation, please don't hesitate to contact our support team.
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+                    <p style="color: #6b7280; font-size: 12px;">
+                      Golden Dragon Estate Platform<br>
+                      This is an automated message, please do not reply.
+                    </p>
+                  </div>
+                `;
+
+                // Send the email
+                const emailResult = await sendEmail(
+                  lotInfo.email,
+                  "Lot Purchase Confirmation - Golden Dragon Estate Corporation",
+                  emailHtml
+                );
+
+                if (emailResult.success) {
+                  console.log(
+                    `Sold confirmation email sent successfully to ${lotInfo.email} for lot ${lotInfo.lot_number}`
+                  );
+                } else {
+                  console.error(
+                    `Failed to send sold confirmation email for lot ${lotInfo.lot_number}: ${emailResult.error}`
+                  );
+                }
+              }
+            } catch (emailError) {
+              console.error("Error sending sold confirmation email:", emailError);
+            }
+          });
+
+          console.log(
+            `Scheduled sold confirmation email to ${email} in 5 minutes for lot ${lot.lot_number}`
+          );
+        }
+      }
     } else if (lot.status === "Pending" && status !== "Pending") {
       // Changing from Pending to something else - clear timestamps
       await db.query(
