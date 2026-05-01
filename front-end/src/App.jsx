@@ -58,7 +58,6 @@ function App() {
             <Route path="/manage-employees" element={<ManageEmployees />} />
             <Route path="/manage-properties" element={<ManageProperties />} />
             <Route path="/manage-lots" element={<EstateMap />} />
-            <Route path="/analytics" element={<EmployeePlaceholder title="Analytics" />} />
             <Route path="/settings" element={<ProfileSettings />} />
           </Route>
 
@@ -74,7 +73,6 @@ function App() {
             <Route path="/employee/my-sales" element={<MySales />} />
             <Route path="/employee/my-clients" element={<Customers />} />
             <Route path="/employee/map-view" element={<EmployeeMapView />} />
-            <Route path="/employee/analytics" element={<EmployeePlaceholder title="Analytics" />} />
             <Route path="/employee/settings" element={<ProfileSettings />} />
           </Route>
 

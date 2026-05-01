@@ -6,6 +6,9 @@ const {
   getLotById,
   getMapData,
   getDashboardStats,
+  getPropertyLotStats,
+  getMonthlySalesData,
+  getTimeBasedPropertySales,
   updateLotStatus,
   updateLotCoordinates,
   sendPendingLotReminders,
@@ -14,6 +17,9 @@ const {
 // Database routes
 router.get("/map-data", getMapData);
 router.get("/dashboard-stats", getDashboardStats);
+router.get("/property-stats", getPropertyLotStats);
+router.get("/monthly-sales", getMonthlySalesData);
+router.get("/time-based-sales", getTimeBasedPropertySales);
 router.get("/all", getAllLots);
 router.get("/property/:propertyId", getLotsByProperty);
 

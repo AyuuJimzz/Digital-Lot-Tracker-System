@@ -12,8 +12,7 @@ const navItems = [
   { title: "Map View", url: "/employee/map-view", icon: Map },
   { title: "Properties", url: "/employee/my-properties", icon: Home },
   { title: "Sales", url: "/employee/my-sales", icon: FileText },
-  { title: "Customers", url: "/employee/my-clients", icon: Users },
-  { title: "Analytics", url: "/employee/analytics", icon: BarChart3 },
+  { title: "Clients", url: "/employee/my-clients", icon: Users },
   { title: "Settings", url: "/employee/settings", icon: Settings },
 ];
 

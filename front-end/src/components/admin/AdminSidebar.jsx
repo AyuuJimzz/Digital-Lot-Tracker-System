@@ -11,7 +11,6 @@ const navItems = [
   },
   { title: "Manage Employees", url: "/manage-employees", icon: Users },
   { title: "Manage Properties", url: "/manage-properties", icon: Building2 },
-  { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "Map View", url: "/manage-lots", icon: Map },
   { title: "Settings", url: "/settings", icon: Settings },
 ];

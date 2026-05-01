@@ -3,10 +3,13 @@ import axios from "axios";
 
 import StatCard from "../../components/admin/StatCard";
 import RecentTransactions from "../../components/admin/AdminRecentTransactions";
+import MonthlyRecapReport from "../../components/admin/MonthlyRecapReport";
+import LotsSoldProperties from "../../components/admin/LotsSoldProperties";
 import ForcePasswordChange from "../../components/ForcePasswordChange";
 
 const AdminDashboard = () => {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState("Month");
   const [stats, setStats] = useState({
     totalLots: 0,
     soldLots: 0,
@@ -14,6 +17,10 @@ const AdminDashboard = () => {
     pendingLots: 0,
     totalClients: 0,
   });
+  const [propertiesData, setPropertiesData] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]);
+
+  const periods = ["Today", "Week", "Month", "This Year"];
 
   useEffect(() => {
     const passwordResetRequired = localStorage.getItem("password_reset_required");
@@ -48,6 +55,38 @@ const AdminDashboard = () => {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    const fetchPropertyStats = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/lots/time-based-sales", {
+          params: { period: selectedPeriod.toLowerCase() },
+        });
+
+        console.log("Time-based property stats fetched:", response.data);
+        setPropertiesData(response.data);
+      } catch (error) {
+        console.error("Error fetching time-based property stats:", error);
+      }
+    };
+
+    fetchPropertyStats();
+  }, [selectedPeriod]);
+
+  useEffect(() => {
+    const fetchMonthlySalesData = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/lots/monthly-sales");
+
+        console.log("Monthly sales data fetched:", response.data);
+        setMonthlyData(response.data);
+      } catch (error) {
+        console.error("Error fetching monthly sales data:", error);
+      }
+    };
+
+    fetchMonthlySalesData();
+  }, []);
+
   const handlePasswordChanged = () => {
     localStorage.setItem("password_reset_required", "false");
     setShowPasswordChange(false);
@@ -78,6 +117,21 @@ const AdminDashboard = () => {
         <StatCard title="Lots Available" value={String(stats.availableLots)} />
         <StatCard title="Lots Pending" value={String(stats.pendingLots)} />
         <StatCard title="Total Clients" value={String(stats.totalClients)} />
+      </div>
+
+      {/* Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        <div className="lg:col-span-7">
+          <MonthlyRecapReport data={monthlyData} />
+        </div>
+        <div className="lg:col-span-3">
+          <LotsSoldProperties
+            properties={propertiesData}
+            selectedMonth={selectedPeriod}
+            months={periods}
+            onMonthChange={(e) => setSelectedPeriod(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Detailed Data Table */}

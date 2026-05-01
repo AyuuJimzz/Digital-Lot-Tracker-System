@@ -114,8 +114,12 @@ const EmployeeDashboard = () => {
       {showPasswordChange && <ForcePasswordChange onPasswordChanged={handlePasswordChanged} />}
 
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Employee Dashboard</h1>
-        <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">Overview of lots and team activity.</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+          Employee Dashboard
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
+          Overview of lots and team activity.
+        </p>
       </div>
 
       {error && (
@@ -132,7 +136,7 @@ const EmployeeDashboard = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard title="Employee Team" value={String(stats.teamMembers)} />
-        <StatCard title="Total Customers" value={String(stats.totalCustomer)} />
+        <StatCard title="Total Clients" value={String(stats.totalCustomer)} />
       </div>
 
       <div className="pt-2">
