@@ -257,12 +257,12 @@ const EmployeeMapView = () => {
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
 
   return (
-    <div className="w-full h-full" style={{ height: "calc(100vh - 3.5rem)" }}>
+    <div className="w-full h-full relative" style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}>
       <MapContainer
         center={selectedPropertyCoords}
         zoom={19}
         maxZoom={22}
-        style={{ height: "100%", width: "100%" }}
+        style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
