@@ -31,7 +31,7 @@ CREATE TABLE `properties` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`property_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -40,7 +40,7 @@ CREATE TABLE `properties` (
 
 LOCK TABLES `properties` WRITE;
 /*!40000 ALTER TABLE `properties` DISABLE KEYS */;
-INSERT INTO `properties` VALUES (1,'Oton Cadastre','Brgy.Abilay Norte,Oton,Iloilo',207,'active','2026-03-18 06:44:24','2026-03-18 06:44:24');
+INSERT INTO `properties` VALUES (1,'LOT-3896 Oton Cadastre','Brgy.Abilay Norte,Oton,Iloilo',207,'active','2026-03-18 06:44:24','2026-03-25 06:11:33'),(2,'Lot-2018 Oton Cadestra','Brgy.Abilay Norte,Oton,Iloilo',166,'active','2026-03-24 01:07:18','2026-03-24 01:07:18'),(3,'Lot-204 Nanga Guimbal','Brgy,Nanga,Guimbal,Iloilo',223,'active','2026-04-09 10:00:19','2026-04-09 10:00:19');
 /*!40000 ALTER TABLE `properties` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -53,4 +53,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-19  2:05:27
+-- Dump completed on 2026-05-27 19:04:26
