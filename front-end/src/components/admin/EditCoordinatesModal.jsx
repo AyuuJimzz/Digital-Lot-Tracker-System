@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Save } from "lucide-react";
+import { X, Save, MapPin } from "lucide-react";
 
 export function EditCoordinatesModal({
   coordinatesModalOpen,
@@ -129,7 +129,29 @@ export function EditCoordinatesModal({
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              {lotData && (
+                <button
+                  onClick={() => {
+                    setCoordinatesModalOpen(false);
+                    // Dispatch visual coordinate editing event
+                    window.dispatchEvent(
+                      new CustomEvent("startVisualEdit", {
+                        detail: {
+                          lot_id: lotData.lot_id,
+                          lot_number: lotData.lot_number,
+                          property_id: lotData.property_id,
+                          coordinates: coordinates.length > 0 ? coordinates.map(c => [parseFloat(c.lat), parseFloat(c.lng)]) : null
+                        }
+                      })
+                    );
+                  }}
+                  className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-md transition-colors flex items-center justify-center gap-2 mb-2 shadow-sm"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Edit Visually on Map
+                </button>
+              )}
+              <div className="flex gap-3">
                 <button
                   onClick={() => setCoordinatesModalOpen(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"

@@ -13,6 +13,9 @@ node_modules
 dist
 dist-ssr
 *.local
+front-end/build
+build
+
 
 # Editor directories and files
 .vscode/*

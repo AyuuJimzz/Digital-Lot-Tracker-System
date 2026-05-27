@@ -260,13 +260,13 @@ const EmployeeMapView = () => {
     <div className="w-full h-full relative" style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}>
       <MapContainer
         center={selectedPropertyCoords}
-        zoom={19}
-        maxZoom={22}
+        zoom={18}
+        maxZoom={19}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={22}
+          maxZoom={19}
           maxNativeZoom={18}
         />
 

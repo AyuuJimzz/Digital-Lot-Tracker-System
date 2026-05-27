@@ -790,3 +790,32 @@ exports.sendPendingLotReminders = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.createLot = async (req, res) => {
+  const { property_id, lot_number, area_sqm, status } = req.body;
+
+  try {
+    if (!property_id || !lot_number || !area_sqm) {
+      return res.status(400).json({ error: "Property ID, Lot Number, and Area are required" });
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO lots (property_id, lot_number, area_sqm, status, coordinates) 
+       VALUES (?, ?, ?, ?, NULL)`,
+      [property_id, lot_number, area_sqm, status || "Available"]
+    );
+
+    res.status(201).json({
+      message: "Lot created successfully",
+      lot_id: result.insertId,
+      property_id,
+      lot_number,
+      area_sqm,
+      status: status || "Available",
+      coordinates: null,
+    });
+  } catch (err) {
+    console.error("Error in createLot:", err);
+    res.status(500).json({ error: err.message });
+  }
+};

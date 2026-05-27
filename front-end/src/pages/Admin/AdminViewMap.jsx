@@ -76,6 +76,67 @@ function AdminViewMap() {
   // Track if property change is due to user interaction vs lot click
   const [isPropertyChanging, setIsPropertyChanging] = useState(false);
 
+  // States for visual coordinate editing
+  const [editingLot, setEditingLot] = useState(null);
+  const [editingCoords, setEditingCoords] = useState([]);
+  const [isSavingCoords, setIsSavingCoords] = useState(false);
+
+  // Handle moving a vertex on drag
+  const handleVertexDrag = (index, event) => {
+    const { lat, lng } = event.target.getLatLng();
+    setEditingCoords((prev) => {
+      const newCoords = [...prev];
+      newCoords[index] = [lat, lng];
+      return newCoords;
+    });
+  };
+
+  // Add a new vertex at the midpoint of the first two vertices
+  const handleAddVertex = () => {
+    if (editingCoords.length === 0) return;
+    const p1 = editingCoords[0];
+    const p2 = editingCoords[1] || p1;
+    const midPoint = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+    setEditingCoords((prev) => {
+      const newCoords = [...prev];
+      newCoords.splice(1, 0, midPoint);
+      return newCoords;
+    });
+  };
+
+  // Remove a vertex by index
+  const handleRemoveVertex = (index) => {
+    if (editingCoords.length <= 3) {
+      alert("A polygon must have at least 3 corners.");
+      return;
+    }
+    setEditingCoords((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  // Create a handle icon for the draggable vertices
+  const createHandleIcon = (index) => {
+    return L.divIcon({
+      className: "custom-handle-icon",
+      html: `<div style="
+        background-color: #ffffff; 
+        width: 18px; 
+        height: 18px; 
+        border-radius: 50%;
+        border: 2px solid #10b981;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        cursor: move;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: bold;
+        color: #047857;
+      ">${index + 1}</div>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+  };
+
   // Property locations
   const properties = useMemo(
     () => [
@@ -114,10 +175,12 @@ function AdminViewMap() {
   const filteredLots = mapData ? mapData.lots : [];
 
   // Get selected property coordinates
-  const selectedPropertyCoords = properties.find((p) => p.id === selectedProperty)?.coordinates || [
-    10.7367 + 0.0005,
-    122.4998,
-  ];
+  const selectedPropertyCoords = useMemo(() => {
+    return properties.find((p) => p.id === selectedProperty)?.coordinates || [
+      10.7367 + 0.0005,
+      122.4998,
+    ];
+  }, [properties, selectedProperty]);
 
   // Helper function to get color based on status
 
@@ -251,23 +314,78 @@ function AdminViewMap() {
     };
   }, []);
 
+  // Listen for start visual edit event
+  useEffect(() => {
+    const handleStartVisualEdit = (event) => {
+      const { lot_id, lot_number, property_id, coordinates } = event.detail;
+      setEditingLot({ lot_id, lot_number, property_id });
+
+      if (coordinates && Array.isArray(coordinates) && coordinates.length > 0) {
+        // Deep copy
+        setEditingCoords(coordinates.map((c) => [...c]));
+      } else {
+        // Find property coordinates or fallback
+        const propCoords = properties.find((p) => Number(p.id) === Number(property_id))?.coordinates || selectedPropertyCoords;
+        const offset = 0.00015;
+        // Make a square centered at property coordinates
+        setEditingCoords([
+          [propCoords[0] - offset, propCoords[1] - offset],
+          [propCoords[0] + offset, propCoords[1] - offset],
+          [propCoords[0] + offset, propCoords[1] + offset],
+          [propCoords[0] - offset, propCoords[1] + offset],
+        ]);
+      }
+    };
+
+    window.addEventListener("startVisualEdit", handleStartVisualEdit);
+    return () => {
+      window.removeEventListener("startVisualEdit", handleStartVisualEdit);
+    };
+  }, [properties, selectedPropertyCoords]);
+
+  // Handle saving visual coordinates
+  const handleSaveVisualCoords = async () => {
+    if (!editingLot || editingCoords.length < 3) return;
+
+    setIsSavingCoords(true);
+    try {
+      await axios.put(`http://localhost:5000/api/lots/${editingLot.lot_id}/coordinates`, {
+        coordinates: editingCoords,
+      });
+
+      alert("Coordinates updated successfully!");
+      handleLotUpdated();
+      setEditingLot(null);
+    } catch (err) {
+      console.error("Error saving coordinates:", err);
+      alert(err.response?.data?.error || "Failed to update coordinates");
+    } finally {
+      setIsSavingCoords(false);
+    }
+  };
+
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
 
   return (
     <div className="w-full h-full relative" style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}>
       <MapContainer
         center={selectedPropertyCoords}
-        zoom={19}
-        maxZoom={22}
+        zoom={18}
+        maxZoom={19}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={22}
+          maxZoom={19}
           maxNativeZoom={18}
         />
 
         {filteredLots.map((lot, index) => {
+          // Skip rendering original polygon if it's currently being edited visually
+          if (editingLot && lot.lot_id === editingLot.lot_id) {
+            return null;
+          }
+
           // Skip lots with invalid or missing coordinates
           if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
             console.warn(
@@ -379,6 +497,41 @@ function AdminViewMap() {
           );
         })}
 
+        {/* Render Editable Polygon & Draggable Handles when editing coordinates */}
+        {editingLot && (
+          <>
+            <Polygon
+              positions={editingCoords}
+              pathOptions={{
+                color: "#10b981",
+                fillColor: "#10b981",
+                fillOpacity: 0.45,
+                weight: 4,
+                dashArray: "6, 6",
+              }}
+            />
+            {editingCoords.map((coord, index) => (
+              <Marker
+                key={`handle-${index}`}
+                position={coord}
+                draggable={true}
+                icon={createHandleIcon(index)}
+                eventHandlers={{
+                  drag: (e) => handleVertexDrag(index, e),
+                  dblclick: () => handleRemoveVertex(index),
+                }}
+              >
+                <Tooltip permanent={false} direction="top" offset={[0, -10]}>
+                  <div className="text-[10px] font-semibold text-gray-700 leading-tight">
+                    Corner {index + 1}<br/>
+                    <span className="text-[9px] text-gray-400 font-normal">Double-click to delete</span>
+                  </div>
+                </Tooltip>
+              </Marker>
+            ))}
+          </>
+        )}
+
         <MapController
           center={selectedPropertyCoords}
           onLotUpdated={handleLotUpdated}
@@ -387,6 +540,42 @@ function AdminViewMap() {
         />
       </MapContainer>
 
+      {/* Floating Coordinate Editor Panel */}
+      {editingLot && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-2xl p-4 z-[999] flex flex-col sm:flex-row items-center gap-4 transition-all duration-300 w-11/12 max-w-lg">
+          <div className="flex-1">
+            <span className="font-semibold text-gray-800 dark:text-white block text-sm">
+              Editing Coordinates: Lot {editingLot.lot_number}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
+              Drag the green handles (1, 2, 3...) to adjust corners. Double-click a handle to delete.
+            </span>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto justify-end">
+            <button
+              onClick={handleAddVertex}
+              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+              title="Adds a new corner point to the polygon"
+            >
+              Add Corner
+            </button>
+            <button
+              onClick={handleSaveVisualCoords}
+              disabled={isSavingCoords}
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+            >
+              {isSavingCoords ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={() => setEditingLot(null)}
+              className="px-3 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 text-xs font-semibold rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* LotOffcanvas Component */}
       <LotOffcanvas
         selectedLot={selectedLot}
@@ -394,6 +583,20 @@ function AdminViewMap() {
         onClose={() => setIsOffcanvasOpen(false)}
         onLotUpdated={handleLotUpdated}
         allowedStatuses={["Available", "Pending", "Sold"]}
+        showCoordinateEdit={true}
+        onStartCoordinateEdit={(lot) => {
+          setIsOffcanvasOpen(false);
+          window.dispatchEvent(
+            new CustomEvent("startVisualEdit", {
+              detail: {
+                lot_id: lot.lot_id,
+                lot_number: lot.lot_number,
+                property_id: lot.property_id,
+                coordinates: lot.coordinates,
+              },
+            })
+          );
+        }}
       />
     </div>
   );

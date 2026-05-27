@@ -44,11 +44,9 @@ CREATE TABLE `transactions` (
 -- Dumping data for table `transactions`
 --
 
-LOCK TABLES `transactions` WRITE;
-/*!40000 ALTER TABLE `transactions` DISABLE KEYS */;
-INSERT INTO `transactions` VALUES (1,63,1,'2026-05-01 20:52:06','Installment','Transaction updated for lot Lot 1 - Sold status','2026-05-01 20:31:19','2026-05-01 20:52:06'),(2,64,2,'2026-05-01 20:51:29','No Downpayment','Transaction updated for lot Lot 2 - Pending status','2026-05-01 20:32:09','2026-05-01 20:51:29');
-/*!40000 ALTER TABLE `transactions` ENABLE KEYS */;
-UNLOCK TABLES;
+-- Hardcoded data removed to prevent foreign key errors for non-existent customers.
+-- The migration script at the bottom will populate the table based on your existing data.
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -66,15 +64,15 @@ UNLOCK TABLES;
 -- This creates transaction records for existing sold and pending lots
 
 INSERT INTO transactions (lot_id, customer_id, transaction_date, payment_type, notes)
-SELECT 
+SELECT
     l.lot_id,
     c.customer_id,
-    CASE 
+    CASE
         WHEN l.status = 'Sold' THEN DATE_SUB(NOW(), INTERVAL FLOOR(RAND() * 30) DAY) -- Random date within last 30 days
         WHEN l.status = 'Pending' THEN l.pending_since
         ELSE NOW()
     END as transaction_date,
-    CASE 
+    CASE
         WHEN l.status = 'Pending' THEN 'No Downpayment'
         ELSE 'Cash'
     END as payment_type,

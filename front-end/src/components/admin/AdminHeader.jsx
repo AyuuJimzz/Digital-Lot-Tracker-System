@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun } from "lucide-react";
+import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus } from "lucide-react";
 import axios from "axios";
 import { EditCoordinatesModal } from "./EditCoordinatesModal";
+import { AddLotModal } from "./AddLotModal";
 
 export function AdminHeader() {
   const [isOpen, setIsOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
   const [coordinatesModalOpen, setCoordinatesModalOpen] = useState(false);
+  const [addLotModalOpen, setAddLotModalOpen] = useState(false);
   const [selectedLotId, setSelectedLotId] = useState("");
   const [lotData, setLotData] = useState(null);
   const [coordinates, setCoordinates] = useState([]);
@@ -15,6 +17,9 @@ export function AdminHeader() {
   const [error, setError] = useState("");
   const [profileInitials, setProfileInitials] = useState(null);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [selectedProperty, setSelectedProperty] = useState(() => {
+    return parseInt(localStorage.getItem("selectedProperty")) || 1;
+  });
   const dropdownRef = useRef(null);
   const propertyDropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -55,6 +60,15 @@ export function AdminHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Listen for selectProperty events to keep state in sync
+  useEffect(() => {
+    const handleSelectProperty = (event) => {
+      setSelectedProperty(event.detail.propertyId);
+    };
+    window.addEventListener("selectProperty", handleSelectProperty);
+    return () => window.removeEventListener("selectProperty", handleSelectProperty);
+  }, []);
+
   // Check if current page is AdminViewMap
   const isLotsMapPage = location.pathname === "/manage-lots";
 
@@ -78,6 +92,8 @@ export function AdminHeader() {
 
   // Handle property selection
   const handlePropertySelect = (property) => {
+    setSelectedProperty(property.id);
+
     // Emit custom event to map component for navigation
     window.dispatchEvent(
       new CustomEvent("navigateToProperty", {
@@ -235,6 +251,17 @@ export function AdminHeader() {
       <span className="font-medium text-gray-900 dark:text-white">Admin Panel</span>
 
       <div className="flex items-center gap-3">
+        {/* Add Lot Button - Only show on AdminViewMap page */}
+        {isLotsMapPage && (
+          <button
+            onClick={() => setAddLotModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors duration-200 font-medium"
+          >
+            <Plus className="h-4 w-4" />
+            Add Lot
+          </button>
+        )}
+
         {/* Edit Coordinates Button - Only show on AdminViewMap page */}
         {isLotsMapPage && (
           <button
@@ -359,6 +386,17 @@ export function AdminHeader() {
         handleUpdateCoordinates={handleUpdateCoordinates}
         addCoordinatePair={addCoordinatePair}
         updateCoordinate={updateCoordinate}
+      />
+
+      <AddLotModal
+        addLotModalOpen={addLotModalOpen}
+        setAddLotModalOpen={setAddLotModalOpen}
+        properties={properties}
+        defaultPropertyId={selectedProperty}
+        onLotCreated={() => {
+          // Emit event to refresh map data
+          window.dispatchEvent(new CustomEvent("refreshMapData"));
+        }}
       />
     </header>
   );

@@ -12,6 +12,7 @@ const {
   updateLotStatus,
   updateLotCoordinates,
   sendPendingLotReminders,
+  createLot,
 } = require("../controllers/lotsController");
 
 // Database routes
@@ -67,6 +68,7 @@ router.get("/test-db", async (req, res) => {
 router.get("/:id", getLotById);
 
 // Update routes
+router.post("/", createLot);
 router.put("/:id/status", updateLotStatus);
 router.put("/:id/coordinates", updateLotCoordinates);
 router.post("/send-pending-reminders", sendPendingLotReminders);
