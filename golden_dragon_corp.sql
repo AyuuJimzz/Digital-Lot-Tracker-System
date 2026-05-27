@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: May 27, 2026 at 05:34 PM
+-- Generation Time: May 27, 2026 at 05:37 PM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.16
 
@@ -20,6 +20,82 @@ SET time_zone = "+00:00";
 --
 -- Database: `golden_dragon_corp`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admins`
+--
+
+CREATE TABLE `admins` (
+  `admin_id` int NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `full_name` varchar(200) NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `password_reset_required` tinyint(1) DEFAULT '0',
+  `temp_password_expiry` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `admins`
+--
+
+INSERT INTO `admins` (`admin_id`, `email`, `password`, `full_name`, `created_at`, `password_reset_required`, `temp_password_expiry`) VALUES
+(2, 'admin@gmail.com', 'admin123', 'My Admin', '2026-02-17 19:37:20', 0, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `customers`
+--
+
+CREATE TABLE `customers` (
+  `customer_id` int NOT NULL,
+  `lot_id` int NOT NULL,
+  `full_name` varchar(255) NOT NULL,
+  `contact_number` varchar(50) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `address` text NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `customers`
+--
+
+INSERT INTO `customers` (`customer_id`, `lot_id`, `full_name`, `contact_number`, `email`, `address`, `created_at`, `updated_at`) VALUES
+(1, 1, 'John Edward Bearneza', '09102302956', 'johnedwardbearnezaa@gmail.com', 'Barotac Nuevo Iloilo', '2026-03-25 15:44:32', '2026-05-27 20:26:31'),
+(2, 494, 'John Edward Bearneza', '09102302956', 'johnedwardbearnezaa@gmail.com', 'Barotac Nuevo - Dumangas Road', '2026-05-28 01:18:47', '2026-05-28 01:18:47');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `employees`
+--
+
+CREATE TABLE `employees` (
+  `employee_id` int NOT NULL,
+  `first_name` varchar(100) NOT NULL,
+  `last_name` varchar(100) NOT NULL,
+  `email` varchar(150) DEFAULT NULL,
+  `password` varchar(150) DEFAULT NULL,
+  `date_of_birth` date NOT NULL,
+  `gender` varchar(10) NOT NULL,
+  `phone_number` varchar(20) NOT NULL,
+  `address` varchar(255) NOT NULL,
+  `password_reset_required` tinyint(1) DEFAULT '0',
+  `temp_password_expiry` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `employees`
+--
+
+INSERT INTO `employees` (`employee_id`, `first_name`, `last_name`, `email`, `password`, `date_of_birth`, `gender`, `phone_number`, `address`, `password_reset_required`, `temp_password_expiry`) VALUES
+(1, 'james', 'delos santos', 'jamesdelossantos1028@gmail.com', 'example', '2001-10-28', 'Male', '9303003196', 'Gustilo', 0, NULL),
+(2, 'John Edward', 'Bearneza', 'botschats12@gmail.com', 'bots/123', '2010-03-20', 'Male', '09102303958', 'Barotac Nuevo Iloilo', 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -523,9 +599,80 @@ INSERT INTO `lots` (`lot_id`, `property_id`, `lot_number`, `area_sqm`, `status`,
 (491, 3, 'BLOCK 10 Lot 17', 150.00, 'Available', '[[10.672856143541582, 122.33507841825488], [10.67291643765575, 122.33504086732866], [10.67299024027101, 122.33516357839108], [10.672927310363583, 122.33520179986957], [10.672864050967066, 122.33509954065086], [10.672864380443116, 122.33509283512832]]', NULL, NULL),
 (494, 3, 'BLOCK 10 Lot 18', 145.00, 'Available', '[[10.67291775555974, 122.33504053205252], [10.672981014945089, 122.33500164002182], [10.673055476496382, 122.335126362741], [10.672991887650618, 122.33516290783884]]', NULL, NULL);
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `properties`
+--
+
+CREATE TABLE `properties` (
+  `property_id` int NOT NULL,
+  `property_name` varchar(255) DEFAULT NULL,
+  `location` text,
+  `total_lots` int DEFAULT NULL,
+  `status` enum('active','inactive') DEFAULT 'active',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `properties`
+--
+
+INSERT INTO `properties` (`property_id`, `property_name`, `location`, `total_lots`, `status`, `created_at`, `updated_at`) VALUES
+(1, 'LOT-3896 Oton Cadastre', 'Brgy.Abilay Norte,Oton,Iloilo', 207, 'active', '2026-03-18 06:44:24', '2026-03-25 06:11:33'),
+(2, 'Lot-2018 Oton Cadestra', 'Brgy.Abilay Norte,Oton,Iloilo', 166, 'active', '2026-03-24 01:07:18', '2026-03-24 01:07:18'),
+(3, 'Lot-204 Nanga Guimbal', 'Brgy,Nanga,Guimbal,Iloilo', 223, 'active', '2026-04-09 10:00:19', '2026-04-09 10:00:19');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `transactions`
+--
+
+CREATE TABLE `transactions` (
+  `transaction_id` int NOT NULL,
+  `lot_id` int NOT NULL,
+  `customer_id` int NOT NULL,
+  `transaction_date` datetime DEFAULT CURRENT_TIMESTAMP,
+  `payment_type` enum('Cash','Installment','No Downpayment','Bank Transfer','Online Payment') DEFAULT 'Cash',
+  `notes` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `transactions`
+--
+
+INSERT INTO `transactions` (`transaction_id`, `lot_id`, `customer_id`, `transaction_date`, `payment_type`, `notes`, `created_at`, `updated_at`) VALUES
+(3, 1, 1, '2026-05-27 20:26:31', 'Cash', 'Transaction updated for lot EX - Sold status', '2026-05-25 12:26:44', '2026-05-27 20:26:31'),
+(4, 494, 2, '2026-05-28 01:18:47', 'No Downpayment', 'Transaction created for lot BLOCK 10 Lot 18 - Pending status', '2026-05-28 01:18:47', '2026-05-28 01:18:47');
+
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `admins`
+--
+ALTER TABLE `admins`
+  ADD PRIMARY KEY (`admin_id`),
+  ADD UNIQUE KEY `email` (`email`);
+
+--
+-- Indexes for table `customers`
+--
+ALTER TABLE `customers`
+  ADD PRIMARY KEY (`customer_id`),
+  ADD KEY `lot_id` (`lot_id`);
+
+--
+-- Indexes for table `employees`
+--
+ALTER TABLE `employees`
+  ADD PRIMARY KEY (`employee_id`),
+  ADD UNIQUE KEY `email` (`email`);
 
 --
 -- Indexes for table `lots`
@@ -536,8 +683,41 @@ ALTER TABLE `lots`
   ADD KEY `idx_lots_pending_since` (`pending_since`);
 
 --
+-- Indexes for table `properties`
+--
+ALTER TABLE `properties`
+  ADD PRIMARY KEY (`property_id`);
+
+--
+-- Indexes for table `transactions`
+--
+ALTER TABLE `transactions`
+  ADD PRIMARY KEY (`transaction_id`),
+  ADD KEY `lot_id` (`lot_id`),
+  ADD KEY `customer_id` (`customer_id`),
+  ADD KEY `idx_transaction_date` (`transaction_date`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
+
+--
+-- AUTO_INCREMENT for table `admins`
+--
+ALTER TABLE `admins`
+  MODIFY `admin_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `customers`
+--
+ALTER TABLE `customers`
+  MODIFY `customer_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `employees`
+--
+ALTER TABLE `employees`
+  MODIFY `employee_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `lots`
@@ -546,14 +726,39 @@ ALTER TABLE `lots`
   MODIFY `lot_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=495;
 
 --
+-- AUTO_INCREMENT for table `properties`
+--
+ALTER TABLE `properties`
+  MODIFY `property_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `transactions`
+--
+ALTER TABLE `transactions`
+  MODIFY `transaction_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `customers`
+--
+ALTER TABLE `customers`
+  ADD CONSTRAINT `customers_ibfk_1` FOREIGN KEY (`lot_id`) REFERENCES `lots` (`lot_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `lots`
 --
 ALTER TABLE `lots`
   ADD CONSTRAINT `lots_ibfk_1` FOREIGN KEY (`property_id`) REFERENCES `properties` (`property_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `transactions`
+--
+ALTER TABLE `transactions`
+  ADD CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`lot_id`) REFERENCES `lots` (`lot_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

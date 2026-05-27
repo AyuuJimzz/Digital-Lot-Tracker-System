@@ -16,6 +16,7 @@ const LotOffcanvas = ({
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
@@ -144,6 +145,44 @@ const LotOffcanvas = ({
       setSaveMessage("Failed to save lot status. Please try again.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedLot) return;
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete Lot ${selectedLot.lot_number}? This action cannot be undone and will delete all associated transactions and customer records.`
+    );
+    if (!confirmDelete) return;
+
+    setIsDeleting(true);
+    setSaveMessage("");
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/lots/${selectedLot.lot_id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to delete lot");
+      }
+
+      setSaveMessage("Lot deleted successfully!");
+
+      if (onLotUpdated) {
+        onLotUpdated();
+      }
+
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (error) {
+      console.error("Error deleting lot:", error);
+      setSaveMessage(error.message || "Failed to delete lot. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -460,43 +499,81 @@ const LotOffcanvas = ({
               </div>
             )}
 
-            <button
-              className={`w-full py-2 px-4 rounded-lg transition-colors duration-200 font-medium ${
-                isSaving
-                  ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
-              }`}
-              onClick={handleSave}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <span className="flex items-center justify-center">
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Saving...
-                </span>
-              ) : (
-                "Save"
-              )}
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                className={`w-full py-2 px-4 rounded-lg transition-colors duration-200 font-medium ${
+                  isSaving
+                    ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+                onClick={handleSave}
+                disabled={isSaving || isDeleting}
+              >
+                {isSaving ? (
+                  <span className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Saving...
+                  </span>
+                ) : (
+                  "Save"
+                )}
+              </button>
+
+              <button
+                className={`w-full py-2 px-4 rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors duration-200 font-medium ${
+                  isDeleting ? "cursor-not-allowed opacity-50" : ""
+                }`}
+                onClick={handleDelete}
+                disabled={isSaving || isDeleting}
+              >
+                {isDeleting ? (
+                  <span className="flex items-center justify-center">
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-red-600 dark:text-red-400"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Deleting...
+                  </span>
+                ) : (
+                  "Delete Lot"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

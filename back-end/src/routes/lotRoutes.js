@@ -13,6 +13,7 @@ const {
   updateLotCoordinates,
   sendPendingLotReminders,
   createLot,
+  deleteLot,
 } = require("../controllers/lotsController");
 
 // Database routes
@@ -71,6 +72,7 @@ router.get("/:id", getLotById);
 router.post("/", createLot);
 router.put("/:id/status", updateLotStatus);
 router.put("/:id/coordinates", updateLotCoordinates);
+router.delete("/:id", deleteLot);
 router.post("/send-pending-reminders", sendPendingLotReminders);
 
 // Test PUT route

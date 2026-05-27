@@ -819,3 +819,26 @@ exports.createLot = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.deleteLot = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Check if lot exists
+    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+    if (lotRows.length === 0) {
+      return res.status(404).json({ error: "Lot not found" });
+    }
+
+    // Delete the lot (foreign key constraints on customers/transactions have ON DELETE CASCADE)
+    await db.query("DELETE FROM lots WHERE lot_id = ?", [id]);
+
+    res.json({
+      message: "Lot deleted successfully",
+      lot_id: Number(id),
+    });
+  } catch (err) {
+    console.error("Error in deleteLot:", err);
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -5,7 +5,7 @@
     "back-end"
   ],
   "scripts": {
-    "dev": "concurrently \"npm --prefix back-end start\" \"npm --prefix front-end start\"",
+    "dev": "concurrently \"npm --prefix back-end run dev\" \"npm --prefix front-end start\"",
     "build:front": "npm --prefix front-end run build",
     "format": "npx prettier . --write",
     "format:check": "npx prettier . --check"

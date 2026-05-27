@@ -23,8 +23,14 @@ L.Icon.Default.mergeOptions({
 });
 
 // Component to handle map centering and event listening
-function MapController({ center, onLotUpdated, setSelectedProperty, setIsPropertyChanging }) {
+function MapController({ center, onLotUpdated, setSelectedProperty, setIsPropertyChanging, setMap }) {
   const map = useMap();
+
+  useEffect(() => {
+    if (setMap) {
+      setMap(map);
+    }
+  }, [map, setMap]);
 
   useEffect(() => {
     // Listen for property navigation events
@@ -68,6 +74,7 @@ function MapController({ center, onLotUpdated, setSelectedProperty, setIsPropert
 
 function AdminViewMap() {
   const [mapData, setMapData] = useState(null);
+  const [map, setMap] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(() => {
@@ -81,8 +88,28 @@ function AdminViewMap() {
   const [editingCoords, setEditingCoords] = useState([]);
   const [isSavingCoords, setIsSavingCoords] = useState(false);
 
-  // Handle moving a vertex on drag
+  // State and Ref for dragging the entire polygon
+  const [isDraggingPolygon, setIsDraggingPolygon] = useState(false);
+  const polygonDragRef = React.useRef(null);
+
+  // Refs for smooth vertex dragging
+  const editingPolygonRef = React.useRef(null);
+  const dragCoordsRef = React.useRef([]);
+
+  // Handle moving a vertex on drag (updates Leaflet instance directly for performance/smoothness)
   const handleVertexDrag = (index, event) => {
+    const { lat, lng } = event.target.getLatLng();
+    const currentCoords = dragCoordsRef.current;
+    if (currentCoords && currentCoords.length > index) {
+      currentCoords[index] = [lat, lng];
+      if (editingPolygonRef.current) {
+        editingPolygonRef.current.setLatLngs(currentCoords);
+      }
+    }
+  };
+
+  // Sync back to React state only when dragging finishes
+  const handleVertexDragEnd = (index, event) => {
     const { lat, lng } = event.target.getLatLng();
     setEditingCoords((prev) => {
       const newCoords = [...prev];
@@ -91,20 +118,9 @@ function AdminViewMap() {
     });
   };
 
-  // Add a new vertex at the midpoint of the first two vertices
-  const handleAddVertex = () => {
-    if (editingCoords.length === 0) return;
-    const p1 = editingCoords[0];
-    const p2 = editingCoords[1] || p1;
-    const midPoint = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
-    setEditingCoords((prev) => {
-      const newCoords = [...prev];
-      newCoords.splice(1, 0, midPoint);
-      return newCoords;
-    });
-  };
 
-  // Remove a vertex by index
+
+  // Remove a vertex by index (triggered by double-clicking a corner handle)
   const handleRemoveVertex = (index) => {
     if (editingCoords.length <= 3) {
       alert("A polygon must have at least 3 corners.");
@@ -113,27 +129,126 @@ function AdminViewMap() {
     setEditingCoords((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  // Add a new vertex at a specific index
+  const handleAddVertexAtIndex = (insertIndex, position) => {
+    setEditingCoords((prev) => {
+      const newCoords = [...prev];
+      newCoords.splice(insertIndex, 0, position);
+      return newCoords;
+    });
+  };
+
+  // Calculate midpoints of all edges of the polygon to add new corners
+  const midpointHandles = useMemo(() => {
+    if (!editingCoords || editingCoords.length < 3) return [];
+    const midpoints = [];
+    const n = editingCoords.length;
+    for (let i = 0; i < n; i++) {
+      const p1 = editingCoords[i];
+      const p2 = editingCoords[(i + 1) % n];
+      const mid = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+      midpoints.push({
+        position: mid,
+        insertIndex: i + 1,
+      });
+    }
+    return midpoints;
+  }, [editingCoords]);
+
+  // Create a small '+' icon for the midpoint handles
+  const createMidpointIcon = () => {
+    return L.divIcon({
+      className: "custom-midpoint-icon",
+      html: `
+        <div style="
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background-color: rgba(16, 185, 129, 0.85);
+          border: 1.5px solid #ffffff;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: #ffffff;
+          font-size: 11px;
+          font-weight: bold;
+          line-height: 1;
+          transition: transform 0.15s ease-in-out;
+        " onmouseover="this.style.transform='scale(1.2)';" onmouseout="this.style.transform='scale(1)';">
+          +
+        </div>
+      `,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+  };
+
   // Create a handle icon for the draggable vertices
   const createHandleIcon = (index) => {
     return L.divIcon({
       className: "custom-handle-icon",
-      html: `<div style="
-        background-color: #ffffff; 
-        width: 18px; 
-        height: 18px; 
-        border-radius: 50%;
-        border: 2px solid #10b981;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-        cursor: move;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: bold;
-        color: #047857;
-      ">${index + 1}</div>`,
-      iconSize: [18, 18],
-      iconAnchor: [9, 9],
+      html: `
+        <div style="
+          position: relative;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: move;
+        ">
+          <!-- Dashed outer ring for visibility and dragging target area -->
+          <div style="
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 1.5px dashed #10b981;
+            background-color: rgba(16, 185, 129, 0.15);
+            pointer-events: none;
+          "></div>
+          
+          <!-- Exact center point (vertex) -->
+          <div style="
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #10b981;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 3px rgba(0,0,0,0.5);
+            pointer-events: none;
+            z-index: 2;
+          "></div>
+          
+          <!-- Corner number label (offset to top-right) -->
+          <div style="
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background-color: #047857;
+            color: #ffffff;
+            font-size: 8px;
+            font-weight: bold;
+            min-width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ffffff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            z-index: 3;
+            pointer-events: none;
+          ">
+            ${index + 1}
+          </div>
+        </div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
     });
   };
 
@@ -343,6 +458,48 @@ function AdminViewMap() {
     };
   }, [properties, selectedPropertyCoords]);
 
+  // Handle dragging the entire polygon shape
+  useEffect(() => {
+    if (!map) return;
+
+    const handleMapMouseMove = (e) => {
+      if (!isDraggingPolygon || !polygonDragRef.current) return;
+
+      const { startLatLng, initialCoords } = polygonDragRef.current;
+      const currentLatLng = e.latlng;
+
+      const deltaLat = currentLatLng.lat - startLatLng.lat;
+      const deltaLng = currentLatLng.lng - startLatLng.lng;
+
+      const newCoords = initialCoords.map(([lat, lng]) => [
+        lat + deltaLat,
+        lng + deltaLng,
+      ]);
+
+      setEditingCoords(newCoords);
+    };
+
+    const handleMapMouseUp = () => {
+      if (isDraggingPolygon) {
+        setIsDraggingPolygon(false);
+        polygonDragRef.current = null;
+        if (map) {
+          map.dragging.enable();
+        }
+      }
+    };
+
+    if (isDraggingPolygon) {
+      map.on("mousemove", handleMapMouseMove);
+      map.on("mouseup", handleMapMouseUp);
+    }
+
+    return () => {
+      map.off("mousemove", handleMapMouseMove);
+      map.off("mouseup", handleMapMouseUp);
+    };
+  }, [map, isDraggingPolygon]);
+
   // Handle saving visual coordinates
   const handleSaveVisualCoords = async () => {
     if (!editingLot || editingCoords.length < 3) return;
@@ -371,12 +528,12 @@ function AdminViewMap() {
       <MapContainer
         center={selectedPropertyCoords}
         zoom={18}
-        maxZoom={19}
+        maxZoom={24}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={19}
+          maxZoom={24}
           maxNativeZoom={18}
         />
 
@@ -501,6 +658,7 @@ function AdminViewMap() {
         {editingLot && (
           <>
             <Polygon
+              ref={editingPolygonRef}
               positions={editingCoords}
               pathOptions={{
                 color: "#10b981",
@@ -508,6 +666,19 @@ function AdminViewMap() {
                 fillOpacity: 0.45,
                 weight: 4,
                 dashArray: "6, 6",
+                className: isDraggingPolygon ? "cursor-grabbing" : "cursor-grab",
+              }}
+              eventHandlers={{
+                mousedown: (e) => {
+                  e.originalEvent.stopPropagation();
+                  const startLatLng = e.latlng;
+                  const initialCoords = editingCoords.map((c) => [...c]);
+                  polygonDragRef.current = { startLatLng, initialCoords };
+                  setIsDraggingPolygon(true);
+                  if (map) {
+                    map.dragging.disable();
+                  }
+                },
               }}
             />
             {editingCoords.map((coord, index) => (
@@ -517,17 +688,40 @@ function AdminViewMap() {
                 draggable={true}
                 icon={createHandleIcon(index)}
                 eventHandlers={{
+                  dragstart: () => {
+                    if (map) {
+                      map.dragging.disable();
+                    }
+                    dragCoordsRef.current = editingCoords.map((c) => [...c]);
+                  },
                   drag: (e) => handleVertexDrag(index, e),
-                  dblclick: () => handleRemoveVertex(index),
+                  dragend: (e) => {
+                    if (map) {
+                      map.dragging.enable();
+                    }
+                    handleVertexDragEnd(index, e);
+                  },
+                  dblclick: (e) => {
+                    e.originalEvent.stopPropagation();
+                    handleRemoveVertex(index);
+                  },
                 }}
-              >
-                <Tooltip permanent={false} direction="top" offset={[0, -10]}>
-                  <div className="text-[10px] font-semibold text-gray-700 leading-tight">
-                    Corner {index + 1}<br/>
-                    <span className="text-[9px] text-gray-400 font-normal">Double-click to delete</span>
-                  </div>
-                </Tooltip>
-              </Marker>
+              />
+            ))}
+
+            {/* Render interactive midpoints to easily add corners in specific locations */}
+            {midpointHandles.map((mid, idx) => (
+              <Marker
+                key={`midpoint-${idx}-${editingCoords.length}`}
+                position={mid.position}
+                icon={createMidpointIcon()}
+                eventHandlers={{
+                  click: (e) => {
+                    e.originalEvent.stopPropagation();
+                    handleAddVertexAtIndex(mid.insertIndex, mid.position);
+                  },
+                }}
+              />
             ))}
           </>
         )}
@@ -537,6 +731,7 @@ function AdminViewMap() {
           onLotUpdated={handleLotUpdated}
           setSelectedProperty={setSelectedProperty}
           setIsPropertyChanging={setIsPropertyChanging}
+          setMap={setMap}
         />
       </MapContainer>
 
@@ -548,17 +743,10 @@ function AdminViewMap() {
               Editing Coordinates: Lot {editingLot.lot_number}
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
-              Drag the green handles (1, 2, 3...) to adjust corners. Double-click a handle to delete.
+              Drag corners (1, 2, 3...) to adjust. Double-click a corner to delete. Click "+" on any side to add a corner there.
             </span>
           </div>
           <div className="flex gap-2 w-full sm:w-auto justify-end">
-            <button
-              onClick={handleAddVertex}
-              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
-              title="Adds a new corner point to the polygon"
-            >
-              Add Corner
-            </button>
             <button
               onClick={handleSaveVisualCoords}
               disabled={isSavingCoords}

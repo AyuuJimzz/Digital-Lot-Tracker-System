@@ -151,7 +151,7 @@ export function AddLotModal({
                   required
                   value={lotNumber}
                   onChange={(e) => setLotNumber(e.target.value)}
-                  placeholder="e.g. Lot 23, Lot A"
+                  placeholder="e.g. BLOCK 1 Lot 2"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
                 />
               </div>
