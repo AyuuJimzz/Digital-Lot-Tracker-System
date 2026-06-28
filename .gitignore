@@ -29,6 +29,7 @@ md/
 *.sln
 *.sw?
 .env
+mapsPDF
 
 # Data files and lotData
 back-end/src/data/
