@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, BarChart3, Map, Users, Building2, Settings } from "lucide-react";
+import { LayoutDashboard, Map, Users, Building2, Settings } from "lucide-react";
 import logo from "../../assets/image/golden-dragon-logo.png";
 
 const navItems = [

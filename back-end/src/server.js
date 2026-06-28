@@ -5,7 +5,13 @@ const { sendPendingLotReminders } = require("./controllers/lotsController");
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`\n==============================================`);
+  console.log(`🚀 SYSTEM IS RUNNING SUCCESSFULLY!`);
+  console.log(`==============================================`);
+  console.log(`🌐 Frontend (Website):     http://localhost:3000`);
+  console.log(`⚙️  Backend (API):         http://localhost:${PORT}`);
+  console.log(`🗄️  Database (phpMyAdmin): http://localhost:8080`);
+  console.log(`==============================================\n`);
 });
 
 // =======================

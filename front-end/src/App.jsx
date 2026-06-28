@@ -25,14 +25,6 @@ import ProfileSettings from "./pages/Shared/ProfileSettings";
 
 const queryClient = new QueryClient();
 
-function EmployeePlaceholder({ title }) {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-foreground tracking-tight">{title}</h1>
-      <p className="text-sm text-gray-500 mt-2">This page is under development.</p>
-    </div>
-  );
-}
 
 function App() {
   const [, setRole] = useState(localStorage.getItem("role") || null);

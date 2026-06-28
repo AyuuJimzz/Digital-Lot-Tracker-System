@@ -80,13 +80,13 @@ For Docker Compose, backend DB host is overridden to `db` automatically.
 npm install
 ```
 
-1. Start frontend and backend together:
+2. Start frontend and backend together:
 
 ```bash
 npm run dev
 ```
 
-1. Open:
+3. Open:
 
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:5000`
@@ -142,6 +142,7 @@ Base URL: `http://localhost:5000`
 - `/api/lots`
 - `/api/customers`
 - `/api/admin`
+- `/api/transactions`
 
 Route definitions are in:
 
@@ -151,6 +152,7 @@ Route definitions are in:
 - `back-end/src/routes/lotRoutes.js`
 - `back-end/src/routes/customerRoutes.js`
 - `back-end/src/routes/adminRoutes.js`
+- `back-end/src/routes/transactionRoutes.js`
 
 ## License
 

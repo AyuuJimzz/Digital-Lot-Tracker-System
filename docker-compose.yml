@@ -76,6 +76,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
       - CI=false
+      - NODE_OPTIONS=--no-deprecation
     ports:
       - "3000:3000"
     depends_on:

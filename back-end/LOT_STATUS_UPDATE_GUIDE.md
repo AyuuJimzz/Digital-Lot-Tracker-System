@@ -45,11 +45,11 @@ POST /api/lots/send-pending-reminders
 ## Environment Variables Required
 Add these to your `.env` file:
 ```
-EMAIL_HOST=your_smtp_host
+EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USER=your_email@example.com
+EMAIL_USER=goldendragone23@gmail.com
 EMAIL_PASSWORD=your_app_password
-EMAIL_FROM=Golden Dragon Estate <noreply@goldendragon.com>
+EMAIL_FROM=Golden Dragon Estate Corporation <goldendragone23@gmail.com>
 ```
 
 ## Scheduled Job
