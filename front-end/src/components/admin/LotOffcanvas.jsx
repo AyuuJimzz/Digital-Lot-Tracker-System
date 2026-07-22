@@ -19,9 +19,15 @@ const LotOffcanvas = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
+  // Editable Lot Metadata details
+  const [lotNumber, setLotNumber] = useState("");
+  const [areaSqm, setAreaSqm] = useState("");
+
   useEffect(() => {
     if (selectedLot) {
       setStatus(selectedLot.status);
+      setLotNumber(selectedLot.lot_number || "");
+      setAreaSqm(selectedLot.area_sqm || "");
 
       // If lot has customer data, set the customer information
       if (selectedLot.customer) {
@@ -84,6 +90,12 @@ const LotOffcanvas = ({
   const handleSave = async () => {
     if (!selectedLot) return;
 
+    // Validate lot details
+    if (!lotNumber.trim() || !areaSqm) {
+      setSaveMessage("Lot Number and Area (SQM) are required.");
+      return;
+    }
+
     // Validate customer information if status is being set to Pending
     if (status === "Pending") {
       if (!email || !fullName || !contactNumber || !address) {
@@ -98,7 +110,30 @@ const LotOffcanvas = ({
     setSaveMessage("");
 
     try {
-      // Update lot status with customer information
+      // 1. Update lot details (lot_number, area_sqm) if changed
+      const lotNumberChanged = lotNumber.trim() !== selectedLot.lot_number;
+      const areaSqmChanged = parseFloat(areaSqm) !== parseFloat(selectedLot.area_sqm);
+
+      if (lotNumberChanged || areaSqmChanged) {
+        console.log("Updating lot details:", { lotNumber, areaSqm });
+        const detailsResponse = await fetch(`http://localhost:5000/api/lots/${selectedLot.lot_id}/details`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            lot_number: lotNumber,
+            area_sqm: areaSqm,
+          }),
+        });
+
+        if (!detailsResponse.ok) {
+          const errorText = await detailsResponse.json().catch(() => ({}));
+          throw new Error(errorText.error || "Failed to update lot details");
+        }
+      }
+
+      // 2. Update lot status with customer information
       console.log("Updating lot status:", {
         lotId: selectedLot.lot_id,
         status,
@@ -131,7 +166,7 @@ const LotOffcanvas = ({
 
       await response.json();
 
-      setSaveMessage("Lot status updated successfully!");
+      setSaveMessage("Lot saved successfully!");
 
       if (onLotUpdated) {
         onLotUpdated();
@@ -142,7 +177,7 @@ const LotOffcanvas = ({
       }, 1500);
     } catch (error) {
       console.error("Error saving lot:", error);
-      setSaveMessage("Failed to save lot status. Please try again.");
+      setSaveMessage(error.message || "Failed to save lot. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -232,21 +267,30 @@ const LotOffcanvas = ({
               {/* Lot Number */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Lot Number
+                  Lot Number / Label
                 </label>
-                <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {selectedLot.lot_number}
-                </div>
+                <input
+                  type="text"
+                  value={lotNumber}
+                  onChange={(e) => setLotNumber(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 font-semibold"
+                  placeholder="e.g. BLOCK 7 Lot 1"
+                />
               </div>
 
               {/* Area */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Area
+                  Area (SQM)
                 </label>
-                <div className="text-lg text-gray-900 dark:text-white">
-                  {selectedLot.area_sqm} SQM
-                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={areaSqm}
+                  onChange={(e) => setAreaSqm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700"
+                  placeholder="e.g. 200"
+                />
               </div>
 
               {/* Status */}

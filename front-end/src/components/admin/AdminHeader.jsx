@@ -8,6 +8,7 @@ import { AddLotModal } from "./AddLotModal";
 export function AdminHeader() {
   const [isOpen, setIsOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
+  const [lotsDropdownOpen, setLotsDropdownOpen] = useState(false); // dropdown state for Manage Lots
   const [coordinatesModalOpen, setCoordinatesModalOpen] = useState(false);
   const [addLotModalOpen, setAddLotModalOpen] = useState(false);
   const [selectedLotId, setSelectedLotId] = useState("");
@@ -22,6 +23,7 @@ export function AdminHeader() {
   });
   const dropdownRef = useRef(null);
   const propertyDropdownRef = useRef(null);
+  const lotsDropdownRef = useRef(null); // ref for Manage Lots dropdown
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -54,6 +56,9 @@ export function AdminHeader() {
       }
       if (propertyDropdownRef.current && !propertyDropdownRef.current.contains(event.target)) {
         setPropertyDropdownOpen(false);
+      }
+      if (lotsDropdownRef.current && !lotsDropdownRef.current.contains(event.target)) {
+        setLotsDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -251,26 +256,57 @@ export function AdminHeader() {
       <span className="font-medium text-gray-900 dark:text-white">Admin Panel</span>
 
       <div className="flex items-center gap-3">
-        {/* Add Lot Button - Only show on AdminViewMap page */}
+        {/* Manage Lots Dropdown - Combines Site Plan, Add Lot, & Edit Coordinates */}
         {isLotsMapPage && (
-          <button
-            onClick={() => setAddLotModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors duration-200 font-medium"
-          >
-            <Plus className="h-4 w-4" />
-            Add Lot
-          </button>
-        )}
+          <div className="relative" ref={lotsDropdownRef}>
+            <button
+              onClick={() => setLotsDropdownOpen(!lotsDropdownOpen)}
+              className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 border ${
+                lotsDropdownOpen
+                  ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-slate-700 dark:text-blue-300 dark:border-slate-600"
+                  : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              <Edit className="h-4 w-4" />
+              Manage Lots
+            </button>
 
-        {/* Edit Coordinates Button - Only show on AdminViewMap page */}
-        {isLotsMapPage && (
-          <button
-            onClick={openCoordinatesModal}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200"
-          >
-            <Edit className="h-4 w-4" />
-            Edit Coordinates
-          </button>
+            {/* Dropdown Menu */}
+            {lotsDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[9999] dark:bg-slate-800 dark:border-slate-700">
+                <button
+                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("openOverlayPanel"));
+                    setLotsDropdownOpen(false);
+                  }}
+                >
+                  <span className="mr-2 text-purple-600 dark:text-purple-400">📎</span>
+                  Site Plan Overlay
+                </button>
+                <button
+                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700"
+                  onClick={() => {
+                    setAddLotModalOpen(true);
+                    setLotsDropdownOpen(false);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  Add New Lot
+                </button>
+                <button
+                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700"
+                  onClick={() => {
+                    openCoordinatesModal();
+                    setLotsDropdownOpen(false);
+                  }}
+                >
+                  <Edit className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  Edit Coordinates (Manual)
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Property Dropdown - Only show on AdminViewMap page */}

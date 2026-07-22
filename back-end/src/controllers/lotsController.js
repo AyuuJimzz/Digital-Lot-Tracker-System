@@ -842,3 +842,92 @@ exports.deleteLot = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.bulkShiftPropertyLots = async (req, res) => {
+  const { propertyId } = req.params;
+  const { deltaLat, deltaLng } = req.body;
+
+  if (typeof deltaLat !== "number" || typeof deltaLng !== "number") {
+    return res.status(400).json({ error: "deltaLat and deltaLng must be numbers" });
+  }
+
+  try {
+    // Get all lots for this property with coordinates
+    const [lots] = await db.query(
+      "SELECT lot_id, coordinates FROM lots WHERE property_id = ? AND coordinates IS NOT NULL",
+      [propertyId]
+    );
+
+    if (lots.length === 0) {
+      return res.json({ message: "No lots with coordinates to shift", updatedCount: 0 });
+    }
+
+    // Update each lot coordinates by adding delta offset
+    for (const lot of lots) {
+      let coords = typeof lot.coordinates === "string" ? JSON.parse(lot.coordinates) : lot.coordinates;
+      if (!Array.isArray(coords)) continue;
+
+      const shiftedCoords = coords.map(([lat, lng]) => [
+        lat + deltaLat,
+        lng + deltaLng
+      ]);
+
+      await db.query("UPDATE lots SET coordinates = ? WHERE lot_id = ?", [
+        JSON.stringify(shiftedCoords),
+        lot.lot_id
+      ]);
+    }
+
+    res.json({
+      message: `Successfully shifted coordinates for ${lots.length} lots`,
+      updatedCount: lots.length
+    });
+  } catch (err) {
+    console.error("Error in bulkShiftPropertyLots:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateLotDetails = async (req, res) => {
+  const { id } = req.params;
+  const { lot_number, area_sqm } = req.body;
+
+  try {
+    if (!lot_number || !area_sqm) {
+      return res.status(400).json({ error: "Lot Number and Area (SQM) are required" });
+    }
+
+    // Check if lot exists
+    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+    if (lotRows.length === 0) {
+      return res.status(404).json({ error: "Lot not found" });
+    }
+
+    // Check if new lot number is already taken by another lot in the same property
+    const propertyId = lotRows[0].property_id;
+    const [existingLot] = await db.query(
+      "SELECT * FROM lots WHERE property_id = ? AND lot_number = ? AND lot_id != ?",
+      [propertyId, lot_number.trim(), id]
+    );
+
+    if (existingLot.length > 0) {
+      return res.status(400).json({ error: `Lot number '${lot_number}' already exists in this property.` });
+    }
+
+    // Update lot details
+    await db.query(
+      "UPDATE lots SET lot_number = ?, area_sqm = ? WHERE lot_id = ?",
+      [lot_number.trim(), parseFloat(area_sqm), id]
+    );
+
+    res.json({
+      message: "Lot details updated successfully",
+      lot_id: Number(id),
+      lot_number: lot_number.trim(),
+      area_sqm: parseFloat(area_sqm),
+    });
+  } catch (err) {
+    console.error("Error in updateLotDetails:", err);
+    res.status(500).json({ error: err.message });
+  }
+};

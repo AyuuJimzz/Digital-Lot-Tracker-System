@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 
 import {
   MapContainer,
@@ -9,10 +9,12 @@ import {
   Marker,
   Polyline,
   Tooltip,
+  ImageOverlay,
 } from "react-leaflet";
 import axios from "axios";
 import L from "leaflet";
 import LotOffcanvas from "../../components/admin/LotOffcanvas";
+import { ImageOverlayControl } from "../../components/admin/ImageOverlayControl";
 
 // Fix for default icons in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -91,10 +93,29 @@ function AdminViewMap() {
   // State and Ref for dragging the entire polygon
   const [isDraggingPolygon, setIsDraggingPolygon] = useState(false);
   const polygonDragRef = React.useRef(null);
+  const draggedCoordsRef = React.useRef(null); // stores coordinates temporarily during bulk polygon drag
 
   // Refs for smooth vertex dragging
   const editingPolygonRef = React.useRef(null);
   const dragCoordsRef = React.useRef([]);
+  const cornerMarkersRef = React.useRef([]); // stores refs to Leaflet Marker instances for direct DOM positioning during drag
+
+  // ── Image Overlay States ──────────────────────────────────────────────────
+  const [overlayImage, setOverlayImage] = useState(null);
+  const [overlayBounds, setOverlayBounds] = useState(null); // [[sw_lat, sw_lng], [ne_lat, ne_lng]]
+  const [overlayOpacity, setOverlayOpacity] = useState(0.5);
+  const [overlayVisible, setOverlayVisible] = useState(true);
+  const [isEditingOverlay, setIsEditingOverlay] = useState(false);
+  const [showOverlayPanel, setShowOverlayPanel] = useState(false);
+  const [overlayRotation, setOverlayRotation] = useState(0); // degrees
+  const overlayRef = React.useRef(null);
+  const overlayMoveStartRef = React.useRef(null);
+  const overlayCornerDragRef = React.useRef(null); // stores {initBounds, currentBounds} during corner drag
+
+  // ── Bulk Shift States ──────────────────────────────────────────────────────
+  const [isBulkShifting, setIsBulkShifting] = useState(false);
+  const [bulkShiftOffset, setBulkShiftOffset] = useState({ lat: 0, lng: 0 });
+  const bulkShiftStartRef = React.useRef(null);
 
   // Handle moving a vertex on drag (updates Leaflet instance directly for performance/smoothness)
   const handleVertexDrag = (index, event) => {
@@ -251,6 +272,199 @@ function AdminViewMap() {
       iconAnchor: [12, 12],
     });
   };
+
+  // Create amber corner handle icon for overlay alignment
+  const createOverlayCornerIcon = useCallback((label) => {
+    return L.divIcon({
+      className: "overlay-corner-icon",
+      html: `
+        <div style="
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background-color: #f59e0b;
+          border: 2px solid #ffffff;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: move;
+          color: #ffffff;
+          font-size: 7px;
+          font-weight: bold;
+          letter-spacing: -0.5px;
+        ">${label}</div>
+      `,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+    });
+  }, []);
+
+  // ── Overlay corner drag — no React re-render during drag ────────────────
+  const handleOverlayCornerDragStart = useCallback((currentBounds) => {
+    console.log("Corner drag start. Current bounds:", currentBounds);
+    if (map) map.dragging.disable();
+    overlayCornerDragRef.current = currentBounds.map((c) => [...c]);
+  }, [map]);
+
+  const handleOverlayCornerDrag = useCallback((corner, e) => {
+    if (!overlayCornerDragRef.current || !overlayRef.current) {
+      console.log("Corner drag ignored. Ref current or overlayRef null:", {
+        ref: !!overlayCornerDragRef.current,
+        overlay: !!overlayRef.current
+      });
+      return;
+    }
+    const { lat, lng } = e.target.getLatLng();
+    const [sw, ne] = overlayCornerDragRef.current;
+    let newBounds;
+    switch (corner) {
+      case "sw": newBounds = [[lat, lng], ne]; break;
+      case "se": newBounds = [[lat, sw[1]], [ne[0], lng]]; break;
+      case "ne": newBounds = [sw, [lat, lng]]; break;
+      case "nw": newBounds = [[sw[0], lng], [lat, ne[1]]]; break;
+      default: return;
+    }
+    console.log(`Corner drag (${corner}) to:`, newBounds);
+    overlayCornerDragRef.current = newBounds;
+    overlayRef.current.setBounds(newBounds); // Direct Leaflet — zero React re-render
+  }, []);
+
+  const handleOverlayCornerDragEnd = useCallback(() => {
+    console.log("Corner drag end. Final bounds to set:", overlayCornerDragRef.current);
+    if (map) map.dragging.enable();
+    if (overlayCornerDragRef.current) {
+      setOverlayBounds(overlayCornerDragRef.current); // Sync to React state once on drop
+      overlayCornerDragRef.current = null;
+    }
+  }, [map]);
+
+  // Handle image upload — place overlay centered on current map view
+  const handleImageUpload = useCallback((imageUrl) => {
+    if (overlayImage) URL.revokeObjectURL(overlayImage);
+    setOverlayImage(imageUrl);
+    setOverlayVisible(true);
+    setIsEditingOverlay(true); // auto-enter alignment mode
+
+    if (map) {
+      const bounds = map.getBounds();
+      const latSpan = (bounds.getNorth() - bounds.getSouth()) * 0.7;
+      const lngSpan = (bounds.getEast() - bounds.getWest()) * 0.7;
+      const center = map.getCenter();
+      setOverlayBounds([
+        [center.lat - latSpan / 2, center.lng - lngSpan / 2],
+        [center.lat + latSpan / 2, center.lng + lngSpan / 2],
+      ]);
+    } else {
+      // Fallback: center on Property 1's default coordinates
+      const fallback = [10.7372, 122.4998];
+      const offset = 0.003;
+      setOverlayBounds([
+        [fallback[0] - offset, fallback[1] - offset],
+        [fallback[0] + offset, fallback[1] + offset],
+      ]);
+    }
+  }, [map, overlayImage]);
+
+  // Apply CSS rotation — extracted so we can call it both on mount and on slider change
+  const applyRotation = useCallback((deg) => {
+    if (overlayRef.current && overlayRef.current._image) {
+      const img = overlayRef.current._image;
+      img.style.transformOrigin = "center center";
+      img.style.rotate = `${deg}deg`; // Use modern CSS rotate property to avoid resetting Leaflet's transform position
+    }
+  }, []);
+
+  // Re-apply rotation when the ImageOverlay remounts (url/bounds change recreates the DOM node)
+  useEffect(() => {
+    applyRotation(overlayRotation);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlayImage, overlayBounds, applyRotation]);
+
+  // Fit overlay to current map view
+  const handleFitToView = useCallback(() => {
+    if (!map) return;
+    const b = map.getBounds();
+    setOverlayBounds([
+      [b.getSouth(), b.getWest()],
+      [b.getNorth(), b.getEast()],
+    ]);
+  }, [map]);
+
+  // Create bulk shift controller crosshair icon
+  const createBulkShiftCenterIcon = useCallback(() => {
+    return L.divIcon({
+      className: "bulk-shift-center-icon",
+      html: `
+        <div style="
+          width: 44px; height: 44px; border-radius: 50%;
+          background-color: rgba(220, 38, 38, 0.9);
+          border: 3px solid #ffffff;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+          display: flex; align-items: center; justify-content: center;
+          cursor: move;
+          animation: pulse 1.5s infinite ease-in-out;
+        ">
+          <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
+            <path d="M12 2v20M2 12h20M12 2l-3 3h6l-3-3zm0 20l-3-3h6l-3 3zM2 12l3-3v6l-3-3zm20 0l-3-3v6l3-3z"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22],
+    });
+  }, []);
+
+  // Save bulk shifted coordinates to database
+  const handleSaveBulkShift = async () => {
+    if (bulkShiftOffset.lat === 0 && bulkShiftOffset.lng === 0) {
+      setIsBulkShifting(false);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to shift all lots for this property?`)) {
+      return;
+    }
+
+    try {
+      await axios.put(`http://localhost:5000/api/lots/property/${selectedProperty}/bulk-shift`, {
+        deltaLat: bulkShiftOffset.lat,
+        deltaLng: bulkShiftOffset.lng,
+      });
+
+      alert("All lots shifted and aligned successfully!");
+      // Reload map data to get fresh coordinates from database
+      handleLotUpdated();
+      setIsBulkShifting(false);
+      setBulkShiftOffset({ lat: 0, lng: 0 });
+    } catch (err) {
+      console.error("Error bulk shifting lots:", err);
+      alert(err.response?.data?.error || "Failed to bulk shift lots");
+    }
+  };
+
+  // Create purple center-move icon
+  const createOverlayCenterIcon = useCallback(() => {
+    return L.divIcon({
+      className: "overlay-center-icon",
+      html: `
+        <div style="
+          width: 30px; height: 30px; border-radius: 50%;
+          background-color: #7c3aed;
+          border: 2px solid #ffffff;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+          display: flex; align-items: center; justify-content: center;
+          cursor: move;
+        ">
+          <svg width="14" height="14" fill="white" viewBox="0 0 24 24">
+            <path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-13 4h-4v3H3l5 5 5-5h-3v-3z"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+    });
+  }, []);
 
   // Property locations
   const properties = useMemo(
@@ -429,6 +643,13 @@ function AdminViewMap() {
     };
   }, []);
 
+  // Listen for openOverlayPanel event from AdminHeader
+  useEffect(() => {
+    const handleOpenOverlay = () => setShowOverlayPanel(true);
+    window.addEventListener("openOverlayPanel", handleOpenOverlay);
+    return () => window.removeEventListener("openOverlayPanel", handleOpenOverlay);
+  }, []);
+
   // Listen for start visual edit event
   useEffect(() => {
     const handleStartVisualEdit = (event) => {
@@ -476,7 +697,21 @@ function AdminViewMap() {
         lng + deltaLng,
       ]);
 
-      setEditingCoords(newCoords);
+      // Direct Leaflet element updates for buttery smooth 60 FPS movement
+      if (editingPolygonRef.current) {
+        editingPolygonRef.current.setLatLngs(newCoords);
+      }
+
+      if (cornerMarkersRef.current) {
+        cornerMarkersRef.current.forEach((marker, index) => {
+          if (marker && newCoords[index]) {
+            marker.setLatLng(newCoords[index]);
+          }
+        });
+      }
+
+      // Store in ref to retrieve on mouseup
+      draggedCoordsRef.current = newCoords;
     };
 
     const handleMapMouseUp = () => {
@@ -485,6 +720,12 @@ function AdminViewMap() {
         polygonDragRef.current = null;
         if (map) {
           map.dragging.enable();
+        }
+
+        // Sync back to React state only once on mouse release
+        if (draggedCoordsRef.current) {
+          setEditingCoords(draggedCoordsRef.current);
+          draggedCoordsRef.current = null;
         }
       }
     };
@@ -537,6 +778,163 @@ function AdminViewMap() {
           maxNativeZoom={18}
         />
 
+        {/* ── Site Plan Image Overlay ───────────────────────────── */}
+        {overlayImage && overlayBounds && overlayVisible && (
+          <ImageOverlay
+            ref={overlayRef}
+            url={overlayImage}
+            bounds={overlayBounds}
+            opacity={overlayOpacity}
+            zIndex={10}
+          />
+        )}
+
+        {/* ── Overlay Corner Alignment Handles ─────────────────── */}
+        {overlayImage && overlayBounds && isEditingOverlay && (
+          <>
+            {/* SW */}
+            <Marker
+              position={[overlayBounds[0][0], overlayBounds[0][1]]}
+              draggable={true}
+              icon={createOverlayCornerIcon("SW")}
+              eventHandlers={{
+                dragstart: () => handleOverlayCornerDragStart(overlayBounds),
+                drag: (e) => handleOverlayCornerDrag("sw", e),
+                dragend: handleOverlayCornerDragEnd,
+              }}
+            />
+            {/* SE */}
+            <Marker
+              position={[overlayBounds[0][0], overlayBounds[1][1]]}
+              draggable={true}
+              icon={createOverlayCornerIcon("SE")}
+              eventHandlers={{
+                dragstart: () => handleOverlayCornerDragStart(overlayBounds),
+                drag: (e) => handleOverlayCornerDrag("se", e),
+                dragend: handleOverlayCornerDragEnd,
+              }}
+            />
+            {/* NE */}
+            <Marker
+              position={[overlayBounds[1][0], overlayBounds[1][1]]}
+              draggable={true}
+              icon={createOverlayCornerIcon("NE")}
+              eventHandlers={{
+                dragstart: () => handleOverlayCornerDragStart(overlayBounds),
+                drag: (e) => handleOverlayCornerDrag("ne", e),
+                dragend: handleOverlayCornerDragEnd,
+              }}
+            />
+            {/* NW */}
+            <Marker
+              position={[overlayBounds[1][0], overlayBounds[0][1]]}
+              draggable={true}
+              icon={createOverlayCornerIcon("NW")}
+              eventHandlers={{
+                dragstart: () => handleOverlayCornerDragStart(overlayBounds),
+                drag: (e) => handleOverlayCornerDrag("nw", e),
+                dragend: handleOverlayCornerDragEnd,
+              }}
+            />
+          </>
+        )}
+
+        {/* ── Overlay Center Move Handle ─────────────────────────── */}
+        {overlayImage && overlayBounds && isEditingOverlay && (() => {
+          const cLat = (overlayBounds[0][0] + overlayBounds[1][0]) / 2;
+          const cLng = (overlayBounds[0][1] + overlayBounds[1][1]) / 2;
+          return (
+            <Marker
+              position={[cLat, cLng]}
+              draggable={true}
+              icon={createOverlayCenterIcon()}
+              eventHandlers={{
+                dragstart: (e) => {
+                  console.log("Center drag start. Target LatLng:", e.target.getLatLng(), "Overlay bounds:", overlayBounds);
+                  if (map) map.dragging.disable();
+                  overlayMoveStartRef.current = {
+                    startLat: e.target.getLatLng().lat,
+                    startLng: e.target.getLatLng().lng,
+                    initBounds: overlayBounds.map((c) => [...c]),
+                  };
+                },
+                drag: (e) => {
+                  if (!overlayMoveStartRef.current || !overlayRef.current) {
+                    console.log("Center drag ignored. Start ref or overlay ref null:", {
+                      start: !!overlayMoveStartRef.current,
+                      overlay: !!overlayRef.current
+                    });
+                    return;
+                  }
+                  const { lat, lng } = e.target.getLatLng();
+                  const { startLat, startLng, initBounds } = overlayMoveStartRef.current;
+                  const dLat = lat - startLat;
+                  const dLng = lng - startLng;
+                  const newBounds = [
+                    [initBounds[0][0] + dLat, initBounds[0][1] + dLng],
+                    [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
+                  ];
+                  console.log("Center drag. Offset:", { dLat, dLng }, "New bounds:", newBounds);
+                  // Update Leaflet layer directly — no React re-render during drag
+                  overlayRef.current.setBounds(newBounds);
+                },
+                dragend: (e) => {
+                  if (map) map.dragging.enable();
+                  if (!overlayMoveStartRef.current) {
+                    console.log("Center dragend ignored — start ref null");
+                    return;
+                  }
+                  const { lat, lng } = e.target.getLatLng();
+                  const { startLat, startLng, initBounds } = overlayMoveStartRef.current;
+                  const dLat = lat - startLat;
+                  const dLng = lng - startLng;
+                  const finalBounds = [
+                    [initBounds[0][0] + dLat, initBounds[0][1] + dLng],
+                    [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
+                  ];
+                  console.log("Center drag end. Setting final bounds state to:", finalBounds);
+                  // Sync final position to React state once on drop
+                  setOverlayBounds(finalBounds);
+                  overlayMoveStartRef.current = null;
+                },
+              }}
+            />
+          );
+        })()}
+
+        {/* ── Bulk Shift Controller Handle ────────────────────────── */}
+        {isBulkShifting && (() => {
+          const center = map ? map.getCenter() : { lat: selectedPropertyCoords[0], lng: selectedPropertyCoords[1] };
+          return (
+            <Marker
+              position={[center.lat, center.lng]}
+              draggable={true}
+              icon={createBulkShiftCenterIcon()}
+              eventHandlers={{
+                dragstart: (e) => {
+                  if (map) map.dragging.disable();
+                  bulkShiftStartRef.current = {
+                    startLat: e.target.getLatLng().lat,
+                    startLng: e.target.getLatLng().lng,
+                  };
+                },
+                drag: (e) => {
+                  if (!bulkShiftStartRef.current) return;
+                  const { lat, lng } = e.target.getLatLng();
+                  const { startLat, startLng } = bulkShiftStartRef.current;
+                  setBulkShiftOffset({
+                    lat: lat - startLat,
+                    lng: lng - startLng,
+                  });
+                },
+                dragend: () => {
+                  if (map) map.dragging.enable();
+                },
+              }}
+            />
+          );
+        })()}
+
         {filteredLots.map((lot, index) => {
           // Skip rendering original polygon if it's currently being edited visually
           if (editingLot && lot.lot_id === editingLot.lot_id) {
@@ -551,11 +949,16 @@ function AdminViewMap() {
             return null;
           }
 
+          // Apply bulk shift offset if active for this property's lots
+          const coords = (isBulkShifting && lot.property_id === selectedProperty)
+            ? lot.coordinates.map(([lat, lng]) => [lat + bulkShiftOffset.lat, lng + bulkShiftOffset.lng])
+            : lot.coordinates;
+
           const centerLat =
-            lot.coordinates.reduce((sum, coord) => sum + coord[0], 0) / lot.coordinates.length;
+            coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
 
           const centerLng =
-            lot.coordinates.reduce((sum, coord) => sum + coord[1], 0) / lot.coordinates.length;
+            coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
 
           const pinLat = centerLat + 0.00012;
 
@@ -564,7 +967,7 @@ function AdminViewMap() {
           return (
             <React.Fragment key={index}>
               <Polygon
-                positions={lot.coordinates}
+                positions={coords}
                 pathOptions={{
                   color: statusColor,
                   fillColor: statusColor,
@@ -684,6 +1087,7 @@ function AdminViewMap() {
             {editingCoords.map((coord, index) => (
               <Marker
                 key={`handle-${index}`}
+                ref={(el) => (cornerMarkersRef.current[index] = el)}
                 position={coord}
                 draggable={true}
                 icon={createHandleIcon(index)}
@@ -764,6 +1168,37 @@ function AdminViewMap() {
         </div>
       )}
 
+      {/* Floating Bulk Shift Alignment Editor Panel */}
+      {isBulkShifting && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-2xl p-4 z-[999] flex flex-col sm:flex-row items-center gap-4 transition-all duration-300 w-11/12 max-w-lg">
+          <div className="flex-1">
+            <span className="font-semibold text-red-600 dark:text-red-400 block text-sm flex items-center gap-1.5">
+              <span>⚡</span> Bulk Aligning Lots
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
+              Drag the red crosshair handle in the center to slide all green lots into alignment. Click "Save" to apply.
+            </span>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto justify-end">
+            <button
+              onClick={handleSaveBulkShift}
+              className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+            >
+              Save Shift
+            </button>
+            <button
+              onClick={() => {
+                setIsBulkShifting(false);
+                setBulkShiftOffset({ lat: 0, lng: 0 });
+              }}
+              className="px-3 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 text-xs font-semibold rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* LotOffcanvas Component */}
       <LotOffcanvas
         selectedLot={selectedLot}
@@ -786,6 +1221,39 @@ function AdminViewMap() {
           );
         }}
       />
+
+      {/* ── Site Plan Overlay Control Panel ──────────────────────────── */}
+      {showOverlayPanel && (
+        <ImageOverlayControl
+          overlayImage={overlayImage}
+          overlayOpacity={overlayOpacity}
+          overlayVisible={overlayVisible}
+          isEditingOverlay={isEditingOverlay}
+          overlayRotation={overlayRotation}
+          isBulkShifting={isBulkShifting}
+          onImageUpload={handleImageUpload}
+          onOpacityChange={setOverlayOpacity}
+          onRotationChange={(deg) => {
+            setOverlayRotation(deg);
+            applyRotation(deg); // instant DOM update — no React state lag
+          }}
+          onFitToView={handleFitToView}
+          onToggleVisible={() => setOverlayVisible((prev) => !prev)}
+          onToggleEdit={() => setIsEditingOverlay((prev) => !prev)}
+          onToggleBulkShift={() => {
+            setIsBulkShifting((prev) => !prev);
+            setBulkShiftOffset({ lat: 0, lng: 0 });
+          }}
+          onRemove={() => {
+            if (overlayImage) URL.revokeObjectURL(overlayImage);
+            setOverlayImage(null);
+            setOverlayBounds(null);
+            setIsEditingOverlay(false);
+            setOverlayRotation(0);
+          }}
+          onClose={() => setShowOverlayPanel(false)}
+        />
+      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ const {
   sendPendingLotReminders,
   createLot,
   deleteLot,
+  bulkShiftPropertyLots,
+  updateLotDetails,
 } = require("../controllers/lotsController");
 
 // Database routes
@@ -72,6 +74,8 @@ router.get("/:id", getLotById);
 router.post("/", createLot);
 router.put("/:id/status", updateLotStatus);
 router.put("/:id/coordinates", updateLotCoordinates);
+router.put("/:id/details", updateLotDetails);
+router.put("/property/:propertyId/bulk-shift", bulkShiftPropertyLots);
 router.delete("/:id", deleteLot);
 router.post("/send-pending-reminders", sendPendingLotReminders);
 
