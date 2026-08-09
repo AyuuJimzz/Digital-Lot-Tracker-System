@@ -155,10 +155,10 @@ const ManageEmployees = () => {
               {[
                 { label: "First Name *", name: "first_name", type: "text", required: true },
                 { label: "Last Name *", name: "last_name", type: "text", required: true },
-                { label: "Email *", name: "email", type: "email", required: true },
+                { label: "Email *", name: "email", type: "email", required: true, autoComplete: "new-email" },
                 { label: "Date of Birth", name: "date_of_birth", type: "date" },
                 { label: "Phone Number", name: "phone_number", type: "tel" },
-              ].map(({ label, name, type, required }) => (
+              ].map(({ label, name, type, required, autoComplete }) => (
                 <div key={name}>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     {label}
@@ -169,6 +169,7 @@ const ManageEmployees = () => {
                     value={formData[name]}
                     onChange={handleInputChange}
                     required={required}
+                    autoComplete={autoComplete || "off"}
                     className={inputCls}
                   />
                 </div>
@@ -185,6 +186,7 @@ const ManageEmployees = () => {
                     value={formData.password}
                     onChange={handleInputChange}
                     required
+                    autoComplete="new-password"
                     className={inputCls}
                   />
                 </div>
