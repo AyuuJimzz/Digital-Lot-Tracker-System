@@ -24,12 +24,12 @@ function ZoomToCenter({ lots, propertyCoords }) {
 
   useEffect(() => {
     if (propertyCoords) {
-      map.panTo(propertyCoords);
+      map.setView(propertyCoords, 19);
     } else if (lots && lots.length > 0) {
       // Fallback to lot bounds if no property coordinates provided
       const bounds = lots.map((l) => l.coordinates).flat();
       const center = L.latLngBounds(bounds).getCenter();
-      map.panTo([center.lat + 0.0005, center.lng + 0.0005]);
+      map.setView([center.lat + 0.0005, center.lng + 0.0005], 19);
     }
   }, [lots, map, propertyCoords]);
 
@@ -49,7 +49,7 @@ function MapController({ selectedProperty, setSelectedProperty, setIsPropertyCha
         return;
       }
 
-      map.panTo(coordinates);
+      map.setView(coordinates, 19);
     };
 
     const handlePropertySelect = (event) => {
@@ -97,7 +97,7 @@ const EmployeeMapView = () => {
     () => [
       { id: 1, name: "Property 1", coordinates: [10.7367 + 0.0005, 122.4998] },
       { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
-      { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33628474716154] },
+      { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33528474716154] },
     ],
     []
   );
@@ -261,12 +261,12 @@ const EmployeeMapView = () => {
       <MapContainer
         center={selectedPropertyCoords}
         zoom={18}
-        maxZoom={19}
+        maxZoom={24}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={19}
+          maxZoom={24}
           maxNativeZoom={18}
         />
 

@@ -25,7 +25,13 @@ L.Icon.Default.mergeOptions({
 });
 
 // Component to handle map centering and event listening
-function MapController({ center, onLotUpdated, setSelectedProperty, setIsPropertyChanging, setMap }) {
+function MapController({
+  center,
+  onLotUpdated,
+  setSelectedProperty,
+  setIsPropertyChanging,
+  setMap,
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -45,7 +51,7 @@ function MapController({ center, onLotUpdated, setSelectedProperty, setIsPropert
         return;
       }
 
-      map.panTo(coordinates);
+      map.setView(coordinates, 19);
     };
 
     // Listen for property selection events
@@ -138,8 +144,6 @@ function AdminViewMap() {
       return newCoords;
     });
   };
-
-
 
   // Remove a vertex by index (triggered by double-clicking a corner handle)
   const handleRemoveVertex = (index) => {
@@ -301,17 +305,20 @@ function AdminViewMap() {
   }, []);
 
   // ── Overlay corner drag — no React re-render during drag ────────────────
-  const handleOverlayCornerDragStart = useCallback((currentBounds) => {
-    console.log("Corner drag start. Current bounds:", currentBounds);
-    if (map) map.dragging.disable();
-    overlayCornerDragRef.current = currentBounds.map((c) => [...c]);
-  }, [map]);
+  const handleOverlayCornerDragStart = useCallback(
+    (currentBounds) => {
+      console.log("Corner drag start. Current bounds:", currentBounds);
+      if (map) map.dragging.disable();
+      overlayCornerDragRef.current = currentBounds.map((c) => [...c]);
+    },
+    [map]
+  );
 
   const handleOverlayCornerDrag = useCallback((corner, e) => {
     if (!overlayCornerDragRef.current || !overlayRef.current) {
       console.log("Corner drag ignored. Ref current or overlayRef null:", {
         ref: !!overlayCornerDragRef.current,
-        overlay: !!overlayRef.current
+        overlay: !!overlayRef.current,
       });
       return;
     }
@@ -319,11 +326,26 @@ function AdminViewMap() {
     const [sw, ne] = overlayCornerDragRef.current;
     let newBounds;
     switch (corner) {
-      case "sw": newBounds = [[lat, lng], ne]; break;
-      case "se": newBounds = [[lat, sw[1]], [ne[0], lng]]; break;
-      case "ne": newBounds = [sw, [lat, lng]]; break;
-      case "nw": newBounds = [[sw[0], lng], [lat, ne[1]]]; break;
-      default: return;
+      case "sw":
+        newBounds = [[lat, lng], ne];
+        break;
+      case "se":
+        newBounds = [
+          [lat, sw[1]],
+          [ne[0], lng],
+        ];
+        break;
+      case "ne":
+        newBounds = [sw, [lat, lng]];
+        break;
+      case "nw":
+        newBounds = [
+          [sw[0], lng],
+          [lat, ne[1]],
+        ];
+        break;
+      default:
+        return;
     }
     console.log(`Corner drag (${corner}) to:`, newBounds);
     overlayCornerDragRef.current = newBounds;
@@ -340,31 +362,34 @@ function AdminViewMap() {
   }, [map]);
 
   // Handle image upload — place overlay centered on current map view
-  const handleImageUpload = useCallback((imageUrl) => {
-    if (overlayImage) URL.revokeObjectURL(overlayImage);
-    setOverlayImage(imageUrl);
-    setOverlayVisible(true);
-    setIsEditingOverlay(true); // auto-enter alignment mode
+  const handleImageUpload = useCallback(
+    (imageUrl) => {
+      if (overlayImage) URL.revokeObjectURL(overlayImage);
+      setOverlayImage(imageUrl);
+      setOverlayVisible(true);
+      setIsEditingOverlay(true); // auto-enter alignment mode
 
-    if (map) {
-      const bounds = map.getBounds();
-      const latSpan = (bounds.getNorth() - bounds.getSouth()) * 0.7;
-      const lngSpan = (bounds.getEast() - bounds.getWest()) * 0.7;
-      const center = map.getCenter();
-      setOverlayBounds([
-        [center.lat - latSpan / 2, center.lng - lngSpan / 2],
-        [center.lat + latSpan / 2, center.lng + lngSpan / 2],
-      ]);
-    } else {
-      // Fallback: center on Property 1's default coordinates
-      const fallback = [10.7372, 122.4998];
-      const offset = 0.003;
-      setOverlayBounds([
-        [fallback[0] - offset, fallback[1] - offset],
-        [fallback[0] + offset, fallback[1] + offset],
-      ]);
-    }
-  }, [map, overlayImage]);
+      if (map) {
+        const bounds = map.getBounds();
+        const latSpan = (bounds.getNorth() - bounds.getSouth()) * 0.7;
+        const lngSpan = (bounds.getEast() - bounds.getWest()) * 0.7;
+        const center = map.getCenter();
+        setOverlayBounds([
+          [center.lat - latSpan / 2, center.lng - lngSpan / 2],
+          [center.lat + latSpan / 2, center.lng + lngSpan / 2],
+        ]);
+      } else {
+        // Fallback: center on Property 1's default coordinates
+        const fallback = [10.7372, 122.4998];
+        const offset = 0.003;
+        setOverlayBounds([
+          [fallback[0] - offset, fallback[1] - offset],
+          [fallback[0] + offset, fallback[1] + offset],
+        ]);
+      }
+    },
+    [map, overlayImage]
+  );
 
   // Apply CSS rotation — extracted so we can call it both on mount and on slider change
   const applyRotation = useCallback((deg) => {
@@ -471,7 +496,7 @@ function AdminViewMap() {
     () => [
       { id: 1, name: "Property 1", coordinates: [10.7367 + 0.0005, 122.4998] },
       { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
-      { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33628474716154] },
+      { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33528474716154] },
     ],
     []
   );
@@ -505,10 +530,9 @@ function AdminViewMap() {
 
   // Get selected property coordinates
   const selectedPropertyCoords = useMemo(() => {
-    return properties.find((p) => p.id === selectedProperty)?.coordinates || [
-      10.7367 + 0.0005,
-      122.4998,
-    ];
+    return (
+      properties.find((p) => p.id === selectedProperty)?.coordinates || [10.7367 + 0.0005, 122.4998]
+    );
   }, [properties, selectedProperty]);
 
   // Helper function to get color based on status
@@ -661,7 +685,9 @@ function AdminViewMap() {
         setEditingCoords(coordinates.map((c) => [...c]));
       } else {
         // Find property coordinates or fallback
-        const propCoords = properties.find((p) => Number(p.id) === Number(property_id))?.coordinates || selectedPropertyCoords;
+        const propCoords =
+          properties.find((p) => Number(p.id) === Number(property_id))?.coordinates ||
+          selectedPropertyCoords;
         const offset = 0.00015;
         // Make a square centered at property coordinates
         setEditingCoords([
@@ -692,10 +718,7 @@ function AdminViewMap() {
       const deltaLat = currentLatLng.lat - startLatLng.lat;
       const deltaLng = currentLatLng.lng - startLatLng.lng;
 
-      const newCoords = initialCoords.map(([lat, lng]) => [
-        lat + deltaLat,
-        lng + deltaLng,
-      ]);
+      const newCoords = initialCoords.map(([lat, lng]) => [lat + deltaLat, lng + deltaLng]);
 
       // Direct Leaflet element updates for buttery smooth 60 FPS movement
       if (editingPolygonRef.current) {
@@ -768,13 +791,13 @@ function AdminViewMap() {
     <div className="w-full h-full relative" style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}>
       <MapContainer
         center={selectedPropertyCoords}
-        zoom={18}
-        maxZoom={24}
+        zoom={19}
+        maxZoom={20}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={24}
+          maxZoom={20}
           maxNativeZoom={18}
         />
 
@@ -840,100 +863,111 @@ function AdminViewMap() {
         )}
 
         {/* ── Overlay Center Move Handle ─────────────────────────── */}
-        {overlayImage && overlayBounds && isEditingOverlay && (() => {
-          const cLat = (overlayBounds[0][0] + overlayBounds[1][0]) / 2;
-          const cLng = (overlayBounds[0][1] + overlayBounds[1][1]) / 2;
-          return (
-            <Marker
-              position={[cLat, cLng]}
-              draggable={true}
-              icon={createOverlayCenterIcon()}
-              eventHandlers={{
-                dragstart: (e) => {
-                  console.log("Center drag start. Target LatLng:", e.target.getLatLng(), "Overlay bounds:", overlayBounds);
-                  if (map) map.dragging.disable();
-                  overlayMoveStartRef.current = {
-                    startLat: e.target.getLatLng().lat,
-                    startLng: e.target.getLatLng().lng,
-                    initBounds: overlayBounds.map((c) => [...c]),
-                  };
-                },
-                drag: (e) => {
-                  if (!overlayMoveStartRef.current || !overlayRef.current) {
-                    console.log("Center drag ignored. Start ref or overlay ref null:", {
-                      start: !!overlayMoveStartRef.current,
-                      overlay: !!overlayRef.current
-                    });
-                    return;
-                  }
-                  const { lat, lng } = e.target.getLatLng();
-                  const { startLat, startLng, initBounds } = overlayMoveStartRef.current;
-                  const dLat = lat - startLat;
-                  const dLng = lng - startLng;
-                  const newBounds = [
-                    [initBounds[0][0] + dLat, initBounds[0][1] + dLng],
-                    [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
-                  ];
-                  console.log("Center drag. Offset:", { dLat, dLng }, "New bounds:", newBounds);
-                  // Update Leaflet layer directly — no React re-render during drag
-                  overlayRef.current.setBounds(newBounds);
-                },
-                dragend: (e) => {
-                  if (map) map.dragging.enable();
-                  if (!overlayMoveStartRef.current) {
-                    console.log("Center dragend ignored — start ref null");
-                    return;
-                  }
-                  const { lat, lng } = e.target.getLatLng();
-                  const { startLat, startLng, initBounds } = overlayMoveStartRef.current;
-                  const dLat = lat - startLat;
-                  const dLng = lng - startLng;
-                  const finalBounds = [
-                    [initBounds[0][0] + dLat, initBounds[0][1] + dLng],
-                    [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
-                  ];
-                  console.log("Center drag end. Setting final bounds state to:", finalBounds);
-                  // Sync final position to React state once on drop
-                  setOverlayBounds(finalBounds);
-                  overlayMoveStartRef.current = null;
-                },
-              }}
-            />
-          );
-        })()}
+        {overlayImage &&
+          overlayBounds &&
+          isEditingOverlay &&
+          (() => {
+            const cLat = (overlayBounds[0][0] + overlayBounds[1][0]) / 2;
+            const cLng = (overlayBounds[0][1] + overlayBounds[1][1]) / 2;
+            return (
+              <Marker
+                position={[cLat, cLng]}
+                draggable={true}
+                icon={createOverlayCenterIcon()}
+                eventHandlers={{
+                  dragstart: (e) => {
+                    console.log(
+                      "Center drag start. Target LatLng:",
+                      e.target.getLatLng(),
+                      "Overlay bounds:",
+                      overlayBounds
+                    );
+                    if (map) map.dragging.disable();
+                    overlayMoveStartRef.current = {
+                      startLat: e.target.getLatLng().lat,
+                      startLng: e.target.getLatLng().lng,
+                      initBounds: overlayBounds.map((c) => [...c]),
+                    };
+                  },
+                  drag: (e) => {
+                    if (!overlayMoveStartRef.current || !overlayRef.current) {
+                      console.log("Center drag ignored. Start ref or overlay ref null:", {
+                        start: !!overlayMoveStartRef.current,
+                        overlay: !!overlayRef.current,
+                      });
+                      return;
+                    }
+                    const { lat, lng } = e.target.getLatLng();
+                    const { startLat, startLng, initBounds } = overlayMoveStartRef.current;
+                    const dLat = lat - startLat;
+                    const dLng = lng - startLng;
+                    const newBounds = [
+                      [initBounds[0][0] + dLat, initBounds[0][1] + dLng],
+                      [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
+                    ];
+                    console.log("Center drag. Offset:", { dLat, dLng }, "New bounds:", newBounds);
+                    // Update Leaflet layer directly — no React re-render during drag
+                    overlayRef.current.setBounds(newBounds);
+                  },
+                  dragend: (e) => {
+                    if (map) map.dragging.enable();
+                    if (!overlayMoveStartRef.current) {
+                      console.log("Center dragend ignored — start ref null");
+                      return;
+                    }
+                    const { lat, lng } = e.target.getLatLng();
+                    const { startLat, startLng, initBounds } = overlayMoveStartRef.current;
+                    const dLat = lat - startLat;
+                    const dLng = lng - startLng;
+                    const finalBounds = [
+                      [initBounds[0][0] + dLat, initBounds[0][1] + dLng],
+                      [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
+                    ];
+                    console.log("Center drag end. Setting final bounds state to:", finalBounds);
+                    // Sync final position to React state once on drop
+                    setOverlayBounds(finalBounds);
+                    overlayMoveStartRef.current = null;
+                  },
+                }}
+              />
+            );
+          })()}
 
         {/* ── Bulk Shift Controller Handle ────────────────────────── */}
-        {isBulkShifting && (() => {
-          const center = map ? map.getCenter() : { lat: selectedPropertyCoords[0], lng: selectedPropertyCoords[1] };
-          return (
-            <Marker
-              position={[center.lat, center.lng]}
-              draggable={true}
-              icon={createBulkShiftCenterIcon()}
-              eventHandlers={{
-                dragstart: (e) => {
-                  if (map) map.dragging.disable();
-                  bulkShiftStartRef.current = {
-                    startLat: e.target.getLatLng().lat,
-                    startLng: e.target.getLatLng().lng,
-                  };
-                },
-                drag: (e) => {
-                  if (!bulkShiftStartRef.current) return;
-                  const { lat, lng } = e.target.getLatLng();
-                  const { startLat, startLng } = bulkShiftStartRef.current;
-                  setBulkShiftOffset({
-                    lat: lat - startLat,
-                    lng: lng - startLng,
-                  });
-                },
-                dragend: () => {
-                  if (map) map.dragging.enable();
-                },
-              }}
-            />
-          );
-        })()}
+        {isBulkShifting &&
+          (() => {
+            const center = map
+              ? map.getCenter()
+              : { lat: selectedPropertyCoords[0], lng: selectedPropertyCoords[1] };
+            return (
+              <Marker
+                position={[center.lat, center.lng]}
+                draggable={true}
+                icon={createBulkShiftCenterIcon()}
+                eventHandlers={{
+                  dragstart: (e) => {
+                    if (map) map.dragging.disable();
+                    bulkShiftStartRef.current = {
+                      startLat: e.target.getLatLng().lat,
+                      startLng: e.target.getLatLng().lng,
+                    };
+                  },
+                  drag: (e) => {
+                    if (!bulkShiftStartRef.current) return;
+                    const { lat, lng } = e.target.getLatLng();
+                    const { startLat, startLng } = bulkShiftStartRef.current;
+                    setBulkShiftOffset({
+                      lat: lat - startLat,
+                      lng: lng - startLng,
+                    });
+                  },
+                  dragend: () => {
+                    if (map) map.dragging.enable();
+                  },
+                }}
+              />
+            );
+          })()}
 
         {filteredLots.map((lot, index) => {
           // Skip rendering original polygon if it's currently being edited visually
@@ -950,15 +984,17 @@ function AdminViewMap() {
           }
 
           // Apply bulk shift offset if active for this property's lots
-          const coords = (isBulkShifting && lot.property_id === selectedProperty)
-            ? lot.coordinates.map(([lat, lng]) => [lat + bulkShiftOffset.lat, lng + bulkShiftOffset.lng])
-            : lot.coordinates;
+          const coords =
+            isBulkShifting && lot.property_id === selectedProperty
+              ? lot.coordinates.map(([lat, lng]) => [
+                  lat + bulkShiftOffset.lat,
+                  lng + bulkShiftOffset.lng,
+                ])
+              : lot.coordinates;
 
-          const centerLat =
-            coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
+          const centerLat = coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
 
-          const centerLng =
-            coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
+          const centerLng = coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
 
           const pinLat = centerLat + 0.00012;
 
@@ -1147,7 +1183,8 @@ function AdminViewMap() {
               Editing Coordinates: Lot {editingLot.lot_number}
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
-              Drag corners (1, 2, 3...) to adjust. Double-click a corner to delete. Click "+" on any side to add a corner there.
+              Drag corners (1, 2, 3...) to adjust. Double-click a corner to delete. Click "+" on any
+              side to add a corner there.
             </span>
           </div>
           <div className="flex gap-2 w-full sm:w-auto justify-end">
@@ -1176,7 +1213,8 @@ function AdminViewMap() {
               <span>⚡</span> Bulk Aligning Lots
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
-              Drag the red crosshair handle in the center to slide all green lots into alignment. Click "Save" to apply.
+              Drag the red crosshair handle in the center to slide all green lots into alignment.
+              Click "Save" to apply.
             </span>
           </div>
           <div className="flex gap-2 w-full sm:w-auto justify-end">
