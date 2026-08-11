@@ -6,7 +6,13 @@ const db = require("../../config/database_connection");
 // =======================
 exports.getAllCustomers = async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT * FROM customers ORDER BY created_at DESC");
+    const [rows] = await db.query(`
+      SELECT c.*, l.lot_number, l.status as lot_status, l.property_id, p.property_name
+      FROM customers c
+      LEFT JOIN lots l ON c.lot_id = l.lot_id
+      LEFT JOIN properties p ON l.property_id = p.property_id
+      ORDER BY c.created_at DESC
+    `);
     res.json(rows);
   } catch (err) {
     console.error("Error in getAllCustomers:", err);
@@ -200,27 +206,107 @@ exports.createOrUpdateCustomer = async (req, res) => {
       return res.status(404).json({ error: "Lot not found" });
     }
 
-    // Check if customer already exists for this lot
-    const [existingCustomer] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
+    // Check if customer already exists for this specific lot
+    const [existingCustomerForLot] = await db.query(
+      `SELECT c.*, l.status as lot_status 
+       FROM customers c 
+       JOIN lots l ON c.lot_id = l.lot_id 
+       WHERE c.lot_id = ?`,
+      [id]
+    );
 
-    if (existingCustomer.length > 0) {
-      // Update existing customer
+    // If customer already exists for this lot, update them
+    if (existingCustomerForLot.length > 0) {
       await db.query(
         `UPDATE customers SET 
          full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
          WHERE lot_id = ?`,
         [full_name.trim(), contact_number.trim(), email.trim(), address.trim(), id]
       );
+      res.json({ message: "Customer information updated successfully" });
+      return;
+    }
+
+    // Check if customer with same email exists (for different lot)
+    const [existingCustomerByEmail] = await db.query(
+      `SELECT c.*, l.status as lot_status 
+       FROM customers c 
+       JOIN lots l ON c.lot_id = l.lot_id 
+       WHERE c.email = ?`,
+      [email.trim()]
+    );
+
+    if (existingCustomerByEmail.length > 0) {
+      const existingCustomer = existingCustomerByEmail[0];
+
+      // If the existing customer's lot is sold, create a new customer record
+      if (existingCustomer.lot_status === "Sold") {
+        await db.query(
+          `INSERT INTO customers (lot_id, full_name, contact_number, email, address, created_at, updated_at) 
+           VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+          [id, full_name.trim(), contact_number.trim(), email.trim(), address.trim()]
+        );
+        res.json({ message: "New customer record created (previous lot is sold)" });
+      } else {
+        // Start transaction to handle both customer update and lot status changes
+        await db.beginTransaction();
+
+        try {
+          const oldLotId = existingCustomer.lot_id;
+
+          // Update the old lot status back to Available
+          await db.query(
+            `UPDATE lots SET status = 'Available', pending_since = NULL WHERE lot_id = ?`,
+            [oldLotId]
+          );
+
+          // Delete old transaction for the previous lot
+          await db.query(`DELETE FROM transactions WHERE lot_id = ?`, [oldLotId]);
+
+          // Update customer to the new lot
+          await db.query(
+            `UPDATE customers SET 
+             lot_id = ?, full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
+             WHERE customer_id = ?`,
+            [
+              id,
+              full_name.trim(),
+              contact_number.trim(),
+              email.trim(),
+              address.trim(),
+              existingCustomer.customer_id,
+            ]
+          );
+
+          // Create new transaction for the new lot
+          await db.query(
+            `INSERT INTO transactions (lot_id, customer_id, payment_type, notes)
+             VALUES (?, ?, 'No Downpayment', NULL)`,
+            [id, existingCustomer.customer_id]
+          );
+
+          // Update the new lot status to Pending
+          await db.query(
+            `UPDATE lots SET status = 'Pending', pending_since = NOW() WHERE lot_id = ?`,
+            [id]
+          );
+
+          await db.commit();
+          res.json({ message: "Customer updated to new lot with transaction" });
+        } catch (error) {
+          await db.rollback();
+          throw error;
+        }
+      }
     } else {
-      // Create new customer
+      // No existing customer with this email, create new customer
       await db.query(
         `INSERT INTO customers (lot_id, full_name, contact_number, email, address, created_at, updated_at) 
          VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
         [id, full_name.trim(), contact_number.trim(), email.trim(), address.trim()]
       );
+      res.json({ message: "Customer created successfully" });
     }
-
-    res.json({ message: "Customer information saved successfully" });
   } catch (err) {
     console.error("Error in createOrUpdateCustomer:", err);
     res.status(500).json({ error: err.message });

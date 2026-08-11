@@ -24,6 +24,8 @@ const LotOffcanvas = ({
   // Editable Lot Metadata details
   const [lotNumber, setLotNumber] = useState("");
   const [areaSqm, setAreaSqm] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
 
   const userRole = (localStorage.getItem("role") || "").toLowerCase();
   const isAdmin = isAdminProp !== undefined ? isAdminProp : userRole === "admin";
@@ -35,6 +37,36 @@ const LotOffcanvas = ({
       setStatus(selectedLot.status);
       setLotNumber(selectedLot.lot_number || "");
       setAreaSqm(selectedLot.area_sqm || "");
+
+      // Parse coordinates to extract latitude and longitude
+      if (selectedLot.coordinates) {
+        try {
+          const coords =
+            typeof selectedLot.coordinates === "string"
+              ? JSON.parse(selectedLot.coordinates)
+              : selectedLot.coordinates;
+
+          if (Array.isArray(coords) && coords.length > 0) {
+            // Get the first coordinate pair (for polygon, this is the first point)
+            const firstCoord = coords[0];
+            if (Array.isArray(firstCoord) && firstCoord.length >= 2) {
+              setLatitude(firstCoord[0]?.toString() || "");
+              setLongitude(firstCoord[1]?.toString() || "");
+            } else if (typeof firstCoord === "number" && coords.length >= 2) {
+              // Single coordinate format [lat, lng]
+              setLatitude(coords[0]?.toString() || "");
+              setLongitude(coords[1]?.toString() || "");
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing coordinates:", error);
+          setLatitude("");
+          setLongitude("");
+        }
+      } else {
+        setLatitude("");
+        setLongitude("");
+      }
 
       // If lot has customer data, set the customer information
       if (selectedLot.customer) {
@@ -123,16 +155,19 @@ const LotOffcanvas = ({
 
       if (lotNumberChanged || areaSqmChanged) {
         console.log("Updating lot details:", { lotNumber, areaSqm });
-        const detailsResponse = await fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/details`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            lot_number: lotNumber,
-            area_sqm: areaSqm,
-          }),
-        });
+        const detailsResponse = await fetch(
+          `${API_BASE_URL}/api/lots/${selectedLot.lot_id}/details`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              lot_number: lotNumber,
+              area_sqm: areaSqm,
+            }),
+          }
+        );
 
         if (!detailsResponse.ok) {
           const errorText = await detailsResponse.json().catch(() => ({}));
@@ -310,6 +345,34 @@ const LotOffcanvas = ({
                 />
               </div>
 
+              {/* Latitude and Longitude */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Latitude
+                  </label>
+                  <input
+                    type="text"
+                    value={latitude}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 cursor-not-allowed"
+                    placeholder="No coordinates set"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Longitude
+                  </label>
+                  <input
+                    type="text"
+                    value={longitude}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 cursor-not-allowed"
+                    placeholder="No coordinates set"
+                  />
+                </div>
+              </div>
+
               {/* Status */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -356,8 +419,18 @@ const LotOffcanvas = ({
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors duration-200 font-semibold text-sm shadow-md"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
                     </svg>
                     Edit Coordinates on Map
                   </button>
@@ -371,7 +444,10 @@ const LotOffcanvas = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Full Name
                     </label>
-                    {status === "Pending" && selectedLot.status === "Pending" && email && !isAdmin ? (
+                    {status === "Pending" &&
+                    selectedLot.status === "Pending" &&
+                    email &&
+                    !isAdmin ? (
                       <input
                         type="text"
                         value={fullName}
@@ -422,7 +498,9 @@ const LotOffcanvas = ({
                           value={paymentMethod}
                           onChange={(e) => setPaymentMethod(e.target.value)}
                           disabled={isLockedForUser}
-                          title={isLockedForUser ? "Only Admins can edit sold lot payment method" : ""}
+                          title={
+                            isLockedForUser ? "Only Admins can edit sold lot payment method" : ""
+                          }
                           className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
                             isLockedForUser ? "cursor-not-allowed opacity-75" : ""
                           }`}
@@ -437,7 +515,10 @@ const LotOffcanvas = ({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Contact Number
                       </label>
-                      {status === "Pending" && selectedLot.status === "Pending" && contactNumber && !isAdmin ? (
+                      {status === "Pending" &&
+                      selectedLot.status === "Pending" &&
+                      contactNumber &&
+                      !isAdmin ? (
                         <input
                           type="tel"
                           value={contactNumber}
@@ -465,7 +546,10 @@ const LotOffcanvas = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Email
                     </label>
-                    {status === "Pending" && selectedLot.status === "Pending" && email && !isAdmin ? (
+                    {status === "Pending" &&
+                    selectedLot.status === "Pending" &&
+                    email &&
+                    !isAdmin ? (
                       <div className="relative">
                         <input
                           type="email"
@@ -509,7 +593,10 @@ const LotOffcanvas = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Address
                     </label>
-                    {status === "Pending" && selectedLot.status === "Pending" && email && !isAdmin ? (
+                    {status === "Pending" &&
+                    selectedLot.status === "Pending" &&
+                    email &&
+                    !isAdmin ? (
                       <textarea
                         value={address}
                         readOnly

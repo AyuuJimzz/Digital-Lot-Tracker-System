@@ -13,15 +13,25 @@ const EmployeeDashboard = () => {
   const [stats, setStats] = useState(() => {
     try {
       const cached = sessionStorage.getItem("employeeStatsCache");
-      return cached ? JSON.parse(cached) : {
+      return cached
+        ? JSON.parse(cached)
+        : {
+            totalLots: 0,
+            soldLots: 0,
+            availableLots: 0,
+            pendingLots: 0,
+            teamMembers: 0,
+            totalCustomer: 0,
+          };
+    } catch {
+      return {
         totalLots: 0,
         soldLots: 0,
         availableLots: 0,
+        pendingLots: 0,
         teamMembers: 0,
         totalCustomer: 0,
       };
-    } catch {
-      return { totalLots: 0, soldLots: 0, availableLots: 0, teamMembers: 0, totalCustomer: 0 };
     }
   });
   const [recentLotUpdates, setRecentLotUpdates] = useState(() => {
@@ -59,16 +69,27 @@ const EmployeeDashboard = () => {
         const employees = Array.isArray(employeesResponse?.data) ? employeesResponse.data : [];
         const customers = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
 
+        // Group customers by email to count unique emails only
+        const uniqueCustomersByEmail = new Map();
+        customers.forEach((customer) => {
+          if (!uniqueCustomersByEmail.has(customer.email)) {
+            uniqueCustomersByEmail.set(customer.email, customer);
+          }
+        });
+
         const newStats = {
           totalLots: summary.totalLots || 0,
           soldLots: summary.soldLots || 0,
           availableLots: summary.availableLots || 0,
+          pendingLots: summary.pendingLots || 0,
           teamMembers: employees.length || 0,
-          totalCustomer: customers.length || 0,
+          totalCustomer: uniqueCustomersByEmail.size || 0,
         };
 
         setStats(newStats);
-        try { sessionStorage.setItem("employeeStatsCache", JSON.stringify(newStats)); } catch (e) {}
+        try {
+          sessionStorage.setItem("employeeStatsCache", JSON.stringify(newStats));
+        } catch (e) {}
 
         const updates = lots
           .slice()
@@ -83,7 +104,9 @@ const EmployeeDashboard = () => {
           }));
 
         setRecentLotUpdates(updates);
-        try { sessionStorage.setItem("employeeRecentCache", JSON.stringify(updates)); } catch (e) {}
+        try {
+          sessionStorage.setItem("employeeRecentCache", JSON.stringify(updates));
+        } catch (e) {}
       } catch (dashboardError) {
         if (dashboardError?.response?.status === 401) {
           window.location.href = "/access-denied";
@@ -147,13 +170,16 @@ const EmployeeDashboard = () => {
         </div>
       )}
 
+      {/* Top Row Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard title="Total Lots" value={String(stats.totalLots)} />
         <StatCard title="Lots Sold" value={String(stats.soldLots)} />
         <StatCard title="Lots Available" value={String(stats.availableLots)} />
       </div>
 
+      {/* Secondary Row Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard title="Lots Pending" value={String(stats.pendingLots)} />
         <StatCard title="Employee Team" value={String(stats.teamMembers)} />
         <StatCard title="Total Clients" value={String(stats.totalCustomer)} />
       </div>
