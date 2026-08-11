@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { User, LogOut, Settings, UserCircle, MapPin, Moon, Sun } from "lucide-react";
@@ -14,15 +15,18 @@ export function EmployeeHeader() {
 
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
 
-  const handleToggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    if (newTheme === "dark") {
+  useEffect(() => {
+    if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
   };
 
   const getInitials = (firstName, lastName) => {
@@ -34,7 +38,7 @@ export function EmployeeHeader() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/auth/profile", {
+        const res = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
           withCredentials: true,
         });
         const initials = getInitials(res.data.first_name, res.data.last_name);
@@ -86,7 +90,7 @@ export function EmployeeHeader() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:5000/api/auth/logout", {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

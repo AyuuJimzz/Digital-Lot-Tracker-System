@@ -346,38 +346,27 @@ exports.updateLotStatus = async (req, res) => {
   const { id } = req.params;
   const { status, email, fullName, contactNumber, address, paymentMethod } = req.body;
 
-  console.log("updateLotStatus called:", { id, status, email, fullName, contactNumber, address });
-
   try {
     // Validate status
     const validStatuses = ["Available", "Pending", "Sold"];
     if (!validStatuses.includes(status)) {
-      console.log("Invalid status:", status);
       return res.status(400).json({ error: "Invalid status. Must be Available, Pending, or Sold" });
     }
 
     // Check if lot exists
-    console.log("Checking if lot exists for ID:", id);
     const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
-    console.log("Lot query result:", lotRows.length, "rows");
 
     if (lotRows.length === 0) {
-      console.log("Lot not found");
       return res.status(404).json({ error: "Lot not found" });
     }
 
     const lot = lotRows[0];
-    console.log("Current lot status:", lot.status);
 
     // Update lot status
-    console.log("Updating lot status to:", status);
     await db.query("UPDATE lots SET status = ? WHERE lot_id = ?", [status, id]);
-    console.log("Lot status updated successfully");
 
     // Handle customer information update if provided
     if (email) {
-      console.log("Updating customer information");
-
       // Validate email
       if (!email.includes("@")) {
         return res.status(400).json({ error: "Valid email is required" });
@@ -421,7 +410,6 @@ exports.updateLotStatus = async (req, res) => {
             id,
           ]);
         }
-        console.log("Updated existing customer");
       } else {
         // Create new customer (only if all fields are provided)
         if (fullName?.trim() && contactNumber?.trim() && address?.trim()) {
@@ -437,7 +425,6 @@ exports.updateLotStatus = async (req, res) => {
             [id, email]
           );
         }
-        console.log("Created new customer record");
       }
     }
 
@@ -453,7 +440,6 @@ exports.updateLotStatus = async (req, res) => {
 
       // Setting to Pending (from Available or Sold) - record timestamp
       await db.query("UPDATE lots SET pending_since = NOW() WHERE lot_id = ?", [id]);
-      console.log("Set pending_since timestamp");
 
       // Create transaction record for Pending status
       const customerResult = await db.query("SELECT customer_id FROM customers WHERE lot_id = ?", [
@@ -487,7 +473,6 @@ exports.updateLotStatus = async (req, res) => {
               `Transaction created for lot ${lot.lot_number} - Pending status`,
             ]
           );
-          console.log("Created new transaction for Pending status");
         }
       }
     } else if (status === "Sold" && lot.status !== "Sold") {
@@ -515,7 +500,6 @@ exports.updateLotStatus = async (req, res) => {
               id,
             ]
           );
-          console.log("Updated transaction for Sold status with new timestamp");
         } else {
           // Create new transaction for Sold
           await db.query(
@@ -527,7 +511,6 @@ exports.updateLotStatus = async (req, res) => {
               `Transaction created for lot ${lot.lot_number} - Sold status`,
             ]
           );
-          console.log("Created transaction for Sold status");
         }
 
         // Schedule email to be sent after 5 minutes for Sold status
@@ -537,8 +520,6 @@ exports.updateLotStatus = async (req, res) => {
 
           schedule.scheduleJob(emailDate, async () => {
             try {
-              console.log(`Sending sold confirmation email to ${email} for lot ${lot.lot_number}`);
-
               // Get lot and customer details for email
               const [lotDetails] = await db.query(
                 `
@@ -602,10 +583,6 @@ exports.updateLotStatus = async (req, res) => {
               console.error("Error sending sold confirmation email:", emailError);
             }
           });
-
-          console.log(
-            `Scheduled sold confirmation email to ${email} in 5 minutes for lot ${lot.lot_number}`
-          );
         }
       }
     } else if (lot.status === "Pending" && status !== "Pending") {
@@ -614,7 +591,6 @@ exports.updateLotStatus = async (req, res) => {
         "UPDATE lots SET pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
         [id]
       );
-      console.log("Cleared pending timestamps");
     }
 
     res.json({
@@ -721,18 +697,10 @@ exports.sendPendingLotReminders = async (req, res) => {
         emailsSent: 0,
       });
 
-    console.log(`Found ${pendingLots.length} lots eligible for reminders`);
-    pendingLots.forEach((lot) => {
-      console.log(`- Lot ${lot.lot_id}: ${lot.email}, Pending since: ${lot.pending_since}`);
-    });
-
     let emailsSent = 0;
     let errors = [];
 
-    console.log(`Processing ${pendingLots.length} lots for email sending...`);
-
     for (const lot of pendingLots) {
-      console.log(`Processing lot ${lot.lot_id} - sending to ${lot.email}`);
 
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

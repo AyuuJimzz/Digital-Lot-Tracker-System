@@ -16,10 +16,11 @@ const sessionOrToken = ({ roles = [], permission } = {}) => {
       }
 
       // Helper function to handle unauthorized/forbidden responses
+      const frontendUrl = process.env.FRONTEND_URL || "https://golden-dragon-estate.onrender.com";
       const handleUnauthorized = (status, message, redirectPath) => {
         if (req.headers.accept && req.headers.accept.includes("text/html")) {
           return res.redirect(
-            `http://localhost:3000/${redirectPath}?status=${status}&message=${encodeURIComponent(message)}`,
+            `${frontendUrl}/${redirectPath}?status=${status}&message=${encodeURIComponent(message)}`,
           );
         }
         return res.status(status).json({ message });
@@ -57,7 +58,7 @@ const sessionOrToken = ({ roles = [], permission } = {}) => {
       // Invalid token/JWT error
       if (req.headers.accept && req.headers.accept.includes("text/html")) {
         return res.redirect(
-          `http://localhost:3000/access-denied?status=401&message=${encodeURIComponent("Invalid session or token.")}`,
+          `${frontendUrl}/access-denied?status=401&message=${encodeURIComponent("Invalid session or token.")}`,
         );
       }
       return res

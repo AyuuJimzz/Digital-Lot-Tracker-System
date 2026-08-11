@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -7,22 +8,36 @@ import ForcePasswordChange from "../../components/ForcePasswordChange";
 
 const EmployeeDashboard = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showPasswordChange, setShowPasswordChange] = useState(false);
-  const [stats, setStats] = useState({
-    totalLots: 0,
-    soldLots: 0,
-    availableLots: 0,
-    teamMembers: 0,
-    totalCustomer: 0,
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("employeeStatsCache");
+      return cached ? JSON.parse(cached) : {
+        totalLots: 0,
+        soldLots: 0,
+        availableLots: 0,
+        teamMembers: 0,
+        totalCustomer: 0,
+      };
+    } catch {
+      return { totalLots: 0, soldLots: 0, availableLots: 0, teamMembers: 0, totalCustomer: 0 };
+    }
   });
-  const [recentLotUpdates, setRecentLotUpdates] = useState([]);
+  const [recentLotUpdates, setRecentLotUpdates] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("employeeRecentCache");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem("employeeStatsCache"));
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const sessionResponse = await axios.get("http://localhost:5000/api/auth/check-session", {
+        const sessionResponse = await axios.get(`${API_BASE_URL}/api/auth/check-session`, {
           withCredentials: true,
         });
 
@@ -34,9 +49,9 @@ const EmployeeDashboard = () => {
         setIsAuthorized(true);
 
         const [mapDataResponse, employeesResponse, customersResponse] = await Promise.all([
-          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
-          axios.get("http://localhost:5000/api/employees", { withCredentials: true }),
-          axios.get("http://localhost:5000/api/customers", { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/employees`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/customers`, { withCredentials: true }),
         ]);
 
         const summary = mapDataResponse?.data?.summary || {};
@@ -44,13 +59,16 @@ const EmployeeDashboard = () => {
         const employees = Array.isArray(employeesResponse?.data) ? employeesResponse.data : [];
         const customers = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
 
-        setStats({
+        const newStats = {
           totalLots: summary.totalLots || 0,
           soldLots: summary.soldLots || 0,
           availableLots: summary.availableLots || 0,
           teamMembers: employees.length || 0,
           totalCustomer: customers.length || 0,
-        });
+        };
+
+        setStats(newStats);
+        try { sessionStorage.setItem("employeeStatsCache", JSON.stringify(newStats)); } catch (e) {}
 
         const updates = lots
           .slice()
@@ -65,6 +83,7 @@ const EmployeeDashboard = () => {
           }));
 
         setRecentLotUpdates(updates);
+        try { sessionStorage.setItem("employeeRecentCache", JSON.stringify(updates)); } catch (e) {}
       } catch (dashboardError) {
         if (dashboardError?.response?.status === 401) {
           window.location.href = "/access-denied";

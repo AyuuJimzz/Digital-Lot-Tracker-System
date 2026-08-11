@@ -1,5 +1,5 @@
 const db = require("../../../config/database_connection");
-// const bcrypt = require("bcryptjs");
+const bcrypt = require("bcryptjs");
 
 const loginEmployee = async (email, password) => {
 	try {
@@ -13,9 +13,19 @@ const loginEmployee = async (email, password) => {
 			return { success: false, error: "Temporary password expired. Please request a new one." };
 		}
 
-		//Comment temporary since we done have add Employee features for bcrypt hashing
-		// const match = await bcrypt.compare(password, employee.password);
-		const match = password === employee.password;
+		const storedPassword = (employee.password || "").toString();
+		let match = false;
+		if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$")) {
+			match = await bcrypt.compare(password || "", storedPassword);
+		} else {
+			match = password === storedPassword;
+			// Auto-upgrade plain text password to bcrypt hash in database
+			if (match && password) {
+				const hashedPassword = await bcrypt.hash(password, 10);
+				await db.query("UPDATE employees SET password = ? WHERE employee_id = ?", [hashedPassword, employee.employee_id]);
+			}
+		}
+
 		if (!match) return { success: false };
 
 		return {

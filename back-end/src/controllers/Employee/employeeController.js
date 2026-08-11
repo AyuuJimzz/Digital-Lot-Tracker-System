@@ -1,5 +1,6 @@
 // controllers/employeeController.js
 const db = require("../../../config/database_connection");
+const bcrypt = require("bcryptjs");
 
 // ============================================================
 // GET ALL EMPLOYEES - View all employees
@@ -38,11 +39,12 @@ exports.createEmployee = async (req, res) => {
   `;
 
   try {
+    const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await db.query(query, [
       first_name,
       last_name,
       email,
-      password,
+      hashedPassword,
       date_of_birth,
       gender,
       phone_number,

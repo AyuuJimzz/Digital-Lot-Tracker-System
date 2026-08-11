@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { API_BASE_URL } from "../../config/api";
 
 const LotOffcanvas = ({
   selectedLot,
@@ -8,6 +9,7 @@ const LotOffcanvas = ({
   allowedStatuses = ["Available", "Pending", "Sold"],
   showCoordinateEdit = false,
   onStartCoordinateEdit,
+  isAdmin: isAdminProp,
 }) => {
   const [status, setStatus] = useState(selectedLot?.status || "Available");
   const [email, setEmail] = useState("");
@@ -22,6 +24,11 @@ const LotOffcanvas = ({
   // Editable Lot Metadata details
   const [lotNumber, setLotNumber] = useState("");
   const [areaSqm, setAreaSqm] = useState("");
+
+  const userRole = (localStorage.getItem("role") || "").toLowerCase();
+  const isAdmin = isAdminProp !== undefined ? isAdminProp : userRole === "admin";
+  const isExistingSoldLot = selectedLot?.status === "Sold";
+  const isLockedForUser = !isAdmin && isExistingSoldLot;
 
   useEffect(() => {
     if (selectedLot) {
@@ -116,7 +123,7 @@ const LotOffcanvas = ({
 
       if (lotNumberChanged || areaSqmChanged) {
         console.log("Updating lot details:", { lotNumber, areaSqm });
-        const detailsResponse = await fetch(`http://localhost:5000/api/lots/${selectedLot.lot_id}/details`, {
+        const detailsResponse = await fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/details`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -143,7 +150,7 @@ const LotOffcanvas = ({
         address,
       });
 
-      const response = await fetch(`http://localhost:5000/api/lots/${selectedLot.lot_id}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -195,7 +202,7 @@ const LotOffcanvas = ({
     setSaveMessage("");
 
     try {
-      const response = await fetch(`http://localhost:5000/api/lots/${selectedLot.lot_id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}`, {
         method: "DELETE",
       });
 
@@ -273,7 +280,12 @@ const LotOffcanvas = ({
                   type="text"
                   value={lotNumber}
                   onChange={(e) => setLotNumber(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 font-semibold"
+                  disabled={!isAdmin}
+                  readOnly={!isAdmin}
+                  title={!isAdmin ? "Only Admins can edit lot number" : ""}
+                  className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 font-semibold ${
+                    !isAdmin ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""
+                  }`}
                   placeholder="e.g. BLOCK 7 Lot 1"
                 />
               </div>
@@ -288,7 +300,12 @@ const LotOffcanvas = ({
                   step="0.01"
                   value={areaSqm}
                   onChange={(e) => setAreaSqm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700"
+                  disabled={!isAdmin}
+                  readOnly={!isAdmin}
+                  title={!isAdmin ? "Only Admins can edit lot area" : ""}
+                  className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
+                    !isAdmin ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""
+                  }`}
                   placeholder="e.g. 200"
                 />
               </div>
@@ -301,11 +318,11 @@ const LotOffcanvas = ({
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  disabled={status === "Sold"}
-                  title="Status cannot be changed while lot is sold"
+                  disabled={isLockedForUser}
+                  title={isLockedForUser ? "Only Admins can change status of sold lots" : ""}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${getStatusColorClasses(
                     status
-                  )} ${status === "Sold" ? "cursor-not-allowed" : ""}`}
+                  )} ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
                 >
                   {["Available", "Pending", "Sold"]
                     .filter((s) => allowedStatuses.includes(s))
@@ -354,7 +371,7 @@ const LotOffcanvas = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Full Name
                     </label>
-                    {status === "Pending" && selectedLot.status === "Pending" && email ? (
+                    {status === "Pending" && selectedLot.status === "Pending" && email && !isAdmin ? (
                       <input
                         type="text"
                         value={fullName}
@@ -367,10 +384,10 @@ const LotOffcanvas = ({
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        disabled={status === "Sold"}
-                        title="Full name cannot be changed while lot is sold"
+                        disabled={isLockedForUser}
+                        title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
                         className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                          status === "Sold" ? "cursor-not-allowed" : ""
+                          isLockedForUser ? "cursor-not-allowed opacity-75" : ""
                         }`}
                         placeholder="Enter customer's full name"
                       />
@@ -387,10 +404,10 @@ const LotOffcanvas = ({
                           type="tel"
                           value={contactNumber}
                           onChange={(e) => setContactNumber(e.target.value)}
-                          disabled={status === "Sold"}
-                          title="Contact number cannot be changed while lot is sold"
+                          disabled={isLockedForUser}
+                          title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
                           className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                            status === "Sold" ? "cursor-not-allowed" : ""
+                            isLockedForUser ? "cursor-not-allowed opacity-75" : ""
                           }`}
                           placeholder="Enter contact number"
                         />
@@ -404,16 +421,14 @@ const LotOffcanvas = ({
                         <select
                           value={paymentMethod}
                           onChange={(e) => setPaymentMethod(e.target.value)}
-                          disabled={status === "Sold"}
-                          title="Payment method cannot be changed while lot is sold"
+                          disabled={isLockedForUser}
+                          title={isLockedForUser ? "Only Admins can edit sold lot payment method" : ""}
                           className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                            status === "Sold" ? "cursor-not-allowed" : ""
+                            isLockedForUser ? "cursor-not-allowed opacity-75" : ""
                           }`}
                         >
                           <option value="Cash">Cash</option>
                           <option value="Installment">Installment</option>
-                          <option value="Bank Transfer">Bank Transfer</option>
-                          <option value="Online Payment">Online Payment</option>
                         </select>
                       </div>
                     </div>
@@ -422,7 +437,7 @@ const LotOffcanvas = ({
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Contact Number
                       </label>
-                      {status === "Pending" && selectedLot.status === "Pending" && contactNumber ? (
+                      {status === "Pending" && selectedLot.status === "Pending" && contactNumber && !isAdmin ? (
                         <input
                           type="tel"
                           value={contactNumber}
@@ -435,10 +450,10 @@ const LotOffcanvas = ({
                           type="tel"
                           value={contactNumber}
                           onChange={(e) => setContactNumber(e.target.value)}
-                          disabled={status === "Sold"}
-                          title="Contact number cannot be changed while lot is sold"
+                          disabled={isLockedForUser}
+                          title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
                           className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                            status === "Sold" ? "cursor-not-allowed" : ""
+                            isLockedForUser ? "cursor-not-allowed opacity-75" : ""
                           }`}
                           placeholder="Enter contact number"
                         />
@@ -450,7 +465,7 @@ const LotOffcanvas = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Email
                     </label>
-                    {status === "Pending" && selectedLot.status === "Pending" && email ? (
+                    {status === "Pending" && selectedLot.status === "Pending" && email && !isAdmin ? (
                       <div className="relative">
                         <input
                           type="email"
@@ -480,10 +495,10 @@ const LotOffcanvas = ({
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        disabled={status === "Sold"}
-                        title="Email cannot be changed while lot is sold"
+                        disabled={isLockedForUser}
+                        title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
                         className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                          status === "Sold" ? "cursor-not-allowed" : ""
+                          isLockedForUser ? "cursor-not-allowed opacity-75" : ""
                         }`}
                         placeholder="Enter email address"
                       />
@@ -494,7 +509,7 @@ const LotOffcanvas = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Address
                     </label>
-                    {status === "Pending" && selectedLot.status === "Pending" && email ? (
+                    {status === "Pending" && selectedLot.status === "Pending" && email && !isAdmin ? (
                       <textarea
                         value={address}
                         readOnly
@@ -506,11 +521,11 @@ const LotOffcanvas = ({
                       <textarea
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        disabled={status === "Sold"}
-                        title="Address cannot be changed while lot is sold"
+                        disabled={isLockedForUser}
+                        title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
                         rows={3}
                         className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 dark:text-white dark:bg-slate-700 ${
-                          status === "Sold" ? "cursor-not-allowed" : ""
+                          isLockedForUser ? "cursor-not-allowed opacity-75" : ""
                         }`}
                         placeholder="Enter customer's address"
                       />

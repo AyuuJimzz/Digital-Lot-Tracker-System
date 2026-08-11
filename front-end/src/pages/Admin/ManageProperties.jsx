@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -6,8 +7,15 @@ import { Edit, Trash2, Plus, Eye, EyeOff, X } from "lucide-react";
 const inputCls = "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-amber-500 focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
 
 const ManageProperties = () => {
-  const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [properties, setProperties] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("propertiesCache");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem("propertiesCache"));
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
@@ -17,8 +25,9 @@ const ManageProperties = () => {
 
   const fetchProperties = useCallback(async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/properties", { withCredentials: true });
+      const response = await axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true });
       setProperties(response.data);
+      try { sessionStorage.setItem("propertiesCache", JSON.stringify(response.data)); } catch (e) {}
       setLoading(false);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -40,8 +49,8 @@ const ManageProperties = () => {
     e.preventDefault();
     try {
       const url = editingProperty
-        ? `http://localhost:5000/api/properties/${editingProperty.property_id}`
-        : "http://localhost:5000/api/properties";
+        ? `${API_BASE_URL}/api/properties/${editingProperty.property_id}`
+        : `${API_BASE_URL}/api/properties`;
       if (editingProperty) {
         await axios.put(url, formData, { withCredentials: true });
       } else {
@@ -64,7 +73,7 @@ const ManageProperties = () => {
   const handleToggleStatus = async (propertyId, currentStatus) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
-      await axios.patch(`http://localhost:5000/api/properties/${propertyId}/status`, { status: newStatus }, { withCredentials: true });
+      await axios.patch(`${API_BASE_URL}/api/properties/${propertyId}/status`, { status: newStatus }, { withCredentials: true });
       await fetchProperties();
       alert(`Property status changed to ${newStatus}`);
     } catch (err) { alert(err.message || "Failed to update property status"); }
@@ -73,7 +82,7 @@ const ManageProperties = () => {
   const handleDelete = async (propertyId) => {
     if (!window.confirm("Are you sure you want to delete this property?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/properties/${propertyId}`, { withCredentials: true });
+      await axios.delete(`${API_BASE_URL}/api/properties/${propertyId}`, { withCredentials: true });
       await fetchProperties();
       alert("Property deleted successfully");
     } catch (err) { alert(err.message || "Failed to delete property"); }

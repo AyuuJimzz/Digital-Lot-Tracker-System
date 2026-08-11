@@ -6,16 +6,24 @@ import RecentTransactions from "../../components/admin/AdminRecentTransactions";
 import MonthlyRecapReport from "../../components/admin/MonthlyRecapReport";
 import LotsSoldProperties from "../../components/admin/LotsSoldProperties";
 import ForcePasswordChange from "../../components/ForcePasswordChange";
+import { API_BASE_URL } from "../../config/api";
 
 const AdminDashboard = () => {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState("Month");
-  const [stats, setStats] = useState({
-    totalLots: 0,
-    soldLots: 0,
-    availableLots: 0,
-    pendingLots: 0,
-    totalClients: 0,
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("adminStatsCache");
+      return cached ? JSON.parse(cached) : {
+        totalLots: 0,
+        soldLots: 0,
+        availableLots: 0,
+        pendingLots: 0,
+        totalClients: 0,
+      };
+    } catch {
+      return { totalLots: 0, soldLots: 0, availableLots: 0, pendingLots: 0, totalClients: 0 };
+    }
   });
   const [propertiesData, setPropertiesData] = useState([]);
   const [monthlyData, setMonthlyData] = useState([]);
@@ -36,17 +44,18 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/lots/dashboard-stats");
+        const response = await axios.get(`${API_BASE_URL}/api/lots/dashboard-stats`);
 
-        console.log("Dashboard stats fetched:", response.data);
-
-        setStats({
+        const newStats = {
           totalLots: response.data.totalLots || 0,
           soldLots: response.data.soldLots || 0,
           availableLots: response.data.availableLots || 0,
           pendingLots: response.data.pendingLots || 0,
           totalClients: response.data.totalClients || 0,
-        });
+        };
+
+        setStats(newStats);
+        try { sessionStorage.setItem("adminStatsCache", JSON.stringify(newStats)); } catch (e) {}
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
       }
@@ -58,7 +67,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchPropertyStats = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/lots/time-based-sales", {
+        const response = await axios.get(`${API_BASE_URL}/api/lots/time-based-sales`, {
           params: { period: selectedPeriod.toLowerCase() },
         });
 
@@ -75,7 +84,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchMonthlySalesData = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/lots/monthly-sales");
+        const response = await axios.get(`${API_BASE_URL}/api/lots/monthly-sales`);
 
         console.log("Monthly sales data fetched:", response.data);
         setMonthlyData(response.data);

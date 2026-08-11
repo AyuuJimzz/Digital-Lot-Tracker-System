@@ -1,13 +1,14 @@
+import { API_BASE_URL } from "../config/api";
 import React, { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
 import axios from "axios";
+import AccessDenied from "../view/AccessDenied";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
 	const [auth, setAuth] = useState({ loading: true, isAuthorized: false });
 
 	useEffect(() => {
 		axios
-			.get("http://localhost:5000/api/auth/check-session", {
+			.get(`${API_BASE_URL}/api/auth/check-session`, {
 				withCredentials: true,
 			})
 			.then((response) => {
@@ -31,7 +32,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 	}
 
 	if (!auth.isAuthorized) {
-		return <Navigate to="/access-denied" replace />;
+		return <AccessDenied />;
 	}
 
 	return children;

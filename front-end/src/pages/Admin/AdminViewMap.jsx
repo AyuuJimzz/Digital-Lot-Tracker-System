@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 
 import {
@@ -81,7 +82,14 @@ function MapController({
 }
 
 function AdminViewMap() {
-  const [mapData, setMapData] = useState(null);
+  const [mapData, setMapData] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("mapDataCache");
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [map, setMap] = useState(null);
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
@@ -452,7 +460,7 @@ function AdminViewMap() {
     }
 
     try {
-      await axios.put(`http://localhost:5000/api/lots/property/${selectedProperty}/bulk-shift`, {
+      await axios.put(`${API_BASE_URL}/api/lots/property/${selectedProperty}/bulk-shift`, {
         deltaLat: bulkShiftOffset.lat,
         deltaLng: bulkShiftOffset.lng,
       });
@@ -589,7 +597,7 @@ function AdminViewMap() {
     const fetchMapData = async () => {
       try {
         const [mapResponse] = await Promise.all([
-          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
         ]);
 
         // Fetch customer details for all pending/sold lots
@@ -597,7 +605,7 @@ function AdminViewMap() {
           mapResponse.data.lots.map(async (lot) => {
             if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
               try {
-                const lotDetails = await axios.get(`http://localhost:5000/api/lots/${lot.lot_id}`, {
+                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
                   withCredentials: true,
                 });
                 return { ...lot, customer: lotDetails.data.customer };
@@ -610,7 +618,9 @@ function AdminViewMap() {
           })
         );
 
-        setMapData({ ...mapResponse.data, lots: lotsWithCustomerData });
+        const finalMapData = { ...mapResponse.data, lots: lotsWithCustomerData };
+        setMapData(finalMapData);
+        try { sessionStorage.setItem("mapDataCache", JSON.stringify(finalMapData)); } catch (e) {}
       } catch (err) {
         console.error("Map Data Error:", err);
       }
@@ -624,7 +634,7 @@ function AdminViewMap() {
     const fetchMapData = async () => {
       try {
         const [mapResponse] = await Promise.all([
-          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
         ]);
 
         // Fetch customer details for all pending/sold lots
@@ -632,7 +642,7 @@ function AdminViewMap() {
           mapResponse.data.lots.map(async (lot) => {
             if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
               try {
-                const lotDetails = await axios.get(`http://localhost:5000/api/lots/${lot.lot_id}`, {
+                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
                   withCredentials: true,
                 });
                 return { ...lot, customer: lotDetails.data.customer };
@@ -645,7 +655,9 @@ function AdminViewMap() {
           })
         );
 
-        setMapData({ ...mapResponse.data, lots: lotsWithCustomerData });
+        const finalMapData = { ...mapResponse.data, lots: lotsWithCustomerData };
+        setMapData(finalMapData);
+        try { sessionStorage.setItem("mapDataCache", JSON.stringify(finalMapData)); } catch (e) {}
       } catch (err) {
         console.error("Map Refresh Error:", err);
       }
@@ -770,7 +782,7 @@ function AdminViewMap() {
 
     setIsSavingCoords(true);
     try {
-      await axios.put(`http://localhost:5000/api/lots/${editingLot.lot_id}/coordinates`, {
+      await axios.put(`${API_BASE_URL}/api/lots/${editingLot.lot_id}/coordinates`, {
         coordinates: editingCoords,
       });
 
@@ -1051,7 +1063,7 @@ function AdminViewMap() {
                     // Then fetch fresh data in background
                     try {
                       const lotDetails = await axios.get(
-                        `http://localhost:5000/api/lots/${lot.lot_id}`,
+                        `${API_BASE_URL}/api/lots/${lot.lot_id}`,
                         {
                           withCredentials: true,
                         }
@@ -1239,6 +1251,7 @@ function AdminViewMap() {
 
       {/* LotOffcanvas Component */}
       <LotOffcanvas
+        isAdmin={true}
         selectedLot={selectedLot}
         isOpen={isOffcanvasOpen}
         onClose={() => setIsOffcanvasOpen(false)}

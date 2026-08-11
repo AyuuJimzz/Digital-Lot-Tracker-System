@@ -25,7 +25,9 @@ const reminderJob = schedule.scheduleJob("0 * * * *", async () => {
     const mockReq = {};
     const mockRes = {
       json: (data) => {
-        console.log("Pending lot reminders completed:", data);
+        if (data && data.emailsSent > 0) {
+          console.log(`Sent ${data.emailsSent} pending lot reminder email(s).`);
+        }
       },
       status: (code) => ({
         json: (data) => {

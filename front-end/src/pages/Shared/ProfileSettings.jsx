@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
@@ -41,7 +42,7 @@ const ProfileSettings = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/auth/profile", {
+        const res = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
           withCredentials: true,
         });
         setProfileData({
@@ -74,7 +75,7 @@ const ProfileSettings = () => {
     setMessage({ type: "", text: "" });
     setSaving(true);
     try {
-      await axios.put("http://localhost:5000/api/auth/profile", profileData, {
+      await axios.put(`${API_BASE_URL}/api/auth/profile`, profileData, {
         withCredentials: true,
       });
       setMessage({ type: "success", text: "Profile updated successfully!" });
@@ -97,7 +98,7 @@ const ProfileSettings = () => {
     setSaving(true);
     try {
       await axios.put(
-        "http://localhost:5000/api/auth/change-password",
+        `${API_BASE_URL}/api/auth/change-password`,
         {
           currentPassword: passwords.currentPassword,
           newPassword: passwords.newPassword,

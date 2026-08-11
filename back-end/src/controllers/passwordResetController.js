@@ -1,5 +1,6 @@
 const nodemailer = require("nodemailer");
 const db = require("../../config/database_connection");
+const bcrypt = require("bcryptjs");
 
 // =======================
 // EMAIL TRANSPORTER SETUP
@@ -92,18 +93,19 @@ const forgotPassword = async (req, res) => {
 
     // Generate temporary password
     const tempPassword = generateTempPassword();
+    const hashedTempPassword = await bcrypt.hash(tempPassword, 10);
     const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
 
     // Update database
     if (userType === "admin") {
       await db.query(
         "UPDATE admins SET password = ?, password_reset_required = TRUE, temp_password_expiry = ? WHERE admin_id = ?",
-        [tempPassword, expiry, userId],
+        [hashedTempPassword, expiry, userId],
       );
     } else {
       await db.query(
         "UPDATE employees SET password = ?, password_reset_required = TRUE, temp_password_expiry = ? WHERE employee_id = ?",
-        [tempPassword, expiry, userId],
+        [hashedTempPassword, expiry, userId],
       );
     }
 
@@ -176,16 +178,17 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Update password based on user role
+    // Update password based on user role (hashed with bcrypt)
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     if (user.role === "admin") {
       await db.query(
         "UPDATE admins SET password = ?, password_reset_required = FALSE, temp_password_expiry = NULL WHERE admin_id = ?",
-        [newPassword, user.id],
+        [hashedPassword, user.id],
       );
     } else if (user.role === "employee") {
       await db.query(
         "UPDATE employees SET password = ?, password_reset_required = FALSE, temp_password_expiry = NULL WHERE employee_id = ?",
-        [newPassword, user.id],
+        [hashedPassword, user.id],
       );
     }
 

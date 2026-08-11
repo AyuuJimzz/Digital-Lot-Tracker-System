@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
@@ -19,9 +20,16 @@ const cardCls = "bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border bord
 
 const MySales = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [lots, setLots] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("employeeLotsCache");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem("employeeLotsCache"));
   const [error, setError] = useState("");
-  const [lots, setLots] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,13 +37,15 @@ const MySales = () => {
   useEffect(() => {
     const fetchSalesData = async () => {
       try {
-        const sessionResponse = await axios.get("http://localhost:5000/api/auth/check-session", { withCredentials: true });
+        const sessionResponse = await axios.get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true });
         if (sessionResponse.data.role !== "employee" && sessionResponse.data.role !== "admin") {
           window.location.href = "/forbidden"; return;
         }
         setIsAuthorized(true);
-        const lotsResponse = await axios.get("http://localhost:5000/api/lots/all", { withCredentials: true });
-        setLots(Array.isArray(lotsResponse.data) ? lotsResponse.data : []);
+        const lotsResponse = await axios.get(`${API_BASE_URL}/api/lots/all`, { withCredentials: true });
+        const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
+        setLots(fetchedLots);
+        try { sessionStorage.setItem("employeeLotsCache", JSON.stringify(fetchedLots)); } catch (e) {}
       } catch (requestError) {
         if (requestError?.response?.status === 401) { window.location.href = "/access-denied"; return; }
         setError("Unable to load sales data. Please refresh and try again.");

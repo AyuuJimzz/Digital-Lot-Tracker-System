@@ -39,7 +39,7 @@ CREATE TABLE `admins` (
 
 LOCK TABLES `admins` WRITE;
 /*!40000 ALTER TABLE `admins` DISABLE KEYS */;
-INSERT INTO `admins` VALUES (2,'admin@gmail.com','admin123','MyAdmin','2026-02-17 19:37:20');
+INSERT INTO `admins` VALUES (2,'admin@gmail.com','$2b$10$BkLg.lKxFhSMRLsFYgj9h.6H2kLjwUcdyLy/hWTTmgZcbT/qpbNsu','MyAdmin','2026-02-17 19:37:20');
 /*!40000 ALTER TABLE `admins` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

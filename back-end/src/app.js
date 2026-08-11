@@ -16,7 +16,7 @@ const app = express();
 // CORS Configuration
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: true,
     credentials: true,
   })
 );
@@ -24,17 +24,23 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const isProduction = process.env.NODE_ENV === "production" || !!process.env.RENDER || process.env.DB_HOST?.includes("aivencloud.com");
+
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
 // Session Configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "supersecretkey123",
     resave: false,
     saveUninitialized: false,
     cookie: {
       maxAge: 2 * 60 * 60 * 1000, // 2 hours
       httpOnly: true,
-      sameSite: "lax",
-      secure: false, // Set to true if using HTTPS
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
     },
   })
 );
@@ -42,6 +48,11 @@ app.use(
 // Test route
 app.get("/", (req, res) => {
   res.json({ message: "Server is running" });
+});
+
+// Health check endpoint (used by UptimeRobot to keep server awake)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // Routes

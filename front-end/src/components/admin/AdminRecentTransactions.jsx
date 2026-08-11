@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
@@ -25,7 +26,7 @@ const RecentTransactions = () => {
       try {
         setLoading(true);
         console.log("Fetching transactions from API...");
-        const response = await axios.get("http://localhost:5000/api/transactions");
+        const response = await axios.get(`${API_BASE_URL}/api/transactions`);
         console.log("API Response status:", response.status);
         console.log("API Response data:", response.data);
         console.log("Number of transactions received:", response.data.length);

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
@@ -8,16 +9,23 @@ const paginBtnCls = "rounded-md border border-gray-300 dark:border-slate-700 bg-
 
 const Customers = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("customersCache");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem("customersCache"));
   const [error, setError] = useState("");
-  const [customers, setCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const init = async () => {
       try {
-        const sessionRes = await axios.get("http://localhost:5000/api/auth/check-session", { withCredentials: true });
+        const sessionRes = await axios.get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true });
         const role = sessionRes.data.role;
         if (role !== "employee" && role !== "admin") { window.location.href = "/forbidden"; return; }
         setIsAuthorized(true);
@@ -32,8 +40,10 @@ const Customers = () => {
 
   const fetchCustomers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/customers", { withCredentials: true });
-      setCustomers(Array.isArray(res.data) ? res.data : []);
+      const res = await axios.get(`${API_BASE_URL}/api/customers`, { withCredentials: true });
+      const fetched = Array.isArray(res.data) ? res.data : [];
+      setCustomers(fetched);
+      try { sessionStorage.setItem("customersCache", JSON.stringify(fetched)); } catch (e) {}
     } catch { setCustomers([]); }
   };
 

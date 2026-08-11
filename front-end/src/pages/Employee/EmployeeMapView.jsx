@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useState, useMemo } from "react";
 
 import {
@@ -81,7 +82,14 @@ function InvalidateSize() {
 }
 
 const EmployeeMapView = () => {
-  const [mapData, setMapData] = useState(null);
+  const [mapData, setMapData] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("mapDataCache");
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
   // Get selected property from localStorage, default to Property 1 if not found
@@ -106,7 +114,7 @@ const EmployeeMapView = () => {
     const fetchMapData = async () => {
       try {
         const [mapResponse] = await Promise.all([
-          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
         ]);
 
         // Fetch customer details for all pending/sold lots
@@ -114,7 +122,7 @@ const EmployeeMapView = () => {
           mapResponse.data.lots.map(async (lot) => {
             if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
               try {
-                const lotDetails = await axios.get(`http://localhost:5000/api/lots/${lot.lot_id}`, {
+                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
                   withCredentials: true,
                 });
                 return { ...lot, customer: lotDetails.data.customer };
@@ -127,7 +135,9 @@ const EmployeeMapView = () => {
           })
         );
 
-        setMapData({ ...mapResponse.data, lots: lotsWithCustomerData });
+        const finalMapData = { ...mapResponse.data, lots: lotsWithCustomerData };
+        setMapData(finalMapData);
+        try { sessionStorage.setItem("mapDataCache", JSON.stringify(finalMapData)); } catch (e) {}
       } catch (err) {
         console.error("Map Load Error:", err);
       }
@@ -224,7 +234,7 @@ const EmployeeMapView = () => {
     const fetchMapData = async () => {
       try {
         const [mapResponse] = await Promise.all([
-          axios.get("http://localhost:5000/api/lots/map-data", { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
         ]);
 
         // Fetch customer details for all pending/sold lots
@@ -232,7 +242,7 @@ const EmployeeMapView = () => {
           mapResponse.data.lots.map(async (lot) => {
             if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
               try {
-                const lotDetails = await axios.get(`http://localhost:5000/api/lots/${lot.lot_id}`, {
+                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
                   withCredentials: true,
                 });
                 return { ...lot, customer: lotDetails.data.customer };
@@ -340,7 +350,7 @@ const EmployeeMapView = () => {
                     // Then fetch fresh data in background
                     try {
                       const lotDetails = await axios.get(
-                        `http://localhost:5000/api/lots/${lot.lot_id}`,
+                        `${API_BASE_URL}/api/lots/${lot.lot_id}`,
                         {
                           withCredentials: true,
                         }
@@ -393,6 +403,7 @@ const EmployeeMapView = () => {
 
       {/* LotOffcanvas Component */}
       <LotOffcanvas
+        isAdmin={false}
         selectedLot={selectedLot}
         isOpen={isOffcanvasOpen}
         onClose={handleCloseOffcanvas}

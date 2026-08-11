@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus } from "lucide-react";
@@ -36,7 +37,7 @@ export function AdminHeader() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/auth/profile", {
+        const res = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
           withCredentials: true,
         });
         const initials = getInitials(res.data.first_name, res.data.last_name);
@@ -84,15 +85,18 @@ export function AdminHeader() {
     { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33528474716154] },
   ];
 
-  const handleToggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    if (newTheme === "dark") {
+  useEffect(() => {
+    if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
   };
 
   // Handle property selection
@@ -119,7 +123,7 @@ export function AdminHeader() {
   const handleLogout = async () => {
     try {
       await axios.post(
-        "http://localhost:5000/api/auth/logout",
+        `${API_BASE_URL}/api/auth/logout`,
         {},
         {
           withCredentials: true,
@@ -145,7 +149,7 @@ export function AdminHeader() {
     setError("");
 
     try {
-      const response = await axios.get(`http://localhost:5000/api/lots/${selectedLotId.trim()}`);
+      const response = await axios.get(`${API_BASE_URL}/api/lots/${selectedLotId.trim()}`);
       const lot = response.data;
       setLotData(lot);
 
@@ -206,7 +210,7 @@ export function AdminHeader() {
     setError("");
 
     try {
-      await axios.put(`http://localhost:5000/api/lots/${selectedLotId.trim()}/coordinates`, {
+      await axios.put(`${API_BASE_URL}/api/lots/${selectedLotId.trim()}/coordinates`, {
         coordinates: validatedCoords,
       });
 

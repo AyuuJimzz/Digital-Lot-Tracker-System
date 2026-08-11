@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect } from "react";
 import { X, Plus, MapPin } from "lucide-react";
 import axios from "axios";
@@ -40,7 +41,7 @@ export function AddLotModal({
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/lots",
+        `${API_BASE_URL}/api/lots`,
         {
           property_id: parseInt(propertyId),
           lot_number: lotNumber.trim(),

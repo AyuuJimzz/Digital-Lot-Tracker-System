@@ -43,7 +43,7 @@ CREATE TABLE `employees` (
 
 LOCK TABLES `employees` WRITE;
 /*!40000 ALTER TABLE `employees` DISABLE KEYS */;
-INSERT INTO `employees` VALUES (1,'james','delos santos','jamesdelossantos1028@gmail.com','example','2001-10-28','Male','9303003196','Gustilo');
+INSERT INTO `employees` VALUES (1,'james','delos santos','jamesdelossantos1028@gmail.com','$2b$10$TJxfFmUPzFzEzy20dla5pOe4X1a9T4iekYbx4rgbIghEU.t8Wu4H2','2001-10-28','Male','9303003196','Gustilo');
 /*!40000 ALTER TABLE `employees` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

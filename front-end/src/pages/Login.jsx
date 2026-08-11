@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
 import logo from "../assets/image/golden-dragon-logo.png";
+import { API_BASE_URL } from "../config/api";
 
 function Login({ setRole }) {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ function Login({ setRole }) {
 
   useEffect(() => {
     axios
-      .get("http://localhost:5000/api/auth/check-session", { withCredentials: true })
+      .get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true })
       .then((response) => {
         localStorage.setItem("role", response.data.role || "");
         localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
@@ -22,7 +23,10 @@ function Login({ setRole }) {
         if (response.data.role === "admin") navigate("/admin-panel");
         else if (response.data.role === "employee") navigate("/employee-panel");
       })
-      .catch(() => {});
+      .catch(() => {
+        localStorage.removeItem("role");
+        localStorage.removeItem("password_reset_required");
+      });
   }, [navigate, setRole]);
 
   const handleSubmit = async (e) => {
@@ -31,7 +35,7 @@ function Login({ setRole }) {
     setLoading(true);
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        `${API_BASE_URL}/api/auth/login`,
         { email, password },
         { withCredentials: true }
       );

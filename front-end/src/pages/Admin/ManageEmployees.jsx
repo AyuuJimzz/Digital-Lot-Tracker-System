@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -7,8 +8,15 @@ const inputCls =
   "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-amber-500 focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
 
 const ManageEmployees = () => {
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("employeesCache");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem("employeesCache"));
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
@@ -27,10 +35,11 @@ const ManageEmployees = () => {
 
   const fetchEmployees = useCallback(async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/employees", {
+      const response = await axios.get(`${API_BASE_URL}/api/employees`, {
         withCredentials: true,
       });
       setEmployees(response.data);
+      try { sessionStorage.setItem("employeesCache", JSON.stringify(response.data)); } catch (e) {}
       setLoading(false);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -55,8 +64,8 @@ const ManageEmployees = () => {
     e.preventDefault();
     try {
       const url = editingEmployee
-        ? `http://localhost:5000/api/employees/${editingEmployee.employee_id}`
-        : "http://localhost:5000/api/employees";
+        ? `${API_BASE_URL}/api/employees/${editingEmployee.employee_id}`
+        : `${API_BASE_URL}/api/employees`;
       if (editingEmployee) {
         await axios.put(url, formData, { withCredentials: true });
       } else {
@@ -88,7 +97,7 @@ const ManageEmployees = () => {
   const handleDelete = async (employeeId) => {
     if (!window.confirm("Are you sure you want to delete this employee?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/employees/${employeeId}`, {
+      await axios.delete(`${API_BASE_URL}/api/employees/${employeeId}`, {
         withCredentials: true,
       });
       await fetchEmployees();

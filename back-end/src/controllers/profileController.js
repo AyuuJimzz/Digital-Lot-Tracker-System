@@ -97,6 +97,8 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
+const bcrypt = require("bcryptjs");
+
 exports.changePassword = async (req, res) => {
   const user = req.session?.user;
   if (!user) return res.status(401).json({ message: "Not authenticated" });
@@ -110,11 +112,19 @@ exports.changePassword = async (req, res) => {
     const [rows] = await db.query(`SELECT password FROM ${table} WHERE ${idColumn} = ?`, [user.id]);
     if (rows.length === 0) return res.status(404).json({ message: "User not found" });
 
-    const passwordMatch = currentPassword === rows[0].password;
+    const storedPassword = rows[0].password;
+    let passwordMatch = false;
+    if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$")) {
+      passwordMatch = await bcrypt.compare(currentPassword, storedPassword);
+    } else {
+      passwordMatch = currentPassword === storedPassword;
+    }
+
     if (!passwordMatch) return res.status(400).json({ message: "Incorrect current password" });
 
-    // In a real app we'd hash the new password. The codebase currently uses plain text (as seen in auth controllers)
-    await db.query(`UPDATE ${table} SET password = ?, updated_at = NOW() WHERE ${idColumn} = ?`, [newPassword, user.id]);
+    // Hash the new password with bcrypt
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.query(`UPDATE ${table} SET password = ?, updated_at = NOW() WHERE ${idColumn} = ?`, [hashedPassword, user.id]);
     
     res.json({ message: "Password changed successfully" });
   } catch (err) {
