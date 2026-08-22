@@ -16,6 +16,7 @@ import axios from "axios";
 import L from "leaflet";
 import LotOffcanvas from "../../components/admin/LotOffcanvas";
 import { ImageOverlayControl } from "../../components/admin/ImageOverlayControl";
+import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
 
 // Fix for default icons in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -820,6 +821,7 @@ function AdminViewMap() {
         maxZoom={20}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
+        <MapLocationSearch />
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           maxZoom={20}

@@ -17,6 +17,7 @@ import axios from "axios";
 import L from "leaflet";
 
 import LotOffcanvas from "../../components/admin/LotOffcanvas";
+import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
 
 import "leaflet/dist/leaflet.css";
 
@@ -287,6 +288,7 @@ const EmployeeMapView = () => {
         maxZoom={24}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
+        <MapLocationSearch />
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           maxZoom={24}

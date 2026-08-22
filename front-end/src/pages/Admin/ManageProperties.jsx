@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Edit, Trash2, Plus, Eye, EyeOff, X } from "lucide-react";
+import { geocodeAddress } from "../../utils/geocoding";
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-amber-500 focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
 
@@ -25,6 +26,7 @@ const ManageProperties = () => {
 
   const fetchProperties = useCallback(async () => {
     try {
+      setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true });
       setProperties(response.data);
       try { sessionStorage.setItem("propertiesCache", JSON.stringify(response.data)); } catch (e) {}
@@ -48,19 +50,43 @@ const ManageProperties = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      let createdPropId = null;
       const url = editingProperty
         ? `${API_BASE_URL}/api/properties/${editingProperty.property_id}`
         : `${API_BASE_URL}/api/properties`;
       if (editingProperty) {
         await axios.put(url, formData, { withCredentials: true });
       } else {
-        await axios.post(url, formData, { withCredentials: true });
+        const res = await axios.post(url, formData, { withCredentials: true });
+        createdPropId = res.data?.property_id;
       }
+
+      // Automatically try to geocode the address in background
+      if (formData.location) {
+        geocodeAddress(formData.location).then((geo) => {
+          if (geo) {
+            console.log("Geocoded location:", geo);
+          }
+        });
+      }
+
       try { sessionStorage.removeItem("propertiesCache"); } catch (err) {}
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
       resetForm();
-      alert(editingProperty ? "Property updated successfully" : "Property added successfully");
+
+      if (!editingProperty && createdPropId) {
+        const goToMap = window.confirm(
+          `Property "${formData.property_name}" added successfully!\n\nWould you like to open the Map View now to locate and plot lots for this property?`
+        );
+        if (goToMap) {
+          localStorage.setItem("selectedProperty", createdPropId.toString());
+          navigate("/manage-lots");
+          return;
+        }
+      } else {
+        alert(editingProperty ? "Property updated successfully" : "Property added successfully");
+      }
     } catch (err) {
       alert(err.response?.data?.error || err.message || "Failed to save property");
     }

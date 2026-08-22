@@ -1,10 +1,11 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus } from "lucide-react";
+import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus, HelpCircle } from "lucide-react";
 import axios from "axios";
 import { EditCoordinatesModal } from "./EditCoordinatesModal";
 import { AddLotModal } from "./AddLotModal";
+import { HelpGuideModal } from "./HelpGuideModal";
 
 const DEFAULT_COORDINATES_MAP = {
   1: [10.7372, 122.4998], // LOT-3896 Oton Cadastre
@@ -18,6 +19,7 @@ export function AdminHeader() {
   const [lotsDropdownOpen, setLotsDropdownOpen] = useState(false); // dropdown state for Manage Lots
   const [coordinatesModalOpen, setCoordinatesModalOpen] = useState(false);
   const [addLotModalOpen, setAddLotModalOpen] = useState(false);
+  const [helpGuideModalOpen, setHelpGuideModalOpen] = useState(false);
   const [selectedLotId, setSelectedLotId] = useState("");
   const [lotData, setLotData] = useState(null);
   const [coordinates, setCoordinates] = useState([]);
@@ -393,6 +395,16 @@ export function AdminHeader() {
           </div>
         )}
 
+        {/* Help & User Guide Button */}
+        <button
+          onClick={() => setHelpGuideModalOpen(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800/50 transition-colors"
+          title="Open User Guide & Instructions"
+        >
+          <HelpCircle className="h-4 w-4" />
+          <span className="hidden sm:inline">Guide</span>
+        </button>
+
         {/* Global Theme Toggle Button */}
         <button
           onClick={handleToggleTheme}
@@ -449,7 +461,7 @@ export function AdminHeader() {
               <div className="border-t border-gray-100 my-1"></div>
 
               <button
-                className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors text-left"
                 onClick={handleLogout}
               >
                 <LogOut className="mr-2 h-4 w-4" />
@@ -459,6 +471,11 @@ export function AdminHeader() {
           )}
         </div>
       </div>
+
+      <HelpGuideModal
+        isOpen={helpGuideModalOpen}
+        onClose={() => setHelpGuideModalOpen(false)}
+      />
 
       <EditCoordinatesModal
         coordinatesModalOpen={coordinatesModalOpen}
