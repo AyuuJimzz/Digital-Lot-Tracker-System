@@ -56,6 +56,8 @@ const ManageProperties = () => {
       } else {
         await axios.post(url, formData, { withCredentials: true });
       }
+      try { sessionStorage.removeItem("propertiesCache"); } catch (err) {}
+      window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
       resetForm();
       alert(editingProperty ? "Property updated successfully" : "Property added successfully");
@@ -74,6 +76,8 @@ const ManageProperties = () => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
       await axios.patch(`${API_BASE_URL}/api/properties/${propertyId}/status`, { status: newStatus }, { withCredentials: true });
+      try { sessionStorage.removeItem("propertiesCache"); } catch (err) {}
+      window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
       alert(`Property status changed to ${newStatus}`);
     } catch (err) { alert(err.message || "Failed to update property status"); }
@@ -83,6 +87,8 @@ const ManageProperties = () => {
     if (!window.confirm("Are you sure you want to delete this property?")) return;
     try {
       await axios.delete(`${API_BASE_URL}/api/properties/${propertyId}`, { withCredentials: true });
+      try { sessionStorage.removeItem("propertiesCache"); } catch (err) {}
+      window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
       alert("Property deleted successfully");
     } catch (err) { alert(err.message || "Failed to delete property"); }

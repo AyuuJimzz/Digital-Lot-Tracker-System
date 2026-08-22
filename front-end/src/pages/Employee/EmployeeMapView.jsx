@@ -20,6 +20,12 @@ import LotOffcanvas from "../../components/admin/LotOffcanvas";
 
 import "leaflet/dist/leaflet.css";
 
+const DEFAULT_COORDINATES_MAP = {
+  1: [10.7372, 122.4998], // LOT-3896 Oton Cadastre
+  2: [10.737956, 122.505478], // Lot-2018 Oton Cadestra
+  3: [10.671313, 122.335284], // Lot-204 Nanga Guimbal
+};
+
 function ZoomToCenter({ lots, propertyCoords }) {
   const map = useMap();
 
@@ -100,15 +106,22 @@ const EmployeeMapView = () => {
   // Track if property change is due to user interaction vs lot click
   const [isPropertyChanging, setIsPropertyChanging] = useState(false);
 
-  // Property locations (same as AdminHeader) - wrapped in useMemo to prevent re-creation on every render
-  const properties = useMemo(
-    () => [
-      { id: 1, name: "Property 1", coordinates: [10.7367 + 0.0005, 122.4998] },
-      { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
-      { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33528474716154] },
-    ],
-    []
-  );
+  // Property locations (same as AdminHeader) - derived from mapData or fallback
+  const properties = useMemo(() => {
+    if (mapData && Array.isArray(mapData.properties) && mapData.properties.length > 0) {
+      return mapData.properties.map((p) => ({
+        id: p.property_id,
+        name: p.property_name || `Property ${p.property_id}`,
+        location: p.location,
+        coordinates: DEFAULT_COORDINATES_MAP[p.property_id] || [10.7372, 122.4998],
+      }));
+    }
+    return [
+      { id: 1, name: "LOT-3896 Oton Cadastre", coordinates: [10.7372, 122.4998] },
+      { id: 2, name: "Lot-2018 Oton Cadestra", coordinates: [10.737956, 122.505478] },
+      { id: 3, name: "Lot-204 Nanga Guimbal", coordinates: [10.671313, 122.335284] },
+    ];
+  }, [mapData]);
 
   useEffect(() => {
     const fetchMapData = async () => {

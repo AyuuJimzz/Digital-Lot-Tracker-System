@@ -4,6 +4,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { User, LogOut, Settings, UserCircle, MapPin, Moon, Sun } from "lucide-react";
 import axios from "axios";
 
+const DEFAULT_COORDINATES_MAP = {
+  1: [10.7372, 122.4998], // LOT-3896 Oton Cadastre
+  2: [10.737956, 122.505478], // Lot-2018 Oton Cadestra
+  3: [10.671313, 122.335284], // Lot-204 Nanga Guimbal
+};
+
 export function EmployeeHeader() {
   const [isOpen, setIsOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
@@ -50,12 +56,56 @@ export function EmployeeHeader() {
     fetchProfile();
   }, [location.pathname]); // Re-fetch occasionally when navigating
 
-  // Property locations (same as AdminHeader)
-  const properties = [
-    { id: 1, name: "Property 1", coordinates: [10.7367 + 0.0005, 122.4998] },
-    { id: 2, name: "Property 2", coordinates: [10.737956000067012, 122.5054785697635] },
-    { id: 3, name: "Property 3", coordinates: [10.671313434552875, 122.33528474716154] },
-  ];
+  // Dynamic Property locations (same as AdminHeader)
+  const [properties, setProperties] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("propertiesCache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((p) => ({
+            id: p.property_id,
+            name: p.property_name || `Property ${p.property_id}`,
+            location: p.location,
+            coordinates: DEFAULT_COORDINATES_MAP[p.property_id] || [10.7372, 122.4998],
+          }));
+        }
+      }
+    } catch (e) {}
+    return [
+      { id: 1, name: "LOT-3896 Oton Cadastre", coordinates: [10.7372, 122.4998] },
+      { id: 2, name: "Lot-2018 Oton Cadestra", coordinates: [10.737956, 122.505478] },
+      { id: 3, name: "Lot-204 Nanga Guimbal", coordinates: [10.671313, 122.335284] },
+    ];
+  });
+
+  // Fetch dynamic properties from API
+  useEffect(() => {
+    const fetchProperties = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/properties`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const mapped = data.map((p) => ({
+              id: p.property_id,
+              name: p.property_name || `Property ${p.property_id}`,
+              location: p.location,
+              coordinates: DEFAULT_COORDINATES_MAP[p.property_id] || [10.7372, 122.4998],
+            }));
+            setProperties(mapped);
+            try { sessionStorage.setItem("propertiesCache", JSON.stringify(data)); } catch (e) {}
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic properties in employee header:", err);
+      }
+    };
+
+    fetchProperties();
+    window.addEventListener("propertiesUpdated", fetchProperties);
+    return () => window.removeEventListener("propertiesUpdated", fetchProperties);
+  }, []);
 
   // Check if current page is EmployeeMapView
   const isMapViewPage = location.pathname === "/employee/map-view";

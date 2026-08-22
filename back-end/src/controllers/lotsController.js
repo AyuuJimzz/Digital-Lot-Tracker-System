@@ -97,6 +97,10 @@ exports.getLotById = async (req, res) => {
 
 exports.getMapData = async (req, res) => {
   try {
+    const [propertyRows] = await db.query(
+      `SELECT property_id, property_name, location, total_lots, status FROM properties ORDER BY property_id ASC`
+    );
+
     const [rows] = await db.query(
       `SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates 
        FROM lots 
@@ -112,6 +116,7 @@ exports.getMapData = async (req, res) => {
         pendingLots: rows.filter((lot) => lot.status === "Pending").length,
         soldLots: rows.filter((lot) => lot.status === "Sold").length,
       },
+      properties: propertyRows,
       lots: rows.map((lot) => ({
         lot_id: lot.lot_id,
         property_id: lot.property_id,
