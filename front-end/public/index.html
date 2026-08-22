@@ -13,6 +13,29 @@
       };
     </script>
     <script>
+      // Early catch & suppress third-party browser extension runtime errors
+      (function() {
+        function isExtensionError(event) {
+          const str = (event.filename || "") + " " + (event.message || "") + " " + (event.error?.stack || "");
+          return str.includes("chrome-extension://") || str.includes("moz-extension://") || str.includes("M_ID") || str.includes("eppiocemhmnlbhjplcgkofciiegomcon");
+        }
+        window.addEventListener("error", function(e) {
+          if (isExtensionError(e)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            return true;
+          }
+        }, true);
+        window.addEventListener("unhandledrejection", function(e) {
+          const str = (e.reason?.message || "") + " " + (e.reason?.stack || "");
+          if (str.includes("chrome-extension://") || str.includes("moz-extension://") || str.includes("M_ID")) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+      })();
+    </script>
+    <script>
       // Apply saved theme on page load (no flash)
       if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.documentElement.classList.add('dark');

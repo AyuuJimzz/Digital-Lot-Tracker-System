@@ -1,56 +1,99 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  --background: 220 14% 96%;
+  --foreground: 220 20% 10%;
 
-@layer base {
-  :root {
-    --background: 220 14% 96%;
-    --foreground: 220 20% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 20% 10%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 20% 10%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
+  --primary: 220 20% 14%;
+  --primary-foreground: 0 0% 100%;
 
-    --primary: 220 20% 14%;
-    --primary-foreground: 0 0% 100%;
+  --secondary: 220 10% 92%;
+  --secondary-foreground: 220 20% 14%;
 
-    --secondary: 220 10% 92%;
-    --secondary-foreground: 220 20% 14%;
+  --muted: 220 10% 94%;
+  --muted-foreground: 220 10% 46%;
 
-    --muted: 220 10% 94%;
-    --muted-foreground: 220 10% 46%;
+  --accent: 220 10% 88%;
+  --accent-foreground: 220 20% 14%;
 
-    --accent: 220 10% 88%;
-    --accent-foreground: 220 20% 14%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 87%;
+  --input: 220 13% 87%;
+  --ring: 220 20% 14%;
 
-    --border: 220 13% 87%;
-    --input: 220 13% 87%;
-    --ring: 220 20% 14%;
+  --radius: 0.5rem;
 
-    --radius: 0.5rem;
+  --sidebar-background: 220 20% 14%;
+  --sidebar-foreground: 220 10% 80%;
+  --sidebar-primary: 0 0% 100%;
+  --sidebar-primary-foreground: 220 20% 14%;
+  --sidebar-accent: 220 18% 22%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 220 18% 22%;
+  --sidebar-ring: 220 20% 40%;
+}
 
-    --sidebar-background: 220 20% 14%;
-    --sidebar-foreground: 220 10% 80%;
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 220 20% 14%;
-    --sidebar-accent: 220 18% 22%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 18% 22%;
-    --sidebar-ring: 220 20% 40%;
+body {
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+/* ── Animated Map Pin & Ground Ripple ── */
+@keyframes pinFloatContinuous {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
+@keyframes shadowPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
   }
-  body {
-    @apply bg-background text-foreground;
-    font-family: "Inter", system-ui, sans-serif;
+  50% {
+    transform: scale(0.6);
+    opacity: 0.2;
   }
+}
+
+@keyframes groundRipple {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-pin-bounce {
+  animation: pinFloatContinuous 1.4s ease-in-out infinite;
+}
+
+.animate-pin-shadow {
+  animation: shadowPulse 1.4s ease-in-out infinite;
+}
+
+.animate-ground-ripple {
+  animation: groundRipple 1.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+/* ── High-Definition Crisp Map Tile Rendering ── */
+.leaflet-tile {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  filter: contrast(1.03) brightness(1.01);
+}
+
+.leaflet-container {
+  background-color: #0f172a !important;
 }

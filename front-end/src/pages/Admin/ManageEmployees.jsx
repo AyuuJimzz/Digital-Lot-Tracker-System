@@ -5,7 +5,7 @@ import axios from "axios";
 import { Edit, Trash2, Plus, X } from "lucide-react";
 
 const inputCls =
-  "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-amber-500 focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
+  "w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-slate-700 rounded-lg shadow-sm bg-white dark:bg-slate-800/90 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:focus:border-blue-500 transition-all";
 
 const ManageEmployees = () => {
   const [employees, setEmployees] = useState(() => {
@@ -28,7 +28,6 @@ const ManageEmployees = () => {
     date_of_birth: "",
     gender: "",
     phone_number: "",
-    address: "",
   });
 
   const navigate = useNavigate();
@@ -89,7 +88,6 @@ const ManageEmployees = () => {
       date_of_birth: employee.date_of_birth ? employee.date_of_birth.split("T")[0] : "",
       gender: employee.gender || "",
       phone_number: employee.phone_number || "",
-      address: employee.address || "",
     });
     setShowForm(true);
   };
@@ -116,7 +114,6 @@ const ManageEmployees = () => {
       date_of_birth: "",
       gender: "",
       phone_number: "",
-      address: "",
     });
     setEditingEmployee(null);
     setShowForm(false);
@@ -134,77 +131,109 @@ const ManageEmployees = () => {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Employees</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-        >
-          {showForm ? (
-            <>
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </>
-          ) : (
-            <>
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Employee
-            </>
-          )}
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Employees</h1>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Register, manage and assign estate agents & team staff</p>
+        </div>
+        {!showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center px-4 py-2 rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-500/20 transition-all"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Employee
+          </button>
+        )}
       </div>
 
       {/* Form */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-900 shadow rounded-lg border border-gray-200 dark:border-slate-800 p-6 transition-colors duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            {editingEmployee ? "Edit Employee" : "Add New Employee"}
-          </h2>
+        <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-gray-200 dark:border-slate-800 p-6 max-w-4xl mx-auto transition-all">
+          <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100 dark:border-slate-800">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                {editingEmployee ? "Edit Employee Details" : "Add New Employee"}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                Fill in the employee credentials and profile information
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+              title="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { label: "First Name *", name: "first_name", type: "text", required: true },
-                { label: "Last Name *", name: "last_name", type: "text", required: true },
-                { label: "Email *", name: "email", type: "email", required: true, autoComplete: "new-email" },
-                { label: "Date of Birth", name: "date_of_birth", type: "date" },
-                { label: "Phone Number", name: "phone_number", type: "tel" },
-              ].map(({ label, name, type, required, autoComplete }) => (
-                <div key={name}>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                    {label}
-                  </label>
-                  <input
-                    type={type}
-                    name={name}
-                    value={formData[name]}
-                    onChange={handleInputChange}
-                    required={required}
-                    autoComplete={autoComplete || "off"}
-                    className={inputCls}
-                  />
-                </div>
-              ))}
-
-              {!editingEmployee && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                    Password *
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                    autoComplete="new-password"
-                    className={inputCls}
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">First Name *</label>
+                <input
+                  type="text"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Juan"
+                  required
+                  className={inputCls}
+                />
+              </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  Gender
-                </label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Last Name *</label>
+                <input
+                  type="text"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Dela Cruz"
+                  required
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Email Address *</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="e.g. juan@goldendragon.com"
+                  required
+                  autoComplete="new-email"
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
+                <input
+                  type="date"
+                  name="date_of_birth"
+                  value={formData.date_of_birth}
+                  onChange={handleInputChange}
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Phone Number</label>
+                <input
+                  type="tel"
+                  name="phone_number"
+                  value={formData.phone_number}
+                  onChange={handleInputChange}
+                  placeholder="e.g. 0912 345 6789"
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Gender</label>
                 <select
                   name="gender"
                   value={formData.gender}
@@ -217,34 +246,37 @@ const ManageEmployees = () => {
                   <option value="Other">Other</option>
                 </select>
               </div>
+
+              {!editingEmployee && (
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Password *</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="Enter secure password"
+                    required
+                    autoComplete="new-password"
+                    className={inputCls}
+                  />
+                </div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                Address
-              </label>
-              <textarea
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                rows="3"
-                className={inputCls}
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none transition-colors"
-              >
-                {editingEmployee ? "Update Employee" : "Add Employee"}
-              </button>
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md shadow-sm focus:outline-none transition-colors"
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md shadow-blue-500/25 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              >
+                {editingEmployee ? "Update Employee" : "Add Employee"}
               </button>
             </div>
           </form>

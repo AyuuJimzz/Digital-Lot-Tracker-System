@@ -74,14 +74,16 @@ export function AddLotModal({
         })
       );
 
-      // Emit navigation event to center map on the target property
-      const targetCoords = properties.find((p) => p.id === parseInt(propertyId))?.coordinates;
-      if (targetCoords) {
-        window.dispatchEvent(
-          new CustomEvent("navigateToProperty", {
-            detail: { coordinates: targetCoords },
-          })
-        );
+      // Only emit navigation event if user explicitly selected a DIFFERENT property
+      if (defaultPropertyId && parseInt(propertyId) !== parseInt(defaultPropertyId)) {
+        const targetCoords = properties?.find((p) => p.id === parseInt(propertyId))?.coordinates;
+        if (targetCoords) {
+          window.dispatchEvent(
+            new CustomEvent("navigateToProperty", {
+              detail: { coordinates: targetCoords },
+            })
+          );
+        }
       }
 
       // Emit property selection event to update selectedProperty state in header/map

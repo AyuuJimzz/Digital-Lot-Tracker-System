@@ -5,7 +5,27 @@ import axios from "axios";
 import { Edit, Trash2, Plus, Eye, EyeOff, X } from "lucide-react";
 import { geocodeAddress } from "../../utils/geocoding";
 
-const inputCls = "w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-amber-500 focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
+const MUNICIPALITY_COORDINATES = {
+  "barotac nuevo": [10.8906, 122.7042],
+  "barotac": [10.8906, 122.7042],
+  "oton": [10.7372, 122.4998],
+  "guimbal": [10.6713, 122.3353],
+  "nanga": [10.6713, 122.3353],
+  "pavia": [10.7744, 122.5408],
+  "santa barbara": [10.8242, 122.5342],
+  "leganes": [10.7833, 122.5833],
+  "dumangas": [10.8250, 122.7167],
+  "zarraga": [10.8217, 122.6108],
+  "pototan": [10.9472, 122.6289],
+  "janiuay": [10.9575, 122.5022],
+  "miagao": [10.6444, 122.2358],
+  "san joaquin": [10.5878, 122.1408],
+  "tigbauan": [10.6756, 122.3811],
+  "iloilo": [10.7202, 122.5621],
+  "passi": [11.1075, 122.6419],
+};
+
+const inputCls = "w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-slate-700 rounded-lg shadow-sm bg-white dark:bg-slate-800/90 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:focus:border-blue-500 transition-all";
 
 const ManageProperties = () => {
   const [properties, setProperties] = useState(() => {
@@ -61,29 +81,54 @@ const ManageProperties = () => {
         createdPropId = res.data?.property_id;
       }
 
-      // Automatically try to geocode the address in background
-      if (formData.location) {
-        geocodeAddress(formData.location).then((geo) => {
-          if (geo) {
-            console.log("Geocoded location:", geo);
+      // Automatically search/geocode the address for GPS coordinates
+      if (formData.location || formData.property_name) {
+        const targetId = createdPropId || editingProperty?.property_id;
+        let resolvedCoords = null;
+
+        // 1. Instant match with known town dictionary
+        const locationText = `${formData.location || ""} ${formData.property_name || ""}`.toLowerCase();
+        for (const [key, coords] of Object.entries(MUNICIPALITY_COORDINATES)) {
+          if (locationText.includes(key)) {
+            resolvedCoords = coords;
+            break;
           }
-        });
+        }
+
+        // 2. Dynamic geocoding if not found in town dictionary
+        if (!resolvedCoords && formData.location) {
+          try {
+            const geo = await geocodeAddress(formData.location);
+            if (geo && geo.lat && geo.lng) {
+              resolvedCoords = [geo.lat, geo.lng];
+            }
+          } catch (geoErr) {
+            console.warn("Geocoding notice:", geoErr);
+          }
+        }
+
+        if (resolvedCoords && targetId) {
+          localStorage.setItem(
+            "propertyCustomCoords_" + targetId,
+            JSON.stringify(resolvedCoords)
+          );
+        }
       }
 
-      try { sessionStorage.removeItem("propertiesCache"); } catch (err) {}
+      // Invalidate caches so map view gets fresh data immediately
+      try {
+        sessionStorage.removeItem("propertiesCache");
+        sessionStorage.removeItem("mapDataCache");
+      } catch (err) {}
+
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
       resetForm();
 
       if (!editingProperty && createdPropId) {
-        const goToMap = window.confirm(
-          `Property "${formData.property_name}" added successfully!\n\nWould you like to open the Map View now to locate and plot lots for this property?`
-        );
-        if (goToMap) {
-          localStorage.setItem("selectedProperty", createdPropId.toString());
-          navigate("/manage-lots");
-          return;
-        }
+        localStorage.setItem("selectedProperty", createdPropId.toString());
+        // Automatically direct user straight to the map location!
+        navigate("/manage-lots");
       } else {
         alert(editingProperty ? "Property updated successfully" : "Property added successfully");
       }
@@ -133,47 +178,101 @@ const ManageProperties = () => {
     <div className="space-y-6 p-6 w-full">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Properties</h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-        >
-          {showForm ? <><X className="h-4 w-4 mr-2" />Cancel</> : <><Plus className="h-4 w-4 mr-2" />Add New Property</>}
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Properties</h1>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Create, edit, and organize estate subdivisions & cadastres</p>
+        </div>
+        {!showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center px-4 py-2 rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-500/20 transition-all"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Property
+          </button>
+        )}
       </div>
 
       {/* Form */}
       {showForm && (
-        <div className="bg-white dark:bg-slate-900 shadow rounded-lg border border-gray-200 dark:border-slate-800 p-6 max-w-4xl mx-auto transition-colors duration-300">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{editingProperty ? "Edit Property" : "Add New Property"}</h2>
+        <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-gray-200 dark:border-slate-800 p-6 max-w-3xl mx-auto transition-all">
+          <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100 dark:border-slate-800">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{editingProperty ? "Edit Property Details" : "Add New Property"}</h2>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Provide property details and address for automatic GPS pin locating</p>
+            </div>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+              title="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Property Name *</label>
-                <input type="text" name="property_name" value={formData.property_name} onChange={handleInputChange} required className={inputCls} />
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Property Name *</label>
+                <input
+                  type="text"
+                  name="property_name"
+                  value={formData.property_name}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Lot-3847 Pagsanga-an"
+                  required
+                  className={inputCls}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Total Lots</label>
-                <input type="number" name="total_lots" value={formData.total_lots} onChange={handleInputChange} min="0" className={inputCls} />
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Location / Address *</label>
+                <input
+                  type="text"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Pagsanga-an, Pavia, Iloilo"
+                  required
+                  className={inputCls}
+                />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Location *</label>
-              <textarea name="location" value={formData.location} onChange={handleInputChange} rows="2" required className={inputCls} />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Total Lots</label>
+                <input
+                  type="number"
+                  name="total_lots"
+                  value={formData.total_lots}
+                  onChange={handleInputChange}
+                  min="0"
+                  placeholder="0"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Status</label>
+                <select name="status" value={formData.status} onChange={handleInputChange} className={inputCls}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Status</label>
-              <select name="status" value={formData.status} onChange={handleInputChange} className={inputCls}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-            <div className="flex gap-3 pt-4">
-              <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm focus:outline-none transition-colors">
-                {editingProperty ? "Update Property" : "Add Property"}
-              </button>
-              <button type="button" onClick={resetForm} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-md shadow-sm focus:outline-none transition-colors">
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              >
                 Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md shadow-blue-500/25 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+              >
+                {editingProperty ? "Save Changes" : "Create & Locate on Map"}
               </button>
             </div>
           </form>

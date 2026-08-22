@@ -1,9 +1,8 @@
 import { API_BASE_URL } from "../../config/api";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import {
   MapContainer,
-  TileLayer,
   Polygon,
   Popup,
   useMap,
@@ -17,6 +16,12 @@ import L from "leaflet";
 import LotOffcanvas from "../../components/admin/LotOffcanvas";
 import { ImageOverlayControl } from "../../components/admin/ImageOverlayControl";
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
+import {
+  MapLayerControls,
+  ActiveMapTileLayer,
+  MAP_LAYERS,
+} from "../../components/admin/MapLayerControls";
+import { geocodeAddress } from "../../utils/geocoding";
 
 // Fix for default icons in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -32,12 +37,32 @@ const DEFAULT_COORDINATES_MAP = {
   3: [10.671313, 122.335284], // Lot-204 Nanga Guimbal
 };
 
+const MUNICIPALITY_COORDINATES = {
+  "barotac nuevo": [10.8906, 122.7042],
+  "barotac": [10.8906, 122.7042],
+  "oton": [10.7372, 122.4998],
+  "guimbal": [10.6713, 122.3353],
+  "nanga": [10.6713, 122.3353],
+  "pavia": [10.7744, 122.5408],
+  "santa barbara": [10.8242, 122.5342],
+  "leganes": [10.7833, 122.5833],
+  "dumangas": [10.8250, 122.7167],
+  "zarraga": [10.8217, 122.6108],
+  "pototan": [10.9472, 122.6289],
+  "janiuay": [10.9575, 122.5022],
+  "miagao": [10.6444, 122.2358],
+  "san joaquin": [10.5878, 122.1408],
+  "tigbauan": [10.6756, 122.3811],
+  "iloilo": [10.7202, 122.5621],
+  "passi": [11.1075, 122.6419],
+};
+
 // Component to handle map centering and event listening
 function MapController({
   center,
   onLotUpdated,
   setSelectedProperty,
-  setIsPropertyChanging,
+  triggerArrivalPulse,
   setMap,
 }) {
   const map = useMap();
@@ -47,6 +72,38 @@ function MapController({
       setMap(map);
     }
   }, [map, setMap]);
+
+  // Ensure map recalculates its exact full-screen dimensions to prevent grey/unrendered tiles
+  useEffect(() => {
+    if (!map) return;
+    map.invalidateSize();
+
+    const t1 = setTimeout(() => map.invalidateSize(), 100);
+    const t2 = setTimeout(() => map.invalidateSize(), 300);
+    const t3 = setTimeout(() => map.invalidateSize(), 600);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [map]);
+
+  // Initial subtle smooth cinematic zoom-out animation when opening Map View
+  useEffect(() => {
+    if (!map) return;
+    const initialCenter = map.getCenter();
+    const t = setTimeout(() => {
+      map.flyTo(initialCenter, 18.2, { duration: 1.4, easeLinearity: 0.25 });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [map]);
 
   useEffect(() => {
     // Listen for property navigation events
@@ -59,25 +116,57 @@ function MapController({
         return;
       }
 
-      map.setView(coordinates, 19);
+      const currentCenter = map.getCenter();
+      const currentZoom = map.getZoom();
+      const dist = Math.hypot(
+        currentCenter.lat - coordinates[0],
+        currentCenter.lng - coordinates[1]
+      );
+
+      // If already viewing this location, toggle subtle zoom out (18) or zoom in (19)
+      if (dist < 0.002) {
+        if (currentZoom >= 18.8) {
+          map.flyTo(coordinates, 18, { duration: 1.2, easeLinearity: 0.25 });
+        } else {
+          map.flyTo(coordinates, 19.2, { duration: 1.2, easeLinearity: 0.25 });
+        }
+      } else {
+        map.flyTo(coordinates, 18.5, { duration: 1.4, easeLinearity: 0.25 });
+      }
+
+      if (triggerArrivalPulse) {
+        triggerArrivalPulse(coordinates);
+      }
+    };
+
+    // Listen for toggle zoom out / in when clicking Map View
+    const handleToggleMapOverview = () => {
+      if (!map) return;
+      const currentCenter = map.getCenter();
+      const currentZoom = map.getZoom();
+      if (currentZoom >= 18.8) {
+        map.flyTo(currentCenter, 18, { duration: 1.2, easeLinearity: 0.25 });
+      } else {
+        map.flyTo(currentCenter, 19.2, { duration: 1.2, easeLinearity: 0.25 });
+      }
     };
 
     // Listen for property selection events
     const handleSelectProperty = (event) => {
       const { propertyId } = event.detail;
       setSelectedProperty(propertyId);
-      // Set flag to indicate this is a user-initiated property change
-      setIsPropertyChanging(true);
     };
 
     window.addEventListener("navigateToProperty", handleNavigateToProperty);
+    window.addEventListener("toggleMapOverview", handleToggleMapOverview);
     window.addEventListener("selectProperty", handleSelectProperty);
 
     return () => {
       window.removeEventListener("navigateToProperty", handleNavigateToProperty);
+      window.removeEventListener("toggleMapOverview", handleToggleMapOverview);
       window.removeEventListener("selectProperty", handleSelectProperty);
     };
-  }, [map, setSelectedProperty, setIsPropertyChanging]);
+  }, [map, setSelectedProperty, triggerArrivalPulse]);
 
   useEffect(() => {
     // Remove automatic centering to prevent map movement when offcanvas opens
@@ -98,13 +187,28 @@ function AdminViewMap() {
     }
   });
   const [map, setMap] = useState(null);
+  const mapWrapperRef = useRef(null);
+  const [mapLayer, setMapLayer] = useState(() => {
+    return localStorage.getItem("preferredMapLayer") || MAP_LAYERS.SATELLITE;
+  });
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(() => {
     return parseInt(localStorage.getItem("selectedProperty")) || 1;
   });
-  // Track if property change is due to user interaction vs lot click
-  const [isPropertyChanging, setIsPropertyChanging] = useState(false);
+
+  // Temporary auto-fading pulse indicator for property/location arrival
+  const [pulseCoords, setPulseCoords] = useState(null);
+  const pulseTimerRef = React.useRef(null);
+
+  const triggerArrivalPulse = useCallback((coords) => {
+    if (!coords || !Array.isArray(coords) || coords.length < 2) return;
+    setPulseCoords(coords);
+    if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+    pulseTimerRef.current = setTimeout(() => {
+      setPulseCoords(null);
+    }, 3500); // Disappears automatically after 3.5 seconds once arrived
+  }, []);
 
   // States for visual coordinate editing
   const [editingLot, setEditingLot] = useState(null);
@@ -509,17 +613,86 @@ function AdminViewMap() {
   // Property locations (dynamically derived from mapData or fallback)
   const properties = useMemo(() => {
     if (mapData && Array.isArray(mapData.properties) && mapData.properties.length > 0) {
-      return mapData.properties.map((p) => ({
-        id: p.property_id,
-        name: p.property_name || `Property ${p.property_id}`,
-        location: p.location,
-        coordinates: DEFAULT_COORDINATES_MAP[p.property_id] || [10.7372, 122.4998],
-      }));
+      return mapData.properties.map((p) => {
+        let coords = DEFAULT_COORDINATES_MAP[p.property_id];
+        // If property has lots, calculate the center of its lots
+        const propLots = (mapData.lots || []).filter(
+          (l) => l.property_id === p.property_id && l.coordinates && l.coordinates.length > 0
+        );
+
+        if (propLots.length > 0) {
+          let sumLat = 0;
+          let sumLng = 0;
+          let totalPts = 0;
+          propLots.forEach((l) => {
+            l.coordinates.forEach(([lat, lng]) => {
+              sumLat += lat;
+              sumLng += lng;
+              totalPts++;
+            });
+          });
+          if (totalPts > 0) {
+            coords = [sumLat / totalPts, sumLng / totalPts];
+            try {
+              localStorage.setItem(
+                "propertyCustomCoords_" + p.property_id,
+                JSON.stringify(coords)
+              );
+            } catch (e) {}
+          }
+        } else {
+          // Check if custom geocoded coordinates were stored for this new property
+          try {
+            const cachedCoords = localStorage.getItem("propertyCustomCoords_" + p.property_id);
+            if (cachedCoords) {
+              coords = JSON.parse(cachedCoords);
+            }
+          } catch (e) {}
+
+          // Check municipality town database
+          if (!coords) {
+            const locationText = `${p.location || ""} ${p.property_name || ""}`.toLowerCase();
+            for (const [key, townCoords] of Object.entries(MUNICIPALITY_COORDINATES)) {
+              if (locationText.includes(key)) {
+                coords = townCoords;
+                try {
+                  localStorage.setItem(
+                    "propertyCustomCoords_" + p.property_id,
+                    JSON.stringify(townCoords)
+                  );
+                } catch (e) {}
+                break;
+              }
+            }
+          }
+
+          // If still no coords, trigger geocoding right away!
+          if (!coords && (p.location || p.property_name)) {
+            const query = p.location || p.property_name;
+            geocodeAddress(query).then((geo) => {
+              if (geo && geo.lat && geo.lng) {
+                localStorage.setItem(
+                  "propertyCustomCoords_" + p.property_id,
+                  JSON.stringify([geo.lat, geo.lng])
+                );
+              }
+            }).catch(() => {});
+          }
+        }
+
+        return {
+          id: p.property_id,
+          name: p.property_name || `Property ${p.property_id}`,
+          location: p.location,
+          coordinates: coords || [10.7372, 122.4998],
+          hasLots: propLots.length > 0,
+        };
+      });
     }
     return [
-      { id: 1, name: "LOT-3896 Oton Cadastre", coordinates: [10.7372, 122.4998] },
-      { id: 2, name: "Lot-2018 Oton Cadestra", coordinates: [10.737956, 122.505478] },
-      { id: 3, name: "Lot-204 Nanga Guimbal", coordinates: [10.671313, 122.335284] },
+      { id: 1, name: "LOT-3896 Oton Cadastre", coordinates: [10.7372, 122.4998], hasLots: true },
+      { id: 2, name: "Lot-2018 Oton Cadestra", coordinates: [10.737956, 122.505478], hasLots: true },
+      { id: 3, name: "Lot-204 Nanga Guimbal", coordinates: [10.671313, 122.335284], hasLots: true },
     ];
   }, [mapData]);
 
@@ -528,33 +701,55 @@ function AdminViewMap() {
     localStorage.setItem("selectedProperty", selectedProperty.toString());
   }, [selectedProperty]);
 
-  // Center map on selected property when it changes (but only due to user interaction)
+  const prevPropertyRef = useRef(null);
+
+  // Center map on selected property automatically on mount or when switching properties (never while editing lots)
   useEffect(() => {
-    if (selectedProperty && isPropertyChanging) {
-      const coords = properties.find((p) => p.id === selectedProperty)?.coordinates;
-      if (coords) {
+    if (!map || !selectedProperty || properties.length === 0) return;
+    if (editingLot) return; // Do not pull screen away while actively editing or adding a lot!
+
+    if (prevPropertyRef.current !== selectedProperty) {
+      prevPropertyRef.current = selectedProperty;
+      const target = properties.find((p) => p.id === selectedProperty);
+      if (target && target.coordinates) {
+        // Only show arrival blue pulse if the property has NO lots yet
+        if (!target.hasLots && triggerArrivalPulse) {
+          triggerArrivalPulse(target.coordinates);
+        }
         const timer = setTimeout(() => {
-          window.dispatchEvent(
-            new CustomEvent("navigateToProperty", {
-              detail: { coordinates: coords },
-            })
-          );
-          setIsPropertyChanging(false); // Reset the flag
-        }, 100);
+          map.flyTo(target.coordinates, 18, { duration: 1.2 });
+        }, 150);
 
         return () => clearTimeout(timer);
       }
     }
-  }, [selectedProperty, properties, isPropertyChanging]);
+  }, [selectedProperty, properties, map, editingLot, triggerArrivalPulse]);
 
   // Show all lots from all properties
   const filteredLots = mapData ? mapData.lots : [];
 
+  // Lots belonging to currently selected property
+  const selectedPropertyLots = useMemo(() => {
+    if (!mapData || !Array.isArray(mapData.lots)) return [];
+    return mapData.lots.filter(
+      (l) => l.property_id === selectedProperty && l.coordinates && l.coordinates.length > 0
+    );
+  }, [mapData, selectedProperty]);
+
   // Get selected property coordinates
   const selectedPropertyCoords = useMemo(() => {
-    return (
-      properties.find((p) => p.id === selectedProperty)?.coordinates || [10.7367 + 0.0005, 122.4998]
-    );
+    const prop = properties.find((p) => p.id === selectedProperty);
+    if (prop && prop.coordinates) return prop.coordinates;
+
+    try {
+      const custom = localStorage.getItem("propertyCustomCoords_" + selectedProperty);
+      if (custom) {
+        const parsed = JSON.parse(custom);
+        if (Array.isArray(parsed) && parsed.length >= 2) return parsed;
+      }
+    } catch (e) {}
+
+    return [10.7372, 122.4998];
   }, [properties, selectedProperty]);
 
   // Helper function to get color based on status
@@ -710,17 +905,21 @@ function AdminViewMap() {
         // Deep copy
         setEditingCoords(coordinates.map((c) => [...c]));
       } else {
-        // Find property coordinates or fallback
-        const propCoords =
-          properties.find((p) => Number(p.id) === Number(property_id))?.coordinates ||
-          selectedPropertyCoords;
+        // Use current active map center if available so coordinates appear exactly where user is focused
+        const currentCenter = map ? map.getCenter() : null;
+        const baseCoords =
+          currentCenter
+            ? [currentCenter.lat, currentCenter.lng]
+            : properties.find((p) => Number(p.id) === Number(property_id))?.coordinates ||
+              selectedPropertyCoords;
+
         const offset = 0.00015;
-        // Make a square centered at property coordinates
+        // Make a square centered at current view coordinates
         setEditingCoords([
-          [propCoords[0] - offset, propCoords[1] - offset],
-          [propCoords[0] + offset, propCoords[1] - offset],
-          [propCoords[0] + offset, propCoords[1] + offset],
-          [propCoords[0] - offset, propCoords[1] + offset],
+          [baseCoords[0] - offset, baseCoords[1] - offset],
+          [baseCoords[0] + offset, baseCoords[1] - offset],
+          [baseCoords[0] + offset, baseCoords[1] + offset],
+          [baseCoords[0] - offset, baseCoords[1] + offset],
         ]);
       }
     };
@@ -729,7 +928,7 @@ function AdminViewMap() {
     return () => {
       window.removeEventListener("startVisualEdit", handleStartVisualEdit);
     };
-  }, [properties, selectedPropertyCoords]);
+  }, [map, properties, selectedPropertyCoords]);
 
   // Handle dragging the entire polygon shape
   useEffect(() => {
@@ -814,20 +1013,63 @@ function AdminViewMap() {
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
 
   return (
-    <div className="w-full h-full relative" style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}>
+    <div
+      ref={mapWrapperRef}
+      className="w-full h-full relative"
+      style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}
+    >
       <MapContainer
         center={selectedPropertyCoords}
         zoom={19}
-        maxZoom={20}
+        maxZoom={21}
+        zoomControl={false}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
-        <MapLocationSearch />
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-          maxZoom={20}
-          maxNativeZoom={18}
+        <MapLocationSearch
+          onLocationSelected={(loc) => {
+            triggerArrivalPulse(loc.coordinates);
+          }}
         />
+        <MapLayerControls
+          activeLayer={mapLayer}
+          onLayerChange={(newLayer) => {
+            setMapLayer(newLayer);
+            localStorage.setItem("preferredMapLayer", newLayer);
+          }}
+          mapContainerRef={mapWrapperRef}
+        />
+        <MapController
+          setSelectedProperty={setSelectedProperty}
+          triggerArrivalPulse={triggerArrivalPulse}
+          setMap={setMap}
+        />
+        <ActiveMapTileLayer activeLayer={mapLayer} />
 
+        {/* ── Temporary Auto-Fading Royal Blue GPS Radar Signal Beacon (Only when property has NO lots) ── */}
+        {pulseCoords && selectedPropertyLots.length === 0 && (
+          <Marker
+            position={pulseCoords}
+            icon={L.divIcon({
+              className: "arrival-blue-signal-indicator",
+              html: `
+                <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; pointer-events: none;">
+                  <!-- Outer Expanding Radar Pulse Wave 1 -->
+                  <div style="position: absolute; width: 62px; height: 62px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.45); animation: ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                  <!-- Mid Sonar Pulse Wave 2 -->
+                  <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.35); animation: ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite; animation-delay: 0.35s;"></div>
+                  <!-- Solid Royal Blue Center Beacon with Location Pin Icon -->
+                  <div style="position: relative; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; border: 3px solid #ffffff; box-shadow: 0 0 20px rgba(59, 130, 246, 0.95), 0 4px 12px rgba(0,0,0,0.45);">
+                    <svg width="18" height="18" fill="white" viewBox="0 0 24 24">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                  </div>
+                </div>
+              `,
+              iconSize: [64, 64],
+              iconAnchor: [32, 32],
+            })}
+          />
+        )}
         {/* ── Site Plan Image Overlay ───────────────────────────── */}
         {overlayImage && overlayBounds && overlayVisible && (
           <ImageOverlay
@@ -1192,14 +1434,6 @@ function AdminViewMap() {
             ))}
           </>
         )}
-
-        <MapController
-          center={selectedPropertyCoords}
-          onLotUpdated={handleLotUpdated}
-          setSelectedProperty={setSelectedProperty}
-          setIsPropertyChanging={setIsPropertyChanging}
-          setMap={setMap}
-        />
       </MapContainer>
 
       {/* Floating Coordinate Editor Panel */}

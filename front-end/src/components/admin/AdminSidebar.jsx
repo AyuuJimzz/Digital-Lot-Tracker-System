@@ -34,6 +34,11 @@ export function AdminSidebar() {
             key={item.title}
             to={item.url}
             end={item.url === "/admin-panel"}
+            onClick={() => {
+              if (item.url === "/manage-lots") {
+                window.dispatchEvent(new CustomEvent("toggleMapOverview"));
+              }
+            }}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-2.5 rounded-md text-sm transition-colors duration-200 ${
                 isActive

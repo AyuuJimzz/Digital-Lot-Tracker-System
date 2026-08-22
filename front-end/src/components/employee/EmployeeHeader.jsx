@@ -4,10 +4,88 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { User, LogOut, Settings, UserCircle, MapPin, Moon, Sun } from "lucide-react";
 import axios from "axios";
 
+import { geocodeAddress } from "../../utils/geocoding";
+
 const DEFAULT_COORDINATES_MAP = {
   1: [10.7372, 122.4998], // LOT-3896 Oton Cadastre
   2: [10.737956, 122.505478], // Lot-2018 Oton Cadestra
   3: [10.671313, 122.335284], // Lot-204 Nanga Guimbal
+};
+
+const MUNICIPALITY_COORDINATES = {
+  "barotac nuevo": [10.8906, 122.7042],
+  "barotac": [10.8906, 122.7042],
+  "oton": [10.7372, 122.4998],
+  "guimbal": [10.6713, 122.3353],
+  "nanga": [10.6713, 122.3353],
+  "pavia": [10.7744, 122.5408],
+  "santa barbara": [10.8242, 122.5342],
+  "leganes": [10.7833, 122.5833],
+  "dumangas": [10.8250, 122.7167],
+  "zarraga": [10.8217, 122.6108],
+  "pototan": [10.9472, 122.6289],
+  "janiuay": [10.9575, 122.5022],
+  "miagao": [10.6444, 122.2358],
+  "san joaquin": [10.5878, 122.1408],
+  "tigbauan": [10.6756, 122.3811],
+  "iloilo": [10.7202, 122.5621],
+  "passi": [11.1075, 122.6419],
+};
+
+// Robust coordinate resolver that checks direct coords, localStorage, town database, and geocoding
+const resolvePropertyCoords = (p) => {
+  if (!p) return [10.7372, 122.4998];
+
+  // 1. Direct coordinates if already attached to property object
+  if (p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length >= 2) {
+    if (typeof p.coordinates[0] === "number" && typeof p.coordinates[1] === "number") {
+      return p.coordinates;
+    }
+  }
+
+  const propId = p.property_id || p.id;
+
+  // 2. Custom cached coordinates from localStorage
+  try {
+    const custom = localStorage.getItem("propertyCustomCoords_" + propId);
+    if (custom) {
+      const parsed = JSON.parse(custom);
+      if (Array.isArray(parsed) && parsed.length >= 2) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+
+  // 3. Known property ID map
+  if (propId && DEFAULT_COORDINATES_MAP[propId]) {
+    return DEFAULT_COORDINATES_MAP[propId];
+  }
+
+  // 4. Known municipality matching
+  const locationText = `${p.location || ""} ${p.property_name || ""} ${p.name || ""}`.toLowerCase();
+  for (const [key, coords] of Object.entries(MUNICIPALITY_COORDINATES)) {
+    if (locationText.includes(key)) {
+      try {
+        localStorage.setItem("propertyCustomCoords_" + propId, JSON.stringify(coords));
+      } catch (e) {}
+      return coords;
+    }
+  }
+
+  // 5. Dynamic geocoding
+  if (p.location || p.property_name || p.name) {
+    const query = p.location || p.property_name || p.name;
+    geocodeAddress(query).then((geo) => {
+      if (geo && geo.lat && geo.lng) {
+        localStorage.setItem(
+          "propertyCustomCoords_" + propId,
+          JSON.stringify([geo.lat, geo.lng])
+        );
+      }
+    }).catch(() => {});
+  }
+
+  return [10.7372, 122.4998];
 };
 
 export function EmployeeHeader() {
@@ -50,11 +128,11 @@ export function EmployeeHeader() {
         const initials = getInitials(res.data.first_name, res.data.last_name);
         setProfileInitials(initials);
       } catch (err) {
-        console.error("Failed to load profile for header", err);
+        console.error("Failed to load user profile in employee header:", err);
       }
     };
     fetchProfile();
-  }, [location.pathname]); // Re-fetch occasionally when navigating
+  }, []);
 
   // Dynamic Property locations (same as AdminHeader)
   const [properties, setProperties] = useState(() => {
@@ -67,7 +145,7 @@ export function EmployeeHeader() {
             id: p.property_id,
             name: p.property_name || `Property ${p.property_id}`,
             location: p.location,
-            coordinates: DEFAULT_COORDINATES_MAP[p.property_id] || [10.7372, 122.4998],
+            coordinates: resolvePropertyCoords(p),
           }));
         }
       }
@@ -91,7 +169,7 @@ export function EmployeeHeader() {
               id: p.property_id,
               name: p.property_name || `Property ${p.property_id}`,
               location: p.location,
-              coordinates: DEFAULT_COORDINATES_MAP[p.property_id] || [10.7372, 122.4998],
+              coordinates: resolvePropertyCoords(p),
             }));
             setProperties(mapped);
             try { sessionStorage.setItem("propertiesCache", JSON.stringify(data)); } catch (e) {}
@@ -124,14 +202,30 @@ export function EmployeeHeader() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const [selectedProperty, setSelectedProperty] = useState(() => {
+    return parseInt(localStorage.getItem("selectedProperty")) || 1;
+  });
+
+  // Sync selectedProperty from localStorage on route change
+  useEffect(() => {
+    const saved = parseInt(localStorage.getItem("selectedProperty"));
+    if (saved && saved !== selectedProperty) {
+      setSelectedProperty(saved);
+    }
+  }, [location.pathname, selectedProperty]);
+
   const handlePropertySelect = (property) => {
+    setSelectedProperty(property.id);
     // Save selected property to localStorage
     localStorage.setItem("selectedProperty", property.id.toString());
+
+    // Resolve accurate coordinates
+    const targetCoords = resolvePropertyCoords(property);
 
     // Emit event to center the map
     window.dispatchEvent(
       new CustomEvent("navigateToProperty", {
-        detail: { coordinates: property.coordinates },
+        detail: { coordinates: targetCoords },
       })
     );
 
@@ -162,14 +256,17 @@ export function EmployeeHeader() {
           <div className="relative" ref={propertyDropdownRef}>
             <button
               onClick={() => setPropertyDropdownOpen(!propertyDropdownOpen)}
-              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors duration-200 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors duration-200 max-w-[220px] truncate ${
                 propertyDropdownOpen
                   ? "bg-blue-100 text-blue-700 border border-blue-200"
                   : "bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200"
               }`}
+              title="Select Property / Location"
             >
-              <MapPin className="h-4 w-4" />
-              Properties
+              <MapPin className="h-4 w-4 shrink-0 text-blue-600" />
+              <span className="truncate font-medium">
+                {properties.find((p) => p.id === selectedProperty)?.name || "Properties"}
+              </span>
             </button>
 
             {/* Property Dropdown Menu */}

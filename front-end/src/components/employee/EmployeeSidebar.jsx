@@ -34,6 +34,11 @@ export function EmployeeSidebar() {
             key={item.title}
             to={item.url}
             end={item.url === "/employee-panel"}
+            onClick={() => {
+              if (item.url === "/employee/map-view") {
+                window.dispatchEvent(new CustomEvent("toggleMapOverview"));
+              }
+            }}
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-2.5 rounded-md text-sm transition-colors duration-200 ${
                 isActive

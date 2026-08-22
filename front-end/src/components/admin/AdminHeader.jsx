@@ -1,11 +1,10 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus, HelpCircle } from "lucide-react";
+import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus } from "lucide-react";
 import axios from "axios";
-import { EditCoordinatesModal } from "./EditCoordinatesModal";
 import { AddLotModal } from "./AddLotModal";
-import { HelpGuideModal } from "./HelpGuideModal";
+import { geocodeAddress } from "../../utils/geocoding";
 
 const DEFAULT_COORDINATES_MAP = {
   1: [10.7372, 122.4998], // LOT-3896 Oton Cadastre
@@ -13,18 +12,87 @@ const DEFAULT_COORDINATES_MAP = {
   3: [10.671313, 122.335284], // Lot-204 Nanga Guimbal
 };
 
+const MUNICIPALITY_COORDINATES = {
+  "barotac nuevo": [10.8906, 122.7042],
+  "barotac": [10.8906, 122.7042],
+  "oton": [10.7372, 122.4998],
+  "guimbal": [10.6713, 122.3353],
+  "nanga": [10.6713, 122.3353],
+  "pavia": [10.7744, 122.5408],
+  "santa barbara": [10.8242, 122.5342],
+  "leganes": [10.7833, 122.5833],
+  "dumangas": [10.8250, 122.7167],
+  "zarraga": [10.8217, 122.6108],
+  "pototan": [10.9472, 122.6289],
+  "janiuay": [10.9575, 122.5022],
+  "miagao": [10.6444, 122.2358],
+  "san joaquin": [10.5878, 122.1408],
+  "tigbauan": [10.6756, 122.3811],
+  "iloilo": [10.7202, 122.5621],
+  "passi": [11.1075, 122.6419],
+};
+
+// Robust coordinate resolver that checks direct coords, localStorage, town database, and geocoding
+const resolvePropertyCoords = (p) => {
+  if (!p) return [10.7372, 122.4998];
+
+  // 1. Direct coordinates if already attached to property object
+  if (p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length >= 2) {
+    if (typeof p.coordinates[0] === "number" && typeof p.coordinates[1] === "number") {
+      return p.coordinates;
+    }
+  }
+
+  const propId = p.property_id || p.id;
+
+  // 2. Custom cached coordinates from localStorage
+  try {
+    const custom = localStorage.getItem("propertyCustomCoords_" + propId);
+    if (custom) {
+      const parsed = JSON.parse(custom);
+      if (Array.isArray(parsed) && parsed.length >= 2) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+
+  // 3. Known property ID map
+  if (propId && DEFAULT_COORDINATES_MAP[propId]) {
+    return DEFAULT_COORDINATES_MAP[propId];
+  }
+
+  // 4. Known municipality matching
+  const locationText = `${p.location || ""} ${p.property_name || ""} ${p.name || ""}`.toLowerCase();
+  for (const [key, coords] of Object.entries(MUNICIPALITY_COORDINATES)) {
+    if (locationText.includes(key)) {
+      try {
+        localStorage.setItem("propertyCustomCoords_" + propId, JSON.stringify(coords));
+      } catch (e) {}
+      return coords;
+    }
+  }
+
+  // 5. Dynamic geocoding
+  if (p.location || p.property_name || p.name) {
+    const query = p.location || p.property_name || p.name;
+    geocodeAddress(query).then((geo) => {
+      if (geo && geo.lat && geo.lng) {
+        localStorage.setItem(
+          "propertyCustomCoords_" + propId,
+          JSON.stringify([geo.lat, geo.lng])
+        );
+      }
+    }).catch(() => {});
+  }
+
+  return [10.7372, 122.4998];
+};
+
 export function AdminHeader() {
   const [isOpen, setIsOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
   const [lotsDropdownOpen, setLotsDropdownOpen] = useState(false); // dropdown state for Manage Lots
-  const [coordinatesModalOpen, setCoordinatesModalOpen] = useState(false);
   const [addLotModalOpen, setAddLotModalOpen] = useState(false);
-  const [helpGuideModalOpen, setHelpGuideModalOpen] = useState(false);
-  const [selectedLotId, setSelectedLotId] = useState("");
-  const [lotData, setLotData] = useState(null);
-  const [coordinates, setCoordinates] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [profileInitials, setProfileInitials] = useState(null);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const [selectedProperty, setSelectedProperty] = useState(() => {
@@ -83,6 +151,25 @@ export function AdminHeader() {
     return () => window.removeEventListener("selectProperty", handleSelectProperty);
   }, []);
 
+  // Listen for modal open events triggered from map popups
+  useEffect(() => {
+    const handleOpenAddLot = () => setAddLotModalOpen(true);
+
+    window.addEventListener("openAddLotModal", handleOpenAddLot);
+
+    return () => {
+      window.removeEventListener("openAddLotModal", handleOpenAddLot);
+    };
+  }, []);
+
+  // Sync selectedProperty from localStorage on route change
+  useEffect(() => {
+    const saved = parseInt(localStorage.getItem("selectedProperty"));
+    if (saved && saved !== selectedProperty) {
+      setSelectedProperty(saved);
+    }
+  }, [location.pathname, selectedProperty]);
+
   // Check if current page is AdminViewMap
   const isLotsMapPage = location.pathname === "/manage-lots";
 
@@ -97,7 +184,7 @@ export function AdminHeader() {
             id: p.property_id,
             name: p.property_name || `Property ${p.property_id}`,
             location: p.location,
-            coordinates: DEFAULT_COORDINATES_MAP[p.property_id] || [10.7372, 122.4998],
+            coordinates: resolvePropertyCoords(p),
           }));
         }
       }
@@ -119,7 +206,7 @@ export function AdminHeader() {
             id: p.property_id,
             name: p.property_name || `Property ${p.property_id}`,
             location: p.location,
-            coordinates: DEFAULT_COORDINATES_MAP[p.property_id] || [10.7372, 122.4998],
+            coordinates: resolvePropertyCoords(p),
           }));
           setProperties(mapped);
           try { sessionStorage.setItem("propertiesCache", JSON.stringify(res.data)); } catch (e) {}
@@ -151,11 +238,15 @@ export function AdminHeader() {
   // Handle property selection
   const handlePropertySelect = (property) => {
     setSelectedProperty(property.id);
+    localStorage.setItem("selectedProperty", property.id.toString());
+
+    // Resolve accurate coordinates
+    const targetCoords = resolvePropertyCoords(property);
 
     // Emit custom event to map component for navigation
     window.dispatchEvent(
       new CustomEvent("navigateToProperty", {
-        detail: { coordinates: property.coordinates },
+        detail: { coordinates: targetCoords },
       })
     );
 
@@ -186,122 +277,6 @@ export function AdminHeader() {
       setIsOpen(false);
       navigate("/", { replace: true });
     }
-  };
-
-  const handleFetchLotData = async () => {
-    if (!selectedLotId.trim()) {
-      setError("Please enter a lot ID");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/lots/${selectedLotId.trim()}`);
-      const lot = response.data;
-      setLotData(lot);
-
-      if (lot.coordinates) {
-        const coords =
-          typeof lot.coordinates === "string" ? JSON.parse(lot.coordinates) : lot.coordinates;
-        // Handle both single coordinate and polygon coordinates
-        if (Array.isArray(coords) && coords.length > 0) {
-          if (typeof coords[0] === "number") {
-            // Single coordinate [lat, lng]
-            setCoordinates([{ lat: coords[0].toString(), lng: coords[1].toString() }]);
-          } else if (Array.isArray(coords[0])) {
-            // Polygon coordinates [[lat1, lng1], [lat2, lng2], ...]
-            setCoordinates(
-              coords.map((coord) => ({
-                lat: coord[0].toString(),
-                lng: coord[1].toString(),
-              }))
-            );
-          }
-        } else {
-          setCoordinates([]);
-        }
-      } else {
-        setCoordinates([]);
-      }
-    } catch (error) {
-      setError("Lot not found or error fetching data");
-      setLotData(null);
-      setCoordinates([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateCoordinates = async () => {
-    if (!selectedLotId.trim()) {
-      setError("Please enter a lot ID");
-      return;
-    }
-
-    if (coordinates.length === 0) {
-      setError("Please add at least one coordinate pair");
-      return;
-    }
-
-    // Validate all coordinates
-    const validatedCoords = coordinates.map((coord) => {
-      const lat = parseFloat(coord.lat);
-      const lng = parseFloat(coord.lng);
-      if (isNaN(lat) || isNaN(lng)) {
-        throw new Error("All coordinates must be valid numbers");
-      }
-      return [lat, lng];
-    });
-
-    setLoading(true);
-    setError("");
-
-    try {
-      await axios.put(`${API_BASE_URL}/api/lots/${selectedLotId.trim()}/coordinates`, {
-        coordinates: validatedCoords,
-      });
-
-      // Show success message
-      alert("Coordinates updated successfully!");
-
-      // Emit custom event to refresh map data
-      window.dispatchEvent(
-        new CustomEvent("refreshMapData", {
-          detail: { lotId: selectedLotId.trim() },
-        })
-      );
-
-      setCoordinatesModalOpen(false);
-      resetModal();
-    } catch (error) {
-      setError(error.response?.data?.error || error.message || "Failed to update coordinates");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetModal = () => {
-    setSelectedLotId("");
-    setLotData(null);
-    setCoordinates([]);
-    setError("");
-  };
-
-  const openCoordinatesModal = () => {
-    resetModal();
-    setCoordinatesModalOpen(true);
-  };
-
-  const addCoordinatePair = () => {
-    setCoordinates([...coordinates, { lat: "", lng: "" }]);
-  };
-
-  const updateCoordinate = (index, field, value) => {
-    const newCoordinates = [...coordinates];
-    newCoordinates[index][field] = value;
-    setCoordinates(newCoordinates);
   };
 
   return (
@@ -347,16 +322,6 @@ export function AdminHeader() {
                   <Plus className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   Add New Lot
                 </button>
-                <button
-                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700"
-                  onClick={() => {
-                    openCoordinatesModal();
-                    setLotsDropdownOpen(false);
-                  }}
-                >
-                  <Edit className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  Edit Coordinates (Manual)
-                </button>
               </div>
             )}
           </div>
@@ -367,14 +332,17 @@ export function AdminHeader() {
           <div className="relative" ref={propertyDropdownRef}>
             <button
               onClick={() => setPropertyDropdownOpen(!propertyDropdownOpen)}
-              className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors duration-200 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors duration-200 max-w-[220px] truncate ${
                 propertyDropdownOpen
                   ? "bg-blue-100 text-blue-700 border border-blue-200"
                   : "bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200"
               }`}
+              title="Select Property / Location"
             >
-              <MapPin className="h-4 w-4" />
-              Properties
+              <MapPin className="h-4 w-4 shrink-0 text-blue-600" />
+              <span className="truncate font-medium">
+                {properties.find((p) => p.id === selectedProperty)?.name || "Properties"}
+              </span>
             </button>
 
             {/* Property Dropdown Menu */}
@@ -394,16 +362,6 @@ export function AdminHeader() {
             )}
           </div>
         )}
-
-        {/* Help & User Guide Button */}
-        <button
-          onClick={() => setHelpGuideModalOpen(true)}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800/50 transition-colors"
-          title="Open User Guide & Instructions"
-        >
-          <HelpCircle className="h-4 w-4" />
-          <span className="hidden sm:inline">Guide</span>
-        </button>
 
         {/* Global Theme Toggle Button */}
         <button
@@ -471,26 +429,6 @@ export function AdminHeader() {
           )}
         </div>
       </div>
-
-      <HelpGuideModal
-        isOpen={helpGuideModalOpen}
-        onClose={() => setHelpGuideModalOpen(false)}
-      />
-
-      <EditCoordinatesModal
-        coordinatesModalOpen={coordinatesModalOpen}
-        setCoordinatesModalOpen={setCoordinatesModalOpen}
-        selectedLotId={selectedLotId}
-        setSelectedLotId={setSelectedLotId}
-        lotData={lotData}
-        coordinates={coordinates}
-        loading={loading}
-        error={error}
-        handleFetchLotData={handleFetchLotData}
-        handleUpdateCoordinates={handleUpdateCoordinates}
-        addCoordinatePair={addCoordinatePair}
-        updateCoordinate={updateCoordinate}
-      />
 
       <AddLotModal
         addLotModalOpen={addLotModalOpen}

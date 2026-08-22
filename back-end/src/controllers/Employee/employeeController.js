@@ -26,7 +26,6 @@ exports.createEmployee = async (req, res) => {
     date_of_birth,
     gender,
     phone_number,
-    address,
   } = req.body;
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: "Required fields are missing" });
@@ -34,8 +33,8 @@ exports.createEmployee = async (req, res) => {
 
   const query = `
     INSERT INTO employees
-    (first_name, last_name, email, password, date_of_birth, gender, phone_number, address)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (first_name, last_name, email, password, date_of_birth, gender, phone_number)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
 
   try {
@@ -48,7 +47,6 @@ exports.createEmployee = async (req, res) => {
       date_of_birth,
       gender,
       phone_number,
-      address,
     ]);
     res
       .status(201)
@@ -70,13 +68,12 @@ exports.updateEmployee = async (req, res) => {
     date_of_birth,
     gender,
     phone_number,
-    address,
   } = req.body;
 
   const query = `
     UPDATE employees
     SET first_name = ?, last_name = ?, email = ?, date_of_birth = ?, 
-        gender = ?, phone_number = ?, address = ?
+        gender = ?, phone_number = ?
     WHERE employee_id = ?
   `;
 
@@ -88,7 +85,6 @@ exports.updateEmployee = async (req, res) => {
       date_of_birth,
       gender,
       phone_number,
-      address,
       id,
     ]);
 
