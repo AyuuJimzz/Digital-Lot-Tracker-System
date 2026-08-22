@@ -522,8 +522,18 @@ const EmployeeMapView = () => {
                     // Prevent any property navigation when clicking on lots
                     e.originalEvent.preventDefault();
 
-                    // Set basic lot data immediately to ensure it's available
-                    setSelectedLot(lot);
+                    const matchingProp = properties.find(
+                      (p) => Number(p.id) === Number(lot.property_id || selectedProperty)
+                    );
+                    const propName = matchingProp?.name || matchingProp?.property_name || "Golden Dragon Estate";
+                    const propLocation = matchingProp?.location || matchingProp?.name || "Guimbal, Iloilo";
+
+                    // Set basic lot data immediately with property details attached
+                    setSelectedLot({
+                      ...lot,
+                      property_name: lot.property_name || propName,
+                      location: lot.location || propLocation,
+                    });
                     setIsOffcanvasOpen(true);
 
                     // Then fetch fresh data in background
@@ -534,7 +544,11 @@ const EmployeeMapView = () => {
                           withCredentials: true,
                         }
                       );
-                      setSelectedLot(lotDetails.data);
+                      setSelectedLot({
+                        ...lotDetails.data,
+                        property_name: lotDetails.data.property_name || propName,
+                        location: lotDetails.data.location || propLocation,
+                      });
                     } catch (error) {
                       console.error("Error fetching customer data:", error);
                       // Keep the basic lot data if fetch fails
@@ -576,6 +590,17 @@ const EmployeeMapView = () => {
       <LotOffcanvas
         isAdmin={false}
         selectedLot={selectedLot}
+        propertyName={
+          properties.find((p) => Number(p.id) === Number(selectedLot?.property_id || selectedProperty))?.name ||
+          selectedLot?.property_name ||
+          "Golden Dragon Estate"
+        }
+        propertyLocation={
+          properties.find((p) => Number(p.id) === Number(selectedLot?.property_id || selectedProperty))?.location ||
+          properties.find((p) => Number(p.id) === Number(selectedLot?.property_id || selectedProperty))?.name ||
+          selectedLot?.location ||
+          "Guimbal, Iloilo"
+        }
         isOpen={isOffcanvasOpen}
         onClose={handleCloseOffcanvas}
         onLotUpdated={handleLotUpdated}
