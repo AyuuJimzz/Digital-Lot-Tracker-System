@@ -459,7 +459,7 @@ const EmployeeMapView = () => {
         />
         <ActiveMapTileLayer activeLayer={mapLayer} />
 
-        {filteredLots.map((lot, index) => {
+        {filteredLots.map((lot) => {
           // Skip lots with invalid or missing coordinates
           if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
             console.warn(
@@ -470,17 +470,15 @@ const EmployeeMapView = () => {
 
           const centerLat =
             lot.coordinates.reduce((sum, coord) => sum + coord[0], 0) / lot.coordinates.length;
-
           const centerLng =
             lot.coordinates.reduce((sum, coord) => sum + coord[1], 0) / lot.coordinates.length;
-
           const pinLat = centerLat + 0.00012;
-
           const statusColor = getStatusColor(lot.status);
 
           return (
-            <React.Fragment key={index}>
+            <React.Fragment key={`emp-lot-node-${lot.lot_id}-${lot.status}`}>
               <Polygon
+                key={`emp-poly-${lot.lot_id}-${lot.status}`}
                 positions={lot.coordinates}
                 pathOptions={{
                   color: statusColor,
@@ -501,6 +499,7 @@ const EmployeeMapView = () => {
               </Polygon>
 
               <Polyline
+                key={`emp-line-${lot.lot_id}-${centerLat}-${centerLng}`}
                 positions={[
                   [centerLat, centerLng],
                   [pinLat, centerLng],
@@ -514,6 +513,7 @@ const EmployeeMapView = () => {
               />
 
               <Marker
+                key={`emp-pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
                 position={[pinLat, centerLng]}
                 icon={createPinIcon(lot.status)}
                 eventHandlers={{

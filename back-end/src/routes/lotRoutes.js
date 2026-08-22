@@ -78,6 +78,7 @@ router.put("/:id/details", updateLotDetails);
 router.put("/property/:propertyId/bulk-shift", bulkShiftPropertyLots);
 router.delete("/:id", deleteLot);
 router.post("/send-pending-reminders", sendPendingLotReminders);
+router.get("/send-pending-reminders", sendPendingLotReminders);
 
 // Test PUT route
 router.put("/test-put/:id", (req, res) => {

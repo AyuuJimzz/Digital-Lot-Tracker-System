@@ -3,24 +3,33 @@ const db = require("../../config/database_connection");
 const nodemailer = require("nodemailer");
 
 // EMAIL TRANSPORTER SETUP
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+const getTransporter = () => {
+  const port = parseInt(process.env.EMAIL_PORT, 10) || 587;
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: port,
+    secure: port === 465,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+};
 
 // SEND EMAIL HELPER
 const sendEmail = async (to, subject, html) => {
   try {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.warn("EMAIL_USER or EMAIL_PASSWORD is not defined in environment variables.");
+      return { success: false, error: "Email credentials not configured in environment" };
+    }
+    const transporter = getTransporter();
+    const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: fromAddress,
       to,
       subject,
       html,
@@ -483,6 +492,57 @@ exports.updateLotStatus = async (req, res) => {
           );
         }
       }
+
+      // Send instant confirmation email immediately to customer upon reservation
+      if (email && email.trim()) {
+        (async () => {
+          try {
+            const [propRows] = await db.query(
+              "SELECT property_name, location FROM properties WHERE property_id = ?",
+              [lot.property_id]
+            );
+            const propName = propRows[0]?.property_name || "Golden Dragon Estate";
+            const propLoc = propRows[0]?.location || "Iloilo, Philippines";
+
+            const instantEmailHtml = `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #0f172a; color: white; padding: 20px 24px;">
+                  <h2 style="margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px;">Golden Dragon Real Estate Corp.</h2>
+                  <p style="margin: 4px 0 0 0; font-size: 12px; color: #94a3b8;">Official Lot Reservation Confirmation</p>
+                </div>
+                <div style="padding: 24px; color: #1e293b; line-height: 1.6;">
+                  <p>Dear <strong>${(fullName || "").trim() || "Valued Customer"}</strong>,</p>
+                  <p>Your reservation for the following lot has been officially recorded in our system as <strong>PENDING</strong>:</p>
+                  <div style="background-color: #f8fafc; padding: 16px; border-radius: 6px; margin: 18px 0; border: 1px solid #e2e8f0;">
+                    <p style="margin: 0 0 6px 0;"><strong>Property / Estate:</strong> ${propName}</p>
+                    <p style="margin: 0 0 6px 0;"><strong>Location:</strong> ${propLoc}</p>
+                    <p style="margin: 0 0 6px 0;"><strong>Lot Designation:</strong> ${lot.lot_number}</p>
+                    <p style="margin: 0 0 6px 0;"><strong>Lot Area:</strong> ${lot.area_sqm ? Number(lot.area_sqm).toFixed(2) + " sq.m." : "N/A"}</p>
+                    <p style="margin: 0 0 6px 0;"><strong>Status:</strong> <span style="color: #d97706; font-weight: bold;">PENDING RESERVATION</span></p>
+                    <p style="margin: 0;"><strong>Date Reserved:</strong> ${new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "long", timeStyle: "short" })}</p>
+                  </div>
+                  <p>Please note that reservations are held temporarily. To finalize your acquisition, kindly proceed with your document verification or contact our sales team.</p>
+                  <p style="color: #64748b; font-size: 13px; margin-top: 24px;">
+                    For any questions or assistance, feel free to contact our support team or visit our office.
+                  </p>
+                </div>
+                <div style="background-color: #f1f5f9; padding: 12px 24px; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; text-align: center;">
+                  Golden Dragon Digital Lot Tracker System &bull; Official Reservation Record
+                </div>
+              </div>
+            `;
+
+            await sendEmail(
+              email.trim(),
+              `Lot Reservation Confirmation - ${lot.lot_number} (${propName})`,
+              instantEmailHtml
+            );
+            console.log(`Instant reservation confirmation email sent to ${email.trim()}`);
+          } catch (mailErr) {
+            console.error("Error sending instant pending email:", mailErr);
+          }
+        })();
+      }
     } else if (status === "Sold" && lot.status !== "Sold") {
       // Setting to Sold - create/update transaction record
       const customerResult = await db.query("SELECT customer_id FROM customers WHERE lot_id = ?", [
@@ -709,6 +769,7 @@ exports.sendPendingLotReminders = async (req, res) => {
         AND l.pending_since IS NOT NULL
         AND l.pending_since < DATE_SUB(NOW(), INTERVAL 24 HOUR)
         AND l.last_reminder_sent IS NOT NULL
+        AND l.last_reminder_sent < DATE_SUB(NOW(), INTERVAL 11 HOUR)
         AND c.email IS NOT NULL
     `);
 

@@ -1238,7 +1238,7 @@ function AdminViewMap() {
             );
           })()}
 
-        {filteredLots.map((lot, index) => {
+        {filteredLots.map((lot) => {
           // Skip rendering original polygon if it's currently being edited visually
           if (editingLot && lot.lot_id === editingLot.lot_id) {
             return null;
@@ -1262,16 +1262,14 @@ function AdminViewMap() {
               : lot.coordinates;
 
           const centerLat = coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
-
           const centerLng = coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
-
           const pinLat = centerLat + 0.00012;
-
           const statusColor = getStatusColor(lot.status);
 
           return (
-            <React.Fragment key={index}>
+            <React.Fragment key={`lot-node-${lot.lot_id}-${lot.status}`}>
               <Polygon
+                key={`poly-${lot.lot_id}-${lot.status}`}
                 positions={coords}
                 pathOptions={{
                   color: statusColor,
@@ -1292,6 +1290,7 @@ function AdminViewMap() {
               </Polygon>
 
               <Polyline
+                key={`line-${lot.lot_id}-${centerLat}-${centerLng}`}
                 positions={[
                   [centerLat, centerLng],
                   [pinLat, centerLng],
@@ -1305,6 +1304,7 @@ function AdminViewMap() {
               />
 
               <Marker
+                key={`pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
                 position={[pinLat, centerLng]}
                 icon={createPinIcon(lot.status)}
                 eventHandlers={{
