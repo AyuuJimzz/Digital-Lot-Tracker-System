@@ -36,8 +36,8 @@
       })();
     </script>
     <script>
-      // Apply saved theme on page load (no flash)
-      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      // Apply saved theme on page load (no flash) — defaults to dark
+      if (localStorage.theme !== 'light') {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');

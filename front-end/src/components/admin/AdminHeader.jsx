@@ -94,7 +94,7 @@ export function AdminHeader() {
   const [lotsDropdownOpen, setLotsDropdownOpen] = useState(false); // dropdown state for Manage Lots
   const [addLotModalOpen, setAddLotModalOpen] = useState(false);
   const [profileInitials, setProfileInitials] = useState(null);
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
   const [selectedProperty, setSelectedProperty] = useState(() => {
     return parseInt(localStorage.getItem("selectedProperty")) || 1;
   });
@@ -349,11 +349,11 @@ export function AdminHeader() {
 
             {/* Property Dropdown Menu */}
             {propertyDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[9999]">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[9999]">
                 {properties.map((property) => (
                   <button
                     key={property.id}
-                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                     onClick={() => handlePropertySelect(property)}
                   >
                     <MapPin className="mr-2 h-4 w-4 text-gray-400" />
@@ -395,9 +395,9 @@ export function AdminHeader() {
 
           {/* Dropdown Menu */}
           {isOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[9999]">
+            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[9999]">
               <button
-                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                 onClick={() => {
                   setIsOpen(false);
                   navigate("/settings", { state: { tab: "profile" } });
@@ -408,7 +408,7 @@ export function AdminHeader() {
               </button>
 
               <button
-                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                 onClick={() => {
                   setIsOpen(false);
                   navigate("/settings", { state: { tab: "security" } });
@@ -418,10 +418,10 @@ export function AdminHeader() {
                 Settings
               </button>
 
-              <div className="border-t border-gray-100 my-1"></div>
+              <div className="border-t border-gray-100 dark:border-slate-700 my-1"></div>
 
               <button
-                className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                 onClick={handleLogout}
               >
                 <LogOut className="mr-2 h-4 w-4" />

@@ -304,7 +304,7 @@ const EmployeeMapView = () => {
 
   const prevPropertyRef = useRef(null);
 
-  // Center map on selected property with smooth zoom out / glide flyTo animation on mount or property change
+  // Center map on selected property with cinematic zoom-out → glide → zoom-in animation
   useEffect(() => {
     if (!map || !selectedProperty || properties.length === 0) return;
 
@@ -313,7 +313,32 @@ const EmployeeMapView = () => {
       const target = properties.find((p) => p.id === selectedProperty);
       if (target && target.coordinates) {
         const timer = setTimeout(() => {
-          map.flyTo(target.coordinates, 18, { duration: 1.5 });
+          const currentCenter = map.getCenter();
+          const currentZoom = map.getZoom();
+          const dist = Math.hypot(
+            currentCenter.lat - target.coordinates[0],
+            currentCenter.lng - target.coordinates[1]
+          );
+
+          if (dist < 0.008) {
+            // Same area: gentle zoom nudge
+            map.flyTo(target.coordinates, 18.5, { duration: 1.3, easeLinearity: 0.2 });
+          } else {
+            // Far away: cinematic pull-back → glide → arrive
+            const midZoom = Math.max(11, currentZoom - 4);
+            const midLat = (currentCenter.lat + target.coordinates[0]) / 2;
+            const midLng = (currentCenter.lng + target.coordinates[1]) / 2;
+
+            // Step 1: pull back to mid-point overview
+            map.flyTo([midLat, midLng], midZoom, { duration: 0.85, easeLinearity: 0.35 });
+
+            // Step 2: after zoom-out lands, glide into the destination
+            map.once("moveend", () => {
+              setTimeout(() => {
+                map.flyTo(target.coordinates, 18.5, { duration: 1.5, easeLinearity: 0.18 });
+              }, 80);
+            });
+          }
         }, 150);
         return () => clearTimeout(timer);
       }
@@ -325,11 +350,11 @@ const EmployeeMapView = () => {
     localStorage.setItem("selectedProperty", selectedProperty.toString());
   }, [selectedProperty]);
 
-  // Show only lots from the selected property (not all at once — reduces lag when switching)
+  // Show ALL lots from all properties so every property is visible at any zoom level
   const filteredLots = useMemo(() => {
     if (!mapData || !Array.isArray(mapData.lots)) return [];
-    return mapData.lots.filter((l) => l.property_id === selectedProperty);
-  }, [mapData, selectedProperty]);
+    return mapData.lots;
+  }, [mapData]);
 
   // Get selected property coordinates
   const selectedPropertyCoords = useMemo(() => {
@@ -452,8 +477,18 @@ const EmployeeMapView = () => {
         <MapLayerControls
           activeLayer={mapLayer}
           onLayerChange={(newLayer) => {
+            // Save current map position before layer switch
+            const currentCenter = map ? map.getCenter() : null;
+            const currentZoom = map ? map.getZoom() : null;
             setMapLayer(newLayer);
             localStorage.setItem("preferredMapLayer", newLayer);
+            // Restore position after React re-renders the new TileLayer
+            if (map && currentCenter && currentZoom) {
+              setTimeout(() => {
+                map.setView([currentCenter.lat, currentCenter.lng], currentZoom, { animate: false });
+                map.invalidateSize();
+              }, 50);
+            }
           }}
           mapContainerRef={mapWrapperRef}
         />

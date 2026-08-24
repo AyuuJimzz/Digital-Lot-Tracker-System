@@ -97,7 +97,7 @@ export function EmployeeHeader() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
 
   useEffect(() => {
     if (theme === "dark") {
@@ -277,11 +277,11 @@ export function EmployeeHeader() {
 
             {/* Property Dropdown Menu */}
             {propertyDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[9999]">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[9999]">
                 {properties.map((property) => (
                   <button
                     key={property.id}
-                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                     onClick={() => handlePropertySelect(property)}
                   >
                     <MapPin className="mr-2 h-4 w-4 text-gray-400" />
@@ -323,9 +323,9 @@ export function EmployeeHeader() {
 
           {/* Dropdown Menu */}
           {isOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[1100]">
+            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[1100]">
               <button
-                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                 onClick={() => {
                   setIsOpen(false);
                   navigate("/employee/settings", { state: { tab: "profile" } });
@@ -336,7 +336,7 @@ export function EmployeeHeader() {
               </button>
 
               <button
-                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                 onClick={() => {
                   setIsOpen(false);
                   navigate("/employee/settings", { state: { tab: "security" } });
@@ -346,7 +346,7 @@ export function EmployeeHeader() {
                 Settings
               </button>
 
-              <div className="border-t border-gray-100 my-1"></div>
+              <div className="border-t border-gray-100 dark:border-slate-700 my-1"></div>
 
               <button
                 className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
