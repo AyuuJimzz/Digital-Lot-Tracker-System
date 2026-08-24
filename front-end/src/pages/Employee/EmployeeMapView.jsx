@@ -56,6 +56,7 @@ const MUNICIPALITY_COORDINATES = {
 function MapController({
   setSelectedProperty,
   setMap,
+  setCurrentZoom,
 }) {
   const map = useMap();
 
@@ -63,7 +64,19 @@ function MapController({
     if (setMap) {
       setMap(map);
     }
-  }, [map, setMap]);
+    if (setCurrentZoom) {
+      setCurrentZoom(map.getZoom());
+    }
+    const handleZoomEnd = () => {
+      if (setCurrentZoom) {
+        setCurrentZoom(map.getZoom());
+      }
+    };
+    map.on("zoomend", handleZoomEnd);
+    return () => {
+      map.off("zoomend", handleZoomEnd);
+    };
+  }, [map, setMap, setCurrentZoom]);
 
   // Ensure map recalculates its exact full-screen dimensions to prevent grey/unrendered tiles
   useEffect(() => {
@@ -171,6 +184,7 @@ const EmployeeMapView = () => {
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
   const [map, setMap] = useState(null);
+  const [currentZoom, setCurrentZoom] = useState(19);
   const mapWrapperRef = useRef(null);
   const [mapLayer, setMapLayer] = useState(() => {
     return localStorage.getItem("preferredMapLayer") || MAP_LAYERS.SATELLITE;
@@ -471,6 +485,10 @@ const EmployeeMapView = () => {
         maxZoom={21}
         zoomControl={false}
         attributionControl={false}
+        preferCanvas={true}
+        zoomAnimation={true}
+        fadeAnimation={true}
+        markerZoomAnimation={true}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
         <MapLocationSearch />
@@ -479,13 +497,13 @@ const EmployeeMapView = () => {
           onLayerChange={(newLayer) => {
             // Save current map position before layer switch
             const currentCenter = map ? map.getCenter() : null;
-            const currentZoom = map ? map.getZoom() : null;
+            const currentZoomVal = map ? map.getZoom() : null;
             setMapLayer(newLayer);
             localStorage.setItem("preferredMapLayer", newLayer);
             // Restore position after React re-renders the new TileLayer
-            if (map && currentCenter && currentZoom) {
+            if (map && currentCenter && currentZoomVal) {
               setTimeout(() => {
-                map.setView([currentCenter.lat, currentCenter.lng], currentZoom, { animate: false });
+                map.setView([currentCenter.lat, currentCenter.lng], currentZoomVal, { animate: false });
                 map.invalidateSize();
               }, 50);
             }
@@ -495,6 +513,7 @@ const EmployeeMapView = () => {
         <MapController
           setSelectedProperty={setSelectedProperty}
           setMap={setMap}
+          setCurrentZoom={setCurrentZoom}
         />
         <ActiveMapTileLayer activeLayer={mapLayer} />
 
@@ -514,6 +533,42 @@ const EmployeeMapView = () => {
           const pinLat = centerLat + 0.00012;
           const statusColor = getStatusColor(lot.status);
 
+          const handleLotClick = async (e) => {
+            if (e?.originalEvent) {
+              e.originalEvent.stopPropagation();
+              e.originalEvent.preventDefault();
+            }
+
+            const matchingProp = properties.find(
+              (p) => Number(p.id) === Number(lot.property_id || selectedProperty)
+            );
+            const propName = matchingProp?.name || matchingProp?.property_name || "Golden Dragon Estate";
+            const propLocation = matchingProp?.location || matchingProp?.name || "Guimbal, Iloilo";
+
+            // Set basic lot data immediately with property details attached
+            setSelectedLot({
+              ...lot,
+              property_name: lot.property_name || propName,
+              location: lot.location || propLocation,
+            });
+            setIsOffcanvasOpen(true);
+
+            // Then fetch fresh data in background
+            try {
+              const lotDetails = await axios.get(
+                `${API_BASE_URL}/api/lots/${lot.lot_id}`,
+                { withCredentials: true }
+              );
+              setSelectedLot({
+                ...lotDetails.data,
+                property_name: lotDetails.data.property_name || propName,
+                location: lotDetails.data.location || propLocation,
+              });
+            } catch (error) {
+              console.error("Error fetching customer data:", error);
+            }
+          };
+
           return (
             <React.Fragment key={`emp-lot-node-${lot.lot_id}-${lot.status}`}>
               <Polygon
@@ -523,7 +578,10 @@ const EmployeeMapView = () => {
                   color: statusColor,
                   fillColor: statusColor,
                   fillOpacity: 0.6,
-                  weight: 3,
+                  weight: 2,
+                }}
+                eventHandlers={{
+                  click: handleLotClick,
                 }}
               >
                 <Popup>
@@ -537,89 +595,57 @@ const EmployeeMapView = () => {
                 </Popup>
               </Polygon>
 
-              <Polyline
-                key={`emp-line-${lot.lot_id}-${centerLat}-${centerLng}`}
-                positions={[
-                  [centerLat, centerLng],
-                  [pinLat, centerLng],
-                ]}
-                pathOptions={{
-                  color: "#ffffff",
-                  weight: 1,
-                  dashArray: "2, 4",
-                  opacity: 0.7,
-                }}
-              />
+              {currentZoom >= 17 && (
+                <>
+                  <Polyline
+                    key={`emp-line-${lot.lot_id}-${centerLat}-${centerLng}`}
+                    positions={[
+                      [centerLat, centerLng],
+                      [pinLat, centerLng],
+                    ]}
+                    pathOptions={{
+                      color: "#ffffff",
+                      weight: 1,
+                      dashArray: "2, 4",
+                      opacity: 0.7,
+                    }}
+                  />
 
-              <Marker
-                key={`emp-pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
-                position={[pinLat, centerLng]}
-                icon={createPinIcon(lot.status)}
-                eventHandlers={{
-                  click: async (e) => {
-                    e.originalEvent.stopPropagation();
-                    // Prevent any property navigation when clicking on lots
-                    e.originalEvent.preventDefault();
-
-                    const matchingProp = properties.find(
-                      (p) => Number(p.id) === Number(lot.property_id || selectedProperty)
-                    );
-                    const propName = matchingProp?.name || matchingProp?.property_name || "Golden Dragon Estate";
-                    const propLocation = matchingProp?.location || matchingProp?.name || "Guimbal, Iloilo";
-
-                    // Set basic lot data immediately with property details attached
-                    setSelectedLot({
-                      ...lot,
-                      property_name: lot.property_name || propName,
-                      location: lot.location || propLocation,
-                    });
-                    setIsOffcanvasOpen(true);
-
-                    // Then fetch fresh data in background
-                    try {
-                      const lotDetails = await axios.get(
-                        `${API_BASE_URL}/api/lots/${lot.lot_id}`,
-                        {
-                          withCredentials: true,
-                        }
-                      );
-                      setSelectedLot({
-                        ...lotDetails.data,
-                        property_name: lotDetails.data.property_name || propName,
-                        location: lotDetails.data.location || propLocation,
-                      });
-                    } catch (error) {
-                      console.error("Error fetching customer data:", error);
-                      // Keep the basic lot data if fetch fails
-                    }
-                  },
-                }}
-              >
-                <Tooltip permanent={false} direction="top" offset={[0, -32]}>
-                  <div className="text-center text-xs leading-tight">
-                    <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
-                    <div className="mb-1 font-bold">{lot.lot_number}</div>
-                    <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
-                    <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
-                      {lot.status}
-                    </div>
-                    {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
-                      <>
-                        <div className="mt-2 pt-2 border-t border-gray-300">
-                          <div className="text-[11px] text-gray-700">
-                            <div className="font-semibold">Customer Info:</div>
-                            <div>{lot.customer.full_name || "N/A"}</div>
-                            <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
-                            <div className="text-gray-600">
-                              {lot.customer.contact_number || "N/A"}
-                            </div>
-                          </div>
+                  <Marker
+                    key={`emp-pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
+                    position={[pinLat, centerLng]}
+                    icon={createPinIcon(lot.status)}
+                    eventHandlers={{
+                      click: handleLotClick,
+                    }}
+                  >
+                    <Tooltip permanent={false} direction="top" offset={[0, -32]}>
+                      <div className="text-center text-xs leading-tight">
+                        <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
+                        <div className="mb-1 font-bold">{lot.lot_number}</div>
+                        <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
+                        <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
+                          {lot.status}
                         </div>
-                      </>
-                    )}
-                  </div>
-                </Tooltip>
-              </Marker>
+                        {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
+                          <>
+                            <div className="mt-2 pt-2 border-t border-gray-300">
+                              <div className="text-[11px] text-gray-700">
+                                <div className="font-semibold">Customer Info:</div>
+                                <div>{lot.customer.full_name || "N/A"}</div>
+                                <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
+                                <div className="text-gray-600">
+                                  {lot.customer.contact_number || "N/A"}
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </Tooltip>
+                  </Marker>
+                </>
+              )}
             </React.Fragment>
           );
         })}
