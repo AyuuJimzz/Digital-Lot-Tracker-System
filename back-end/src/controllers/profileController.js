@@ -2,7 +2,7 @@
 const db = require("../../config/database_connection");
 
 exports.getProfile = async (req, res) => {
-  const user = req.session?.user;
+  const user = req.user; // set by sessionOrToken middleware (supports session + JWT)
   if (!user) return res.status(401).json({ message: "Not authenticated" });
 
   try {
@@ -44,7 +44,7 @@ exports.getProfile = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
-  const user = req.session?.user;
+  const user = req.user; // set by sessionOrToken middleware (supports session + JWT)
   if (!user) return res.status(401).json({ message: "Not authenticated" });
 
   const { email, first_name, last_name, phone_number } = req.body;
@@ -101,8 +101,8 @@ exports.updateProfile = async (req, res) => {
 
     await db.query(query, values);
 
-    // Update session email
-    if (req.session.user) {
+    // Update session email if session exists (not available in JWT-only auth)
+    if (req.session?.user) {
       req.session.user.email = email;
     }
 
@@ -116,7 +116,7 @@ exports.updateProfile = async (req, res) => {
 const bcrypt = require("bcryptjs");
 
 exports.changePassword = async (req, res) => {
-  const user = req.session?.user;
+  const user = req.user; // set by sessionOrToken middleware (supports session + JWT)
   if (!user) return res.status(401).json({ message: "Not authenticated" });
 
   const { currentPassword, newPassword } = req.body;

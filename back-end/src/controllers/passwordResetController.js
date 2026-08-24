@@ -158,7 +158,7 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     const { newPassword, confirmPassword } = req.body;
-    const user = req.session?.user;
+    const user = req.user; // set by sessionOrToken middleware (supports session + JWT)
 
     if (!user) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -192,8 +192,10 @@ const resetPassword = async (req, res) => {
       );
     }
 
-    // Update session
-    req.session.user.password_reset_required = false;
+    // Update session if it exists (not available in JWT-only auth)
+    if (req.session?.user) {
+      req.session.user.password_reset_required = false;
+    }
 
     return res.json({ message: "Password successfully reset" });
   } catch (error) {
