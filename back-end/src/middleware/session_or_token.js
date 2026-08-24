@@ -16,7 +16,8 @@ const sessionOrToken = ({ roles = [], permission } = {}) => {
       }
 
       // Helper function to handle unauthorized/forbidden responses
-      const frontendUrl = process.env.FRONTEND_URL || "https://golden-dragon-estate.onrender.com";
+      // Set FRONTEND_URL in your hosting provider's environment variables (e.g., Render)
+      const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:3000";
       const handleUnauthorized = (status, message, redirectPath) => {
         if (req.headers.accept && req.headers.accept.includes("text/html")) {
           return res.redirect(
