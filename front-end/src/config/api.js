@@ -6,8 +6,9 @@ const getApiUrl = () => {
   if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
+  // Automatically use live Render backend URL when accessed from Vercel or any non-localhost domain
   if (typeof window !== 'undefined' && window.location && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    console.warn('[api.js] REACT_APP_API_URL is not set — falling back to localhost:5000. Set it in your hosting environment variables.');
+    return 'https://golden-dragon-estate-backend.onrender.com';
   }
   return 'http://localhost:5000';
 };

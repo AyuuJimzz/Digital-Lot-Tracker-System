@@ -6,22 +6,45 @@ const mysql = require('mysql2/promise');
 
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
-const host = process.env.DB_HOST || 'localhost';
-const port = parseInt(process.env.DB_PORT || '3306');
-const user = process.env.DB_USER || 'root';
-const password = process.env.DB_PASSWORD || '';
-const database = process.env.DB_NAME || 'golden_dragon_corp';
-const isCloud = host.includes('aivencloud.com') || process.env.DB_SSL === 'true';
+// Support direct password or full Service URI argument:
+// node scripts/import_cloud_db.js <password_or_service_uri>
+const args = process.argv.slice(2);
+const cliInput = args[0];
 
-const connectionConfig = {
-  host,
-  port,
-  user,
-  password,
-  database,
-  multipleStatements: true,
-  ...(isCloud ? { ssl: { rejectUnauthorized: false } } : {})
-};
+let connectionConfig;
+
+if (cliInput && (cliInput.startsWith('mysql://') || cliInput.startsWith('mysqls://'))) {
+  const parsed = new URL(cliInput);
+  connectionConfig = {
+    host: parsed.hostname,
+    port: parseInt(parsed.port || '3306'),
+    user: decodeURIComponent(parsed.username || 'avnadmin'),
+    password: decodeURIComponent(parsed.password || ''),
+    database: parsed.pathname.replace(/^\//, '') || 'defaultdb',
+    multipleStatements: true,
+    ssl: { rejectUnauthorized: false }
+  };
+} else {
+  const cliPassword = cliInput;
+  const host = cliPassword 
+    ? 'golden-dragon-estate-database-goldendragonestate.d.aivencloud.com' 
+    : (process.env.DB_HOST || 'localhost');
+  const port = cliPassword ? 10488 : parseInt(process.env.DB_PORT || '3306');
+  const user = cliPassword ? 'avnadmin' : (process.env.DB_USER || 'root');
+  const password = cliPassword || process.env.DB_PASSWORD || '';
+  const database = cliPassword ? 'defaultdb' : (process.env.DB_NAME || 'golden_dragon_corp');
+  const isCloud = host.includes('aivencloud.com') || process.env.DB_SSL === 'true' || Boolean(cliPassword);
+
+  connectionConfig = {
+    host,
+    port,
+    user,
+    password,
+    database,
+    multipleStatements: true,
+    ...(isCloud ? { ssl: { rejectUnauthorized: false } } : {})
+  };
+}
 
 async function importDatabase() {
   console.log(`Connecting to Cloud MySQL host (${connectionConfig.host}:${connectionConfig.port})...`);
@@ -48,6 +71,7 @@ async function importDatabase() {
       '04_golden_dragon_corp_admins.sql',
       '05_golden_dragon_corp_employees.sql',
       '06_golden_dragon_corp_transactions.sql',
+      '07_password_reset_columns.sql',
     ];
 
     for (const file of sqlFiles) {
@@ -57,7 +81,9 @@ async function importDatabase() {
         continue;
       }
       console.log(`Importing ${file}...`);
-      const sqlContent = fs.readFileSync(filePath, 'utf8');
+      let sqlContent = fs.readFileSync(filePath, 'utf8');
+      // Strip any hardcoded USE `database_name` statements so it imports into current database
+      sqlContent = sqlContent.replace(/^USE\s+[^;]+;/gmi, '');
       await connection.query(sqlContent);
       console.log(`  ✅ ${file} imported successfully!`);
     }
