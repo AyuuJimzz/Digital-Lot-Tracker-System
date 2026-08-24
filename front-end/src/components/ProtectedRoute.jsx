@@ -7,6 +7,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 	const [auth, setAuth] = useState({ loading: true, isAuthorized: false });
 
 	useEffect(() => {
+		// Restore saved JWT token for cross-origin deployments (Vercel + Render)
+		const savedToken = localStorage.getItem("authToken");
+		if (savedToken) {
+			axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+		}
 		axios
 			.get(`${API_BASE_URL}/api/auth/check-session`, {
 				withCredentials: true,

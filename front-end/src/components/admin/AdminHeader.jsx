@@ -269,11 +269,13 @@ export function AdminHeader() {
           withCredentials: true,
         }
       );
-
-      setIsOpen(false);
-      navigate("/", { replace: true });
     } catch (error) {
       console.error("Logout failed:", error);
+    } finally {
+      localStorage.removeItem("role");
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("password_reset_required");
+      delete axios.defaults.headers.common["Authorization"];
       setIsOpen(false);
       navigate("/", { replace: true });
     }

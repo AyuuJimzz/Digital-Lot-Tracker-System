@@ -14,6 +14,11 @@ function Login({ setRole }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Restore saved JWT token for cross-origin deployments (Vercel + Render)
+    const savedToken = localStorage.getItem("authToken");
+    if (savedToken) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
+    }
     axios
       .get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true })
       .then((response) => {
@@ -25,7 +30,9 @@ function Login({ setRole }) {
       })
       .catch(() => {
         localStorage.removeItem("role");
+        localStorage.removeItem("authToken");
         localStorage.removeItem("password_reset_required");
+        delete axios.defaults.headers.common["Authorization"];
       });
   }, [navigate, setRole]);
 
@@ -41,6 +48,11 @@ function Login({ setRole }) {
       );
       const userRole = response.data.user.role;
       const passwordResetRequired = response.data.password_reset_required;
+      // Save JWT token for cross-origin deployments (Vercel + Render)
+      if (response.data.token) {
+        localStorage.setItem("authToken", response.data.token);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
+      }
       localStorage.setItem("role", userRole);
       localStorage.setItem("password_reset_required", passwordResetRequired ? "true" : "false");
       setRole(userRole);

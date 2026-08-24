@@ -238,11 +238,17 @@ export function EmployeeHeader() {
         method: "POST",
         credentials: "include",
       });
-
-      setIsOpen(false);
-      navigate("/", { replace: true });
     } catch (error) {
       console.error("Logout failed:", error);
+    } finally {
+      localStorage.removeItem("role");
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("password_reset_required");
+      // Clear axios auth header
+      const axios = (await import("axios")).default;
+      delete axios.defaults.headers.common["Authorization"];
+      setIsOpen(false);
+      navigate("/", { replace: true });
     }
   };
 
