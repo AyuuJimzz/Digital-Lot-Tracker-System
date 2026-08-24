@@ -1,5 +1,7 @@
 // API Configuration for local dev & production deployment
 // Set REACT_APP_API_URL in your hosting provider's environment variables (e.g., Vercel)
+import axios from 'axios';
+
 const getApiUrl = () => {
   if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
@@ -11,3 +13,10 @@ const getApiUrl = () => {
 };
 
 export const API_BASE_URL = getApiUrl();
+
+// Auto-restore JWT token for cross-origin deployments (Vercel frontend + Render backend).
+// Session cookies are blocked cross-domain, so we use the JWT token stored after login.
+const savedToken = localStorage.getItem('authToken');
+if (savedToken) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+}
