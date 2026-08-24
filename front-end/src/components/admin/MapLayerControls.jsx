@@ -10,15 +10,19 @@ export const MAP_LAYERS = {
 
 /**
  * Component that renders the appropriate map TileLayer based on active layer.
- * Uses maxNativeZoom={20} to fetch crisp native HD satellite photography tiles.
+ * Uses {s} subdomain rotation (mt0-mt3) + crossOrigin=false to fix Chrome's
+ * strict referrer policy that blocks Google tiles from localhost/production.
  */
 export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
   if (activeLayer === MAP_LAYERS.STREETS) {
     return (
       <TileLayer
-        url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        maxZoom={22}
+        url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+        subdomains={["mt0", "mt1", "mt2", "mt3"]}
+        maxZoom={21}
         maxNativeZoom={20}
+        crossOrigin={false}
+        errorTileUrl="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
     );
   }
@@ -26,19 +30,26 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
   if (activeLayer === MAP_LAYERS.HYBRID) {
     return (
       <TileLayer
-        url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-        maxZoom={22}
+        url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+        subdomains={["mt0", "mt1", "mt2", "mt3"]}
+        maxZoom={21}
         maxNativeZoom={20}
+        crossOrigin={false}
+        errorTileUrl="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
       />
     );
   }
 
-  // Default: Satellite Imagery
+  // Default: Google Satellite — best coverage in Philippines
+  // Uses subdomain rotation to bypass per-server rate limits and Chrome referrer blocks
   return (
     <TileLayer
-      url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-      maxZoom={22}
+      url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+      subdomains={["mt0", "mt1", "mt2", "mt3"]}
+      maxZoom={21}
       maxNativeZoom={20}
+      crossOrigin={false}
+      errorTileUrl="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     />
   );
 }

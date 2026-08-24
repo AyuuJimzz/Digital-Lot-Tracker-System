@@ -725,8 +725,11 @@ function AdminViewMap() {
     }
   }, [selectedProperty, properties, map, editingLot, triggerArrivalPulse]);
 
-  // Show all lots from all properties
-  const filteredLots = mapData ? mapData.lots : [];
+  // Show only lots from the selected property (not all at once — reduces lag when switching)
+  const filteredLots = useMemo(() => {
+    if (!mapData || !Array.isArray(mapData.lots)) return [];
+    return mapData.lots.filter((l) => l.property_id === selectedProperty);
+  }, [mapData, selectedProperty]);
 
   // Lots belonging to currently selected property
   const selectedPropertyLots = useMemo(() => {
@@ -1023,6 +1026,7 @@ function AdminViewMap() {
         zoom={19}
         maxZoom={21}
         zoomControl={false}
+        attributionControl={false}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
         <MapLocationSearch
