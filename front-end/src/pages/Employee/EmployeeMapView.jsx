@@ -53,6 +53,35 @@ const MUNICIPALITY_COORDINATES = {
   "passi": [11.1075, 122.6419],
 };
 
+ // ── Glowing Emerald Overview Location Beacon for Zoomed-Out View (< 17) ──
+const createOverviewPropertyIcon = (name, lotCount) => {
+  return L.divIcon({
+    className: "property-overview-beacon-marker",
+    html: `
+      <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer; transform: translate(-50%, -100%);">
+        <!-- Glowing Emerald Radar Pulse Wave -->
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
+          <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background-color: rgba(16, 185, 129, 0.45); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+          <!-- Inner Solid Emerald Beacon Pin -->
+          <div style="position: relative; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #047857); border: 2.5px solid #ffffff; box-shadow: 0 0 16px rgba(16, 185, 129, 0.95), 0 4px 8px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+            <svg width="15" height="15" fill="white" viewBox="0 0 24 24">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+          </div>
+        </div>
+        <!-- High-Contrast Floating Label Pill -->
+        <div style="margin-top: 4px; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px); border: 1.5px solid rgba(16, 185, 129, 0.8); padding: 3px 9px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(0,0,0,0.6); white-space: nowrap; display: flex; align-items: center; gap: 5px;">
+          <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #34d399; box-shadow: 0 0 8px #34d399;"></span>
+          <span style="color: #ffffff; font-size: 11.5px; font-weight: 700; letter-spacing: 0.3px; text-shadow: 0 1px 2px rgba(0,0,0,0.9);">${name}</span>
+          ${lotCount > 0 ? `<span style="background: rgba(16, 185, 129, 0.25); color: #6ee7b7; font-size: 10px; padding: 1px 5px; border-radius: 6px; font-weight: 600;">${lotCount} lots</span>` : ""}
+        </div>
+      </div>
+    `,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+  });
+};
+
 function MapController({
   setSelectedProperty,
   setMap,
@@ -69,14 +98,16 @@ function MapController({
     if (setCurrentZoom) {
       setCurrentZoom(map.getZoom());
     }
-    const handleZoomEnd = () => {
+    const handleZoom = () => {
       if (setCurrentZoom) {
         setCurrentZoom(map.getZoom());
       }
     };
-    map.on("zoomend", handleZoomEnd);
+    map.on("zoom", handleZoom);
+    map.on("zoomend", handleZoom);
     return () => {
-      map.off("zoomend", handleZoomEnd);
+      map.off("zoom", handleZoom);
+      map.off("zoomend", handleZoom);
     };
   }, [map, setMap, setCurrentZoom]);
 
@@ -134,24 +165,14 @@ function MapController({
       // If already viewing this location, toggle subtle zoom out (18) or zoom in (19)
       if (dist < 0.002) {
         if (currentZoom >= 18.8) {
-          map.flyTo(coordinates, 18, { duration: 1.2, easeLinearity: 0.25 });
+          map.flyTo(coordinates, 18, { duration: 1.0, easeLinearity: 0.25 });
         } else {
-          map.flyTo(coordinates, 19.2, { duration: 1.2, easeLinearity: 0.25 });
+          map.flyTo(coordinates, 19.2, { duration: 1.0, easeLinearity: 0.25 });
         }
-      } else if (dist < 0.008) {
-        map.flyTo(coordinates, 18.5, { duration: 1.3, easeLinearity: 0.2 });
       } else {
-        const midZoom = Math.max(14, currentZoom - 3.5);
-        const midLat = (currentCenter.lat + coordinates[0]) / 2;
-        const midLng = (currentCenter.lng + coordinates[1]) / 2;
-
-        map.flyTo([midLat, midLng], midZoom, { duration: 0.85, easeLinearity: 0.35 });
-
-        map.once("moveend", () => {
-          setTimeout(() => {
-            map.flyTo(coordinates, 18.5, { duration: 1.4, easeLinearity: 0.2 });
-          }, 60);
-        });
+        // Direct smooth cinematic glide straight to target coordinates
+        const duration = dist < 0.01 ? 1.2 : 1.8;
+        map.flyTo(coordinates, 18.5, { duration, easeLinearity: 0.25 });
       }
 
       // Only show arrival pulse beacon if the target location has NO lots yet
@@ -377,32 +398,19 @@ const EmployeeMapView = () => {
         const timer = setTimeout(() => {
           map.stop();
           const currentCenter = map.getCenter();
-          const currentZoom = map.getZoom();
           const dist = Math.hypot(
             currentCenter.lat - target.coordinates[0],
             currentCenter.lng - target.coordinates[1]
           );
 
-          if (dist < 0.008) {
-            // Same area: gentle zoom nudge
-            map.flyTo(target.coordinates, 18.5, { duration: 1.3, easeLinearity: 0.2 });
+          if (dist < 0.002) {
+            map.flyTo(target.coordinates, 18.5, { duration: 1.0, easeLinearity: 0.25 });
           } else {
-            // Far away: cinematic pull-back → glide → arrive
-            const midZoom = Math.max(14, currentZoom - 3.5);
-            const midLat = (currentCenter.lat + target.coordinates[0]) / 2;
-            const midLng = (currentCenter.lng + target.coordinates[1]) / 2;
-
-            // Step 1: pull back to mid-point overview
-            map.flyTo([midLat, midLng], midZoom, { duration: 0.85, easeLinearity: 0.35 });
-
-            // Step 2: after zoom-out lands, glide into the destination
-            map.once("moveend", () => {
-              setTimeout(() => {
-                map.flyTo(target.coordinates, 18.5, { duration: 1.4, easeLinearity: 0.2 });
-              }, 60);
-            });
+            // Direct smooth cinematic glide straight to target property
+            const duration = dist < 0.01 ? 1.2 : 1.8;
+            map.flyTo(target.coordinates, 18.5, { duration, easeLinearity: 0.25 });
           }
-        }, 120);
+        }, 100);
         return () => clearTimeout(timer);
       }
     }
@@ -579,6 +587,27 @@ const EmployeeMapView = () => {
           properties={properties}
         />
         <ActiveMapTileLayer activeLayer={mapLayer} />
+
+        {/* ── Zoomed-Out Overview Green Property Location Beacons (< 17 zoom) ── */}
+        {currentZoom < 17 &&
+          properties.map((property) => {
+            if (!property.coordinates || !Array.isArray(property.coordinates) || property.coordinates.length < 2) return null;
+            return (
+              <Marker
+                key={`overview-prop-${property.id}`}
+                position={property.coordinates}
+                icon={createOverviewPropertyIcon(property.name, property.lotCount || 0)}
+                eventHandlers={{
+                  click: () => {
+                    setSelectedProperty(property.id);
+                    if (map) {
+                      map.flyTo(property.coordinates, 18.5, { duration: 1.5, easeLinearity: 0.25 });
+                    }
+                  },
+                }}
+              />
+            );
+          })}
 
         {/* ── Temporary Auto-Fading Royal Blue GPS Radar Signal Beacon (Only when property has NO lots) ── */}
         {pulseCoords && selectedPropertyLots.length === 0 && (
