@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Layers, Maximize, Minimize } from "lucide-react";
 import { TileLayer } from "react-leaflet";
 
@@ -89,51 +89,46 @@ export function MapLayerControls({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Listen to browser fullscreen change events
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
-    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
-    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
-    };
-  }, []);
-
-  // Toggle fullscreen mode
-  const handleToggleFullscreen = () => {
+  // Toggle fullscreen presentation mode safely across mobile and desktop
+  const handleToggleFullscreen = useCallback(() => {
     try {
-      const targetElement = mapContainerRef?.current || document.documentElement;
+      const targetElement = mapContainerRef?.current;
+      const willBeFullscreen = !isFullscreen;
+      setIsFullscreen(willBeFullscreen);
 
-      if (!document.fullscreenElement) {
-        if (targetElement.requestFullscreen) {
-          targetElement.requestFullscreen();
-        } else if (targetElement.webkitRequestFullscreen) {
-          targetElement.webkitRequestFullscreen();
-        } else if (targetElement.msRequestFullscreen) {
-          targetElement.msRequestFullscreen();
-        }
-      } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        } else if (document.msExitFullscreen) {
-          document.msExitFullscreen();
+      if (targetElement) {
+        if (willBeFullscreen) {
+          targetElement.classList.add("map-presentation-fullscreen");
+        } else {
+          targetElement.classList.remove("map-presentation-fullscreen");
         }
       }
+
+      window.dispatchEvent(
+        new CustomEvent("presentationModeChange", {
+          detail: { isFullscreen: willBeFullscreen },
+        })
+      );
+
+      // Recalculate map dimensions
+      setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, 80);
     } catch (err) {
       console.error("Fullscreen toggle error:", err);
     }
-  };
+  }, [isFullscreen, mapContainerRef]);
+
+  // Listen to Escape key to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && isFullscreen) {
+        handleToggleFullscreen();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFullscreen, handleToggleFullscreen]);
 
   const layerOptions = [
     {

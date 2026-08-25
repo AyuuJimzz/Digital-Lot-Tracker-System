@@ -19,22 +19,13 @@ export function MapLocationSearch({ onLocationSelected }) {
 
   // Listen to fullscreen changes to hide search bar during presentation
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(
-        !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement)
-      );
+    const handlePresentationChange = (e) => {
+      setIsFullscreen(!!e.detail.isFullscreen);
     };
 
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
-    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
-    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
-
+    window.addEventListener("presentationModeChange", handlePresentationChange);
     return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
-      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+      window.removeEventListener("presentationModeChange", handlePresentationChange);
     };
   }, []);
 
