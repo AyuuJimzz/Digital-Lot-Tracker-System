@@ -13,7 +13,7 @@ const generateToken = (user) => {
 			canManageEmployees: user.canManageEmployees || false,
 		},
 		process.env.JWT_SECRET,
-		{ expiresIn: "1h" },
+		{ expiresIn: "30d" },
 	);
 };
 
