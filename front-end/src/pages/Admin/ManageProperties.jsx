@@ -285,48 +285,54 @@ const ManageProperties = () => {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Property List ({properties.length})</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full divide-y divide-gray-200 dark:divide-slate-700">
+          <table className="w-full divide-y divide-gray-200 dark:divide-slate-700 table-auto">
             <thead className="bg-gray-50 dark:bg-slate-800">
               <tr>
-                {["ID", "Property Name", "Location", "Total Lots", "Status", "Created At", "Actions"].map((col) => (
-                  <th key={col} className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">{col}</th>
-                ))}
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-12 hidden sm:table-cell">ID</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Property Name</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Location</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-20">Total Lots</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-20">Status</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell">Created At</th>
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-28">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
               {properties.length === 0 ? (
-                <tr><td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500 dark:text-slate-400">No properties found</td></tr>
+                <tr><td colSpan="7" className="px-3 py-4 text-center text-sm text-gray-500 dark:text-slate-400">No properties found</td></tr>
               ) : (
                 properties.map((property) => (
                   <tr key={property.property_id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-6 py-3 text-center whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{property.property_id}</td>
-                    <td className="px-6 py-3 text-center whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{property.property_name}</td>
-                    <td className="px-6 py-3 text-center whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{property.location}</td>
-                    <td className="px-6 py-3 text-center whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{property.total_lots}</td>
-                    <td className="px-6 py-3 text-center whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${property.status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
+                    <td className="px-3 py-3 text-left text-sm text-gray-900 dark:text-slate-300 hidden sm:table-cell">{property.property_id}</td>
+                    <td className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white break-words">{property.property_name}</td>
+                    <td className="px-3 py-3 text-left text-sm text-gray-500 dark:text-slate-400 break-words">{property.location}</td>
+                    <td className="px-2 py-3 text-center text-sm text-gray-500 dark:text-slate-400">{property.total_lots}</td>
+                    <td className="px-2 py-3 text-center">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${property.status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
                         {property.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-center whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{new Date(property.created_at).toLocaleDateString()}</td>
-                    <td className="px-6 py-3 text-center whitespace-nowrap text-sm font-medium">
-                      <button onClick={() => handleEdit(property)} className="inline-flex items-center justify-center w-8 h-8 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(property.property_id, property.status)}
-                        className={`inline-flex items-center justify-center w-8 h-8 rounded-md shadow-sm text-sm font-medium mx-2 transition-colors ${
-                          property.status === "active"
-                            ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50"
-                            : "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
-                        }`}
-                        title={property.status === "active" ? "Deactivate" : "Activate"}
-                      >
-                        {property.status === "active" ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                      </button>
-                      <button onClick={() => handleDelete(property.property_id)} className="inline-flex items-center justify-center w-8 h-8 text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    <td className="px-3 py-3 text-center text-sm text-gray-500 dark:text-slate-400 hidden lg:table-cell whitespace-nowrap">{new Date(property.created_at).toLocaleDateString()}</td>
+                    <td className="px-3 py-3 text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => handleEdit(property)} className="inline-flex items-center justify-center w-7 h-7 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors" title="Edit">
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleToggleStatus(property.property_id, property.status)}
+                          className={`inline-flex items-center justify-center w-7 h-7 rounded-md text-sm font-medium transition-colors ${
+                            property.status === "active"
+                              ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50"
+                              : "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+                          }`}
+                          title={property.status === "active" ? "Deactivate" : "Activate"}
+                        >
+                          {property.status === "active" ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        </button>
+                        <button onClick={() => handleDelete(property.property_id)} className="inline-flex items-center justify-center w-7 h-7 text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors" title="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

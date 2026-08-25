@@ -6,7 +6,8 @@ const DesktopOnlyGuard = ({ children }) => {
 
   useEffect(() => {
     const checkScreen = () => {
-      setIsMobile(window.innerWidth < 1024);
+      // Block only phones (<768px), allow tablets and desktops (768px+)
+      setIsMobile(window.innerWidth < 768);
     };
 
     checkScreen();
@@ -25,20 +26,26 @@ const DesktopOnlyGuard = ({ children }) => {
           </div>
 
           <h1 className="text-2xl font-bold text-white mb-3">
-            Desktop Only
+            Tablet or Desktop Required
           </h1>
 
           <p className="text-slate-300 text-base leading-relaxed mb-6">
-            This system is designed for <span className="text-amber-400 font-semibold">desktop and laptop computers only</span>. 
-            Please access this website using a PC or laptop with a screen width of at least 1024px.
+            This system is designed for{" "}
+            <span className="text-amber-400 font-semibold">
+              tablets and desktop computers
+            </span>
+            . Please access this website using a tablet or PC with a screen width of at least 768px.
           </p>
 
           <div className="bg-slate-700/50 rounded-xl p-4 mb-6">
             <p className="text-sm text-slate-400">
-              💻 Minimum Screen: <span className="text-white font-medium">1024 x 768</span>
+              📱 Minimum Screen: <span className="text-white font-medium">768 x 600</span>
             </p>
             <p className="text-sm text-slate-400 mt-1">
-              📱 Your Screen: <span className="text-red-400 font-medium">{window.innerWidth} x {window.innerHeight}</span>
+              📏 Your Screen:{" "}
+              <span className="text-red-400 font-medium">
+                {window.innerWidth} x {window.innerHeight}
+              </span>
             </p>
           </div>
 

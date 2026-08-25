@@ -78,19 +78,16 @@ const RecentTransactions = () => {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200 dark:divide-slate-700">
+        <table className="w-full divide-y divide-gray-200 dark:divide-slate-700 table-auto">
           <thead className="bg-gray-50 dark:bg-slate-800">
             <tr>
-              {["Transaction ID", "Client", "Lot #", "Property", "Date", "Payment", "Status"].map(
-                (col) => (
-                  <th
-                    key={col}
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider"
-                  >
-                    {col}
-                  </th>
-                )
-              )}
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-16">Txn ID</th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Client</th>
+              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-16">Lot #</th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Property</th>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">Date</th>
+              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell">Payment</th>
+              <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-20">Status</th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
@@ -112,29 +109,29 @@ const RecentTransactions = () => {
                   key={txn.transaction_id}
                   className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
                 >
-                  <td className="px-3 py-4 whitespace-nowrap text-sm font-semibold text-blue-600 dark:text-blue-400">
-                    {txn.transaction_id}
+                  <td className="px-3 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                    #{txn.transaction_id}
                   </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">
+                  <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-slate-300 break-words">
                     {txn.customer_name}
                   </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-400">
+                  <td className="px-2 py-3 text-center text-sm text-gray-700 dark:text-slate-400">
                     {txn.lot_number}
                   </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-400">
+                  <td className="px-3 py-3 text-sm text-gray-700 dark:text-slate-400 break-words">
                     {txn.property_name}
                   </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-500">
+                  <td className="px-3 py-3 text-center text-sm text-gray-500 dark:text-slate-500 hidden md:table-cell whitespace-nowrap">
                     {txn.transaction_date}
                   </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
+                  <td className="px-2 py-3 text-center hidden lg:table-cell">
                     <span
                       className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${PAYMENT_STYLES[txn.payment_type] || "bg-gray-100 text-gray-700"}`}
                     >
                       {txn.payment_type}
                     </span>
                   </td>
-                  <td className="px-3 py-4 whitespace-nowrap">
+                  <td className="px-3 py-3 text-right">
                     <span
                       className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_STYLES[txn.status] || "bg-gray-100 text-gray-800"}`}
                     >

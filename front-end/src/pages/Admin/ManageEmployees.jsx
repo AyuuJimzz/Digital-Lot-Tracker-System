@@ -291,19 +291,16 @@ const ManageEmployees = () => {
           </h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+          <table className="w-full divide-y divide-gray-200 dark:divide-slate-700 table-auto">
             <thead className="bg-gray-50 dark:bg-slate-800">
               <tr>
-                {["ID", "Name", "Email", "Phone", "Gender", "Date of Birth", "Actions"].map(
-                  (col) => (
-                    <th
-                      key={col}
-                      className={`px-6 py-3 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider ${col === "Actions" ? "text-right" : "text-left"}`}
-                    >
-                      {col}
-                    </th>
-                  )
-                )}
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-12 hidden sm:table-cell">ID</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Name</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Phone</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell">Gender</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell">Date of Birth</th>
+                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-20">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
@@ -311,7 +308,7 @@ const ManageEmployees = () => {
                 <tr>
                   <td
                     colSpan="7"
-                    className="px-6 py-4 text-center text-sm text-gray-500 dark:text-slate-400"
+                    className="px-3 py-4 text-center text-sm text-gray-500 dark:text-slate-400"
                   >
                     No employees found
                   </td>
@@ -322,39 +319,43 @@ const ManageEmployees = () => {
                     key={employee.employee_id}
                     className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">
+                    <td className="px-3 py-3 text-sm text-gray-900 dark:text-slate-300 hidden sm:table-cell">
                       {employee.employee_id}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white break-words">
                       {employee.first_name} {employee.last_name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
+                    <td className="px-3 py-3 text-sm text-gray-500 dark:text-slate-400 break-all">
                       {employee.email}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
                       {employee.phone_number || "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400 hidden lg:table-cell">
                       {employee.gender || "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400 hidden lg:table-cell">
                       {employee.date_of_birth
                         ? new Date(employee.date_of_birth).toLocaleDateString()
                         : "N/A"}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(employee)}
-                        className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-3 transition-colors"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(employee.employee_id)}
-                        className="inline-flex items-center text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    <td className="px-3 py-3 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(employee)}
+                          className="inline-flex items-center justify-center text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(employee.employee_id)}
+                          className="inline-flex items-center justify-center text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

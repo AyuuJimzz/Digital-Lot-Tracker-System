@@ -94,9 +94,9 @@ const MySales = () => {
 
       {!error && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className={cardCls}>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Total Sales Records</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Total Filtered</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-2">{salesLots.length}</p>
             </div>
             <div className={cardCls}>
@@ -128,18 +128,18 @@ const MySales = () => {
                     <thead className="bg-gray-50 dark:bg-slate-800">
                       <tr>
                         {["Sale Ref", "Lot Number", "Property", "Area (sqm)", "Status"].map((col) => (
-                          <th key={col} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">{col}</th>
+                          <th key={col} className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">{col}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                       {paginatedSales.map((sale) => (
                         <tr key={sale.lot_id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">#S-{sale.lot_id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{sale.lot_number}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">Property {sale.property_id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{sale.area_sqm ?? "-"}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">#S-{sale.lot_id}</td>
+                          <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{sale.lot_number}</td>
+                          <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">Property {sale.property_id}</td>
+                          <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{sale.area_sqm ?? "-"}</td>
+                          <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(sale.status)}`}>{sale.status ?? "Unknown"}</span>
                           </td>
                         </tr>

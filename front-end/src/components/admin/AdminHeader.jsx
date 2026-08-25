@@ -88,7 +88,7 @@ const resolvePropertyCoords = (p) => {
   return [10.7372, 122.4998];
 };
 
-export function AdminHeader() {
+export function AdminHeader({ sidebarCollapsed }) {
   const [isOpen, setIsOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
   const [lotsDropdownOpen, setLotsDropdownOpen] = useState(false); // dropdown state for Manage Lots
@@ -282,7 +282,10 @@ export function AdminHeader() {
   };
 
   return (
-    <header className="fixed top-0 left-56 right-0 h-14 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-6 z-30 overflow-visible transition-colors duration-300">
+    <header
+      className="fixed top-0 right-0 h-14 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-4 sm:px-6 z-30 overflow-visible transition-all duration-300"
+      style={{ left: sidebarCollapsed ? "4rem" : "14rem" }}
+    >
       <span className="font-medium text-gray-900 dark:text-white">Admin Panel</span>
 
       <div className="flex items-center gap-3">

@@ -215,30 +215,30 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
       {!loading && !error && sortedItems.length > 0 && (
         <>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+            <table className="w-full divide-y divide-gray-200 dark:divide-slate-700 table-auto">
               <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-16">
                     <button type="button" onClick={() => handleSort("id")} className="inline-flex items-center gap-1">
                       Lot ID <span>{getSortIndicator("id")}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     <button type="button" onClick={() => handleSort("lotNumber")} className="inline-flex items-center gap-1">
                       Lot Number <span>{getSortIndicator("lotNumber")}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     <button type="button" onClick={() => handleSort("propertyId")} className="inline-flex items-center gap-1">
                       Property <span>{getSortIndicator("propertyId")}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell w-28">
                     <button type="button" onClick={() => handleSort("area")} className="inline-flex items-center gap-1">
                       Area (sqm) <span>{getSortIndicator("area")}</span>
                     </button>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-24">
                     <button type="button" onClick={() => handleSort("status")} className="inline-flex items-center gap-1">
                       Status <span>{getSortIndicator("status")}</span>
                     </button>
@@ -248,11 +248,11 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
               <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                 {paginatedItems.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">#{item.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{item.lotNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">Property {item.propertyId}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{item.area ?? "-"}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400">#{item.id}</td>
+                    <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-slate-300">{item.lotNumber}</td>
+                    <td className="px-3 py-3 text-sm text-gray-700 dark:text-slate-300">Property {item.propertyId}</td>
+                    <td className="px-3 py-3 text-center text-sm text-gray-700 dark:text-slate-300 hidden sm:table-cell">{item.area ?? "-"}</td>
+                    <td className="px-3 py-3 text-right">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(item.status)}`}>
                         {item.status}
                       </span>

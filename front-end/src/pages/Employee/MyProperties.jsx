@@ -110,18 +110,18 @@ const MyProperties = () => {
                   <thead className="bg-gray-50 dark:bg-slate-800">
                     <tr>
                       {["Lot ID", "Lot Number", "Property", "Area (sqm)", "Status"].map((col) => (
-                        <th key={col} className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">{col}</th>
+                        <th key={col} className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">{col}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                     {paginatedLots.map((lot) => (
                       <tr key={lot.lot_id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">#{lot.lot_id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{lot.lot_number}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">Property {lot.property_id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{lot.area_sqm ?? "-"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">#{lot.lot_id}</td>
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{lot.lot_number}</td>
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">Property {lot.property_id}</td>
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{lot.area_sqm ?? "-"}</td>
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(lot.status)}`}>{lot.status ?? "Unknown"}</span>
                         </td>
                       </tr>

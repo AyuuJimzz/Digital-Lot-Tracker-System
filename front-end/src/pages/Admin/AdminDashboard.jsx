@@ -114,15 +114,11 @@ const AdminDashboard = () => {
         </h1>
       </div>
 
-      {/* Top Row Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Stat Cards — 2 cols on tablet, 3 cols on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard title="Place Location" value="Iloilo City" />
         <StatCard title="Total Lots" value={String(stats.totalLots)} />
         <StatCard title="Lots Sold" value={String(stats.soldLots)} />
-      </div>
-
-      {/* Secondary Row Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard title="Lots Available" value={String(stats.availableLots)} />
         <StatCard title="Lots Pending" value={String(stats.pendingLots)} />
         <StatCard title="Total Clients" value={String(stats.totalClients)} />
@@ -130,10 +126,10 @@ const AdminDashboard = () => {
 
       {/* Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7 min-w-0">
           <MonthlyRecapReport data={monthlyData} />
         </div>
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 min-w-0">
           <LotsSoldProperties
             properties={propertiesData}
             selectedMonth={selectedPeriod}

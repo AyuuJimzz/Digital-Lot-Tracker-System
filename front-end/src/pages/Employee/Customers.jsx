@@ -140,7 +140,7 @@ const Customers = () => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
           <p className="text-sm text-gray-500 dark:text-slate-400">Total Clients</p>
           <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-2">
@@ -183,7 +183,7 @@ const Customers = () => {
                     {["Full Name", "Contact Number", "Email", "Address", "Status"].map((col) => (
                       <th
                         key={col}
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider"
+                        className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider"
                       >
                         {col}
                       </th>
@@ -196,16 +196,16 @@ const Customers = () => {
                       key={customer.customer_id ?? idx}
                       className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                      <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">
                         {customer.full_name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
                         {customer.contact_number}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">
+                      <td className="px-3 py-3 text-sm text-gray-700 dark:text-slate-300 break-all">
                         {customer.email}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700 dark:text-slate-300">
+                      <td className="px-3 py-3 text-sm text-gray-700 dark:text-slate-300">
                         {customer.address}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
