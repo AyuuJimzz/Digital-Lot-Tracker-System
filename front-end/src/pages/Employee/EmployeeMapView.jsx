@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../../config/api";
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
 import {
   MapContainer,
@@ -52,11 +52,12 @@ const MUNICIPALITY_COORDINATES = {
   "passi": [11.1075, 122.6419],
 };
 
-// Component to handle map centering, smooth flyTo animation, and event listening
 function MapController({
   setSelectedProperty,
   setMap,
   setCurrentZoom,
+  triggerArrivalPulse,
+  properties,
 }) {
   const map = useMap();
 
@@ -135,8 +136,30 @@ function MapController({
         } else {
           map.flyTo(coordinates, 19.2, { duration: 1.2, easeLinearity: 0.25 });
         }
+      } else if (dist < 0.008) {
+        map.flyTo(coordinates, 18.5, { duration: 1.3, easeLinearity: 0.2 });
       } else {
-        map.flyTo(coordinates, 18.5, { duration: 1.4, easeLinearity: 0.25 });
+        const midZoom = Math.max(11, currentZoom - 4);
+        const midLat = (currentCenter.lat + coordinates[0]) / 2;
+        const midLng = (currentCenter.lng + coordinates[1]) / 2;
+
+        map.flyTo([midLat, midLng], midZoom, { duration: 0.85, easeLinearity: 0.35 });
+
+        map.once("moveend", () => {
+          setTimeout(() => {
+            map.flyTo(coordinates, 18.5, { duration: 1.5, easeLinearity: 0.18 });
+          }, 80);
+        });
+      }
+
+      // Only show arrival pulse beacon if the target location has NO lots yet
+      const targetProp = properties.find(
+        (p) =>
+          p.coordinates &&
+          Math.hypot(p.coordinates[0] - coordinates[0], p.coordinates[1] - coordinates[1]) < 0.005
+      );
+      if (targetProp && !targetProp.hasLots && triggerArrivalPulse) {
+        triggerArrivalPulse(coordinates);
       }
     };
 
@@ -167,7 +190,7 @@ function MapController({
       window.removeEventListener("toggleMapOverview", handleToggleMapOverview);
       window.removeEventListener("selectProperty", handleSelectProperty);
     };
-  }, [map, setSelectedProperty]);
+  }, [map, setSelectedProperty, triggerArrivalPulse, properties]);
 
   return null;
 }
@@ -190,11 +213,23 @@ const EmployeeMapView = () => {
     return localStorage.getItem("preferredMapLayer") || MAP_LAYERS.SATELLITE;
   });
 
-  // Get selected property from localStorage, default to Property 1 if not found
   const [selectedProperty, setSelectedProperty] = useState(() => {
     const savedProperty = localStorage.getItem("selectedProperty");
     return savedProperty ? parseInt(savedProperty) : 1;
   });
+
+  // Temporary auto-fading pulse indicator for property/location arrival
+  const [pulseCoords, setPulseCoords] = useState(null);
+  const pulseTimerRef = useRef(null);
+
+  const triggerArrivalPulse = useCallback((coords) => {
+    if (!coords || !Array.isArray(coords) || coords.length < 2) return;
+    setPulseCoords(coords);
+    if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+    pulseTimerRef.current = setTimeout(() => {
+      setPulseCoords(null);
+    }, 3500);
+  }, []);
 
   // Property locations (same as AdminHeader) - derived from mapData or fallback
   const properties = useMemo(() => {
@@ -326,6 +361,10 @@ const EmployeeMapView = () => {
       prevPropertyRef.current = selectedProperty;
       const target = properties.find((p) => p.id === selectedProperty);
       if (target && target.coordinates) {
+        // Only show arrival blue pulse if the property has NO lots yet
+        if (!target.hasLots && triggerArrivalPulse) {
+          triggerArrivalPulse(target.coordinates);
+        }
         const timer = setTimeout(() => {
           const currentCenter = map.getCenter();
           const currentZoom = map.getZoom();
@@ -357,12 +396,20 @@ const EmployeeMapView = () => {
         return () => clearTimeout(timer);
       }
     }
-  }, [selectedProperty, properties, map]);
+  }, [selectedProperty, properties, map, currentZoom, triggerArrivalPulse]);
 
   // Save selected property to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("selectedProperty", selectedProperty.toString());
   }, [selectedProperty]);
+
+  // Lots belonging to currently selected property
+  const selectedPropertyLots = useMemo(() => {
+    if (!mapData || !Array.isArray(mapData.lots)) return [];
+    return mapData.lots.filter(
+      (l) => l.property_id === selectedProperty && l.coordinates && l.coordinates.length > 0
+    );
+  }, [mapData, selectedProperty]);
 
   // Show ALL lots from all properties so every property is visible at any zoom level
   const filteredLots = useMemo(() => {
@@ -491,7 +538,11 @@ const EmployeeMapView = () => {
         markerZoomAnimation={true}
         style={{ height: "100%", width: "100%", zIndex: 1 }}
       >
-        <MapLocationSearch />
+        <MapLocationSearch
+          onLocationSelected={(loc) => {
+            triggerArrivalPulse(loc.coordinates);
+          }}
+        />
         <MapLayerControls
           activeLayer={mapLayer}
           onLayerChange={(newLayer) => {
@@ -514,8 +565,33 @@ const EmployeeMapView = () => {
           setSelectedProperty={setSelectedProperty}
           setMap={setMap}
           setCurrentZoom={setCurrentZoom}
+          triggerArrivalPulse={triggerArrivalPulse}
+          properties={properties}
         />
         <ActiveMapTileLayer activeLayer={mapLayer} />
+
+        {/* ── Temporary Auto-Fading Royal Blue GPS Radar Signal Beacon (Only when property has NO lots) ── */}
+        {pulseCoords && selectedPropertyLots.length === 0 && (
+          <Marker
+            position={pulseCoords}
+            icon={L.divIcon({
+              className: "arrival-blue-signal-indicator",
+              html: `
+                <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; pointer-events: none;">
+                  <div style="position: absolute; width: 62px; height: 62px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.45); animation: ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                  <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.35); animation: ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite; animation-delay: 0.35s;"></div>
+                  <div style="position: relative; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; border: 3px solid #ffffff; box-shadow: 0 0 20px rgba(59, 130, 246, 0.95), 0 4px 12px rgba(0,0,0,0.45);">
+                    <svg width="18" height="18" fill="white" viewBox="0 0 24 24">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
+                  </div>
+                </div>
+              `,
+              iconSize: [64, 64],
+              iconAnchor: [32, 32],
+            })}
+          />
+        )}
 
         {filteredLots.map((lot) => {
           // Skip lots with invalid or missing coordinates

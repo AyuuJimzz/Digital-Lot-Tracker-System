@@ -143,8 +143,20 @@ function MapController({
         } else {
           map.flyTo(coordinates, 19.2, { duration: 1.2, easeLinearity: 0.25 });
         }
+      } else if (dist < 0.008) {
+        map.flyTo(coordinates, 18.5, { duration: 1.3, easeLinearity: 0.2 });
       } else {
-        map.flyTo(coordinates, 18.5, { duration: 1.4, easeLinearity: 0.25 });
+        const midZoom = Math.max(11, currentZoom - 4);
+        const midLat = (currentCenter.lat + coordinates[0]) / 2;
+        const midLng = (currentCenter.lng + coordinates[1]) / 2;
+
+        map.flyTo([midLat, midLng], midZoom, { duration: 0.85, easeLinearity: 0.35 });
+
+        map.once("moveend", () => {
+          setTimeout(() => {
+            map.flyTo(coordinates, 18.5, { duration: 1.5, easeLinearity: 0.18 });
+          }, 80);
+        });
       }
 
       if (triggerArrivalPulse) {

@@ -214,6 +214,17 @@ export function EmployeeHeader() {
     }
   }, [location.pathname, selectedProperty]);
 
+  // Listen for property selection events
+  useEffect(() => {
+    const handleSelectProperty = (event) => {
+      const { propertyId } = event.detail;
+      setSelectedProperty(propertyId);
+      localStorage.setItem("selectedProperty", propertyId.toString());
+    };
+    window.addEventListener("selectProperty", handleSelectProperty);
+    return () => window.removeEventListener("selectProperty", handleSelectProperty);
+  }, []);
+
   const handlePropertySelect = (property) => {
     setSelectedProperty(property.id);
     // Save selected property to localStorage
@@ -226,6 +237,12 @@ export function EmployeeHeader() {
     window.dispatchEvent(
       new CustomEvent("navigateToProperty", {
         detail: { coordinates: targetCoords },
+      })
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("selectProperty", {
+        detail: { propertyId: property.id },
       })
     );
 
@@ -349,7 +366,7 @@ export function EmployeeHeader() {
               <div className="border-t border-gray-100 dark:border-slate-700 my-1"></div>
 
               <button
-                className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                className="flex w-full items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                 onClick={handleLogout}
               >
                 <LogOut className="mr-2 h-4 w-4" />
