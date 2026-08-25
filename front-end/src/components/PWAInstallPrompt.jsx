@@ -7,6 +7,7 @@ export default function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
+
   useEffect(() => {
     // Check if already running in standalone/installed mode
     const isStandalone =
@@ -14,26 +15,38 @@ export default function PWAInstallPrompt() {
       window.navigator.standalone ||
       document.referrer.includes("android-app://");
 
-    if (isStandalone) {
-      return; // Already running as an installed app — do not show prompt
-    }
+    if (isStandalone) return;
 
     // Check if user dismissed prompt in current browser tab/session
-    const isDismissedThisSession = sessionStorage.getItem("pwa_install_dismissed_session");
-    if (isDismissedThisSession) {
-      return; // Hide for current tab session after clicking 'Later'
+    if (sessionStorage.getItem("pwa_install_dismissed_session")) return;
+
+    // ── Case 1: Chrome fired beforeinstallprompt BEFORE React mounted ──
+    // We already captured it in index.html via window.__pwaInstallEvent
+    if (window.__pwaInstallEvent) {
+      setDeferredPrompt(window.__pwaInstallEvent);
+      setShowPrompt(true);
+      return;
     }
 
-    // 1. Chrome / Edge / Android / Windows PWA Install Event
-    const handleBeforeInstallPrompt = (e) => {
+    // ── Case 2: Chrome fires it AFTER React mounts — listen normally ──
+    const handleNativeEvent = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setShowPrompt(true);
     };
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    // Also listen for our custom bridge event from index.html
+    const handleBridgeEvent = () => {
+      if (window.__pwaInstallEvent) {
+        setDeferredPrompt(window.__pwaInstallEvent);
+        setShowPrompt(true);
+      }
+    };
 
-    // 2. iOS / iPad Safari detection
+    window.addEventListener("beforeinstallprompt", handleNativeEvent);
+    window.addEventListener("pwa-install-available", handleBridgeEvent);
+
+    // iOS / iPad Safari — no beforeinstallprompt, show manual Share guide
     const isAppleDevice =
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -44,31 +57,30 @@ export default function PWAInstallPrompt() {
     }
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("beforeinstallprompt", handleNativeEvent);
+      window.removeEventListener("pwa-install-available", handleBridgeEvent);
     };
   }, []);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") {
-        setShowPrompt(false);
-      }
-      setDeferredPrompt(null);
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === "accepted") {
+      setShowPrompt(false);
     }
+    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    // Remember dismissal for this session only so it prompts again on their next visit
     sessionStorage.setItem("pwa_install_dismissed_session", "true");
   };
 
   if (!showPrompt) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-[99999] max-w-sm w-[calc(100vw-2.5rem)] sm:w-96 animate-bounce-in">
+    <div className="fixed bottom-5 right-5 z-[99999] max-w-sm w-[calc(100vw-2.5rem)] sm:w-96">
       <div className="bg-slate-900/95 backdrop-blur-xl text-white p-4 sm:p-5 rounded-2xl shadow-2xl border border-emerald-500/40 ring-1 ring-emerald-500/20">
         <div className="flex items-start gap-3.5">
           {/* App Logo */}
@@ -106,7 +118,7 @@ export default function PWAInstallPrompt() {
                 </span>
               </div>
             ) : (
-              /* Chrome/Edge/Android 1-Click Direct Install Button */
+              /* Chrome/Edge 1-Click Install Button */
               <div className="mt-3 flex items-center gap-2">
                 <button
                   onClick={handleInstallClick}
@@ -129,5 +141,4 @@ export default function PWAInstallPrompt() {
     </div>
   );
 }
-
 

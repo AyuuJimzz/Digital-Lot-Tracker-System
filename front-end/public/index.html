@@ -53,6 +53,17 @@
         document.documentElement.classList.remove('dark');
       }
 
+      // ── Capture PWA install event IMMEDIATELY before React loads ──
+      // Chrome fires beforeinstallprompt very early, sometimes before React mounts.
+      // We store it globally so PWAInstallPrompt.jsx can always retrieve it.
+      window.__pwaInstallEvent = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.__pwaInstallEvent = e;
+        // Dispatch a custom event so React can react if it's already mounted
+        window.dispatchEvent(new Event('pwa-install-available'));
+      });
+
       // Register Service Worker for PWA 1-Click Install across all browsers (Chrome, Edge, etc.)
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
