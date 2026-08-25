@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import DesktopOnlyGuard from "./components/DesktopOnlyGuard";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,11 +24,19 @@ import EstateMap from "./pages/Admin/AdminViewMap";
 import Forbidden from "./view/forbidden";
 import ProfileSettings from "./pages/Shared/ProfileSettings";
 
+import { startKeepAlive, stopKeepAlive } from "./utils/keepAlive";
+
 const queryClient = new QueryClient();
 
 
 function App() {
   const [, setRole] = useState(localStorage.getItem("role") || null);
+
+  // ── Keep Render.com backend awake — prevents 30-60s cold start delays ──
+  useEffect(() => {
+    startKeepAlive();
+    return () => stopKeepAlive();
+  }, []);
 
   return (
     <DesktopOnlyGuard>

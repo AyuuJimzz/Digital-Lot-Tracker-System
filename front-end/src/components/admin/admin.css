@@ -91,11 +91,11 @@ body {
 .leaflet-tile {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
-  filter: contrast(1.03) brightness(1.01);
+  /* NOTE: filter removed — it forces GPU compositing per-tile and causes lag on tablets */
 }
 
 .leaflet-container {
-  background-color: #1a202c !important;
+  will-change: transform;
 }
 
 /* ── Fullscreen Presentation Mode ── */

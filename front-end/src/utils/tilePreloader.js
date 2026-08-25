@@ -60,16 +60,31 @@ export function preloadLocationTiles(lat, lng, zooms = [14, 18, 19], layer = "sa
 }
 
 /**
- * Preload all properties and intermediate flight path tiles
+ * Preload all properties using requestIdleCallback chain
+ * so preloading NEVER competes with active map rendering
  */
 export function preloadAllProperties(properties = [], layer = "satellite") {
   if (!properties || properties.length === 0) return;
 
-  properties.forEach((prop, index) => {
-    if (prop.coordinates && Array.isArray(prop.coordinates) && prop.coordinates.length >= 2) {
-      setTimeout(() => {
-        preloadLocationTiles(prop.coordinates[0], prop.coordinates[1], [14, 18, 19], layer);
-      }, index * 250);
+  // Chain idle callbacks — each property only loads when browser is truly idle
+  const queue = properties.filter(
+    (p) => p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length >= 2
+  );
+
+  const processNext = (index) => {
+    if (index >= queue.length) return;
+    const prop = queue[index];
+    const run = () => {
+      preloadLocationTiles(prop.coordinates[0], prop.coordinates[1], [14, 18, 19], layer);
+      processNext(index + 1);
+    };
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(run, { timeout: 4000 });
+    } else {
+      setTimeout(run, index * 300);
     }
-  });
+  };
+
+  // Start the chain after a 1-second delay so map renders first
+  setTimeout(() => processNext(0), 1000);
 }

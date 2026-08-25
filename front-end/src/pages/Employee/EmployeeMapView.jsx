@@ -53,27 +53,19 @@ const MUNICIPALITY_COORDINATES = {
   "passi": [11.1075, 122.6419],
 };
 
- // ── Glowing Emerald Overview Location Beacon for Zoomed-Out View (< 17) ──
+// ── Lightweight Static Overview Location Beacon (no animation = no GPU stutter) ──
 const createOverviewPropertyIcon = (name, lotCount) => {
   return L.divIcon({
     className: "property-overview-beacon-marker",
     html: `
-      <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer; transform: translate(-50%, -100%);">
-        <!-- Glowing Emerald Radar Pulse Wave -->
-        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;">
-          <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background-color: rgba(16, 185, 129, 0.45); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-          <!-- Inner Solid Emerald Beacon Pin -->
-          <div style="position: relative; width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #047857); border: 2.5px solid #ffffff; box-shadow: 0 0 16px rgba(16, 185, 129, 0.95), 0 4px 8px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
-            <svg width="15" height="15" fill="white" viewBox="0 0 24 24">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-          </div>
+      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translate(-50%,-100%);pointer-events:none;">
+        <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#10b981,#047857);border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(16,185,129,0.3),0 3px 8px rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;">
+          <svg width="13" height="13" fill="white" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
         </div>
-        <!-- High-Contrast Floating Label Pill -->
-        <div style="margin-top: 4px; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px); border: 1.5px solid rgba(16, 185, 129, 0.8); padding: 3px 9px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(0,0,0,0.6); white-space: nowrap; display: flex; align-items: center; gap: 5px;">
-          <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #34d399; box-shadow: 0 0 8px #34d399;"></span>
-          <span style="color: #ffffff; font-size: 11.5px; font-weight: 700; letter-spacing: 0.3px; text-shadow: 0 1px 2px rgba(0,0,0,0.9);">${name}</span>
-          ${lotCount > 0 ? `<span style="background: rgba(16, 185, 129, 0.25); color: #6ee7b7; font-size: 10px; padding: 1px 5px; border-radius: 6px; font-weight: 600;">${lotCount} lots</span>` : ""}
+        <div style="margin-top:3px;background:rgba(15,23,42,0.88);border:1px solid rgba(16,185,129,0.7);padding:2px 8px;border-radius:9999px;white-space:nowrap;display:flex;align-items:center;gap:4px;">
+          <span style="width:5px;height:5px;border-radius:50%;background:#34d399;display:inline-block;flex-shrink:0;"></span>
+          <span style="color:#fff;font-size:11px;font-weight:700;letter-spacing:0.2px;">${name}</span>
+          ${lotCount > 0 ? `<span style="color:#6ee7b7;font-size:10px;font-weight:600;">(${lotCount})</span>` : ""}
         </div>
       </div>
     `,
@@ -92,22 +84,21 @@ function MapController({
   const map = useMap();
 
   useEffect(() => {
-    if (setMap) {
-      setMap(map);
-    }
-    if (setCurrentZoom) {
-      setCurrentZoom(map.getZoom());
-    }
-    const handleZoom = () => {
-      if (setCurrentZoom) {
-        setCurrentZoom(map.getZoom());
-      }
+    if (setMap) setMap(map);
+    if (setCurrentZoom) setCurrentZoom(map.getZoom());
+
+    // Only update on zoomend (not every frame) to avoid flood of React re-renders
+    let debounceTimer;
+    const handleZoomEnd = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (setCurrentZoom) setCurrentZoom(map.getZoom());
+      }, 80);
     };
-    map.on("zoom", handleZoom);
-    map.on("zoomend", handleZoom);
+    map.on("zoomend", handleZoomEnd);
     return () => {
-      map.off("zoom", handleZoom);
-      map.off("zoomend", handleZoom);
+      map.off("zoomend", handleZoomEnd);
+      clearTimeout(debounceTimer);
     };
   }, [map, setMap, setCurrentZoom]);
 
@@ -429,11 +420,13 @@ const EmployeeMapView = () => {
     );
   }, [mapData, selectedProperty]);
 
-  // Show ALL lots from all properties so every property is visible at any zoom level
+  // ── Optimization: Only render lots for the SELECTED property ──────────────
   const filteredLots = useMemo(() => {
     if (!mapData || !Array.isArray(mapData.lots)) return [];
-    return mapData.lots;
-  }, [mapData]);
+    return mapData.lots.filter(
+      (l) => l.property_id === selectedProperty
+    );
+  }, [mapData, selectedProperty]);
 
   // Get selected property coordinates
   const selectedPropertyCoords = useMemo(() => {
@@ -451,50 +444,30 @@ const EmployeeMapView = () => {
     return [10.7372, 122.4998];
   }, [properties, selectedProperty]);
 
-  // Helper function to get color based on status
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Available":
-        return "#22c55e";
-      case "Pending":
-        return "#eab308";
-      case "Sold":
-        return "#ef4444";
-      default:
-        return "#94a3b8";
-    }
-  };
+  // ── Optimization: O(1) status → color lookup ──────────────────────────────
+  const STATUS_COLORS = { Available: "#22c55e", Pending: "#eab308", Sold: "#ef4444" };
+  const getStatusColor = (status) => STATUS_COLORS[status] || "#94a3b8";
 
-  // Function to create the Pin Icon
-  const createPinIcon = (status) => {
-    const color = getStatusColor(status);
+  // ── Optimization: Pre-built icon cache — only 4 icons total, never per-render ──
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const pinIconCache = useMemo(() => {
+    const makeIcon = (color) =>
+      L.divIcon({
+        className: "custom-pin",
+        html: `<div style="background-color:${color};width:16px;height:16px;border-radius:50%;border:1px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 24],
+      });
+    return {
+      Available: makeIcon("#22c55e"),
+      Pending: makeIcon("#eab308"),
+      Sold: makeIcon("#ef4444"),
+      default: makeIcon("#94a3b8"),
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    return L.divIcon({
-      className: "custom-pin",
-
-      html: `<div style="
-        background-color: ${color}; 
-        width: 16px; 
-        height: 16px; 
-        border-radius: 50%;
-        border: 1px solid #fff;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-      ":hover="
-        transform: translate(-50%, -50%) scale(1.2);
-        box-shadow: 0 3px 8px rgba(0,0,0,0.7);
-      "></div>`,
-
-      iconSize: [24, 24], // Larger clickable area
-
-      iconAnchor: [12, 24], // Anchor at bottom center of the clickable area
-    });
-  };
+  const createPinIcon = (status) => pinIconCache[status] || pinIconCache.default;
 
   const handleCloseOffcanvas = () => {
     setIsOffcanvasOpen(false);
@@ -554,7 +527,10 @@ const EmployeeMapView = () => {
         zoomAnimation={true}
         fadeAnimation={true}
         markerZoomAnimation={true}
-        style={{ height: "100%", width: "100%", zIndex: 1 }}
+        touchZoom={true}
+        tap={false}
+        bounceAtZoomLimits={false}
+        style={{ height: "100%", width: "100%", zIndex: 1, touchAction: "manipulation" }}
       >
         <MapLocationSearch
           onLocationSelected={(loc) => {
@@ -592,6 +568,8 @@ const EmployeeMapView = () => {
         {currentZoom < 17 &&
           properties.map((property) => {
             if (!property.coordinates || !Array.isArray(property.coordinates) || property.coordinates.length < 2) return null;
+            // Hide green beacon for selected property — user is already there
+            if (property.id === selectedProperty) return null;
             return (
               <Marker
                 key={`overview-prop-${property.id}`}

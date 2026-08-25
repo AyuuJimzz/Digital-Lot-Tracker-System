@@ -28,6 +28,17 @@
   }
 }
 
+/* ── Leaflet GPU Compositing Optimization ── */
+.leaflet-tile {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  /* filter removed — causes per-tile GPU layer compositing lag on tablets */
+}
+
+.leaflet-container {
+  will-change: transform;
+}
+
 /* ── Fullscreen Presentation Mode ── */
 .map-presentation-fullscreen {
   position: fixed !important;
