@@ -1349,13 +1349,12 @@ function AdminViewMap() {
           const pinLat = centerLat + 0.00012;
           const statusColor = getStatusColor(lot.status);
 
-          const handleLotClick = async (e) => {
-            if (editingLot) return;
-            if (e?.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.preventDefault();
-            }
+          const isTouchDevice =
+            typeof window !== "undefined" &&
+            (window.matchMedia("(hover: none) and (pointer: coarse)").matches ||
+              ("ontouchstart" in window && window.innerWidth < 1100));
 
+          const openFullLotDetails = async () => {
             const matchingProp = properties.find(
               (p) => Number(p.id) === Number(lot.property_id || selectedProperty)
             );
@@ -1388,6 +1387,80 @@ function AdminViewMap() {
             }
           };
 
+          const handleLotClick = (e) => {
+            if (editingLot) return;
+            // On desktop (mouse), clicking immediately opens the full sidebar
+            if (!isTouchDevice) {
+              if (e?.originalEvent) {
+                e.originalEvent.stopPropagation();
+                e.originalEvent.preventDefault();
+              }
+              openFullLotDetails();
+            }
+            // On tablet/touchscreen: default event allows Leaflet to open the Quick Preview Popup!
+          };
+
+          const renderLotPopup = () => {
+            if (!isTouchDevice) return null;
+            return (
+              <Popup className="lot-preview-touch-popup" autoPan={false} offset={[0, -10]}>
+                <div style={{ minWidth: "150px", padding: "2px" }} className="text-center">
+                  <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
+                    Lot ID: {lot.lot_id}
+                  </div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "2px" }}>
+                    {lot.lot_number}
+                  </div>
+                  <div style={{ fontSize: "11.5px", color: "#475569", marginBottom: "6px" }}>
+                    {lot.area_sqm} sqm
+                  </div>
+                  <div
+                    style={{
+                      display: "inline-block",
+                      padding: "2px 8px",
+                      borderRadius: "9999px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      backgroundColor: `${statusColor}22`,
+                      color: statusColor,
+                      marginBottom: "8px",
+                    }}
+                  >
+                    {lot.status}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openFullLotDetails();
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "6px 10px",
+                      backgroundColor: "#10b981",
+                      color: "#ffffff",
+                      borderRadius: "6px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      border: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "4px",
+                      boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)",
+                    }}
+                  >
+                    <span>View Details</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              </Popup>
+            );
+          };
+
           return (
             <React.Fragment key={`lot-node-${lot.lot_id}-${lot.status}`}>
               <Polygon
@@ -1403,15 +1476,7 @@ function AdminViewMap() {
                   click: handleLotClick,
                 }}
               >
-                <Popup>
-                  <div>
-                    <strong>{lot.lot_number}</strong>
-                    <br />
-                    Area: {lot.area_sqm} SQM
-                    <br />
-                    Status: <strong style={{ color: statusColor }}>{lot.status}</strong>
-                  </div>
-                </Popup>
+                {renderLotPopup()}
               </Polygon>
 
               {currentZoom >= 17 && (
@@ -1438,6 +1503,7 @@ function AdminViewMap() {
                       click: handleLotClick,
                     }}
                   >
+                    {renderLotPopup()}
                     <Tooltip permanent={false} direction="top" offset={[0, -32]}>
                       <div className="text-center text-xs leading-tight">
                         <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
@@ -1467,6 +1533,7 @@ function AdminViewMap() {
               )}
             </React.Fragment>
           );
+
         })}
 
         {/* Render Editable Polygon & Draggable Handles when editing coordinates */}

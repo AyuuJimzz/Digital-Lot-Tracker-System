@@ -110,3 +110,22 @@ body {
   z-index: 99999 !important;
   margin: 0 !important;
 }
+
+/* ── Tablet Touch Preview Popup ── */
+.lot-preview-touch-popup .leaflet-popup-content-wrapper {
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.lot-preview-touch-popup .leaflet-popup-content {
+  margin: 8px 12px;
+  line-height: 1.4;
+}
+
+.lot-preview-touch-popup .leaflet-popup-tip {
+  background: #ffffff;
+}
+
