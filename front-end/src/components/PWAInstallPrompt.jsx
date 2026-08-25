@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Download, X, Share, Info } from "lucide-react";
+import { Download, X, Share } from "lucide-react";
 import logo from "../assets/image/golden-dragon-logo.png";
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  const [showBrowserGuide, setShowBrowserGuide] = useState(false);
 
   useEffect(() => {
     // Check if already running in standalone/installed mode
@@ -41,16 +40,11 @@ export default function PWAInstallPrompt() {
 
     if (isAppleDevice) {
       setIsIOS(true);
-    }
-
-    // Guaranteed universal trigger: show after 2 seconds on all browsers
-    const timer = setTimeout(() => {
       setShowPrompt(true);
-    }, 2000);
+    }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      clearTimeout(timer);
     };
   }, []);
 
@@ -62,9 +56,6 @@ export default function PWAInstallPrompt() {
         setShowPrompt(false);
       }
       setDeferredPrompt(null);
-    } else {
-      // Fallback: prompt user to click browser's native install icon
-      setShowBrowserGuide(true);
     }
   };
 
@@ -115,33 +106,21 @@ export default function PWAInstallPrompt() {
                 </span>
               </div>
             ) : (
-              /* Chrome/Edge 1-Click Install Button & Fallback */
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleInstallClick}
-                    className="flex-1 py-2 px-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all transform active:scale-95"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Install App</span>
-                  </button>
-                  <button
-                    onClick={handleDismiss}
-                    className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-colors"
-                  >
-                    Later
-                  </button>
-                </div>
-
-                {/* Fallback browser tip if browser blocked automatic prompt */}
-                {showBrowserGuide && (
-                  <div className="p-2 bg-emerald-950/60 border border-emerald-500/30 rounded-lg text-[11px] text-emerald-200 flex items-start gap-1.5 animate-fadeIn">
-                    <Info className="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                    <span>
-                      Click the <strong>Install icon (⬇️)</strong> in your browser's address bar (top right) or Menu <strong>(⋮) → "Install"</strong>.
-                    </span>
-                  </div>
-                )}
+              /* Chrome/Edge/Android 1-Click Direct Install Button */
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  onClick={handleInstallClick}
+                  className="flex-1 py-2 px-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all transform active:scale-95"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Install App</span>
+                </button>
+                <button
+                  onClick={handleDismiss}
+                  className="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-colors"
+                >
+                  Later
+                </button>
               </div>
             )}
           </div>
@@ -150,4 +129,5 @@ export default function PWAInstallPrompt() {
     </div>
   );
 }
+
 
