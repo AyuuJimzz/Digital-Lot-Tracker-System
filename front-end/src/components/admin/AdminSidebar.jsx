@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Map, Users, Building2, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Map, Users, Building2, Settings } from "lucide-react";
 import logo from "../../assets/image/golden-dragon-logo.png";
 
 const navItems = [
@@ -76,22 +76,15 @@ export function AdminSidebar() {
         ))}
       </nav>
 
-      {/* Collapse Toggle Button */}
-      <div className="p-3 border-t border-gray-200 dark:border-slate-800">
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="flex items-center justify-center w-full p-2 rounded-md text-gray-500 dark:text-slate-500 hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          {!collapsed && <span className="ml-2 text-xs">Collapse</span>}
-        </button>
-        {!collapsed && (
-          <div className="flex items-center gap-2 px-2 py-1 text-xs text-gray-500 dark:text-slate-500 mt-1">
-            <span>Admin System v1.0</span>
-          </div>
-        )}
-      </div>
+      {/* Footer */}
+      {!collapsed && (
+        <div className="p-3 border-t border-gray-200 dark:border-slate-800 text-center">
+          <span className="text-xs text-gray-400 dark:text-slate-500 font-medium">
+            Admin System v1.0
+          </span>
+        </div>
+      )}
     </aside>
   );
 }
+

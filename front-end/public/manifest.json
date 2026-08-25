@@ -1,0 +1,16 @@
+{
+  "short_name": "Golden Dragon",
+  "name": "Golden Dragon Estate Digital Lot Tracker",
+  "icons": [
+    {
+      "src": "/golden-dragon-logo.png",
+      "type": "image/png",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "landscape"
+}
