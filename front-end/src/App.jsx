@@ -25,9 +25,9 @@ import Forbidden from "./view/forbidden";
 import ProfileSettings from "./pages/Shared/ProfileSettings";
 
 import { startKeepAlive, stopKeepAlive } from "./utils/keepAlive";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 const queryClient = new QueryClient();
-
 
 function App() {
   const [, setRole] = useState(localStorage.getItem("role") || null);
@@ -81,6 +81,8 @@ function App() {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Router>
+        {/* Automated 1-Click Install App Banner */}
+        <PWAInstallPrompt />
       </QueryClientProvider>
     </DesktopOnlyGuard>
   );

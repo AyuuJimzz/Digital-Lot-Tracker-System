@@ -52,6 +52,13 @@
       } else {
         document.documentElement.classList.remove('dark');
       }
+
+      // Register Service Worker for PWA 1-Click Install across all browsers (Chrome, Edge, etc.)
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').catch(function() {});
+        });
+      }
     </script>
   </head>
   <body class="bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
