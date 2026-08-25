@@ -240,17 +240,7 @@ export function AdminHeader({ sidebarCollapsed }) {
     setSelectedProperty(property.id);
     localStorage.setItem("selectedProperty", property.id.toString());
 
-    // Resolve accurate coordinates
-    const targetCoords = resolvePropertyCoords(property);
-
-    // Emit custom event to map component for navigation
-    window.dispatchEvent(
-      new CustomEvent("navigateToProperty", {
-        detail: { coordinates: targetCoords },
-      })
-    );
-
-    // Emit custom event to map component for property filtering
+    // Emit single custom event to map component for property selection
     window.dispatchEvent(
       new CustomEvent("selectProperty", {
         detail: { propertyId: property.id },

@@ -22,6 +22,7 @@ import {
   ActiveMapTileLayer,
   MAP_LAYERS,
 } from "../../components/admin/MapLayerControls";
+import { preloadAllProperties } from "../../utils/tilePreloader";
 import { geocodeAddress } from "../../utils/geocoding";
 
 import "leaflet/dist/leaflet.css";
@@ -122,6 +123,7 @@ function MapController({
         return;
       }
 
+      map.stop();
       const currentCenter = map.getCenter();
       const currentZoom = map.getZoom();
       const dist = Math.hypot(
@@ -139,7 +141,7 @@ function MapController({
       } else if (dist < 0.008) {
         map.flyTo(coordinates, 18.5, { duration: 1.3, easeLinearity: 0.2 });
       } else {
-        const midZoom = Math.max(11, currentZoom - 4);
+        const midZoom = Math.max(14, currentZoom - 3.5);
         const midLat = (currentCenter.lat + coordinates[0]) / 2;
         const midLng = (currentCenter.lng + coordinates[1]) / 2;
 
@@ -147,8 +149,8 @@ function MapController({
 
         map.once("moveend", () => {
           setTimeout(() => {
-            map.flyTo(coordinates, 18.5, { duration: 1.5, easeLinearity: 0.18 });
-          }, 80);
+            map.flyTo(coordinates, 18.5, { duration: 1.4, easeLinearity: 0.2 });
+          }, 60);
         });
       }
 
@@ -315,6 +317,13 @@ const EmployeeMapView = () => {
     ];
   }, [mapData]);
 
+  // Pre-cache satellite tiles for all properties in background
+  useEffect(() => {
+    if (properties && properties.length > 0) {
+      preloadAllProperties(properties, mapLayer);
+    }
+  }, [properties, mapLayer]);
+
   useEffect(() => {
     const fetchMapData = async () => {
       try {
@@ -366,6 +375,7 @@ const EmployeeMapView = () => {
           triggerArrivalPulse(target.coordinates);
         }
         const timer = setTimeout(() => {
+          map.stop();
           const currentCenter = map.getCenter();
           const currentZoom = map.getZoom();
           const dist = Math.hypot(
@@ -378,7 +388,7 @@ const EmployeeMapView = () => {
             map.flyTo(target.coordinates, 18.5, { duration: 1.3, easeLinearity: 0.2 });
           } else {
             // Far away: cinematic pull-back → glide → arrive
-            const midZoom = Math.max(11, currentZoom - 4);
+            const midZoom = Math.max(14, currentZoom - 3.5);
             const midLat = (currentCenter.lat + target.coordinates[0]) / 2;
             const midLng = (currentCenter.lng + target.coordinates[1]) / 2;
 
@@ -388,11 +398,11 @@ const EmployeeMapView = () => {
             // Step 2: after zoom-out lands, glide into the destination
             map.once("moveend", () => {
               setTimeout(() => {
-                map.flyTo(target.coordinates, 18.5, { duration: 1.5, easeLinearity: 0.18 });
-              }, 80);
+                map.flyTo(target.coordinates, 18.5, { duration: 1.4, easeLinearity: 0.2 });
+              }, 60);
             });
           }
-        }, 150);
+        }, 120);
         return () => clearTimeout(timer);
       }
     }

@@ -230,16 +230,7 @@ export function EmployeeHeader({ sidebarCollapsed }) {
     // Save selected property to localStorage
     localStorage.setItem("selectedProperty", property.id.toString());
 
-    // Resolve accurate coordinates
-    const targetCoords = resolvePropertyCoords(property);
-
-    // Emit event to center the map
-    window.dispatchEvent(
-      new CustomEvent("navigateToProperty", {
-        detail: { coordinates: targetCoords },
-      })
-    );
-
+    // Emit single custom event for property selection
     window.dispatchEvent(
       new CustomEvent("selectProperty", {
         detail: { propertyId: property.id },
