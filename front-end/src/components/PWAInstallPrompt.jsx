@@ -6,9 +6,25 @@ export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isPhone, setIsPhone] = useState(false);
 
+  // Check if screen is mobile phone (too small for the platform)
+  const checkIsPhone = () => {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const minDimension = Math.min(width, height);
+    return minDimension < 500 || (width < 600 && height > width);
+  };
 
   useEffect(() => {
+    const handleResize = () => {
+      setIsPhone(checkIsPhone());
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+
     // Check if already running in standalone/installed mode
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -21,21 +37,19 @@ export default function PWAInstallPrompt() {
     if (sessionStorage.getItem("pwa_install_dismissed_session")) return;
 
     // ── Case 1: Chrome fired beforeinstallprompt BEFORE React mounted ──
-    // We already captured it in index.html via window.__pwaInstallEvent
     if (window.__pwaInstallEvent) {
       setDeferredPrompt(window.__pwaInstallEvent);
       setShowPrompt(true);
       return;
     }
 
-    // ── Case 2: Chrome fires it AFTER React mounts — listen normally ──
+    // ── Case 2: Chrome fires it AFTER React mounts ──
     const handleNativeEvent = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setShowPrompt(true);
     };
 
-    // Also listen for our custom bridge event from index.html
     const handleBridgeEvent = () => {
       if (window.__pwaInstallEvent) {
         setDeferredPrompt(window.__pwaInstallEvent);
@@ -46,17 +60,20 @@ export default function PWAInstallPrompt() {
     window.addEventListener("beforeinstallprompt", handleNativeEvent);
     window.addEventListener("pwa-install-available", handleBridgeEvent);
 
-    // iOS / iPad Safari — no beforeinstallprompt, show manual Share guide
-    const isAppleDevice =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    // iPad / Mac Safari (Exclude iPhones)
+    const isAppleTabletOrMac =
+      (/iPad/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) &&
+      !/iPhone|iPod/.test(navigator.userAgent);
 
-    if (isAppleDevice) {
+    if (isAppleTabletOrMac) {
       setIsIOS(true);
       setShowPrompt(true);
     }
 
     return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
       window.removeEventListener("beforeinstallprompt", handleNativeEvent);
       window.removeEventListener("pwa-install-available", handleBridgeEvent);
     };
@@ -77,7 +94,8 @@ export default function PWAInstallPrompt() {
     sessionStorage.setItem("pwa_install_dismissed_session", "true");
   };
 
-  if (!showPrompt) return null;
+  // Do NOT render on mobile phone screens
+  if (!showPrompt || isPhone || checkIsPhone()) return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-[99999] max-w-sm w-[calc(100vw-2.5rem)] sm:w-96">
@@ -141,4 +159,3 @@ export default function PWAInstallPrompt() {
     </div>
   );
 }
-
