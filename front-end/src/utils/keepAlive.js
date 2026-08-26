@@ -4,7 +4,7 @@
  * Render.com free-tier services sleep after 15 minutes of inactivity,
  * causing a 30–60 second cold start delay on the next request.
  *
- * This utility pings the /health endpoint every 14 minutes (just before
+ * This utility pings the /api/health endpoint every 14 minutes (just before
  * the 15-minute sleep threshold) to keep the server warm.
  *
  * - Runs only when deployed (non-localhost)
@@ -27,7 +27,7 @@ function sendPing() {
   }
 
   const run = () => {
-    fetch(`${BACKEND_URL}/health`, {
+    fetch(`${BACKEND_URL}/api/health`, {
       method: "HEAD",
       cache: "no-store",
     }).catch(() => {
