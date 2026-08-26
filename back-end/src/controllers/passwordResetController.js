@@ -5,15 +5,21 @@ const bcrypt = require("bcryptjs");
 // =======================
 // EMAIL TRANSPORTER SETUP
 // =======================
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-});
+const getTransporter = () => {
+  const port = parseInt(process.env.EMAIL_PORT, 10) || 465;
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: port,
+    secure: port === 465,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+};
 
 // =======================
 // GENERATE TEMPORARY PASSWORD
@@ -33,8 +39,9 @@ const generateTempPassword = () => {
 // =======================
 const sendEmail = async (to, subject, html) => {
   try {
+    const transporter = getTransporter();
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to,
       subject,
       html,
