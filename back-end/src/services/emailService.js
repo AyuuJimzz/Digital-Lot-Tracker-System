@@ -1,14 +1,4 @@
-const { Resend } = require("resend");
 const nodemailer = require("nodemailer");
-
-// Resend client (HTTPS Web API - bypasses all cloud port blocking)
-const getResendClient = () => {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (apiKey) {
-    return new Resend(apiKey);
-  }
-  return null;
-};
 
 // Nodemailer SMTP fallback transporter
 const getTransporter = () => {
@@ -52,11 +42,9 @@ const getTransporter = () => {
 
 /**
  * Universal Send Email function
- * Supports both:
- * 1. sendEmail(to, subject, html, from)
- * 2. sendEmail({ to, subject, html, from })
  *
- * Prioritizes Resend HTTPS API, falls back seamlessly to Nodemailer SMTP
+ * 1. Primary: Brevo HTTPS REST API (Port 443 - works on all cloud providers without port restrictions)
+ * 2. Secondary: Nodemailer SMTP (local / direct SMTP)
  */
 const sendEmail = async (toOrOptions, subjectParam, htmlParam, fromParam) => {
   let to, subject, html, from;
@@ -72,31 +60,42 @@ const sendEmail = async (toOrOptions, subjectParam, htmlParam, fromParam) => {
     from = fromParam;
   }
 
-  const resend = getResendClient();
+  const brevoApiKey = process.env.BREVO_API_KEY;
 
-  // 1. Try Resend HTTPS API first
-  if (resend) {
+  // 1. Prioritize Brevo HTTPS REST API
+  if (brevoApiKey) {
     try {
-      const fromAddress =
-        from ||
-        process.env.RESEND_FROM ||
-        "Golden Dragon Estate <onboarding@resend.dev>";
+      const senderEmail = process.env.EMAIL_USER || "goldendragonestate@gmail.com";
+      const senderName = "Golden Dragon Estate Corporation";
 
-      const { data, error } = await resend.emails.send({
-        from: fromAddress,
-        to: Array.isArray(to) ? to : [to],
-        subject,
-        html,
+      const recipients = Array.isArray(to)
+        ? to.map((email) => ({ email }))
+        : [{ email: to }];
+
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": brevoApiKey,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: recipients,
+          subject,
+          htmlContent: html,
+        }),
       });
 
-      if (!error && data?.id) {
-        console.log(`✅ [EmailService] Resend delivered email to ${to} (ID: ${data.id})`);
-        return { success: true, method: "resend", id: data.id };
+      const data = await response.json();
+      if (response.ok && data?.messageId) {
+        console.log(`✅ [EmailService] Brevo HTTPS delivered email to ${to} (MessageId: ${data.messageId})`);
+        return { success: true, method: "brevo", id: data.messageId };
       }
 
-      console.warn("[EmailService] Resend returned error, attempting SMTP fallback...", error);
-    } catch (resendErr) {
-      console.warn("[EmailService] Resend API failed, falling back to SMTP:", resendErr.message);
+      console.warn("[EmailService] Brevo returned non-ok response, trying fallback:", data);
+    } catch (brevoErr) {
+      console.warn("[EmailService] Brevo API error, trying SMTP fallback:", brevoErr.message);
     }
   }
 
