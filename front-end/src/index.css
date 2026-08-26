@@ -1,3 +1,23 @@
+@import "leaflet/dist/leaflet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Leaflet Popup & Map Reset Styles ── */
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-close-button {
+  font-size: 16px !important;
+  color: #94a3b8 !important;
+  padding: 4px 6px !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+  background: transparent !important;
+}

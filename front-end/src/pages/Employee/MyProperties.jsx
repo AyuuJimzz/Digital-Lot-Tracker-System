@@ -41,10 +41,26 @@ const MyProperties = () => {
           window.location.href = "/forbidden"; return;
         }
         setIsAuthorized(true);
-        const lotsResponse = await axios.get(`${API_BASE_URL}/api/lots/all`, { withCredentials: true });
+
+        // Fetch properties and lots in parallel
+        const [lotsResponse, propertiesResponse] = await Promise.all([
+          axios.get(`${API_BASE_URL}/api/lots/all`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true }),
+        ]);
+
         const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
-        setLots(fetchedLots);
-        try { sessionStorage.setItem("employeeLotsCache", JSON.stringify(fetchedLots)); } catch (e) {}
+        const fetchedProperties = Array.isArray(propertiesResponse.data) ? propertiesResponse.data : [];
+
+        // Get IDs of active properties only
+        const activePropertyIds = new Set(
+          fetchedProperties.filter((p) => p.status !== "inactive").map((p) => p.property_id)
+        );
+
+        // Filter lots to only those belonging to active properties
+        const activeLots = fetchedLots.filter((lot) => activePropertyIds.has(lot.property_id));
+
+        setLots(activeLots);
+        try { sessionStorage.setItem("employeeLotsCache", JSON.stringify(activeLots)); } catch (e) {}
       } catch (requestError) {
         if (requestError?.response?.status === 401) { window.location.href = "/access-denied"; return; }
         setError("Unable to load properties. Please refresh and try again.");

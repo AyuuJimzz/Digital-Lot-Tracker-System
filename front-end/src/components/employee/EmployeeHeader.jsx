@@ -141,12 +141,14 @@ export function EmployeeHeader({ sidebarCollapsed }) {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((p) => ({
-            id: p.property_id,
-            name: p.property_name || `Property ${p.property_id}`,
-            location: p.location,
-            coordinates: resolvePropertyCoords(p),
-          }));
+          return parsed
+            .filter((p) => p.status !== "inactive")
+            .map((p) => ({
+              id: p.property_id,
+              name: p.property_name || `Property ${p.property_id}`,
+              location: p.location,
+              coordinates: resolvePropertyCoords(p),
+            }));
         }
       }
     } catch (e) {}
@@ -165,12 +167,14 @@ export function EmployeeHeader({ sidebarCollapsed }) {
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
-            const mapped = data.map((p) => ({
-              id: p.property_id,
-              name: p.property_name || `Property ${p.property_id}`,
-              location: p.location,
-              coordinates: resolvePropertyCoords(p),
-            }));
+            const mapped = data
+              .filter((p) => p.status !== "inactive")
+              .map((p) => ({
+                id: p.property_id,
+                name: p.property_name || `Property ${p.property_id}`,
+                location: p.location,
+                coordinates: resolvePropertyCoords(p),
+              }));
             setProperties(mapped);
             try { sessionStorage.setItem("propertiesCache", JSON.stringify(data)); } catch (e) {}
           }
@@ -273,30 +277,46 @@ export function EmployeeHeader({ sidebarCollapsed }) {
           <div className="relative" ref={propertyDropdownRef}>
             <button
               onClick={() => setPropertyDropdownOpen(!propertyDropdownOpen)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors duration-200 max-w-[220px] truncate ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors duration-200 max-w-[240px] truncate ${
                 propertyDropdownOpen
-                  ? "bg-blue-100 text-blue-700 border border-blue-200"
-                  : "bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200"
+                  ? "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-slate-700 dark:text-blue-300 dark:border-slate-600"
+                  : "bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
               }`}
               title="Select Property / Location"
             >
-              <MapPin className="h-4 w-4 shrink-0 text-blue-600" />
-              <span className="truncate font-medium">
-                {properties.find((p) => p.id === selectedProperty)?.name || "Properties"}
-              </span>
+              <MapPin className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+              {properties.find((p) => p.id === selectedProperty) ? (
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-200/70 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-bold shrink-0">
+                    #{selectedProperty}
+                  </span>
+                  <span className="truncate font-medium">
+                    {properties.find((p) => p.id === selectedProperty)?.name}
+                  </span>
+                </div>
+              ) : (
+                <span className="truncate font-medium">Properties</span>
+              )}
             </button>
 
             {/* Property Dropdown Menu */}
             {propertyDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[9999]">
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[9999]">
                 {properties.map((property) => (
                   <button
                     key={property.id}
-                    className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
+                    className={`flex w-full items-center gap-2 px-3.5 py-2 text-xs sm:text-sm transition-colors text-left ${
+                      property.id === selectedProperty
+                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
+                        : "text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                    }`}
                     onClick={() => handlePropertySelect(property)}
                   >
-                    <MapPin className="mr-2 h-4 w-4 text-gray-400" />
-                    {property.name}
+                    <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+                    <span className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 shrink-0">
+                      #{property.id}
+                    </span>
+                    <span className="truncate">{property.name}</span>
                   </button>
                 ))}
               </div>

@@ -643,9 +643,10 @@ function AdminViewMap() {
   }, []);
 
   // Property locations (dynamically derived from mapData or fallback)
+  // Only show ACTIVE properties on the map
   const properties = useMemo(() => {
     if (mapData && Array.isArray(mapData.properties) && mapData.properties.length > 0) {
-      return mapData.properties.map((p) => {
+      return mapData.properties.filter((p) => p.status !== "inactive").map((p) => {
         let coords = DEFAULT_COORDINATES_MAP[p.property_id];
         // If property has lots, calculate the center of its lots
         const propLots = (mapData.lots || []).filter(
@@ -718,6 +719,7 @@ function AdminViewMap() {
           location: p.location,
           coordinates: coords || [10.7372, 122.4998],
           hasLots: propLots.length > 0,
+          status: p.status || "active",
         };
       });
     }

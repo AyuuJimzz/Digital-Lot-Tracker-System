@@ -94,7 +94,6 @@ const EmployeeDashboard = () => {
         const updates = lots
           .slice()
           .sort((a, b) => Number(b.lot_id || 0) - Number(a.lot_id || 0))
-          .slice(0, 5)
           .map((lot) => ({
             id: lot.lot_id,
             lotNumber: lot.lot_number,

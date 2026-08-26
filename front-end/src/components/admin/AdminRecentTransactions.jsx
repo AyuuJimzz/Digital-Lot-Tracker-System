@@ -3,15 +3,16 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const STATUS_STYLES = {
-  Sold: "bg-green-100 text-green-800",
-  Pending: "bg-yellow-100 text-yellow-800",
-  Cancelled: "bg-red-100 text-red-800",
+  Sold: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  Pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  Cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400",
+  Available: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
 };
 
 const PAYMENT_STYLES = {
-  Cash: "bg-blue-100 text-blue-700",
-  Installment: "bg-purple-100 text-purple-700",
-  "No Downpayment": "bg-orange-100 text-orange-700",
+  Cash: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  Installment: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  "No Downpayment": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
 };
 
 const RecentTransactions = () => {
@@ -25,16 +26,15 @@ const RecentTransactions = () => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        console.log("Fetching transactions from API...");
-        const response = await axios.get(`${API_BASE_URL}/api/transactions`);
-        console.log("API Response status:", response.status);
-        console.log("API Response data:", response.data);
-        console.log("Number of transactions received:", response.data.length);
-        setTransactions(response.data);
+        const token = localStorage.getItem("authToken");
+        const response = await axios.get(`${API_BASE_URL}/api/transactions`, {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        setTransactions(response.data || []);
         setError(null);
       } catch (err) {
         console.error("Error fetching transactions:", err);
-        console.error("Error details:", err.response?.status, err.response?.data);
         setError("Failed to load transactions");
       } finally {
         setLoading(false);
@@ -48,7 +48,7 @@ const RecentTransactions = () => {
     filter === "All" ? transactions : transactions.filter((t) => t.status === filter);
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
+    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
         <div>
@@ -78,28 +78,42 @@ const RecentTransactions = () => {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200 dark:divide-slate-700 table-auto">
-          <thead className="bg-gray-50 dark:bg-slate-800">
+        <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
+          <thead className="bg-gray-50/80 dark:bg-slate-800/80">
             <tr>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-16">Txn ID</th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Client</th>
-              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-16">Lot #</th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Property</th>
-              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">Date</th>
-              <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell">Payment</th>
-              <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-20">Status</th>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
+                Txn ID
+              </th>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
+                Client
+              </th>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
+                Lot #
+              </th>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
+                Property
+              </th>
+              <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
+                Date
+              </th>
+              <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[10%]">
+                Payment
+              </th>
+              <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[10%]">
+                Status
+              </th>
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
+          <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800 text-sm">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-sm text-gray-400 text-center">
+                <td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">
                   Loading transactions...
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-sm text-gray-400 text-center">
+                <td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">
                   No transactions found.
                 </td>
               </tr>
@@ -107,33 +121,37 @@ const RecentTransactions = () => {
               filtered.map((txn) => (
                 <tr
                   key={txn.transaction_id}
-                  className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
+                  className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors"
                 >
-                  <td className="px-3 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                  <td className="px-5 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                     #{txn.transaction_id}
                   </td>
-                  <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-slate-300 break-words">
+                  <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-slate-200 break-words">
                     {txn.customer_name}
                   </td>
-                  <td className="px-2 py-3 text-center text-sm text-gray-700 dark:text-slate-400">
+                  <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 font-medium">
                     {txn.lot_number}
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-700 dark:text-slate-400 break-words">
+                  <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 break-words">
                     {txn.property_name}
                   </td>
-                  <td className="px-3 py-3 text-center text-sm text-gray-500 dark:text-slate-500 hidden md:table-cell whitespace-nowrap">
+                  <td className="px-4 py-3.5 text-center text-gray-500 dark:text-slate-400 whitespace-nowrap">
                     {txn.transaction_date}
                   </td>
-                  <td className="px-2 py-3 text-center hidden lg:table-cell">
+                  <td className="px-4 py-3.5 text-center whitespace-nowrap">
                     <span
-                      className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${PAYMENT_STYLES[txn.payment_type] || "bg-gray-100 text-gray-700"}`}
+                      className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${
+                        PAYMENT_STYLES[txn.payment_type] || "bg-gray-100 text-gray-700"
+                      }`}
                     >
                       {txn.payment_type}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-right">
+                  <td className="px-5 py-3.5 text-right whitespace-nowrap">
                     <span
-                      className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${STATUS_STYLES[txn.status] || "bg-gray-100 text-gray-800"}`}
+                      className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${
+                        STATUS_STYLES[txn.status] || "bg-gray-100 text-gray-800"
+                      }`}
                     >
                       {txn.status}
                     </span>
@@ -146,7 +164,7 @@ const RecentTransactions = () => {
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t border-gray-100 text-xs text-gray-400 flex justify-between items-center">
+      <div className="px-6 py-3 border-t border-gray-100 dark:border-slate-800 text-xs text-gray-500 dark:text-slate-400 flex justify-between items-center">
         <span>
           Showing {filtered.length} of {transactions.length} transactions
         </span>

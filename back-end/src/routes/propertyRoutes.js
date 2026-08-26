@@ -11,14 +11,13 @@ const {
 } = require("../controllers/propertyController");
 const sessionOrToken = require("../middleware/session_or_token");
 
-router.get("/", sessionOrToken({ roles: ["admin"] }), getAllProperties);
-router.get("/:id", sessionOrToken({ roles: ["admin"] }), getPropertyById);
-router.post("/", sessionOrToken({ roles: ["admin"] }), createProperty);
-router.put("/:id", sessionOrToken({ roles: ["admin"] }), updateProperty);
-router.patch(
-  "/:id/status",
-  sessionOrToken({ roles: ["admin"] }),
-  updatePropertyStatus,
-);
-router.delete("/:id", sessionOrToken({ roles: ["admin"] }), deleteProperty);
+const requireRead  = sessionOrToken({ roles: ["admin", "employee"] });
+const requireAdmin = sessionOrToken({ roles: ["admin"] });
+
+router.get("/", requireRead, getAllProperties);
+router.get("/:id", requireRead, getPropertyById);
+router.post("/", requireAdmin, createProperty);
+router.put("/:id", requireAdmin, updateProperty);
+router.patch("/:id/status", requireAdmin, updatePropertyStatus);
+router.delete("/:id", requireAdmin, deleteProperty);
 module.exports = router;

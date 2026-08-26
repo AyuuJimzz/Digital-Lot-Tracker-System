@@ -158,6 +158,14 @@ const LotOffcanvas = ({
     setIsSaving(true);
     setSaveMessage("");
 
+    const getAuthHeaders = () => {
+      const token = localStorage.getItem("authToken");
+      return {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+    };
+
     try {
       // 1. Update lot details (lot_number, area_sqm) if changed
       const lotNumberChanged = lotNumber.trim() !== selectedLot.lot_number;
@@ -169,9 +177,8 @@ const LotOffcanvas = ({
           `${API_BASE_URL}/api/lots/${selectedLot.lot_id}/details`,
           {
             method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: getAuthHeaders(),
+            credentials: "include",
             body: JSON.stringify({
               lot_number: lotNumber,
               area_sqm: areaSqm,
@@ -181,7 +188,7 @@ const LotOffcanvas = ({
 
         if (!detailsResponse.ok) {
           const errorText = await detailsResponse.json().catch(() => ({}));
-          throw new Error(errorText.error || "Failed to update lot details");
+          throw new Error(errorText.error || errorText.message || "Failed to update lot details");
         }
       }
 
@@ -197,9 +204,8 @@ const LotOffcanvas = ({
 
       const response = await fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/status`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: getAuthHeaders(),
+        credentials: "include",
         body: JSON.stringify({
           status,
           email,
@@ -213,7 +219,12 @@ const LotOffcanvas = ({
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Error response:", errorText);
-        throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
+        let parsedMessage = errorText;
+        try {
+          const parsed = JSON.parse(errorText);
+          parsedMessage = parsed.message || parsed.error || errorText;
+        } catch (e) {}
+        throw new Error(parsedMessage || `HTTP error! status: ${response.status}`);
       }
 
       await response.json();
@@ -247,13 +258,23 @@ const LotOffcanvas = ({
     setSaveMessage("");
 
     try {
+      const token = localStorage.getItem("authToken");
       const response = await fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}`, {
         method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || "Failed to delete lot");
+        let parsedMessage = errorText;
+        try {
+          const parsed = JSON.parse(errorText);
+          parsedMessage = parsed.message || parsed.error || errorText;
+        } catch (e) {}
+        throw new Error(parsedMessage || "Failed to delete lot");
       }
 
       setSaveMessage("Lot deleted successfully!");
@@ -291,50 +312,31 @@ const LotOffcanvas = ({
       >
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
+          <div className="flex items-center justify-between px-6 pt-5 pb-2">
             <h2 className="text-xl font-bold text-gray-800 dark:text-white">Lot Details</h2>
-            <div className="flex items-center gap-2">
-              {hasSavedClient && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    exportSingleLotWordDoc(
-                      selectedLot,
-                      propertyName || selectedLot?.property_name,
-                      propertyLocation || selectedLot?.location
-                    )
-                  }
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 transition-all text-xs font-semibold flex items-center gap-1.5 shadow-sm"
-                  title="Export Microsoft Word (.doc) Quotation"
-                >
-                  <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                  <span>Word Doc</span>
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors duration-200"
-                title="Close"
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300 transition-colors duration-200"
+              aria-label="Close"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  className="w-6 h-6 text-gray-600 dark:text-gray-300"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto px-6 py-2">
             <div className="space-y-4">
               {/* Lot Number */}
               <div>

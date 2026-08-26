@@ -215,45 +215,45 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
       {!loading && !error && sortedItems.length > 0 && (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full divide-y divide-gray-200 dark:divide-slate-700 table-auto">
-              <thead className="bg-gray-50 dark:bg-slate-800">
+            <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
+              <thead className="bg-gray-50/80 dark:bg-slate-800/80">
                 <tr>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-16">
-                    <button type="button" onClick={() => handleSort("id")} className="inline-flex items-center gap-1">
-                      Lot ID <span>{getSortIndicator("id")}</span>
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[15%]">
+                    <button type="button" onClick={() => handleSort("id")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
+                      Lot ID <span className="text-[10px] text-gray-400">{getSortIndicator("id")}</span>
                     </button>
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                    <button type="button" onClick={() => handleSort("lotNumber")} className="inline-flex items-center gap-1">
-                      Lot Number <span>{getSortIndicator("lotNumber")}</span>
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[28%]">
+                    <button type="button" onClick={() => handleSort("lotNumber")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
+                      Lot Number <span className="text-[10px] text-gray-400">{getSortIndicator("lotNumber")}</span>
                     </button>
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                    <button type="button" onClick={() => handleSort("propertyId")} className="inline-flex items-center gap-1">
-                      Property <span>{getSortIndicator("propertyId")}</span>
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[27%]">
+                    <button type="button" onClick={() => handleSort("propertyId")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
+                      Property <span className="text-[10px] text-gray-400">{getSortIndicator("propertyId")}</span>
                     </button>
                   </th>
-                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell w-28">
-                    <button type="button" onClick={() => handleSort("area")} className="inline-flex items-center gap-1">
-                      Area (sqm) <span>{getSortIndicator("area")}</span>
+                  <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell w-[15%]">
+                    <button type="button" onClick={() => handleSort("area")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
+                      Area (sqm) <span className="text-[10px] text-gray-400">{getSortIndicator("area")}</span>
                     </button>
                   </th>
-                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-24">
-                    <button type="button" onClick={() => handleSort("status")} className="inline-flex items-center gap-1">
-                      Status <span>{getSortIndicator("status")}</span>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[15%]">
+                    <button type="button" onClick={() => handleSort("status")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
+                      Status <span className="text-[10px] text-gray-400">{getSortIndicator("status")}</span>
                     </button>
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
+              <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800 text-sm">
                 {paginatedItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-3 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400">#{item.id}</td>
-                    <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-slate-300">{item.lotNumber}</td>
-                    <td className="px-3 py-3 text-sm text-gray-700 dark:text-slate-300">Property {item.propertyId}</td>
-                    <td className="px-3 py-3 text-center text-sm text-gray-700 dark:text-slate-300 hidden sm:table-cell">{item.area ?? "-"}</td>
-                    <td className="px-3 py-3 text-right">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(item.status)}`}>
+                  <tr key={item.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
+                    <td className="px-5 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">#{item.id}</td>
+                    <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-slate-200">{item.lotNumber}</td>
+                    <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300">Property {item.propertyId}</td>
+                    <td className="px-4 py-3.5 text-center text-gray-700 dark:text-slate-300 hidden sm:table-cell">{item.area ?? "-"}</td>
+                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                      <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(item.status)}`}>
                         {item.status}
                       </span>
                     </td>
