@@ -25,28 +25,28 @@ router.get(
 );
 router.get(
   "/employees",
-  sessionOrToken({ roles: ["admin"], permission: "canManageEmployees" }),
+  sessionOrToken({ roles: ["admin"] }),
   getAllEmployees,
 );
 
 // CREATE employee
 router.post(
   "/employees",
-  sessionOrToken({ roles: ["admin"], permission: "canManageEmployees" }),
+  sessionOrToken({ roles: ["admin"] }),
   createEmployee,
 );
 
 // UPDATE employee
 router.put(
   "/employees/:id",
-  sessionOrToken({ roles: ["admin"], permission: "canManageEmployees" }),
+  sessionOrToken({ roles: ["admin"] }),
   updateEmployee,
 );
 
-// DELETE employee - CEO only
+// DELETE employee
 router.delete(
   "/employees/:id",
-  sessionOrToken({ roles: ["admin"], permission: "isHeadAdmin" }),
+  sessionOrToken({ roles: ["admin"] }),
   deleteEmployee,
 );
 

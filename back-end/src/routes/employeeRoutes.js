@@ -25,7 +25,7 @@ router.put("/:id", sessionOrToken({ roles: ["admin"] }), updateEmployee);
 // DELETE employee
 router.delete(
   "/:id",
-  sessionOrToken({ roles: ["admin"], permission: "isHeadAdmin" }),
+  sessionOrToken({ roles: ["admin"] }),
   deleteEmployee,
 );
 
