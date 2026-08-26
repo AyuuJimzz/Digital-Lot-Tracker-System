@@ -29,6 +29,7 @@ md/
 *.sln
 *.sw?
 .env
+!front-end/.env
 mapsPDF
 
 # Data files and lotData
@@ -36,3 +37,4 @@ back-end/src/data/
 back-end/src/data/lotData.js
 
 already implement.txt
+save-progress.md
