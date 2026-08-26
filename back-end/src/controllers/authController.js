@@ -110,9 +110,9 @@ const checkSession = (req, res) => {
 			});
 		}
 
-		return res.status(401).json({ authenticated: false, message: "Not logged in" });
+		return res.json({ authenticated: false, message: "Not logged in" });
 	} catch (error) {
-		return res.status(401).json({ authenticated: false, message: "Invalid or expired token" });
+		return res.json({ authenticated: false, message: "Invalid or expired token" });
 	}
 };
 

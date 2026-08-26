@@ -17,10 +17,13 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 				withCredentials: true,
 			})
 			.then((response) => {
-				localStorage.setItem("role", response.data.role || "");
-				localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
-				const hasAccess = allowedRoles.includes(response.data.role);
-				setAuth({ loading: false, isAuthorized: hasAccess });
+				if (response.data.authenticated && allowedRoles.includes(response.data.role)) {
+					localStorage.setItem("role", response.data.role || "");
+					localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
+					setAuth({ loading: false, isAuthorized: true });
+				} else {
+					setAuth({ loading: false, isAuthorized: false });
+				}
 			})
 			.catch(() => {
 				setAuth({ loading: false, isAuthorized: false });

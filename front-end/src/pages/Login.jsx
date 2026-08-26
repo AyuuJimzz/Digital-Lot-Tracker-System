@@ -22,11 +22,18 @@ function Login({ setRole }) {
     axios
       .get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true })
       .then((response) => {
-        localStorage.setItem("role", response.data.role || "");
-        localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
-        setRole(response.data.role || null);
-        if (response.data.role === "admin") navigate("/admin-panel");
-        else if (response.data.role === "employee") navigate("/employee-panel");
+        if (response.data.authenticated && response.data.role) {
+          localStorage.setItem("role", response.data.role || "");
+          localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
+          setRole(response.data.role || null);
+          if (response.data.role === "admin") navigate("/admin-panel");
+          else if (response.data.role === "employee") navigate("/employee-panel");
+        } else {
+          localStorage.removeItem("role");
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("password_reset_required");
+          delete axios.defaults.headers.common["Authorization"];
+        }
       })
       .catch(() => {
         localStorage.removeItem("role");
