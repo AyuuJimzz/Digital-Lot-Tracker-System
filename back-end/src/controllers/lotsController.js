@@ -468,8 +468,17 @@ exports.updateLotStatus = async (req, res) => {
             const instantEmailHtml = `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
                 <div style="background-color: #0f172a; color: white; padding: 20px 24px;">
-                  <h2 style="margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px;">Golden Dragon Real Estate Corp.</h2>
-                  <p style="margin: 4px 0 0 0; font-size: 12px; color: #94a3b8;">Official Lot Reservation Confirmation</p>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="width: 48px; vertical-align: middle;">
+                        <img src="https://goldendragonestate.onrender.com/golden-dragon-logo.png" alt="Golden Dragon Logo" width="44" height="44" style="display: block; border-radius: 6px;" />
+                      </td>
+                      <td style="vertical-align: middle; padding-left: 12px;">
+                        <h2 style="margin: 0; font-size: 17px; text-transform: uppercase; letter-spacing: 0.5px; color: #ffffff;">Golden Dragon Real Estate Corp.</h2>
+                        <p style="margin: 3px 0 0 0; font-size: 12px; color: #94a3b8;">Official Lot Reservation Confirmation</p>
+                      </td>
+                    </tr>
+                  </table>
                 </div>
                 <div style="padding: 24px; color: #1e293b; line-height: 1.6;">
                   <p>Dear <strong>${(fullName || "").trim() || "Valued Customer"}</strong>,</p>

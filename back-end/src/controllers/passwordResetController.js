@@ -80,13 +80,26 @@ const forgotPassword = async (req, res) => {
 
     // Send email
     const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">Golden Dragon Estate Corporation - Password Reset</h2>
-        <p>Hello ${userName},</p>
-        <p>You requested a password reset. Here is your temporary password:</p>
-        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <strong style="font-size: 18px; color: #1f2937;">${tempPassword}</strong>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #0f172a; color: white; padding: 20px 24px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="width: 48px; vertical-align: middle;">
+                <img src="https://goldendragonestate.onrender.com/golden-dragon-logo.png" alt="Golden Dragon Logo" width="44" height="44" style="display: block; border-radius: 6px;" />
+              </td>
+              <td style="vertical-align: middle; padding-left: 12px;">
+                <h2 style="margin: 0; font-size: 17px; text-transform: uppercase; letter-spacing: 0.5px; color: #ffffff;">Golden Dragon Real Estate Corp.</h2>
+                <p style="margin: 3px 0 0 0; font-size: 12px; color: #94a3b8;">Official Password Reset Request</p>
+              </td>
+            </tr>
+          </table>
         </div>
+        <div style="padding: 24px; color: #1e293b; line-height: 1.6;">
+          <p>Hello <strong>${userName}</strong>,</p>
+          <p>You requested a password reset. Here is your temporary password:</p>
+          <div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; border: 1px solid #e2e8f0; text-align: center;">
+            <strong style="font-size: 20px; color: #0f172a; letter-spacing: 1px;">${tempPassword}</strong>
+          </div>
         <p>This temporary password will expire in <strong>24 hours</strong>.</p>
         <p>After logging in with this temporary password, you will be required to set a new password.</p>
         <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
@@ -97,6 +110,7 @@ const forgotPassword = async (req, res) => {
           Golden Dragon Estate Platform<br>
           This is an automated message, please do not reply.
         </p>
+        </div>
       </div>
     `;
 
