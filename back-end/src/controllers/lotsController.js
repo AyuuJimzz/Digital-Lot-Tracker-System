@@ -1,68 +1,6 @@
 // controllers/lotsController.js
 const db = require("../../config/database_connection");
-const nodemailer = require("nodemailer");
-
-// EMAIL TRANSPORTER SETUP
-const getTransporter = () => {
-  const isGmail =
-    (process.env.EMAIL_HOST || "").includes("gmail") ||
-    (process.env.EMAIL_USER || "").includes("gmail");
-
-  if (isGmail) {
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
-  }
-
-  const port = parseInt(process.env.EMAIL_PORT, 10) || 465;
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || "smtp.gmail.com",
-    port: port,
-    secure: port === 465,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-};
-
-// SEND EMAIL HELPER
-const sendEmail = async (to, subject, html) => {
-  try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.warn("EMAIL_USER or EMAIL_PASSWORD is not defined in environment variables.");
-      return { success: false, error: "Email credentials not configured in environment" };
-    }
-    const transporter = getTransporter();
-    const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
-    await transporter.sendMail({
-      from: fromAddress,
-      to,
-      subject,
-      html,
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Email error:", error);
-    return { success: false, error: error.message };
-  }
-};
+const { sendEmail } = require("../services/emailService");
 
 exports.getAllLots = async (req, res) => {
   try {

@@ -1,48 +1,6 @@
-const nodemailer = require("nodemailer");
 const db = require("../../config/database_connection");
 const bcrypt = require("bcryptjs");
-
-// =======================
-// EMAIL TRANSPORTER SETUP
-// =======================
-const getTransporter = () => {
-  const isGmail =
-    (process.env.EMAIL_HOST || "").includes("gmail") ||
-    (process.env.EMAIL_USER || "").includes("gmail");
-
-  if (isGmail) {
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
-  }
-
-  const port = parseInt(process.env.EMAIL_PORT, 10) || 465;
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || "smtp.gmail.com",
-    port: port,
-    secure: port === 465,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-};
+const { sendEmail } = require("../services/emailService");
 
 // =======================
 // GENERATE TEMPORARY PASSWORD
@@ -55,25 +13,6 @@ const generateTempPassword = () => {
     tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return tempPassword;
-};
-
-// =======================
-// SEND EMAIL HELPER
-// =======================
-const sendEmail = async (to, subject, html) => {
-  try {
-    const transporter = getTransporter();
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to,
-      subject,
-      html,
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Email error:", error);
-    return { success: false, error: error.message };
-  }
 };
 
 // =======================
