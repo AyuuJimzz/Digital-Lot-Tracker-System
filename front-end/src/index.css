@@ -7,6 +7,31 @@
 /* ── Leaflet Popup & Map Reset Styles ── */
 .leaflet-container {
   font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  background-color: #18231d !important;
+}
+
+.leaflet-tile {
+  background-color: #18231d !important;
+}
+
+/* ── High-Performance Zoom Visibility (0 DOM node churn during flyTo) ── */
+.map-view-zoomed-out .custom-pin {
+  display: none !important;
+}
+
+.map-view-zoomed-in .property-overview-beacon-marker {
+  display: none !important;
+}
+
+/* Prevent text selection or blue highlight during touch drags on tablets */
+.leaflet-container,
+.leaflet-pane,
+.leaflet-interactive {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .leaflet-popup-close-button {
@@ -14,6 +39,11 @@
   color: #94a3b8 !important;
   padding: 4px 6px !important;
   border: none !important;
+  background: transparent !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
   background: transparent !important;
 }
 

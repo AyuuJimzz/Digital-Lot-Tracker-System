@@ -247,7 +247,7 @@ export function AdminHeader({ sidebarCollapsed }) {
     // Emit single custom event to map component for property selection
     window.dispatchEvent(
       new CustomEvent("selectProperty", {
-        detail: { propertyId: property.id },
+        detail: { propertyId: property.id, coordinates: property.coordinates },
       })
     );
 
@@ -342,7 +342,7 @@ export function AdminHeader({ sidebarCollapsed }) {
               {properties.find((p) => p.id === selectedProperty) ? (
                 <div className="flex items-center gap-1.5 truncate">
                   <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-200/70 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-bold shrink-0">
-                    #{selectedProperty}
+                    #{properties.findIndex((p) => p.id === selectedProperty) + 1 || 1}
                   </span>
                   <span className="truncate font-medium">
                     {properties.find((p) => p.id === selectedProperty)?.name}
@@ -356,7 +356,7 @@ export function AdminHeader({ sidebarCollapsed }) {
             {/* Property Dropdown Menu */}
             {propertyDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[9999]">
-                {properties.map((property) => (
+                {properties.map((property, idx) => (
                   <button
                     key={property.id}
                     className={`flex w-full items-center gap-2 px-3.5 py-2 text-xs sm:text-sm transition-colors text-left ${
@@ -368,7 +368,7 @@ export function AdminHeader({ sidebarCollapsed }) {
                   >
                     <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
                     <span className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 shrink-0">
-                      #{property.id}
+                      #{idx + 1}
                     </span>
                     <span className="truncate">{property.name}</span>
                   </button>

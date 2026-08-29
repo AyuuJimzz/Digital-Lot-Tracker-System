@@ -26,17 +26,18 @@ function getTileUrl(x, y, z, layer = "satellite") {
 const preloadedUrls = new Set();
 
 /**
- * Preload 3x3 tile grid around a specific [lat, lng] at specified zoom levels
+ * Preload 5x5 tile grid around a specific [lat, lng] at specified zoom levels
+ * Covers the entire estate perimeter so every lot tile is instant
  */
-export function preloadLocationTiles(lat, lng, zooms = [14, 18, 19], layer = "satellite") {
+export function preloadLocationTiles(lat, lng, zooms = [16, 17, 18, 19], layer = "satellite") {
   if (typeof window === "undefined" || !lat || !lng) return;
 
   const runPreload = () => {
     zooms.forEach((zoom) => {
       const center = latLngToTile(lat, lng, zoom);
-      // Preload 3x3 surrounding grid
-      for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
+      // Preload 5x5 surrounding grid to cover wide estates
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dy = -2; dy <= 2; dy++) {
           const x = center.x + dx;
           const y = center.y + dy;
           const url = getTileUrl(x, y, zoom, layer);
@@ -52,39 +53,22 @@ export function preloadLocationTiles(lat, lng, zooms = [14, 18, 19], layer = "sa
     });
   };
 
-  if ("requestIdleCallback" in window) {
-    window.requestIdleCallback(runPreload, { timeout: 2000 });
-  } else {
-    setTimeout(runPreload, 200);
-  }
+  runPreload();
 }
 
 /**
- * Preload all properties using requestIdleCallback chain
- * so preloading NEVER competes with active map rendering
+ * Eagerly preload all properties in fast succession on load
  */
 export function preloadAllProperties(properties = [], layer = "satellite") {
   if (!properties || properties.length === 0) return;
 
-  // Chain idle callbacks — each property only loads when browser is truly idle
   const queue = properties.filter(
     (p) => p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length >= 2
   );
 
-  const processNext = (index) => {
-    if (index >= queue.length) return;
-    const prop = queue[index];
-    const run = () => {
-      preloadLocationTiles(prop.coordinates[0], prop.coordinates[1], [14, 18, 19], layer);
-      processNext(index + 1);
-    };
-    if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(run, { timeout: 4000 });
-    } else {
-      setTimeout(run, index * 300);
-    }
-  };
-
-  // Start the chain after a 1-second delay so map renders first
-  setTimeout(() => processNext(0), 1000);
+  queue.forEach((prop, idx) => {
+    setTimeout(() => {
+      preloadLocationTiles(prop.coordinates[0], prop.coordinates[1], [16, 17, 18, 19], layer);
+    }, idx * 150);
+  });
 }

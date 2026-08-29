@@ -22,10 +22,9 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
         maxZoom={21}
         maxNativeZoom={20}
         crossOrigin={false}
-        keepBuffer={8}
-        updateWhenZooming={false}
+        keepBuffer={16}
+        updateWhenZooming={true}
         updateWhenIdle={false}
-        updateInterval={100}
         errorTileUrl="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
     );
@@ -39,17 +38,15 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
         maxZoom={21}
         maxNativeZoom={20}
         crossOrigin={false}
-        keepBuffer={8}
-        updateWhenZooming={false}
+        keepBuffer={16}
+        updateWhenZooming={true}
         updateWhenIdle={false}
-        updateInterval={100}
         errorTileUrl="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
       />
     );
   }
 
   // Default: Google Satellite — best coverage in Philippines
-  // Uses subdomain rotation to bypass per-server rate limits and Chrome referrer blocks
   return (
     <TileLayer
       url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
@@ -57,10 +54,9 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
       maxZoom={21}
       maxNativeZoom={20}
       crossOrigin={false}
-      keepBuffer={8}
-      updateWhenZooming={false}
+      keepBuffer={16}
+      updateWhenZooming={true}
       updateWhenIdle={false}
-      updateInterval={100}
       errorTileUrl="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     />
   );

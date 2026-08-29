@@ -2,7 +2,7 @@ import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Edit, Trash2, Plus, Eye, EyeOff, X } from "lucide-react";
+import { Edit, Trash2, Plus, Eye, EyeOff, X, MapPin } from "lucide-react";
 import { geocodeAddress } from "../../utils/geocoding";
 
 const MUNICIPALITY_COORDINATES = {
@@ -41,6 +41,8 @@ const ManageProperties = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
   const [formData, setFormData] = useState({ property_name: "", location: "", total_lots: 0, status: "active" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState("");
 
   const navigate = useNavigate();
 
@@ -69,6 +71,9 @@ const ManageProperties = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus(editingProperty ? "Updating property..." : "Creating property in database...");
+
     try {
       let createdPropId = null;
       const url = editingProperty
@@ -80,6 +85,8 @@ const ManageProperties = () => {
         const res = await axios.post(url, formData, { withCredentials: true });
         createdPropId = res.data?.property_id;
       }
+
+      setSubmitStatus("Locating property coordinates on map...");
 
       // Automatically search/geocode the address for GPS coordinates
       if (formData.location || formData.property_name) {
@@ -115,6 +122,8 @@ const ManageProperties = () => {
         }
       }
 
+      setSubmitStatus("Updating map caches...");
+
       // Invalidate caches so map view gets fresh data immediately
       try {
         sessionStorage.removeItem("propertiesCache");
@@ -126,6 +135,7 @@ const ManageProperties = () => {
       resetForm();
 
       if (!editingProperty && createdPropId) {
+        setSubmitStatus("Redirecting to map view...");
         localStorage.setItem("selectedProperty", createdPropId.toString());
         // Automatically direct user straight to the map location!
         navigate("/manage-lots");
@@ -134,6 +144,9 @@ const ManageProperties = () => {
       }
     } catch (err) {
       alert(err.response?.data?.error || err.message || "Failed to save property");
+    } finally {
+      setIsSubmitting(false);
+      setSubmitStatus("");
     }
   };
 
@@ -147,7 +160,13 @@ const ManageProperties = () => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
       await axios.patch(`${API_BASE_URL}/api/properties/${propertyId}/status`, { status: newStatus }, { withCredentials: true });
-      try { sessionStorage.removeItem("propertiesCache"); } catch (err) {}
+      try {
+        sessionStorage.removeItem("propertiesCache");
+        sessionStorage.removeItem("mapDataCache");
+        if (newStatus === "inactive" && Number(localStorage.getItem("selectedProperty")) === Number(propertyId)) {
+          localStorage.removeItem("selectedProperty");
+        }
+      } catch (err) {}
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
       alert(`Property status changed to ${newStatus}`);
@@ -158,7 +177,14 @@ const ManageProperties = () => {
     if (!window.confirm("Are you sure you want to delete this property?")) return;
     try {
       await axios.delete(`${API_BASE_URL}/api/properties/${propertyId}`, { withCredentials: true });
-      try { sessionStorage.removeItem("propertiesCache"); } catch (err) {}
+      try {
+        sessionStorage.removeItem("propertiesCache");
+        sessionStorage.removeItem("mapDataCache");
+        localStorage.removeItem("propertyCustomCoords_" + propertyId);
+        if (Number(localStorage.getItem("selectedProperty")) === Number(propertyId)) {
+          localStorage.removeItem("selectedProperty");
+        }
+      } catch (err) {}
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
       alert("Property deleted successfully");
@@ -176,6 +202,37 @@ const ManageProperties = () => {
 
   return (
     <div className="space-y-6 p-6 w-full">
+      {/* ── Full-Screen Creation/Update Loading Overlay ── */}
+      {isSubmitting && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm w-full text-center flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
+            {/* Animated Radar/Spinner */}
+            <div className="relative mb-5 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full border-4 border-blue-500/20 border-t-blue-600 animate-spin"></div>
+              <div className="absolute w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-pulse" />
+              </div>
+            </div>
+
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-1.5">
+              {editingProperty ? "Saving Changes..." : "Creating Property..."}
+            </h3>
+
+            <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-4 animate-pulse">
+              {submitStatus || "Setting up property coordinates..."}
+            </p>
+
+            <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden mb-3">
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full w-full rounded-full animate-pulse"></div>
+            </div>
+
+            <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+              Please wait while we initialize property GPS location and sync the map...
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -264,15 +321,30 @@ const ManageProperties = () => {
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                disabled={isSubmitting}
+                className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md shadow-blue-500/25 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                disabled={isSubmitting}
+                className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg shadow-md transition-all ${
+                  isSubmitting
+                    ? "bg-blue-500/80 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/25 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                }`}
               >
-                {editingProperty ? "Save Changes" : "Create & Locate on Map"}
+                {isSubmitting && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                )}
+                <span>
+                  {isSubmitting
+                    ? submitStatus || "Processing..."
+                    : editingProperty
+                      ? "Save Changes"
+                      : "Create & Locate on Map"}
+                </span>
               </button>
             </div>
           </form>
@@ -288,7 +360,7 @@ const ManageProperties = () => {
           <table className="w-full divide-y divide-gray-200 dark:divide-slate-700 table-auto">
             <thead className="bg-gray-50 dark:bg-slate-800">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-12 hidden sm:table-cell">ID</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-12 hidden sm:table-cell">#</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Property Name</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Location</th>
                 <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-20">Total Lots</th>
@@ -301,9 +373,9 @@ const ManageProperties = () => {
               {properties.length === 0 ? (
                 <tr><td colSpan="7" className="px-3 py-4 text-center text-sm text-gray-500 dark:text-slate-400">No properties found</td></tr>
               ) : (
-                properties.map((property) => (
+                properties.map((property, index) => (
                   <tr key={property.property_id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-3 py-3 text-left text-sm text-gray-900 dark:text-slate-300 hidden sm:table-cell">{property.property_id}</td>
+                    <td className="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-slate-300 hidden sm:table-cell">#{index + 1}</td>
                     <td className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white break-words">{property.property_name}</td>
                     <td className="px-3 py-3 text-left text-sm text-gray-500 dark:text-slate-400 break-words">{property.location}</td>
                     <td className="px-2 py-3 text-center text-sm text-gray-500 dark:text-slate-400">{property.total_lots}</td>

@@ -7,7 +7,6 @@ import {
   Popup,
   useMap,
   Marker,
-  Polyline,
   Tooltip,
 } from "react-leaflet";
 
@@ -58,14 +57,14 @@ const createOverviewPropertyIcon = (name, lotCount) => {
   return L.divIcon({
     className: "property-overview-beacon-marker",
     html: `
-      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translate(-50%,-100%);pointer-events:none;">
-        <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#10b981,#047857);border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(16,185,129,0.3),0 3px 8px rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;">
-          <svg width="13" height="13" fill="white" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;pointer-events:auto;">
+        <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#10b981,#047857);border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(16,185,129,0.35),0 4px 10px rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;">
+          <svg width="14" height="14" fill="white" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
         </div>
-        <div style="margin-top:3px;background:rgba(15,23,42,0.88);border:1px solid rgba(16,185,129,0.7);padding:2px 8px;border-radius:9999px;white-space:nowrap;display:flex;align-items:center;gap:4px;">
-          <span style="width:5px;height:5px;border-radius:50%;background:#34d399;display:inline-block;flex-shrink:0;"></span>
-          <span style="color:#fff;font-size:11px;font-weight:700;letter-spacing:0.2px;">${name}</span>
-          ${lotCount > 0 ? `<span style="color:#6ee7b7;font-size:10px;font-weight:600;">(${lotCount})</span>` : ""}
+        <div style="margin-top:3px;background:rgba(15,23,42,0.92);border:1px solid rgba(16,185,129,0.8);padding:3px 9px;border-radius:9999px;white-space:nowrap;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,0.5);">
+          <span style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;flex-shrink:0;"></span>
+          <span style="color:#fff;font-size:11.5px;font-weight:700;letter-spacing:0.2px;">${name}</span>
+          ${lotCount > 0 ? `<span style="color:#6ee7b7;font-size:10.5px;font-weight:600;">(${lotCount})</span>` : ""}
         </div>
       </div>
     `,
@@ -75,6 +74,7 @@ const createOverviewPropertyIcon = (name, lotCount) => {
 };
 
 function MapController({
+  selectedProperty,
   setSelectedProperty,
   setMap,
   setCurrentZoom,
@@ -82,12 +82,13 @@ function MapController({
   properties,
 }) {
   const map = useMap();
+  const prevPropertyIdRef = useRef(selectedProperty);
 
   useEffect(() => {
     if (setMap) setMap(map);
     if (setCurrentZoom) setCurrentZoom(map.getZoom());
 
-    // Only update on zoomend (not every frame) to avoid flood of React re-renders
+    // Only update on zoomend to avoid React re-renders during active animations
     let debounceTimer;
     const handleZoomEnd = () => {
       clearTimeout(debounceTimer);
@@ -102,15 +103,12 @@ function MapController({
     };
   }, [map, setMap, setCurrentZoom]);
 
-  // Ensure map recalculates its exact full-screen dimensions to prevent grey/unrendered tiles
+  // Ensure map recalculates its exact full-screen dimensions
   useEffect(() => {
     if (!map) return;
     map.invalidateSize();
 
-    const t1 = setTimeout(() => map.invalidateSize(), 100);
-    const t2 = setTimeout(() => map.invalidateSize(), 300);
-    const t3 = setTimeout(() => map.invalidateSize(), 600);
-
+    const t1 = setTimeout(() => map.invalidateSize(), 150);
     const handleResize = () => {
       map.invalidateSize();
     };
@@ -118,93 +116,68 @@ function MapController({
     window.addEventListener("resize", handleResize);
     return () => {
       clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
       window.removeEventListener("resize", handleResize);
     };
   }, [map]);
 
-  // Initial subtle smooth cinematic zoom-out animation when opening Map View
   useEffect(() => {
-    if (!map) return;
-    const initialCenter = map.getCenter();
-    const t = setTimeout(() => {
-      map.flyTo(initialCenter, 18.2, { duration: 1.4, easeLinearity: 0.25 });
-    }, 200);
-    return () => clearTimeout(t);
-  }, [map]);
-
-  useEffect(() => {
-    // Listen for property navigation events with smooth zoom out / glide flyTo animation
-    const handleNavigateToProperty = (event) => {
-      const { coordinates } = event.detail;
-
-      // Validate coordinates before setting map view
-      if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) {
-        console.error("Invalid coordinates for navigation:", coordinates);
-        return;
-      }
-
+    // Smooth cinematic navigation with instant viewport dimension recalculation
+    const smoothNavigate = (coordinates) => {
+      if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) return;
+      map.invalidateSize({ animate: false });
       map.stop();
-      const currentCenter = map.getCenter();
-      const currentZoom = map.getZoom();
-      const dist = Math.hypot(
-        currentCenter.lat - coordinates[0],
-        currentCenter.lng - coordinates[1]
-      );
-
-      // If already viewing this location, toggle subtle zoom out (18) or zoom in (19)
-      if (dist < 0.002) {
-        if (currentZoom >= 18.8) {
-          map.flyTo(coordinates, 18, { duration: 1.0, easeLinearity: 0.25 });
-        } else {
-          map.flyTo(coordinates, 19.2, { duration: 1.0, easeLinearity: 0.25 });
-        }
-      } else {
-        // Direct smooth cinematic glide straight to target coordinates
-        const duration = dist < 0.01 ? 1.2 : 1.8;
-        map.flyTo(coordinates, 18.5, { duration, easeLinearity: 0.25 });
-      }
-
-      // Only show arrival pulse beacon if the target location has NO lots yet
-      const targetProp = properties.find(
-        (p) =>
-          p.coordinates &&
-          Math.hypot(p.coordinates[0] - coordinates[0], p.coordinates[1] - coordinates[1]) < 0.005
-      );
-      if (targetProp && !targetProp.hasLots && triggerArrivalPulse) {
-        triggerArrivalPulse(coordinates);
-      }
+      map.flyTo(coordinates, 18.5, { duration: 1.0, easeLinearity: 0.25 });
     };
 
-    // Listen for toggle zoom out / in when clicking Map View
-    const handleToggleMapOverview = () => {
-      if (!map) return;
-      const currentCenter = map.getCenter();
-      const currentZoom = map.getZoom();
-      if (currentZoom >= 18.8) {
-        map.flyTo(currentCenter, 18, { duration: 1.2, easeLinearity: 0.25 });
-      } else {
-        map.flyTo(currentCenter, 19.2, { duration: 1.2, easeLinearity: 0.25 });
-      }
+    // Listen for property navigation events
+    const handleNavigateToProperty = (event) => {
+      const { coordinates } = event.detail || {};
+      smoothNavigate(coordinates);
+      if (triggerArrivalPulse) triggerArrivalPulse(coordinates);
     };
 
-    // Listen for property selection events
+    // Listen for property selection events (from header dropdown or overview beacon)
     const handleSelectProperty = (event) => {
-      const { propertyId } = event.detail;
-      setSelectedProperty(propertyId);
+      const { propertyId, coordinates: detailCoords } = event.detail || {};
+      if (setSelectedProperty) setSelectedProperty(propertyId);
+      prevPropertyIdRef.current = propertyId;
+
+      let targetCoords = null;
+      if (properties) {
+        const found = properties.find((p) => Number(p.id) === Number(propertyId));
+        if (found?.coordinates) {
+          targetCoords = found.coordinates;
+        }
+      }
+      if (!targetCoords) {
+        targetCoords = detailCoords;
+      }
+
+      if (targetCoords) {
+        smoothNavigate(targetCoords);
+        if (triggerArrivalPulse) triggerArrivalPulse(targetCoords);
+      }
     };
 
     window.addEventListener("navigateToProperty", handleNavigateToProperty);
-    window.addEventListener("toggleMapOverview", handleToggleMapOverview);
     window.addEventListener("selectProperty", handleSelectProperty);
 
     return () => {
       window.removeEventListener("navigateToProperty", handleNavigateToProperty);
-      window.removeEventListener("toggleMapOverview", handleToggleMapOverview);
       window.removeEventListener("selectProperty", handleSelectProperty);
     };
   }, [map, setSelectedProperty, triggerArrivalPulse, properties]);
+
+  // Fly to selected property on initial mount
+  const initialFlyDoneRef = useRef(false);
+  useEffect(() => {
+    if (!map || !properties || properties.length === 0 || initialFlyDoneRef.current) return;
+    const targetProp = properties.find((p) => Number(p.id) === Number(selectedProperty));
+    if (targetProp && targetProp.coordinates) {
+      initialFlyDoneRef.current = true;
+      map.flyTo(targetProp.coordinates, 18.5, { duration: 1.0, easeLinearity: 0.25 });
+    }
+  }, [map, properties, selectedProperty]);
 
   return null;
 }
@@ -232,17 +205,8 @@ const EmployeeMapView = () => {
     return savedProperty ? parseInt(savedProperty) : 1;
   });
 
-  // Temporary auto-fading pulse indicator for property/location arrival
-  const [pulseCoords, setPulseCoords] = useState(null);
-  const pulseTimerRef = useRef(null);
-
   const triggerArrivalPulse = useCallback((coords) => {
-    if (!coords || !Array.isArray(coords) || coords.length < 2) return;
-    setPulseCoords(coords);
-    if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
-    pulseTimerRef.current = setTimeout(() => {
-      setPulseCoords(null);
-    }, 3500);
+    // Pulse handled smoothly
   }, []);
 
   // Property locations (same as AdminHeader) - derived from mapData or fallback
@@ -374,61 +338,49 @@ const EmployeeMapView = () => {
     fetchMapData();
   }, []);
 
-  const prevPropertyRef = useRef(null);
-
-  // Center map on selected property with cinematic zoom-out → glide → zoom-in animation
-  useEffect(() => {
-    if (!map || !selectedProperty || properties.length === 0) return;
-
-    if (prevPropertyRef.current !== selectedProperty) {
-      prevPropertyRef.current = selectedProperty;
-      const target = properties.find((p) => p.id === selectedProperty);
-      if (target && target.coordinates) {
-        // Only show arrival blue pulse if the property has NO lots yet
-        if (!target.hasLots && triggerArrivalPulse) {
-          triggerArrivalPulse(target.coordinates);
-        }
-        const timer = setTimeout(() => {
-          map.stop();
-          const currentCenter = map.getCenter();
-          const dist = Math.hypot(
-            currentCenter.lat - target.coordinates[0],
-            currentCenter.lng - target.coordinates[1]
-          );
-
-          if (dist < 0.002) {
-            map.flyTo(target.coordinates, 18.5, { duration: 1.0, easeLinearity: 0.25 });
-          } else {
-            // Direct smooth cinematic glide straight to target property
-            const duration = dist < 0.01 ? 1.2 : 1.8;
-            map.flyTo(target.coordinates, 18.5, { duration, easeLinearity: 0.25 });
-          }
-        }, 100);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [selectedProperty, properties, map, currentZoom, triggerArrivalPulse]);
-
   // Save selected property to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("selectedProperty", selectedProperty.toString());
   }, [selectedProperty]);
 
-  // Lots belonging to currently selected property
-  const selectedPropertyLots = useMemo(() => {
-    if (!mapData || !Array.isArray(mapData.lots)) return [];
-    return mapData.lots.filter(
-      (l) => l.property_id === selectedProperty && l.coordinates && l.coordinates.length > 0
-    );
-  }, [mapData, selectedProperty]);
+  // Auto fallback away from deleted or inactive property to the first active property ONLY when backend data is loaded
+  useEffect(() => {
+    if (mapData && Array.isArray(mapData.properties) && mapData.properties.length > 0) {
+      const exists = mapData.properties.some(
+        (p) => p.status !== "inactive" && Number(p.property_id) === Number(selectedProperty)
+      );
+      if (!exists) {
+        const fallbackProp = properties[0];
+        if (fallbackProp) {
+          setSelectedProperty(fallbackProp.id);
+          localStorage.setItem("selectedProperty", fallbackProp.id.toString());
+          if (fallbackProp.coordinates) {
+            window.dispatchEvent(
+              new CustomEvent("selectProperty", {
+                detail: { propertyId: fallbackProp.id, coordinates: fallbackProp.coordinates },
+              })
+            );
+          }
+        }
+      }
+    }
+  }, [mapData, properties, selectedProperty]);
 
-  // ── Optimization: Only render lots for the SELECTED property ──────────────
+  // Active property IDs set to exclude lots from inactive properties
+  const activePropertyIds = useMemo(() => {
+    if (!mapData || !Array.isArray(mapData.properties)) return new Set([1, 2, 3]);
+    return new Set(
+      mapData.properties
+        .filter((p) => p.status !== "inactive")
+        .map((p) => Number(p.property_id))
+    );
+  }, [mapData]);
+
+  // Render lots only for active properties
   const filteredLots = useMemo(() => {
     if (!mapData || !Array.isArray(mapData.lots)) return [];
-    return mapData.lots.filter(
-      (l) => l.property_id === selectedProperty
-    );
-  }, [mapData, selectedProperty]);
+    return mapData.lots.filter((l) => activePropertyIds.has(Number(l.property_id)));
+  }, [mapData, activePropertyIds]);
 
   // Get selected property coordinates
   const selectedPropertyCoords = useMemo(() => {
@@ -516,22 +468,26 @@ const EmployeeMapView = () => {
   return (
     <div
       ref={mapWrapperRef}
-      className="w-full h-full relative"
+      className={`w-full h-full relative ${currentZoom < 17 ? "map-view-zoomed-out" : "map-view-zoomed-in"}`}
       style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}
     >
       <MapContainer
         center={selectedPropertyCoords}
-        zoom={19}
+        zoom={18}
         maxZoom={21}
         zoomControl={false}
         attributionControl={false}
-        preferCanvas={true}
         zoomAnimation={true}
         fadeAnimation={true}
         markerZoomAnimation={true}
         touchZoom={true}
         tap={false}
         bounceAtZoomLimits={false}
+        wheelDebounceTime={40}
+        wheelPxPerZoomLevel={120}
+        inertia={true}
+        inertiaDeceleration={3000}
+        inertiaMaxSpeed={1500}
         style={{ height: "100%", width: "100%", zIndex: 1, touchAction: "manipulation" }}
       >
         <MapLocationSearch
@@ -558,6 +514,7 @@ const EmployeeMapView = () => {
           mapContainerRef={mapWrapperRef}
         />
         <MapController
+          selectedProperty={selectedProperty}
           setSelectedProperty={setSelectedProperty}
           setMap={setMap}
           setCurrentZoom={setCurrentZoom}
@@ -566,51 +523,33 @@ const EmployeeMapView = () => {
         />
         <ActiveMapTileLayer activeLayer={mapLayer} />
 
-        {/* ── Zoomed-Out Overview Green Property Location Beacons (< 17 zoom) ── */}
-        {currentZoom < 17 &&
-          properties.map((property) => {
-            if (!property.coordinates || !Array.isArray(property.coordinates) || property.coordinates.length < 2) return null;
-            // Hide green beacon for selected property — user is already there
-            if (property.id === selectedProperty) return null;
-            return (
-              <Marker
-                key={`overview-prop-${property.id}`}
-                position={property.coordinates}
-                icon={createOverviewPropertyIcon(property.name, property.lotCount || 0)}
-                eventHandlers={{
-                  click: () => {
-                    setSelectedProperty(property.id);
-                    if (map) {
-                      map.flyTo(property.coordinates, 18.5, { duration: 1.5, easeLinearity: 0.25 });
-                    }
-                  },
-                }}
-              />
-            );
-          })}
+        {/* ── Zoomed-Out Overview Green Property Location Beacons (CSS visibility) ── */}
+        {properties.map((property) => {
+          if (!property.coordinates || !Array.isArray(property.coordinates) || property.coordinates.length < 2) return null;
+          return (
+            <Marker
+              key={`overview-prop-${property.id}`}
+              position={property.coordinates}
+              icon={createOverviewPropertyIcon(property.name, property.lotCount || 0)}
+              eventHandlers={{
+                click: (e) => {
+                  if (e?.originalEvent) {
+                    e.originalEvent.stopPropagation();
+                  }
+                  setSelectedProperty(property.id);
+                  localStorage.setItem("selectedProperty", property.id.toString());
+                  window.dispatchEvent(
+                    new CustomEvent("selectProperty", {
+                      detail: { propertyId: property.id, coordinates: property.coordinates },
+                    })
+                  );
+                },
+              }}
+            />
+          );
+        })}
 
-        {/* ── Temporary Auto-Fading Royal Blue GPS Radar Signal Beacon (Only when property has NO lots) ── */}
-        {pulseCoords && selectedPropertyLots.length === 0 && (
-          <Marker
-            position={pulseCoords}
-            icon={L.divIcon({
-              className: "arrival-blue-signal-indicator",
-              html: `
-                <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; pointer-events: none;">
-                  <div style="position: absolute; width: 62px; height: 62px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.45); animation: ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                  <div style="position: absolute; width: 44px; height: 44px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.35); animation: ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite; animation-delay: 0.35s;"></div>
-                  <div style="position: relative; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; border: 3px solid #ffffff; box-shadow: 0 0 20px rgba(59, 130, 246, 0.95), 0 4px 12px rgba(0,0,0,0.45);">
-                    <svg width="18" height="18" fill="white" viewBox="0 0 24 24">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                    </svg>
-                  </div>
-                </div>
-              `,
-              iconSize: [64, 64],
-              iconAnchor: [32, 32],
-            })}
-          />
-        )}
+
 
         {filteredLots.map((lot) => {
           // Skip lots with invalid or missing coordinates
@@ -625,7 +564,6 @@ const EmployeeMapView = () => {
             lot.coordinates.reduce((sum, coord) => sum + coord[0], 0) / lot.coordinates.length;
           const centerLng =
             lot.coordinates.reduce((sum, coord) => sum + coord[1], 0) / lot.coordinates.length;
-          const pinLat = centerLat + 0.00012;
           const statusColor = getStatusColor(lot.status);
 
           const isTouchDevice =
@@ -699,11 +637,30 @@ const EmployeeMapView = () => {
                       fontWeight: 700,
                       backgroundColor: `${statusColor}22`,
                       color: statusColor,
-                      marginBottom: "8px",
+                      marginBottom: (lot.status === "Pending" || lot.status === "Sold") && lot.customer ? "4px" : "8px",
                     }}
                   >
                     {lot.status}
                   </div>
+
+                  {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
+                    <div
+                      style={{
+                        marginTop: "4px",
+                        marginBottom: "8px",
+                        paddingTop: "6px",
+                        borderTop: "1px solid #e2e8f0",
+                        fontSize: "11px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, color: "#334155", marginBottom: "2px" }}>Customer Info:</div>
+                      <div style={{ color: "#0f172a", fontWeight: 500 }}>{lot.customer.full_name || "N/A"}</div>
+                      <div style={{ color: "#64748b", fontSize: "10.5px", wordBreak: "break-all" }}>{lot.customer.email || "N/A"}</div>
+                      <div style={{ color: "#64748b", fontSize: "10.5px" }}>{lot.customer.contact_number || "N/A"}</div>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={(e) => {
@@ -755,58 +712,41 @@ const EmployeeMapView = () => {
                 {renderLotPopup()}
               </Polygon>
 
-              {currentZoom >= 17 && (
-                <>
-                  <Polyline
-                    key={`emp-line-${lot.lot_id}-${centerLat}-${centerLng}`}
-                    positions={[
-                      [centerLat, centerLng],
-                      [pinLat, centerLng],
-                    ]}
-                    pathOptions={{
-                      color: "#ffffff",
-                      weight: 1,
-                      dashArray: "2, 4",
-                      opacity: 0.7,
-                    }}
-                  />
-
-                  <Marker
-                    key={`emp-pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
-                    position={[pinLat, centerLng]}
-                    icon={createPinIcon(lot.status)}
-                    eventHandlers={{
-                      click: handleLotClick,
-                    }}
-                  >
-                    {renderLotPopup()}
-                    <Tooltip permanent={false} direction="top" offset={[0, -32]}>
-                      <div className="text-center text-xs leading-tight">
-                        <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
-                        <div className="mb-1 font-bold">{lot.lot_number}</div>
-                        <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
-                        <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
-                          {lot.status}
-                        </div>
-                        {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
-                          <>
-                            <div className="mt-2 pt-2 border-t border-gray-300">
-                              <div className="text-[11px] text-gray-700">
-                                <div className="font-semibold">Customer Info:</div>
-                                <div>{lot.customer.full_name || "N/A"}</div>
-                                <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
-                                <div className="text-gray-600">
-                                  {lot.customer.contact_number || "N/A"}
-                                </div>
+              <Marker
+                key={`emp-pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
+                position={[centerLat, centerLng]}
+                icon={createPinIcon(lot.status)}
+                eventHandlers={{
+                  click: handleLotClick,
+                }}
+              >
+                {!isTouchDevice && (
+                  <Tooltip permanent={false} direction="top" offset={[0, -18]}>
+                    <div className="text-center text-xs leading-tight">
+                      <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
+                      <div className="mb-1 font-bold">{lot.lot_number}</div>
+                      <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
+                      <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
+                        {lot.status}
+                      </div>
+                      {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
+                        <>
+                          <div className="mt-2 pt-2 border-t border-gray-300">
+                            <div className="text-[11px] text-gray-700">
+                              <div className="font-semibold">Customer Info:</div>
+                              <div>{lot.customer.full_name || "N/A"}</div>
+                              <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
+                              <div className="text-gray-600">
+                                {lot.customer.contact_number || "N/A"}
                               </div>
                             </div>
-                          </>
-                        )}
-                      </div>
-                    </Tooltip>
-                  </Marker>
-                </>
-              )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </Tooltip>
+                )}
+              </Marker>
             </React.Fragment>
           );
         })}
