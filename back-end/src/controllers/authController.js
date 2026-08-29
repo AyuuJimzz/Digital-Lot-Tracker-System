@@ -70,6 +70,19 @@ const login = async (req, res) => {
 			role: user.role,
 		});
 
+		try {
+			const { sendMessengerAlert } = require("../services/messengerAlertService");
+			sendMessengerAlert(
+				`Staff Login: ${user.email}`,
+				`A ${user.role.toUpperCase()} account successfully signed into the platform.`,
+				{
+					category: "authSecurity",
+					user: user.email,
+					ip: req.ip || req.headers["x-forwarded-for"],
+				}
+			).catch(() => {});
+		} catch (_) {}
+
 		return res.json({
 			message: "Login successful",
 			user,

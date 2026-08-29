@@ -50,15 +50,20 @@ function requireDeveloper(req, res, next) {
   return res.status(403).json({ error: "Access Denied: Developer authentication required" });
 }
 
+// Helper to read system_state.json
+function readSystemStateFile() {
+  try {
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, "utf8"));
+    }
+  } catch (err) {}
+  return { maintenanceMode: false, developerPin: "1234", logs: [], dismissedMessengerPsids: [] };
+}
+
 // Helper to write to system_state.json
 function updateSystemStateFile(updatedFields) {
   try {
-    let currentState = { maintenanceMode: false, developerPin: "1234", logs: [] };
-    if (fs.existsSync(configPath)) {
-      try {
-        currentState = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      } catch (err) {}
-    }
+    let currentState = readSystemStateFile();
     const mergedState = { ...currentState, ...updatedFields };
     fs.writeFileSync(configPath, JSON.stringify(mergedState, null, 2), "utf8");
     return mergedState;
@@ -131,6 +136,15 @@ router.post("/change-pin", requireDeveloper, (req, res) => {
       user: "Developer (Root)",
       role: "Developer",
     });
+
+    try {
+      sendMessengerAlert("Developer PIN Updated", "The developer security master PIN was updated successfully.", {
+        category: "systemChanges",
+        user: "Developer Console",
+        ip: getClientIp(req),
+      }).catch(() => {});
+    } catch (_) {}
+
     return res.json({ 
       success: true, 
       message: "Developer Security PIN updated successfully!", 
@@ -185,6 +199,19 @@ router.post("/toggle-maintenance", requireDeveloper, (req, res) => {
       device: parseDevice(req.headers["user-agent"]),
       ip: getClientIp(req),
     });
+
+    try {
+      sendMessengerAlert(
+        `Maintenance Mode: ${maintenanceMode ? "ENABLED" : "DISABLED"}`,
+        `The platform was set to ${maintenanceMode ? "Maintenance Mode (Under Construction)" : "Live Operations Mode"}.`,
+        {
+          category: "systemChanges",
+          user: "Developer Console",
+          ip: getClientIp(req),
+        }
+      ).catch(() => {});
+    } catch (_) {}
+
     return res.json({ success: true, maintenanceMode: newState.maintenanceMode });
   }
 
@@ -1624,14 +1651,6 @@ router.post("/test-messenger-alert", requireDeveloper, async (req, res) => {
   }
 });
 
-// ── SIMULATE REAL BACKEND 500 CRASH FOR TESTING ──
-router.post("/simulate-crash", requireDeveloper, (req, res, next) => {
-  const time = new Date().toLocaleTimeString();
-  const simulatedError = new Error(`Simulated 500 Crash [${time}]: Aiven Cloud DB Deadlock & Connection Timeout!`);
-  simulatedError.status = 500;
-  next(simulatedError); // Passes directly to global Express error handler in app.js
-});
-
 // ── FETCH RECENT MESSENGER CONVERSATIONS ──
 router.get("/messenger-conversations", requireDeveloper, async (req, res) => {
   const token = process.env.FB_PAGE_ACCESS_TOKEN;
@@ -1641,13 +1660,16 @@ router.get("/messenger-conversations", requireDeveloper, async (req, res) => {
 
   try {
     const metaRes = await fetch(
-      `https://graph.facebook.com/v19.0/me/conversations?fields=participants,updated_time,snippet&limit=15&access_token=${token}`
+      `https://graph.facebook.com/v19.0/me/conversations?fields=participants,updated_time,snippet&limit=25&access_token=${token}`
     );
     const data = await metaRes.json();
 
     if (!metaRes.ok || data.error) {
       return res.status(502).json({ error: data.error?.message || "Failed to fetch from Meta API" });
     }
+
+    const state = readSystemStateFile();
+    const dismissedPsids = new Set(state.dismissedMessengerPsids || []);
 
     const currentPsidRaw = process.env.FB_RECIPIENT_PSID || "";
     const activePsids = currentPsidRaw
@@ -1660,8 +1682,8 @@ router.get("/messenger-conversations", requireDeveloper, async (req, res) => {
 
     for (const conv of data.data || []) {
       for (const p of conv.participants?.data || []) {
-        // Exclude the page itself (Golden Dragon)
-        if (p.name !== "Golden Dragon" && !seen.has(p.id)) {
+        // Exclude the page itself and any dismissed/hidden users
+        if (p.name !== "Golden Dragon" && !seen.has(p.id) && !dismissedPsids.has(p.id)) {
           seen.add(p.id);
           recipients.push({
             id: p.id,
@@ -1679,11 +1701,81 @@ router.get("/messenger-conversations", requireDeveloper, async (req, res) => {
       success: true,
       recipients,
       activePsids,
+      dismissedCount: dismissedPsids.size,
       currentRecipientPsid: currentPsidRaw,
     });
   } catch (err) {
     console.error("Fetch messenger conversations error:", err);
     res.status(500).json({ error: "Server error fetching conversations", message: err.message });
+  }
+});
+
+// ── DISMISS / HIDE CONTACT FROM CONVERSATION SCAN ──
+router.post("/dismiss-messenger-recipient", requireDeveloper, async (req, res) => {
+  const { psid, name } = req.body;
+  if (!psid) {
+    return res.status(400).json({ error: "psid is required" });
+  }
+
+  try {
+    const cleanPsid = psid.toString().trim();
+    const cleanName = name ? name.toString().trim() : "User";
+    const state = readSystemStateFile();
+    const dismissed = new Set(state.dismissedMessengerPsids || []);
+    dismissed.add(cleanPsid);
+
+    // Also remove from active recipient list if it was active
+    let activePsids = (process.env.FB_RECIPIENT_PSID || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .filter((id) => id !== cleanPsid);
+
+    const finalPsidStr = activePsids.join(",");
+    process.env.FB_RECIPIENT_PSID = finalPsidStr;
+
+    updateSystemStateFile({
+      dismissedMessengerPsids: Array.from(dismissed),
+      messengerRecipientPsid: finalPsidStr,
+      messengerRecipientCount: activePsids.length,
+    });
+
+    addDeveloperLog(`Removed/Dismissed Messenger contact from scan list: ${cleanName} (${cleanPsid})`, {
+      type: "SYSTEM",
+      device: parseDevice(req.headers["user-agent"]),
+      ip: getClientIp(req),
+    });
+
+    return res.json({
+      success: true,
+      message: `Contact ${cleanName} hidden from scan list`,
+      activePsids,
+    });
+  } catch (err) {
+    console.error("Dismiss messenger recipient error:", err);
+    return res.status(500).json({ error: "Failed to dismiss recipient", message: err.message });
+  }
+});
+
+// ── RESTORE ALL HIDDEN MESSENGER CONTACTS ──
+router.post("/restore-messenger-recipients", requireDeveloper, async (req, res) => {
+  try {
+    updateSystemStateFile({
+      dismissedMessengerPsids: [],
+    });
+
+    addDeveloperLog("Restored all hidden Messenger contacts in developer console", {
+      type: "SYSTEM",
+      device: parseDevice(req.headers["user-agent"]),
+      ip: getClientIp(req),
+    });
+
+    return res.json({
+      success: true,
+      message: "Restored all hidden contacts to scan list!",
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to restore recipients", message: err.message });
   }
 });
 
@@ -1774,6 +1866,50 @@ router.post("/set-messenger-recipient", requireDeveloper, async (req, res) => {
     console.error("Set messenger recipient error:", err);
     return res.status(500).json({ error: "Failed to set recipient", message: err.message });
   }
+});
+
+// ── GET ALERT FILTER PREFERENCES ──
+router.get("/alert-filters", requireDeveloper, (req, res) => {
+  const state = readSystemStateFile();
+  const filters = {
+    criticalErrors: state.alertFilters?.criticalErrors ?? true,
+    reservations: state.alertFilters?.reservations ?? true,
+    authSecurity: state.alertFilters?.authSecurity ?? true,
+    systemChanges: state.alertFilters?.systemChanges ?? true,
+  };
+  res.json({ success: true, filters });
+});
+
+// ── SET ALERT FILTER PREFERENCES ──
+router.post("/set-alert-filters", requireDeveloper, (req, res) => {
+  const { filters } = req.body;
+  if (!filters || typeof filters !== "object") {
+    return res.status(400).json({ error: "filters object is required" });
+  }
+
+  const updatedFilters = {
+    criticalErrors: Boolean(filters.criticalErrors),
+    reservations: Boolean(filters.reservations),
+    authSecurity: Boolean(filters.authSecurity),
+    systemChanges: Boolean(filters.systemChanges),
+  };
+
+  updateSystemStateFile({
+    alertFilters: updatedFilters,
+    lastModified: new Date().toISOString(),
+  });
+
+  addDeveloperLog("Updated Messenger Alert notification category filters", {
+    type: "SYSTEM",
+    device: parseDevice(req.headers["user-agent"]),
+    ip: getClientIp(req),
+  });
+
+  res.json({
+    success: true,
+    message: "Alert notification preferences saved successfully!",
+    filters: updatedFilters,
+  });
 });
 
 module.exports = router;

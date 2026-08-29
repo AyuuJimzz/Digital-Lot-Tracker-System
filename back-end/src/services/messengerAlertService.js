@@ -8,7 +8,7 @@ const path = require("path");
 
 let lastAlertTime = 0;
 let lastAlertMessage = "";
-const COOLDOWN_MS = 10 * 1000; // 10-second debounce for duplicate production errors
+const COOLDOWN_MS = 30 * 1000; // 30-second anti-spam debounce for duplicate production errors
 
 const getActiveToken = () => {
   if (process.env.FB_PAGE_ACCESS_TOKEN) return process.env.FB_PAGE_ACCESS_TOKEN.trim();
@@ -48,6 +48,27 @@ const getActiveRecipientPsids = () => {
   return psids;
 };
 
+const getAlertFilters = () => {
+  try {
+    const statePath = path.resolve(__dirname, "../../config/system_state.json");
+    if (fs.existsSync(statePath)) {
+      const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+      return {
+        criticalErrors: state.alertFilters?.criticalErrors ?? true,
+        reservations: state.alertFilters?.reservations ?? true,
+        authSecurity: state.alertFilters?.authSecurity ?? true,
+        systemChanges: state.alertFilters?.systemChanges ?? true,
+      };
+    }
+  } catch (_) {}
+  return {
+    criticalErrors: true,
+    reservations: true,
+    authSecurity: true,
+    systemChanges: true,
+  };
+};
+
 /**
  * Send Facebook Messenger direct message alert to developer(s)
  * Supports single or multi-recipient comma-separated PSIDs
@@ -64,11 +85,19 @@ const sendMessengerAlert = async (title, details, meta = {}) => {
     return { success: false, reason: "NOT_CONFIGURED" };
   }
 
-  const now = Date.now();
-  const alertSignature = `${title}-${details}`;
+  const category = meta.category || "criticalErrors";
+  const filters = getAlertFilters();
   const isManualTest = meta.bypassDebounce || title.includes("Test") || title.includes("Simulated") || details.includes("Simulated");
 
-  // Prevent message spamming if the exact same production error repeats rapidly within 10s
+  if (!isManualTest && filters[category] === false) {
+    console.log(`🔇 [MessengerAlert] Skipped notification for '${title}' (Category '${category}' is turned off)`);
+    return { success: false, reason: "CATEGORY_DISABLED", category };
+  }
+
+  const now = Date.now();
+  const alertSignature = `${title}-${details}`;
+
+  // Prevent message spamming if the exact same production error repeats rapidly within 30s
   if (!isManualTest && alertSignature === lastAlertMessage && now - lastAlertTime < COOLDOWN_MS) {
     console.log(`⏳ [MessengerAlert] Debounced duplicate error alert: ${title}`);
     return { success: false, reason: "DEBOUNCED" };
@@ -83,14 +112,22 @@ const sendMessengerAlert = async (title, details, meta = {}) => {
     timeStyle: "short",
   });
 
+  const headerBanner = category === "reservations"
+    ? "📝 [GOLDEN DRAGON RESERVATION ALERT]"
+    : category === "authSecurity"
+    ? "🛡️ [GOLDEN DRAGON SECURITY ALERT]"
+    : category === "systemChanges"
+    ? "⚙️ [GOLDEN DRAGON SYSTEM CHANGE]"
+    : "🚨 [GOLDEN DRAGON CRITICAL ALERT]";
+
   const formattedMessage = 
-`🚨 [GOLDEN DRAGON CRITICAL ALERT]
+`${headerBanner}
 ━━━━━━━━━━━━━━━━━━━━
 ⏰ Time: ${timestamp}
 📌 Event: ${title}
 ❌ Details: ${details}
 ${meta.route ? `🌐 Endpoint: ${meta.route}\n` : ""}${meta.user ? `👤 Triggered by: ${meta.user}\n` : ""}${meta.ip ? `🌐 Client IP: ${meta.ip}\n` : ""}━━━━━━━━━━━━━━━━━━━━
-⚠️ Please inspect the Developer Panel immediately.`;
+⚠️ Please inspect the Developer Panel if needed.`;
 
   try {
     const dispatchPromises = recipientIds.map(async (rId) => {

@@ -175,24 +175,94 @@ const DeveloperPanel = () => {
     }
   };
 
-  const handleSimulateCrash = async () => {
-    setMessengerTestLoading(true);
-    setMessengerTestMsg({ text: "", isError: false });
+  const [dismissedCount, setDismissedCount] = useState(0);
+  const [alertFilters, setAlertFilters] = useState({
+    criticalErrors: true,
+    reservations: true,
+    authSecurity: true,
+    systemChanges: true,
+  });
+
+  const fetchAlertFilters = useCallback(async () => {
     try {
-      await axios.post(
-        `${API_BASE_URL}/api/developer/simulate-crash`,
-        {},
+      const res = await axios.get(`${API_BASE_URL}/api/developer/alert-filters`, {
+        headers: getDevHeaders(),
+        withCredentials: true,
+      });
+      if (res.data?.success && res.data.filters) {
+        setAlertFilters(res.data.filters);
+      }
+    } catch (_) {}
+  }, [getDevHeaders]);
+
+  const handleToggleFilter = async (filterKey) => {
+    const updated = {
+      ...alertFilters,
+      [filterKey]: !alertFilters[filterKey],
+    };
+    setAlertFilters(updated);
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/developer/set-alert-filters`,
+        { filters: updated },
         {
           headers: getDevHeaders(),
           withCredentials: true,
         }
       );
+      if (res.data?.success) {
+        setMessengerTestMsg({
+          text: `✅ Alert Category '${filterKey}' is now ${updated[filterKey] ? "ACTIVE" : "MUTED"}`,
+          isError: false,
+        });
+        fetchSystemState();
+      }
     } catch (err) {
       setMessengerTestMsg({
-        text: "💥 500 Crash triggered! Automatic alert was dispatched to all active Messenger accounts.",
-        isError: false,
+        text: "❌ Failed to save alert filter preferences",
+        isError: true,
       });
-      fetchSystemState();
+    }
+  };
+
+  const handleDismissRecipient = async (recipient) => {
+    if (!window.confirm(`Hide "${recipient.name}" from this scan list?`)) return;
+    setMessengerTestLoading(true);
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/developer/dismiss-messenger-recipient`,
+        { psid: recipient.id, name: recipient.name },
+        { headers: getDevHeaders(), withCredentials: true }
+      );
+      if (res.data.success) {
+        setMessengerTestMsg({ text: `🗑️ ${res.data.message}`, isError: false });
+        setMessengerRecipients((prev) => prev.filter((r) => r.id !== recipient.id));
+        setDismissedCount((c) => c + 1);
+        fetchEnvHealth();
+        fetchSystemState();
+      }
+    } catch (err) {
+      setMessengerTestMsg({ text: "❌ Failed to dismiss contact", isError: true });
+    } finally {
+      setMessengerTestLoading(false);
+    }
+  };
+
+  const handleRestoreRecipients = async () => {
+    setMessengerTestLoading(true);
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/developer/restore-messenger-recipients`,
+        {},
+        { headers: getDevHeaders(), withCredentials: true }
+      );
+      if (res.data.success) {
+        setMessengerTestMsg({ text: `🔄 ${res.data.message}`, isError: false });
+        setDismissedCount(0);
+        fetchMessengerRecipients();
+      }
+    } catch (err) {
+      setMessengerTestMsg({ text: "❌ Failed to restore contacts", isError: true });
     } finally {
       setMessengerTestLoading(false);
     }
@@ -208,6 +278,9 @@ const DeveloperPanel = () => {
       });
       if (res.data.success) {
         setMessengerRecipients(res.data.recipients || []);
+        if (res.data.dismissedCount !== undefined) {
+          setDismissedCount(res.data.dismissedCount);
+        }
         if ((res.data.recipients || []).length === 0) {
           setMessengerTestMsg({
             text: "No recent messages found on your Facebook Page. Please send a message (e.g. 'hello') to your Golden Dragon Page first!",
@@ -459,6 +532,7 @@ const DeveloperPanel = () => {
           fetchEmployees();
           fetchDbStats();
           fetchMapDiagnostics();
+          fetchAlertFilters();
         }
       } catch (err) {
         sessionStorage.removeItem("devPin");
@@ -472,7 +546,7 @@ const DeveloperPanel = () => {
     return () => {
       isMounted = false;
     };
-  }, [fetchAdmins, fetchEmployees, fetchDbStats, fetchMapDiagnostics]);
+  }, [fetchAdmins, fetchEmployees, fetchDbStats, fetchMapDiagnostics, fetchAlertFilters]);
 
   // Poll system logs when authorized
   useEffect(() => {
@@ -1500,9 +1574,6 @@ const DeveloperPanel = () => {
                 <div className="text-[10px] text-slate-500">Maintenance, PIN & Activity</div>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800">
-              {logs.length}
-            </span>
           </button>
 
           {/* 2. Database & Storage */}
@@ -1531,9 +1602,6 @@ const DeveloperPanel = () => {
                 <div className="text-[10px] text-slate-500">Aiven Cloud MySQL</div>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-emerald-400 border border-slate-800 font-semibold">
-              6 Tables
-            </span>
           </button>
 
           {/* 3. Map Diagnostics */}
@@ -1562,11 +1630,6 @@ const DeveloperPanel = () => {
                 <div className="text-[10px] text-slate-500">Polygon & Coordinates</div>
               </div>
             </div>
-            {mapDiag && (
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-teal-400 border border-slate-800 font-semibold">
-                {mapDiag.overallCoveragePct}%
-              </span>
-            )}
           </button>
 
           {/* 4. Accounts & Credentials */}
@@ -1596,9 +1659,6 @@ const DeveloperPanel = () => {
                 <div className="text-[10px] text-slate-500">Admins & Employees</div>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-purple-400 border border-slate-800 font-semibold">
-              {admins.length + employees.length}
-            </span>
           </button>
 
           {/* 5. API Routes & Endpoint Health */}
@@ -1627,9 +1687,6 @@ const DeveloperPanel = () => {
                 <div className="text-[10px] text-slate-500">Endpoints & Latency</div>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-sky-400 border border-slate-800 font-semibold">
-              {apiHealthData ? `${apiHealthData.healthyCount}/${apiHealthData.totalEndpoints} Live` : "10 Routes"}
-            </span>
           </button>
 
           {/* 6. Environment (.env) Health Inspector */}
@@ -1657,9 +1714,6 @@ const DeveloperPanel = () => {
                 <div className="text-[10px] text-slate-500">Config & Security Keys</div>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-amber-400 border border-slate-800 font-semibold">
-              {envHealthData ? `${envHealthData.configuredCount}/${envHealthData.totalCount} Set` : "11 Vars"}
-            </span>
           </button>
 
           {/* 7. Facebook Messenger Alert Bot */}
@@ -1668,6 +1722,7 @@ const DeveloperPanel = () => {
             onClick={() => {
               setActiveSidebarTab("MESSENGER");
               setMobileSidebarOpen(false);
+              fetchAlertFilters();
               if (messengerRecipients.length === 0) {
                 fetchMessengerRecipients();
               }
@@ -1689,9 +1744,6 @@ const DeveloperPanel = () => {
                 <div className="text-[10px] text-slate-500">Push Notifications</div>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-sky-400 border border-slate-800 font-semibold">
-              {envHealthData?.variables?.find(v => v.key === "FB_PAGE_ACCESS_TOKEN")?.isSet ? "Active" : "Ready"}
-            </span>
           </button>
         </div>
 
@@ -2832,7 +2884,7 @@ const DeveloperPanel = () => {
                     type="button"
                     onClick={handleTestMessengerAlert}
                     disabled={messengerTestLoading}
-                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50 shadow-sm"
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50 shadow-sm"
                   >
                     {messengerTestLoading ? (
                       <>
@@ -2845,17 +2897,6 @@ const DeveloperPanel = () => {
                         <span>Broadcast Test Alert</span>
                       </>
                     )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSimulateCrash}
-                    disabled={messengerTestLoading}
-                    className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 rounded-xl border border-rose-500/30 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50 shadow-sm"
-                    title="Simulate a real 500 error to test automatic crash push alerting"
-                  >
-                    <span>💥</span>
-                    <span>Simulate 500 Error</span>
                   </button>
                 </div>
               </div>
@@ -2895,6 +2936,143 @@ const DeveloperPanel = () => {
                   </div>
                 </div>
 
+                {/* Alert Notification Filters & Preferences */}
+                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>🔔</span>
+                        <span>Custom Alert Notification Filters (Choose What Gets Sent)</span>
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Click on any category card below to toggle automatic Messenger alerts ON or OFF.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* 1. Critical 500 & DB Crashes */}
+                    <div
+                      onClick={() => handleToggleFilter("criticalErrors")}
+                      className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 select-none ${
+                        alertFilters.criticalErrors
+                          ? "bg-rose-950/25 border-rose-500/50 text-rose-300 shadow-md shadow-rose-950/20"
+                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 opacity-60"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xl">🚨</span>
+                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold border ${
+                            alertFilters.criticalErrors
+                              ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
+                              : "bg-slate-800 text-slate-500 border-slate-700"
+                          }`}>
+                            {alertFilters.criticalErrors ? "ACTIVE" : "MUTED"}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-bold text-white mt-2.5">Fatal & 500 Crashes</h5>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Database dropouts, unhandled API 500 errors & server crash exceptions.
+                        </p>
+                      </div>
+                      <div className="text-[11px] font-semibold flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
+                        <span>{alertFilters.criticalErrors ? "🟢 Sending to Messenger" : "⚪ Muted (No Chat)"}</span>
+                      </div>
+                    </div>
+
+                    {/* 2. Lot Reservations & Transactions */}
+                    <div
+                      onClick={() => handleToggleFilter("reservations")}
+                      className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 select-none ${
+                        alertFilters.reservations
+                          ? "bg-amber-950/25 border-amber-500/50 text-amber-300 shadow-md shadow-amber-950/20"
+                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 opacity-60"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xl">📝</span>
+                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold border ${
+                            alertFilters.reservations
+                              ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                              : "bg-slate-800 text-slate-500 border-slate-700"
+                          }`}>
+                            {alertFilters.reservations ? "ACTIVE" : "MUTED"}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-bold text-white mt-2.5">Lot Reservations</h5>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Real-time alert when a client or staff books a lot reservation/transaction.
+                        </p>
+                      </div>
+                      <div className="text-[11px] font-semibold flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
+                        <span>{alertFilters.reservations ? "🟢 Sending to Messenger" : "⚪ Muted (No Chat)"}</span>
+                      </div>
+                    </div>
+
+                    {/* 3. Staff & Admin Security Logins */}
+                    <div
+                      onClick={() => handleToggleFilter("authSecurity")}
+                      className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 select-none ${
+                        alertFilters.authSecurity
+                          ? "bg-sky-950/25 border-sky-500/50 text-sky-300 shadow-md shadow-sky-950/20"
+                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 opacity-60"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xl">🛡️</span>
+                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold border ${
+                            alertFilters.authSecurity
+                              ? "bg-sky-500/20 text-sky-400 border-sky-500/30"
+                              : "bg-slate-800 text-slate-500 border-slate-700"
+                          }`}>
+                            {alertFilters.authSecurity ? "ACTIVE" : "MUTED"}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-bold text-white mt-2.5">Security & Staff Logins</h5>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Notifies whenever an Admin or Employee account logs into the portal.
+                        </p>
+                      </div>
+                      <div className="text-[11px] font-semibold flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
+                        <span>{alertFilters.authSecurity ? "🟢 Sending to Messenger" : "⚪ Muted (No Chat)"}</span>
+                      </div>
+                    </div>
+
+                    {/* 4. Maintenance & System Changes */}
+                    <div
+                      onClick={() => handleToggleFilter("systemChanges")}
+                      className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 select-none ${
+                        alertFilters.systemChanges
+                          ? "bg-purple-950/25 border-purple-500/50 text-purple-300 shadow-md shadow-purple-950/20"
+                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 opacity-60"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xl">⚙️</span>
+                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold border ${
+                            alertFilters.systemChanges
+                              ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
+                              : "bg-slate-800 text-slate-500 border-slate-700"
+                          }`}>
+                            {alertFilters.systemChanges ? "ACTIVE" : "MUTED"}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-bold text-white mt-2.5">System Config Toggles</h5>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          Notifies when Maintenance Mode or Developer Security PIN is modified.
+                        </p>
+                      </div>
+                      <div className="text-[11px] font-semibold flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
+                        <span>{alertFilters.systemChanges ? "🟢 Sending to Messenger" : "⚪ Muted (No Chat)"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Recipient Selection Card */}
                 <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -2904,31 +3082,57 @@ const DeveloperPanel = () => {
                         <span>Recent People Who Messaged Your Page</span>
                       </h4>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        Click on any contact to toggle them ON/OFF as an alert recipient. You can select 1, 2, 3, or more people simultaneously!
+                        Click on any contact to toggle them ON/OFF. You can also click the 🗑️ icon to permanently hide/delete unwanted contacts from this list.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={fetchMessengerRecipients}
-                      disabled={fetchRecipientsLoading}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5 self-start sm:self-auto shrink-0"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={fetchRecipientsLoading ? "animate-spin" : ""}>
-                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                      </svg>
-                      <span>Refresh List</span>
-                    </button>
+                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                      {dismissedCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleRestoreRecipients}
+                          disabled={messengerTestLoading}
+                          className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs rounded-lg border border-amber-500/25 transition flex items-center gap-1"
+                          title="Restore all hidden contacts"
+                        >
+                          <span>🔄</span>
+                          <span>Restore {dismissedCount} Hidden</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={fetchMessengerRecipients}
+                        disabled={fetchRecipientsLoading}
+                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5 shrink-0"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={fetchRecipientsLoading ? "animate-spin" : ""}>
+                          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                        </svg>
+                        <span>Refresh List</span>
+                      </button>
+                    </div>
                   </div>
 
                   {messengerRecipients.length === 0 ? (
-                    <div className="p-6 bg-slate-900/40 rounded-xl border border-slate-800 text-xs text-slate-400 text-center">
+                    <div className="p-6 bg-slate-900/40 rounded-xl border border-slate-800 text-xs text-slate-400 text-center space-y-2">
                       {fetchRecipientsLoading ? (
                         <div className="flex items-center justify-center gap-2">
                           <span className="w-3.5 h-3.5 rounded-full border-2 border-sky-400 border-t-transparent animate-spin" />
                           <span>Scanning Golden Dragon Facebook Page conversations...</span>
                         </div>
                       ) : (
-                        <span>No recent conversations detected yet. Send a quick message like 'hello' to your Golden Dragon Page, then click Refresh!</span>
+                        <>
+                          <div>No visible conversations in scan list. Send a message like 'hello' to your Golden Dragon Page, then click Refresh!</div>
+                          {dismissedCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleRestoreRecipients}
+                              className="text-sky-400 hover:underline text-xs"
+                            >
+                              Unhide {dismissedCount} dismissed contacts
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   ) : (
@@ -2936,7 +3140,7 @@ const DeveloperPanel = () => {
                       {messengerRecipients.map((rec) => (
                         <div
                           key={rec.id}
-                          className={`p-4 rounded-xl border flex flex-col justify-between gap-3 transition ${
+                          className={`p-4 rounded-xl border flex flex-col justify-between gap-3 transition relative group ${
                             rec.isCurrent
                               ? "bg-emerald-950/25 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-950/20"
                               : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700"
@@ -2945,15 +3149,30 @@ const DeveloperPanel = () => {
                           <div>
                             <div className="flex items-center justify-between gap-2">
                               <span className="font-bold text-sm text-white truncate">{rec.name}</span>
-                              {rec.isCurrent ? (
-                                <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
-                                  <span>✓</span> ACTIVE
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                                  Inactive
-                                </span>
-                              )}
+                              <div className="flex items-center gap-1.5">
+                                {rec.isCurrent ? (
+                                  <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
+                                    <span>✓</span> ACTIVE
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                                    Inactive
+                                  </span>
+                                )}
+
+                                {/* Delete / Hide contact button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDismissRecipient(rec)}
+                                  disabled={messengerTestLoading}
+                                  className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                                  title="Hide this contact from console list"
+                                >
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
                             <div className="text-[11px] font-mono text-slate-400 mt-1">
                               PSID: <span className="text-slate-300 font-semibold">{rec.id}</span>

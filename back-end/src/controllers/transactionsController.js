@@ -64,6 +64,18 @@ const createTransaction = async (req, res) => {
     // Commit transaction
     await db.commit();
 
+    try {
+      const { sendMessengerAlert } = require("../services/messengerAlertService");
+      sendMessengerAlert(
+        "New Lot Reservation / Transaction",
+        `A new transaction (Lot #${lot_id}) was processed with payment type: ${payment_type || "Standard"}.`,
+        {
+          category: "reservations",
+          user: req.user?.email || "Staff",
+        }
+      ).catch(() => {});
+    } catch (_) {}
+
     res.status(201).json({
       message: "Transaction created successfully",
       transaction_id: result.insertId,

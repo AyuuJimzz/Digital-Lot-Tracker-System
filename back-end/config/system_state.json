@@ -3,6 +3,141 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-08-29T22:33:18.235Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:33:14.715Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:32:54.628Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:32:53.709Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:32:51.943Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:32:45.701Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:32:10.478Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:32:09.424Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:32:08.356Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:32:06.804Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:22:35.568Z",
+      "event": "Restored all hidden Messenger contacts in developer console",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:21:27.757Z",
+      "event": "Removed/Dismissed Messenger contact from scan list: Hackie Neaza 󱢏 (38238961399053075)",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:20:43.556Z",
+      "event": "Restored all hidden Messenger contacts in developer console",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:20:34.462Z",
+      "event": "Removed/Dismissed Messenger contact from scan list: Hackie Neaza 󱢏 (38238961399053075)",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T22:20:32.347Z",
+      "event": "Messenger alert recipients updated: 39239492235650267 (1 active)",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-08-29T22:06:39.645Z",
       "event": "System Error on [POST /api/developer/simulate-crash]: Simulated 500 Crash [6:06:39 AM]: Aiven Cloud DB Deadlock & Connection Timeout!",
       "type": "ERROR",
@@ -67,8 +202,15 @@
     }
   ],
   "authRevocationTimestamp": "2026-08-29T18:30:20.396Z",
-  "messengerRecipientPsid": "39239492235650267,38238961399053075",
+  "messengerRecipientPsid": "39239492235650267",
   "messengerRecipientName": "John Edward Bearneza",
-  "messengerRecipientCount": 2,
-  "lastModified": "2026-08-29T21:52:46.507Z"
+  "messengerRecipientCount": 1,
+  "lastModified": "2026-08-29T22:33:18.229Z",
+  "dismissedMessengerPsids": [],
+  "alertFilters": {
+    "criticalErrors": true,
+    "reservations": false,
+    "authSecurity": true,
+    "systemChanges": false
+  }
 }
