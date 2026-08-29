@@ -220,7 +220,35 @@ const sendDirectMessage = async (recipientPsid, text) => {
   }
 };
 
+/**
+ * Send Facebook Messenger sender action (e.g., 'mark_seen', 'typing_on', 'typing_off')
+ * @param {string} recipientPsid
+ * @param {'mark_seen' | 'typing_on' | 'typing_off'} action
+ */
+const sendSenderAction = async (recipientPsid, action = "mark_seen") => {
+  const token = getActiveToken();
+  if (!token || !recipientPsid) {
+    return { success: false, reason: "NOT_CONFIGURED" };
+  }
+
+  try {
+    const response = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientPsid },
+        sender_action: action,
+      }),
+    });
+    const data = await response.json();
+    return { success: response.ok, data };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   sendMessengerAlert,
   sendDirectMessage,
+  sendSenderAction,
 };

@@ -3,7 +3,7 @@ const router = express.Router();
 const fs = require("fs");
 const path = require("path");
 const db = require("../../config/database_connection");
-const { sendDirectMessage } = require("../services/messengerAlertService");
+const { sendDirectMessage, sendSenderAction } = require("../services/messengerAlertService");
 const { addDeveloperLog, parseDevice, getClientIp } = require("../services/loggerService");
 
 const configPath = path.join(__dirname, "../../config/system_state.json");
@@ -185,12 +185,20 @@ router.post("/webhook", async (req, res) => {
         const senderPsid = event.sender?.id;
         const messageText = event.message?.text;
 
-        if (senderPsid && messageText) {
-          console.log(`💬 [MessengerWebhook] Received command from ${senderPsid}: "${messageText}"`);
-          try {
-            await handleBotCommand(senderPsid, messageText);
-          } catch (cmdErr) {
-            console.error("Error processing bot command:", cmdErr);
+        if (senderPsid) {
+          // 1. Auto-Seen / Mark Message as Read Receipt
+          sendSenderAction(senderPsid, "mark_seen").catch(() => {});
+
+          if (messageText) {
+            console.log(`💬 [MessengerWebhook] Received message from ${senderPsid}: "${messageText}"`);
+            try {
+              // 2. Show Typing Indicator Bubble while processing response
+              await sendSenderAction(senderPsid, "typing_on");
+              await handleBotCommand(senderPsid, messageText);
+              await sendSenderAction(senderPsid, "typing_off");
+            } catch (cmdErr) {
+              console.error("Error processing bot command:", cmdErr);
+            }
           }
         }
       }
