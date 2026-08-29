@@ -202,9 +202,9 @@
     }
   ],
   "authRevocationTimestamp": "2026-08-29T18:30:20.396Z",
-  "messengerRecipientPsid": "39239492235650267",
-  "messengerRecipientName": "John Edward Bearneza",
-  "messengerRecipientCount": 1,
+  "messengerRecipientPsid": "39239492235650267,38238961399053075",
+  "messengerRecipientName": "John Edward Bearneza & Hackie Neaza",
+  "messengerRecipientCount": 2,
   "lastModified": "2026-08-29T22:33:18.229Z",
   "dismissedMessengerPsids": [],
   "alertFilters": {

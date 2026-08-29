@@ -182,22 +182,34 @@ router.post("/webhook", async (req, res) => {
 // ── DEVELOPER PANEL SIMULATE COMMAND TEST ──
 router.post("/simulate-command", async (req, res) => {
   const { command, psid } = req.body;
-  const targetPsid = psid || (process.env.FB_RECIPIENT_PSID || "").split(",")[0]?.trim();
+  
+  let targetPsids = [];
+  if (psid) {
+    targetPsids = [psid.toString().trim()];
+  } else {
+    targetPsids = (process.env.FB_RECIPIENT_PSID || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
 
-  if (!targetPsid) {
+  if (targetPsids.length === 0) {
     return res.status(400).json({ error: "No target PSID configured or provided" });
   }
 
   try {
-    const result = await handleBotCommand(targetPsid, command || "STATUS");
-    if (result.success) {
+    const results = await Promise.allSettled(
+      targetPsids.map((id) => handleBotCommand(id, command || "STATUS"))
+    );
+    const successful = results.filter((r) => r.status === "fulfilled" && r.value?.success);
+    if (successful.length > 0) {
       return res.json({
         success: true,
-        message: `Command '${command || "STATUS"}' executed! Check your Messenger.`,
-        messageId: result.messageId,
+        message: `Command '${command || "STATUS"}' executed & sent to ${successful.length} account(s)! Check your Messenger.`,
+        deliveredCount: successful.length,
       });
     }
-    return res.status(502).json({ error: "Failed to dispatch reply", detail: result });
+    return res.status(502).json({ error: "Failed to dispatch reply", detail: results });
   } catch (err) {
     return res.status(500).json({ error: "Simulation failed", message: err.message });
   }
