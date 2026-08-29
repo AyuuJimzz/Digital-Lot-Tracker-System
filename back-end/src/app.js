@@ -11,6 +11,8 @@ const adminRoutes = require("./routes/adminRoutes");
 const lotRoutes = require("./routes/lotRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
+const developerRoutes = require("./routes/developerRoutes");
+const { checkMaintenance } = require("./middleware/maintenanceCheck");
 
 const app = express();
 
@@ -84,12 +86,16 @@ app.use(
   })
 );
 
+// ── Maintenance Mode Check ──
+app.use(checkMaintenance);
+
 // Health check endpoint (used by UptimeRobot & monitoring)
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
 // ── Routes with Security Middleware ──
+app.use("/api/developer", developerRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/properties", propertyRoutes);
@@ -104,6 +110,55 @@ app.use((req, res) => {
     error: "Not Found",
     message: "The requested resource was not found",
     status: 404,
+  });
+});
+
+// ── Global Error Interceptor & Diagnostic Logger ──
+const { addDeveloperLog, parseDevice, getClientIp } = require("./services/loggerService");
+const { sendMessengerAlert } = require("./services/messengerAlertService");
+
+app.use((err, req, res, next) => {
+  const statusCode = err.status || err.statusCode || 500;
+  const errorMsg = err.message || "Internal Server Error";
+  const routePath = `${req.method} ${req.originalUrl || req.url}`;
+  
+  console.error(`❌ [Global Error Handler] [${routePath}] Status ${statusCode}:`, err);
+
+  const device = parseDevice(req.headers ? req.headers["user-agent"] : "");
+  const ip = getClientIp(req);
+  const userIdentifier = req.user?.email || req.session?.user?.email || null;
+  const roleIdentifier = req.user?.role || req.session?.user?.role || null;
+
+  // Automatically record critical system failures to Developer Panel Logs
+  try {
+    addDeveloperLog(`System Error on [${routePath}]: ${errorMsg}`, {
+      type: "ERROR",
+      user: userIdentifier,
+      role: roleIdentifier,
+      device,
+      ip,
+    });
+  } catch (logErr) {
+    console.error("Failed to log error to developer logs:", logErr);
+  }
+
+  // Instant Messenger Alert for Server 500 Failures
+  if (statusCode >= 500) {
+    sendMessengerAlert(`Critical API Failure on ${routePath}`, errorMsg, {
+      route: routePath,
+      user: userIdentifier,
+      ip,
+    }).catch(() => {});
+  }
+
+  // Safe client response (doesn't leak internal paths or database credentials)
+  res.status(statusCode).json({
+    error: statusCode >= 500 ? "Internal Server Error" : "Bad Request",
+    message: isProduction && statusCode >= 500 
+      ? "An unexpected system error occurred. Our team has been automatically notified."
+      : errorMsg,
+    status: statusCode,
+    timestamp: new Date().toISOString(),
   });
 });
 

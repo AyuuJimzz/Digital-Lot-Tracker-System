@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const { loginAdmin } = require("./Admin/adminAuth");
 const { loginEmployee } = require("./Employee/employeeAuth");
+const { logAuthEvent } = require("../services/loggerService");
 
 // Helper: Generate JWT
 const generateToken = (user) => {
@@ -37,6 +38,11 @@ const login = async (req, res) => {
 
 		if (!result.success) {
 			const errorMessage = result.error || "Invalid email or password";
+			logAuthEvent(req, `Failed login attempt: ${email}`, {
+				type: "SECURITY",
+				user: email,
+				role: "Unknown",
+			});
 			return res.status(401).json({ message: errorMessage });
 		}
 
@@ -57,6 +63,13 @@ const login = async (req, res) => {
 		// JWT
 		const token = generateToken(user);
 
+		// Record successful login event in developer logs
+		logAuthEvent(req, `User Logged In: ${user.email} (${user.role.toUpperCase()})`, {
+			type: "AUTH",
+			user: user.email,
+			role: user.role,
+		});
+
 		return res.json({
 			message: "Login successful",
 			user,
@@ -73,20 +86,90 @@ const login = async (req, res) => {
 // LOGOUT
 // =======================
 const logout = (req, res) => {
-	req.session.destroy((err) => {
-		if (err) return res.status(500).json({ message: "Logout failed" });
+	let userEmail = req.session?.user?.email;
+	let userRole = req.session?.user?.role;
+
+	// Fallback 1: Extract and decode JWT from Authorization header or cookies
+	if (!userEmail) {
+		const authHeader = req.headers?.authorization;
+		const token = authHeader && authHeader.startsWith("Bearer ")
+			? authHeader.split(" ")[1]
+			: req.cookies?.token || req.cookies?.authToken;
+
+		if (token) {
+			try {
+				const decoded = jwt.decode(token);
+				if (decoded && (decoded.email || decoded.username || decoded.name)) {
+					userEmail = decoded.email || decoded.username || decoded.name;
+					userRole = decoded.role || userRole;
+				}
+			} catch (e) {}
+		}
+	}
+
+	// Fallback 2: Check request body
+	if (!userEmail && req.body?.email) {
+		userEmail = req.body.email;
+		userRole = req.body.role || userRole;
+	}
+
+	userEmail = userEmail || "User";
+	userRole = userRole || "user";
+
+	const finalizeLogout = () => {
 		res.clearCookie("connect.sid");
-		res.json({ message: "Logged out successfully" });
-	});
+		res.clearCookie("token");
+		res.clearCookie("authToken");
+
+		logAuthEvent(req, `User Logged Out: ${userEmail} (${userRole.toUpperCase()})`, {
+			type: "AUTH",
+			user: userEmail,
+			role: userRole,
+		});
+
+		return res.json({ message: "Logged out successfully" });
+	};
+
+	if (req.session) {
+		req.session.destroy((err) => {
+			if (err) console.error("Session destroy error:", err);
+			finalizeLogout();
+		});
+	} else {
+		finalizeLogout();
+	}
 };
+
+const fs = require("fs");
+const path = require("path");
+const configPath = path.join(__dirname, "../../config/system_state.json");
+
+function getAuthRevocationTimestamp() {
+	try {
+		if (fs.existsSync(configPath)) {
+			const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
+			if (state.authRevocationTimestamp) {
+				return new Date(state.authRevocationTimestamp).getTime();
+			}
+		}
+	} catch (err) {}
+	return 0;
+}
 
 // =======================
 // CHECK SESSION OR TOKEN
 // =======================
 const checkSession = (req, res) => {
 	try {
+		const revocationMs = getAuthRevocationTimestamp();
+
 		const user = req.session?.user;
-		if (user)
+		if (user) {
+			const sessionCreatedAt = req.session.createdAt ? new Date(req.session.createdAt).getTime() : 0;
+			if (revocationMs > 0 && sessionCreatedAt < revocationMs) {
+				req.session.destroy();
+				return res.json({ authenticated: false, message: "Session revoked by Developer Kill Switch" });
+			}
 			return res.json({
 				authenticated: true,
 				role: user.role,
@@ -95,11 +178,18 @@ const checkSession = (req, res) => {
 				canManageEmployees: user.canManageEmployees,
 				password_reset_required: user.password_reset_required || false,
 			});
+		}
 
 		const authHeader = req.headers.authorization;
 		if (authHeader && authHeader.startsWith("Bearer ")) {
 			const token = authHeader.split(" ")[1];
 			const decoded = jwt.verify(token, process.env.JWT_SECRET);
+			
+			const tokenIssuedMs = (decoded.iat || 0) * 1000;
+			if (revocationMs > 0 && tokenIssuedMs < revocationMs) {
+				return res.json({ authenticated: false, message: "Session revoked by Developer Kill Switch" });
+			}
+
 			return res.json({
 				authenticated: true,
 				role: decoded.role,

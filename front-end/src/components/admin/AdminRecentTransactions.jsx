@@ -20,6 +20,8 @@ const RecentTransactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
 
   // Fetch transactions from API
   useEffect(() => {
@@ -44,35 +46,71 @@ const RecentTransactions = () => {
     fetchTransactions();
   }, []);
 
+  // Filter transactions
   const filtered =
     filter === "All" ? transactions : transactions.filter((t) => t.status === filter);
+
+  // Reset to page 1 on filter or pageSize change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, pageSize]);
+
+  // Pagination calculations
+  const totalCount = filtered.length;
+  const totalPages = Math.ceil(totalCount / pageSize) || 1;
+  const validCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
+  const paginatedTransactions = filtered.slice(startIndex, endIndex);
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
-        <div>
+        <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Recent Transactions
           </h3>
-          {error && <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">⚠️ {error}</p>}
+          {totalCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-mono bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 font-medium">
+              {totalCount} total
+            </span>
+          )}
+          {error && <p className="text-xs text-red-600 dark:text-red-400">⚠️ {error}</p>}
         </div>
 
-        {/* Filter buttons */}
-        <div className="flex gap-2">
-          {["All", "Sold", "Pending"].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filter === f
-                  ? "bg-gray-900 dark:bg-slate-700 text-white"
-                  : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
-              }`}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Page size selector */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
+            <span>Show:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              {f}
-            </button>
-          ))}
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+
+          {/* Filter buttons */}
+          <div className="flex gap-1.5">
+            {["All", "Sold", "Pending"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  filter === f
+                    ? "bg-gray-900 dark:bg-slate-700 text-white"
+                    : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -111,14 +149,14 @@ const RecentTransactions = () => {
                   Loading transactions...
                 </td>
               </tr>
-            ) : filtered.length === 0 ? (
+            ) : paginatedTransactions.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">
                   No transactions found.
                 </td>
               </tr>
             ) : (
-              filtered.map((txn) => (
+              paginatedTransactions.map((txn) => (
                 <tr
                   key={txn.transaction_id}
                   className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors"
@@ -163,11 +201,35 @@ const RecentTransactions = () => {
         </table>
       </div>
 
-      {/* Footer */}
-      <div className="px-6 py-3 border-t border-gray-100 dark:border-slate-800 text-xs text-gray-500 dark:text-slate-400 flex justify-between items-center">
+      {/* Footer & Pagination Bar */}
+      <div className="px-6 py-3.5 border-t border-gray-100 dark:border-slate-800 text-xs text-gray-500 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-center gap-3">
         <span>
-          Showing {filtered.length} of {transactions.length} transactions
+          Showing {totalCount > 0 ? startIndex + 1 : 0}–{endIndex} of {totalCount} transactions
         </span>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={validCurrentPage <= 1}
+              className="px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ‹ Previous
+            </button>
+
+            <span className="px-2.5 py-1 text-xs font-mono font-semibold text-gray-700 dark:text-slate-300">
+              Page {validCurrentPage} of {totalPages}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={validCurrentPage >= totalPages}
+              className="px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next ›
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

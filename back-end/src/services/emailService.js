@@ -1,3 +1,5 @@
+const { addDeveloperLog } = require("./loggerService");
+
 /**
  * Universal Email Service via Brevo HTTPS REST API
  * (Bypasses cloud host SMTP port restrictions)
@@ -14,9 +16,17 @@ const sendEmail = async (toOrOptions, subjectParam, htmlParam) => {
     html = htmlParam;
   }
 
+  const targetEmailStr = Array.isArray(to) ? to.join(", ") : String(to || "");
+
   const brevoApiKey = process.env.BREVO_API_KEY;
   if (!brevoApiKey) {
     console.warn("[EmailService] BREVO_API_KEY is not defined in environment variables.");
+    addDeveloperLog(`Email dispatch skipped (No API Key) to ${targetEmailStr}: "${subject || "Notification"}"`, {
+      type: "EMAIL",
+      user: targetEmailStr,
+      role: "BREVO SMTP",
+      device: "Mail Server",
+    });
     return { success: false, error: "Email credentials not configured." };
   }
 
@@ -46,13 +56,31 @@ const sendEmail = async (toOrOptions, subjectParam, htmlParam) => {
     const data = await response.json();
     if (response.ok && data?.messageId) {
       console.log(`✅ [EmailService] Brevo HTTPS delivered email to ${to} (MessageId: ${data.messageId})`);
+      addDeveloperLog(`Email delivered to: ${targetEmailStr} | Subject: "${subject || "Notification"}"`, {
+        type: "EMAIL",
+        user: targetEmailStr,
+        role: "BREVO SMTP",
+        device: "Mail Server",
+      });
       return { success: true, method: "brevo", id: data.messageId };
     }
 
     console.error("[EmailService] Brevo API error response:", data);
+    addDeveloperLog(`Email delivery failed to ${targetEmailStr}: ${data?.message || "Brevo Error"}`, {
+      type: "EMAIL",
+      user: targetEmailStr,
+      role: "BREVO SMTP",
+      device: "Mail Server",
+    });
     return { success: false, error: data?.message || "Failed to send email via Brevo." };
   } catch (error) {
     console.error("[EmailService] Network/Fetch error:", error.message);
+    addDeveloperLog(`Email network error to ${targetEmailStr}: ${error.message}`, {
+      type: "EMAIL",
+      user: targetEmailStr,
+      role: "BREVO SMTP",
+      device: "Mail Server",
+    });
     return { success: false, error: error.message };
   }
 };

@@ -245,9 +245,16 @@ export function EmployeeHeader({ sidebarCollapsed }) {
   };
 
   const handleLogout = async () => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("role") || "employee";
     try {
       await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ role }),
         credentials: "include",
       });
     } catch (error) {

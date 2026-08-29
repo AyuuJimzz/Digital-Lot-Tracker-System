@@ -255,11 +255,14 @@ export function AdminHeader({ sidebarCollapsed }) {
   };
 
   const handleLogout = async () => {
+    const token = localStorage.getItem("authToken");
+    const role = localStorage.getItem("role") || "admin";
     try {
       await axios.post(
         `${API_BASE_URL}/api/auth/logout`,
-        {},
+        { role },
         {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
           withCredentials: true,
         }
       );

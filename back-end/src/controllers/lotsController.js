@@ -251,19 +251,26 @@ exports.getTimeBasedPropertySales = async (req, res) => {
 
     let dateFilter = "";
 
-    switch (period) {
+    switch (period?.toLowerCase()) {
       case "today":
         dateFilter = "DATE(t.transaction_date) = CURDATE()";
         break;
       case "week":
-        dateFilter = "YEARWEEK(t.transaction_date) = YEARWEEK(CURDATE())";
+      case "this week":
+        dateFilter = "YEARWEEK(t.transaction_date, 1) = YEARWEEK(CURDATE(), 1)";
         break;
       case "month":
+      case "this month":
         dateFilter =
           "MONTH(t.transaction_date) = MONTH(CURDATE()) AND YEAR(t.transaction_date) = YEAR(CURDATE())";
         break;
       case "year":
+      case "this year":
         dateFilter = "YEAR(t.transaction_date) = YEAR(CURDATE())";
+        break;
+      case "all":
+      case "all time":
+        dateFilter = "1=1";
         break;
       default:
         dateFilter =

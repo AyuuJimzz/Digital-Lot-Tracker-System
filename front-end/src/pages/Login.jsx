@@ -12,6 +12,26 @@ function Login({ setRole }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [logoClicks, setLogoClicks] = useState(0);
+
+  const handleLogoClick = () => {
+    setLogoClicks((prev) => {
+      const nextClicks = prev + 1;
+      if (nextClicks >= 5) {
+        navigate("/dev-panel");
+        return 0;
+      }
+      return nextClicks;
+    });
+  };
+
+  // Reset logo clicks after 3 seconds of no clicks
+  useEffect(() => {
+    if (logoClicks > 0) {
+      const timer = setTimeout(() => setLogoClicks(0), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [logoClicks]);
 
   useEffect(() => {
     // Restore saved JWT token for cross-origin deployments (Vercel + Render)
@@ -85,7 +105,8 @@ function Login({ setRole }) {
             <img
               src={logo}
               alt="Golden Dragon Logo"
-              className="w-40 h-40 object-contain drop-shadow-md"
+              onClick={handleLogoClick}
+              className="w-40 h-40 object-contain drop-shadow-md cursor-pointer"
             />
           </div>
 
@@ -111,7 +132,12 @@ function Login({ setRole }) {
 
           {/* Mobile logo */}
           <div className="flex lg:hidden flex-col items-center mb-10 gap-3">
-            <img src={logo} alt="Golden Dragon Logo" className="w-20 h-20 object-contain" />
+            <img 
+              src={logo} 
+              alt="Golden Dragon Logo" 
+              onClick={handleLogoClick}
+              className="w-20 h-20 object-contain cursor-pointer" 
+            />
             <div className="text-center">
               <h1 className="text-2xl font-black text-white">Golden Dragon</h1>
               <p className="text-amber-400/80 text-sm tracking-wider uppercase">Estate Corporation</p>

@@ -1,0 +1,52 @@
+{
+  "maintenanceMode": false,
+  "developerPin": "1234",
+  "logs": [
+    {
+      "timestamp": "2026-08-29T18:56:14.417Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T18:55:50.806Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T18:55:48.480Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T18:55:35.474Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-29T18:55:24.015Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    }
+  ],
+  "authRevocationTimestamp": "2026-08-29T18:30:20.396Z"
+}

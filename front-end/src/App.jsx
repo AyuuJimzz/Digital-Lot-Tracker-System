@@ -23,6 +23,9 @@ import AccessDenied from "./view/AccessDenied";
 import EstateMap from "./pages/Admin/AdminViewMap";
 import Forbidden from "./view/forbidden";
 import ProfileSettings from "./pages/Shared/ProfileSettings";
+import DeveloperPanel from "./pages/Developer/DeveloperPanel";
+import MaintenancePage from "./pages/MaintenancePage";
+import axios from "axios";
 
 import { startKeepAlive, stopKeepAlive } from "./utils/keepAlive";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
@@ -36,6 +39,44 @@ function App() {
   useEffect(() => {
     startKeepAlive();
     return () => stopKeepAlive();
+  }, []);
+
+  // ── Maintenance Mode Interceptor ──
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (
+          error.response &&
+          error.response.status === 503 &&
+          error.response.data &&
+          error.response.data.maintenance
+        ) {
+          if (
+            window.location.pathname !== "/maintenance" &&
+            window.location.pathname !== "/dev-panel"
+          ) {
+            window.location.href = "/maintenance";
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, []);
+
+  // ── Keyboard Shortcut for Developer Panel (Ctrl + Shift + D) ──
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        window.location.href = "/dev-panel";
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   return (
@@ -79,6 +120,8 @@ function App() {
                 <Route path="/employee/settings" element={<ProfileSettings />} />
               </Route>
 
+              <Route path="/dev-panel" element={<DeveloperPanel />} />
+              <Route path="/maintenance" element={<MaintenancePage />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Router>
