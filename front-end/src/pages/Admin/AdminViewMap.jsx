@@ -129,12 +129,32 @@ function MapController({
   }, [map]);
 
   useEffect(() => {
-    // Smooth cinematic navigation with instant viewport dimension recalculation
+    // Smooth cinematic navigation with dynamic distance-based duration and lot zoom-in
     const smoothNavigate = (coordinates) => {
       if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) return;
       map.invalidateSize({ animate: false });
       map.stop();
-      map.flyTo(coordinates, 18.5, { duration: 1.0, easeLinearity: 0.25 });
+
+      // Calculate real distance to target for smooth, unhurried flight & zoom-in
+      let flightDuration = 2.0;
+      try {
+        const curCenter = map.getCenter();
+        const distKm = curCenter.distanceTo(L.latLng(coordinates[0], coordinates[1])) / 1000;
+        if (distKm > 15) {
+          flightDuration = 3.0; // Far locations (e.g. Barotac, Guimbal from Oton)
+        } else if (distKm > 5) {
+          flightDuration = 2.5; // Medium distance
+        } else if (distKm > 0.8) {
+          flightDuration = 2.0; // Close distance
+        } else {
+          flightDuration = 1.6; // Same area
+        }
+      } catch (e) {}
+
+      map.flyTo(coordinates, 19, {
+        duration: flightDuration,
+        easeLinearity: 0.18,
+      });
     };
 
     // Listen for property navigation events
@@ -183,7 +203,7 @@ function MapController({
     const targetProp = properties.find((p) => Number(p.id) === Number(selectedProperty));
     if (targetProp && targetProp.coordinates) {
       initialFlyDoneRef.current = true;
-      map.flyTo(targetProp.coordinates, 18.5, { duration: 1.0, easeLinearity: 0.25 });
+      map.flyTo(targetProp.coordinates, 19, { duration: 2.0, easeLinearity: 0.18 });
     }
   }, [map, properties, selectedProperty]);
 
@@ -206,10 +226,16 @@ function AdminViewMap() {
     return localStorage.getItem("preferredMapLayer") || MAP_LAYERS.SATELLITE;
   });
   const [selectedLot, setSelectedLot] = useState(null);
+  const [activePopupLot, setActivePopupLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(() => {
     return parseInt(localStorage.getItem("selectedProperty")) || 1;
   });
+
+  // Clear active popup on property change
+  useEffect(() => {
+    setActivePopupLot(null);
+  }, [selectedProperty]);
 
   const triggerArrivalPulse = useCallback((coords) => {
     // Pulse handled smoothly
@@ -1063,6 +1089,107 @@ function AdminViewMap() {
         />
         <ActiveMapTileLayer activeLayer={mapLayer} />
 
+        {/* ── Single Map-Level Controlled Popup for Tablet Touch Devices ── */}
+        {activePopupLot && (
+          <Popup
+            position={activePopupLot.position}
+            onClose={() => setActivePopupLot(null)}
+            className="lot-preview-touch-popup"
+            autoPan={false}
+            offset={[0, -10]}
+          >
+            <div style={{ minWidth: "150px", padding: "2px" }} className="text-center">
+              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
+                Lot ID: {activePopupLot.lot_id}
+              </div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "2px" }}>
+                {activePopupLot.lot_number}
+              </div>
+              <div style={{ fontSize: "11.5px", color: "#475569", marginBottom: "6px" }}>
+                {activePopupLot.area_sqm} sqm
+              </div>
+              <div
+                style={{
+                  display: "inline-block",
+                  padding: "2px 8px",
+                  borderRadius: "9999px",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  backgroundColor: `${activePopupLot.statusColor}22`,
+                  color: activePopupLot.statusColor,
+                  marginBottom: (activePopupLot.status === "Pending" || activePopupLot.status === "Sold") && activePopupLot.customer ? "4px" : "8px",
+                }}
+              >
+                {activePopupLot.status}
+              </div>
+
+              {(activePopupLot.status === "Pending" || activePopupLot.status === "Sold") && activePopupLot.customer && (
+                <div
+                  style={{
+                    marginTop: "4px",
+                    marginBottom: "8px",
+                    paddingTop: "6px",
+                    borderTop: "1px solid #e2e8f0",
+                    fontSize: "11px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: "#334155", marginBottom: "2px" }}>Customer Info:</div>
+                  <div style={{ color: "#0f172a", fontWeight: 500 }}>{activePopupLot.customer.full_name || "N/A"}</div>
+                  <div style={{ color: "#64748b", fontSize: "10.5px", wordBreak: "break-all" }}>{activePopupLot.customer.email || "N/A"}</div>
+                  <div style={{ color: "#64748b", fontSize: "10.5px" }}>{activePopupLot.customer.contact_number || "N/A"}</div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const matchingProp = properties.find(
+                    (p) => Number(p.id) === Number(activePopupLot.property_id || selectedProperty)
+                  );
+                  const propName = matchingProp?.name || matchingProp?.property_name || "Golden Dragon Estate";
+                  const propLocation = matchingProp?.location || matchingProp?.name || "Guimbal, Iloilo";
+
+                  setSelectedLot({
+                    ...activePopupLot,
+                    property_name: activePopupLot.property_name || propName,
+                    location: activePopupLot.location || propLocation,
+                  });
+                  setIsOffcanvasOpen(true);
+                  setActivePopupLot(null);
+
+                  axios.get(`${API_BASE_URL}/api/lots/${activePopupLot.lot_id}`)
+                    .then((res) => {
+                      setSelectedLot(prev => prev && prev.lot_id === activePopupLot.lot_id ? { ...prev, ...res.data } : prev);
+                    }).catch(() => {});
+                }}
+                style={{
+                  width: "100%",
+                  padding: "6px 10px",
+                  backgroundColor: "#10b981",
+                  color: "#ffffff",
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px",
+                  boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)",
+                }}
+              >
+                <span>View Details</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </Popup>
+        )}
+
         {/* ── Zoomed-Out Overview Green Property Location Beacons (CSS visibility) ── */}
         {properties.map((property) => {
           if (!property.coordinates || !Array.isArray(property.coordinates) || property.coordinates.length < 2) return null;
@@ -1280,8 +1407,14 @@ function AdminViewMap() {
                 ])
               : lot.coordinates;
 
-          const centerLat = coords.reduce((sum, coord) => sum + coord[0], 0) / coords.length;
-          const centerLng = coords.reduce((sum, coord) => sum + coord[1], 0) / coords.length;
+          const lats = coords.map((c) => c[0]);
+          const lngs = coords.map((c) => c[1]);
+          const minLat = Math.min(...lats);
+          const maxLat = Math.max(...lats);
+          const minLng = Math.min(...lngs);
+          const maxLng = Math.max(...lngs);
+          const centerLat = (minLat + maxLat) / 2;
+          const centerLng = (minLng + maxLng) / 2;
           const statusColor = getStatusColor(lot.status);
 
           const isTouchDevice =
@@ -1324,95 +1457,20 @@ function AdminViewMap() {
 
           const handleLotClick = (e) => {
             if (editingLot) return;
+            if (e?.originalEvent) {
+              e.originalEvent.stopPropagation();
+              e.originalEvent.preventDefault();
+            }
             // On desktop (mouse), clicking immediately opens the full sidebar
             if (!isTouchDevice) {
-              if (e?.originalEvent) {
-                e.originalEvent.stopPropagation();
-                e.originalEvent.preventDefault();
-              }
               openFullLotDetails();
+            } else {
+              setActivePopupLot({
+                ...lot,
+                position: [centerLat, centerLng],
+                statusColor,
+              });
             }
-            // On tablet/touchscreen: default event allows Leaflet to open the Quick Preview Popup!
-          };
-
-          const renderLotPopup = () => {
-            if (!isTouchDevice) return null;
-            return (
-              <Popup className="lot-preview-touch-popup" autoPan={false} offset={[0, -10]}>
-                <div style={{ minWidth: "150px", padding: "2px" }} className="text-center">
-                  <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
-                    Lot ID: {lot.lot_id}
-                  </div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "2px" }}>
-                    {lot.lot_number}
-                  </div>
-                  <div style={{ fontSize: "11.5px", color: "#475569", marginBottom: "6px" }}>
-                    {lot.area_sqm} sqm
-                  </div>
-                  <div
-                    style={{
-                      display: "inline-block",
-                      padding: "2px 8px",
-                      borderRadius: "9999px",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      backgroundColor: `${statusColor}22`,
-                      color: statusColor,
-                      marginBottom: (lot.status === "Pending" || lot.status === "Sold") && lot.customer ? "4px" : "8px",
-                    }}
-                  >
-                    {lot.status}
-                  </div>
-
-                  {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
-                    <div
-                      style={{
-                        marginTop: "4px",
-                        marginBottom: "8px",
-                        paddingTop: "6px",
-                        borderTop: "1px solid #e2e8f0",
-                        fontSize: "11px",
-                        textAlign: "center",
-                      }}
-                    >
-                      <div style={{ fontWeight: 600, color: "#334155", marginBottom: "2px" }}>Customer Info:</div>
-                      <div style={{ color: "#0f172a", fontWeight: 500 }}>{lot.customer.full_name || "N/A"}</div>
-                      <div style={{ color: "#64748b", fontSize: "10.5px", wordBreak: "break-all" }}>{lot.customer.email || "N/A"}</div>
-                      <div style={{ color: "#64748b", fontSize: "10.5px" }}>{lot.customer.contact_number || "N/A"}</div>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openFullLotDetails();
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "6px 10px",
-                      backgroundColor: "#10b981",
-                      color: "#ffffff",
-                      borderRadius: "6px",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      border: "none",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "4px",
-                      boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)",
-                    }}
-                  >
-                    <span>View Details</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </Popup>
-            );
           };
 
           return (
@@ -1429,9 +1487,7 @@ function AdminViewMap() {
                 eventHandlers={{
                   click: handleLotClick,
                 }}
-              >
-                {renderLotPopup()}
-              </Polygon>
+              />
 
               <Marker
                 key={`pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
