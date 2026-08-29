@@ -1632,6 +1632,100 @@ router.post("/test-messenger-alert", requireDeveloper, async (req, res) => {
   }
 });
 
+// ── FETCH RECENT MESSENGER CONVERSATIONS ──
+router.get("/messenger-conversations", requireDeveloper, async (req, res) => {
+  const token = process.env.FB_PAGE_ACCESS_TOKEN;
+  if (!token) {
+    return res.status(400).json({ error: "FB_PAGE_ACCESS_TOKEN is not configured" });
+  }
+
+  try {
+    const metaRes = await fetch(
+      `https://graph.facebook.com/v19.0/me/conversations?fields=participants,updated_time,snippet&limit=10&access_token=${token}`
+    );
+    const data = await metaRes.json();
+
+    if (!metaRes.ok || data.error) {
+      return res.status(502).json({ error: data.error?.message || "Failed to fetch from Meta API" });
+    }
+
+    const recipients = [];
+    const seen = new Set();
+
+    for (const conv of data.data || []) {
+      for (const p of conv.participants?.data || []) {
+        // Exclude the page itself (name starts with Golden Dragon)
+        if (p.name !== "Golden Dragon" && !seen.has(p.id)) {
+          seen.add(p.id);
+          recipients.push({
+            id: p.id,
+            name: p.name || "Facebook User",
+            email: p.email || "",
+            lastActive: conv.updated_time,
+            snippet: conv.snippet || "",
+            isCurrent: p.id === process.env.FB_RECIPIENT_PSID,
+          });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      recipients,
+      currentRecipientPsid: process.env.FB_RECIPIENT_PSID || null,
+    });
+  } catch (err) {
+    console.error("Fetch messenger conversations error:", err);
+    res.status(500).json({ error: "Server error fetching conversations", message: err.message });
+  }
+});
+
+// ── SET ACTIVE MESSENGER ALERT RECIPIENT ──
+router.post("/set-messenger-recipient", requireDeveloper, async (req, res) => {
+  const { psid, name } = req.body;
+  if (!psid) {
+    return res.status(400).json({ error: "psid is required" });
+  }
+
+  try {
+    // 1. Update runtime env
+    process.env.FB_RECIPIENT_PSID = psid;
+
+    // 2. Update .env file if it exists
+    const envPath = path.resolve(__dirname, "../../.env");
+    if (fs.existsSync(envPath)) {
+      let envContent = fs.readFileSync(envPath, "utf8");
+      if (envContent.includes("FB_RECIPIENT_PSID=")) {
+        envContent = envContent.replace(/FB_RECIPIENT_PSID=.*/g, `FB_RECIPIENT_PSID=${psid}`);
+      } else {
+        envContent += `\nFB_RECIPIENT_PSID=${psid}\n`;
+      }
+      fs.writeFileSync(envPath, envContent, "utf8");
+    }
+
+    addDeveloperLog(`Assigned new Facebook Messenger alert recipient: ${name || "User"} (PSID: ${psid})`, {
+      type: "SYSTEM",
+      device: parseDevice(req.headers["user-agent"]),
+      ip: getClientIp(req),
+    });
+
+    // 3. Send a test confirmation message to the newly set recipient
+    await sendMessengerAlert(
+      "Messenger Alert Bot Connected",
+      `Hello ${name || "Developer"}! Your Facebook account is now set as the active recipient for Golden Dragon Estate system error and crash notifications.`
+    );
+
+    res.json({
+      success: true,
+      message: `Active recipient updated to ${name || psid}. Confirmation message dispatched!`,
+      currentRecipientPsid: psid,
+    });
+  } catch (err) {
+    console.error("Set messenger recipient error:", err);
+    res.status(500).json({ error: "Failed to set recipient", message: err.message });
+  }
+});
+
 // ── MESSENGER WEBHOOK VERIFICATION (GET) ──
 router.get("/messenger-webhook", (req, res) => {
   const mode = req.query["hub.mode"];
