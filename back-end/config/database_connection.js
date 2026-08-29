@@ -14,4 +14,12 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
+pool.on("error", (err) => {
+  console.error("❌ MySQL Pool Error:", err.message);
+  try {
+    const { sendMessengerAlert } = require("../src/services/messengerAlertService");
+    sendMessengerAlert("Aiven MySQL Database Error", err.message || "Database pool disconnection").catch(() => {});
+  } catch (_) {}
+});
+
 module.exports = pool.promise();

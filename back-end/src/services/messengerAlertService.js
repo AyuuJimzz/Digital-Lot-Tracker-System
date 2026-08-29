@@ -3,30 +3,74 @@
  * Sends instant developer notifications on critical system crashes / database errors.
  */
 
+const fs = require("fs");
+const path = require("path");
+
 let lastAlertTime = 0;
 let lastAlertMessage = "";
-const COOLDOWN_MS = 30 * 1000; // 30-second debounce per duplicate error
+const COOLDOWN_MS = 10 * 1000; // 10-second debounce for duplicate production errors
+
+const getActiveToken = () => {
+  if (process.env.FB_PAGE_ACCESS_TOKEN) return process.env.FB_PAGE_ACCESS_TOKEN.trim();
+  const envPaths = [
+    path.resolve(__dirname, "../../.env"),
+    path.resolve(__dirname, "../../../.env"),
+  ];
+  for (const p of envPaths) {
+    try {
+      if (fs.existsSync(p)) {
+        const match = fs.readFileSync(p, "utf8").match(/FB_PAGE_ACCESS_TOKEN=(.*)/);
+        if (match && match[1]) return match[1].trim();
+      }
+    } catch (_) {}
+  }
+  return "";
+};
+
+const getActiveRecipientPsids = () => {
+  const envPsid = process.env.FB_RECIPIENT_PSID || "";
+  let psids = envPsid
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  if (psids.length === 0) {
+    try {
+      const statePath = path.resolve(__dirname, "../../config/system_state.json");
+      if (fs.existsSync(statePath)) {
+        const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+        if (state.messengerRecipientPsid) {
+          psids = state.messengerRecipientPsid.split(",").map((s) => s.trim()).filter(Boolean);
+        }
+      }
+    } catch (_) {}
+  }
+  return psids;
+};
 
 /**
- * Send Facebook Messenger direct message alert to developer
+ * Send Facebook Messenger direct message alert to developer(s)
+ * Supports single or multi-recipient comma-separated PSIDs
  * @param {string} title
  * @param {string} details
  * @param {object} meta
  */
 const sendMessengerAlert = async (title, details, meta = {}) => {
-  const token = process.env.FB_PAGE_ACCESS_TOKEN;
-  const recipientId = process.env.FB_RECIPIENT_PSID;
+  const token = getActiveToken();
+  const recipientIds = getActiveRecipientPsids();
 
-  if (!token || !recipientId) {
-    // Messenger credentials not yet configured
+  if (!token || recipientIds.length === 0) {
+    console.warn("[MessengerAlert] Missing credentials:", { hasToken: !!token, recipientCount: recipientIds.length });
     return { success: false, reason: "NOT_CONFIGURED" };
   }
 
   const now = Date.now();
   const alertSignature = `${title}-${details}`;
+  const isManualTest = meta.bypassDebounce || title.includes("Test") || title.includes("Simulated") || details.includes("Simulated");
 
-  // Prevent message spamming if the exact same error repeats rapidly
-  if (alertSignature === lastAlertMessage && now - lastAlertTime < COOLDOWN_MS) {
+  // Prevent message spamming if the exact same production error repeats rapidly within 10s
+  if (!isManualTest && alertSignature === lastAlertMessage && now - lastAlertTime < COOLDOWN_MS) {
+    console.log(`⏳ [MessengerAlert] Debounced duplicate error alert: ${title}`);
     return { success: false, reason: "DEBOUNCED" };
   }
 
@@ -49,27 +93,43 @@ ${meta.route ? `🌐 Endpoint: ${meta.route}\n` : ""}${meta.user ? `👤 Trigger
 ⚠️ Please inspect the Developer Panel immediately.`;
 
   try {
-    const response = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        recipient: { id: recipientId },
-        message: { text: formattedMessage },
-      }),
+    const dispatchPromises = recipientIds.map(async (rId) => {
+      try {
+        const response = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            recipient: { id: rId },
+            message: { text: formattedMessage },
+          }),
+        });
+
+        const data = await response.json();
+        if (response.ok && data?.message_id) {
+          console.log(`✅ [MessengerAlert] Delivered alert to PSID ${rId} (MessageId: ${data.message_id})`);
+          return { psid: rId, success: true, messageId: data.message_id };
+        }
+        console.warn(`[MessengerAlert] Meta response error for PSID ${rId}:`, data?.error?.message || data);
+        return { psid: rId, success: false, error: data?.error?.message || "Failed" };
+      } catch (err) {
+        console.error(`[MessengerAlert] Failed sending to PSID ${rId}:`, err.message);
+        return { psid: rId, success: false, error: err.message };
+      }
     });
 
-    const data = await response.json();
-    if (response.ok && data?.message_id) {
-      console.log(`✅ [MessengerAlert] Successfully delivered alert to PSID ${recipientId} (MessageId: ${data.message_id})`);
-      return { success: true, messageId: data.message_id };
-    }
+    const results = await Promise.allSettled(dispatchPromises);
+    const delivered = results.filter((r) => r.status === "fulfilled" && r.value?.success);
 
-    console.warn("[MessengerAlert] Meta API response error:", data);
-    return { success: false, error: data?.error?.message || "Meta API request failed" };
+    return {
+      success: delivered.length > 0,
+      deliveredCount: delivered.length,
+      totalCount: recipientIds.length,
+      results: results.map((r) => (r.status === "fulfilled" ? r.value : { error: r.reason?.message })),
+    };
   } catch (error) {
-    console.error("[MessengerAlert] Failed to dispatch alert:", error.message);
+    console.error("[MessengerAlert] Global dispatch error:", error.message);
     return { success: false, error: error.message };
   }
 };

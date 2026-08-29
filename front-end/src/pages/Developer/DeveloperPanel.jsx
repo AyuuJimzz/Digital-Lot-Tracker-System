@@ -142,7 +142,6 @@ const DeveloperPanel = () => {
   const [messengerTestMsg, setMessengerTestMsg] = useState({ text: "", isError: false });
   const [messengerRecipients, setMessengerRecipients] = useState([]);
   const [fetchRecipientsLoading, setFetchRecipientsLoading] = useState(false);
-  const [showRecipientsList, setShowRecipientsList] = useState(false);
 
   // Helper to attach Developer PIN in request headers
   const getDevHeaders = useCallback(() => {
@@ -176,9 +175,31 @@ const DeveloperPanel = () => {
     }
   };
 
+  const handleSimulateCrash = async () => {
+    setMessengerTestLoading(true);
+    setMessengerTestMsg({ text: "", isError: false });
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/developer/simulate-crash`,
+        {},
+        {
+          headers: getDevHeaders(),
+          withCredentials: true,
+        }
+      );
+    } catch (err) {
+      setMessengerTestMsg({
+        text: "💥 500 Crash triggered! Automatic alert was dispatched to all active Messenger accounts.",
+        isError: false,
+      });
+      fetchSystemState();
+    } finally {
+      setMessengerTestLoading(false);
+    }
+  };
+
   const fetchMessengerRecipients = async () => {
     setFetchRecipientsLoading(true);
-    setShowRecipientsList(true);
     setMessengerTestMsg({ text: "", isError: false });
     try {
       const res = await axios.get(`${API_BASE_URL}/api/developer/messenger-conversations`, {
@@ -204,26 +225,33 @@ const DeveloperPanel = () => {
     }
   };
 
-  const handleSelectRecipient = async (recipient) => {
+  const handleToggleRecipient = async (recipient) => {
     setMessengerTestLoading(true);
     setMessengerTestMsg({ text: "", isError: false });
     try {
       const res = await axios.post(
         `${API_BASE_URL}/api/developer/set-messenger-recipient`,
-        { psid: recipient.id, name: recipient.name },
+        { psid: recipient.id, name: recipient.name, action: "toggle" },
         {
           headers: getDevHeaders(),
           withCredentials: true,
         }
       );
       if (res.data.success) {
+        const activePsids = res.data.activePsids || [];
         setMessengerTestMsg({ text: "✅ " + res.data.message, isError: false });
+        setMessengerRecipients((prev) =>
+          prev.map((r) => ({
+            ...r,
+            isCurrent: activePsids.includes(r.id),
+          }))
+        );
+        fetchEnvHealth();
         fetchSystemState();
-        fetchMessengerRecipients();
       }
     } catch (err) {
       setMessengerTestMsg({
-        text: "❌ " + (err.response?.data?.message || err.response?.data?.error || "Failed to set recipient"),
+        text: "❌ " + (err.response?.data?.message || err.response?.data?.error || "Failed to update recipient"),
         isError: true,
       });
     } finally {
@@ -1633,6 +1661,38 @@ const DeveloperPanel = () => {
               {envHealthData ? `${envHealthData.configuredCount}/${envHealthData.totalCount} Set` : "11 Vars"}
             </span>
           </button>
+
+          {/* 7. Facebook Messenger Alert Bot */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSidebarTab("MESSENGER");
+              setMobileSidebarOpen(false);
+              if (messengerRecipients.length === 0) {
+                fetchMessengerRecipients();
+              }
+            }}
+            className={`w-full p-3 rounded-xl transition flex items-center justify-between text-left group ${
+              activeSidebarTab === "MESSENGER"
+                ? "bg-emerald-500/15 border border-emerald-500/30 text-white shadow-sm"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${activeSidebarTab === "MESSENGER" ? "bg-sky-500/20 text-sky-400" : "bg-slate-900 text-slate-400 group-hover:text-slate-300"}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-xs font-bold">Messenger Alert Bot</div>
+                <div className="text-[10px] text-slate-500">Push Notifications</div>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-sky-400 border border-slate-800 font-semibold">
+              {envHealthData?.variables?.find(v => v.key === "FB_PAGE_ACCESS_TOKEN")?.isSet ? "Active" : "Ready"}
+            </span>
+          </button>
         </div>
 
         {/* Sidebar Footer */}
@@ -2725,142 +2785,212 @@ const DeveloperPanel = () => {
                     </table>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
 
-                {/* Facebook Messenger Alert Dispatch Card */}
-                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col gap-4">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-11 h-11 rounded-2xl bg-slate-900 border border-slate-800 text-sky-400 flex items-center justify-center text-xl shrink-0">
-                        💬
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                          <span>Facebook Messenger Real-Time Alert Bot</span>
-                          {envHealthData?.variables?.find(v => v.key === "FB_PAGE_ACCESS_TOKEN")?.isSet ? (
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              Active & Connected
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                              Awaiting .env Keys
-                            </span>
-                          )}
-                        </h4>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Dispatches instant notifications to your personal Messenger when database disconnections or unhandled 500 errors occur.
-                        </p>
-                      </div>
+          {/* ── MODULE 7: FACEBOOK MESSENGER REAL-TIME ALERT SYSTEM ── */}
+          {activeSidebarTab === "MESSENGER" && (
+            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-in fade-in duration-150">
+              {/* Header Bar */}
+              <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-400 flex items-center justify-center text-xl shrink-0">
+                    💬
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white flex items-center gap-2">
+                      Facebook Messenger Real-Time Alert System
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Multi-recipient broadcast engine: pushes instant notifications to all selected developer Facebook accounts simultaneously.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={fetchMessengerRecipients}
+                    disabled={fetchRecipientsLoading}
+                    className="px-3.5 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-sky-200 rounded-xl border border-sky-500/30 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {fetchRecipientsLoading ? (
+                      <>
+                        <span className="w-3 h-3 rounded-full border-2 border-sky-400 border-t-white animate-spin" />
+                        <span>Scanning Chats...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🔍</span>
+                        <span>Detect & Scan Chats</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestMessengerAlert}
+                    disabled={messengerTestLoading}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50 shadow-sm"
+                  >
+                    {messengerTestLoading ? (
+                      <>
+                        <span className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-white animate-spin" />
+                        <span>Broadcasting Alert...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>⚡</span>
+                        <span>Broadcast Test Alert</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSimulateCrash}
+                    disabled={messengerTestLoading}
+                    className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 rounded-xl border border-rose-500/30 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50 shadow-sm"
+                    title="Simulate a real 500 error to test automatic crash push alerting"
+                  >
+                    <span>💥</span>
+                    <span>Simulate 500 Error</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-6">
+                {/* Active Recipient Broadcast Banner */}
+                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl shrink-0">
+                      📡
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-                      <button
-                        type="button"
-                        onClick={fetchMessengerRecipients}
-                        disabled={fetchRecipientsLoading}
-                        className="px-3.5 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-sky-200 rounded-xl border border-sky-500/30 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50"
-                      >
-                        {fetchRecipientsLoading ? (
-                          <>
-                            <span className="w-3 h-3 rounded-full border-2 border-sky-400 border-t-white animate-spin" />
-                            <span>Scanning Page Chats...</span>
-                          </>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Broadcast Recipients:</span>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          {messengerRecipients.filter(r => r.isCurrent).length} ACCOUNTS ACTIVE
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                        {messengerRecipients.filter(r => r.isCurrent).length === 0 ? (
+                          <span className="text-sm font-semibold text-slate-400 italic">No recipients selected. Pick from the list below!</span>
                         ) : (
-                          <>
-                            <span>🔍</span>
-                            <span>Detect & Switch Recipient</span>
-                          </>
+                          messengerRecipients
+                            .filter(r => r.isCurrent)
+                            .map(r => (
+                              <span key={r.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/40 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+                                <span>👤</span> {r.name}
+                              </span>
+                            ))
                         )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleTestMessengerAlert}
-                        disabled={messengerTestLoading}
-                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50 shadow-sm"
-                      >
-                        {messengerTestLoading ? (
-                          <>
-                            <span className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-white animate-spin" />
-                            <span>Sending Alert...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>⚡</span>
-                            <span>Send Test Alert</span>
-                          </>
-                        )}
-                      </button>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-2">
+                        All database timeouts, uncaught backend exceptions, and 500 API failures are broadcasted in parallel to all active accounts above.
+                      </p>
                     </div>
                   </div>
+                </div>
 
-                  {/* Recipient Selector Dropdown / Card List */}
-                  {showRecipientsList && (
-                    <div className="pt-3 border-t border-slate-800/80">
-                      <div className="flex items-center justify-between mb-2.5">
-                        <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                          <span>👥</span> Recent People Who Messaged Your Page:
-                        </span>
-                        <span className="text-[11px] text-slate-500">
-                          Click "Set as Recipient" to route alerts to that account
-                        </span>
-                      </div>
+                {/* Recipient Selection Card */}
+                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>👥</span>
+                        <span>Recent People Who Messaged Your Page</span>
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Click on any contact to toggle them ON/OFF as an alert recipient. You can select 1, 2, 3, or more people simultaneously!
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={fetchMessengerRecipients}
+                      disabled={fetchRecipientsLoading}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5 self-start sm:self-auto shrink-0"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={fetchRecipientsLoading ? "animate-spin" : ""}>
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                      </svg>
+                      <span>Refresh List</span>
+                    </button>
+                  </div>
 
-                      {messengerRecipients.length === 0 ? (
-                        <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-xs text-slate-400 text-center">
-                          {fetchRecipientsLoading ? "Scanning conversations..." : "No recent conversations found. Message 'hello' to your Golden Dragon Page first."}
+                  {messengerRecipients.length === 0 ? (
+                    <div className="p-6 bg-slate-900/40 rounded-xl border border-slate-800 text-xs text-slate-400 text-center">
+                      {fetchRecipientsLoading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="w-3.5 h-3.5 rounded-full border-2 border-sky-400 border-t-transparent animate-spin" />
+                          <span>Scanning Golden Dragon Facebook Page conversations...</span>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                          {messengerRecipients.map((rec) => (
-                            <div
-                              key={rec.id}
-                              className={`p-3 rounded-xl border flex items-center justify-between gap-3 transition ${
-                                rec.isCurrent
-                                  ? "bg-emerald-950/30 border-emerald-500/40 text-emerald-300"
-                                  : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700"
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-xs text-white truncate">{rec.name}</span>
-                                  {rec.isCurrent && (
-                                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
-                                      ACTIVE
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-[10px] font-mono text-slate-400 truncate mt-0.5">
-                                  PSID: {rec.id}
-                                </div>
-                              </div>
-
-                              {!rec.isCurrent && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSelectRecipient(rec)}
-                                  disabled={messengerTestLoading}
-                                  className="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold rounded-lg transition shrink-0 shadow-sm"
-                                >
-                                  Set as Recipient
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                        <span>No recent conversations detected yet. Send a quick message like 'hello' to your Golden Dragon Page, then click Refresh!</span>
                       )}
                     </div>
-                  )}
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {messengerRecipients.map((rec) => (
+                        <div
+                          key={rec.id}
+                          className={`p-4 rounded-xl border flex flex-col justify-between gap-3 transition ${
+                            rec.isCurrent
+                              ? "bg-emerald-950/25 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-950/20"
+                              : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700"
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-sm text-white truncate">{rec.name}</span>
+                              {rec.isCurrent ? (
+                                <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
+                                  <span>✓</span> ACTIVE
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] font-mono text-slate-400 mt-1">
+                              PSID: <span className="text-slate-300 font-semibold">{rec.id}</span>
+                            </div>
+                          </div>
 
-                  {messengerTestMsg.text && (
-                    <div className={`p-3.5 rounded-xl border text-xs font-medium ${
-                      messengerTestMsg.isError
-                        ? "bg-rose-500/10 border-rose-500/20 text-rose-300"
-                        : "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
-                    }`}>
-                      {messengerTestMsg.text}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRecipient(rec)}
+                            disabled={messengerTestLoading}
+                            className={`w-full py-2 text-xs font-bold rounded-lg transition shadow-sm flex items-center justify-center gap-1.5 ${
+                              rec.isCurrent
+                                ? "bg-emerald-500/15 hover:bg-rose-500/20 text-emerald-300 hover:text-rose-300 border border-emerald-500/30 hover:border-rose-500/30"
+                                : "bg-sky-600 hover:bg-sky-500 text-white"
+                            }`}
+                          >
+                            {rec.isCurrent ? (
+                              <span>✅ Active Receiver (Click to Remove)</span>
+                            ) : (
+                              <span>➕ Add to Alert Broadcast</span>
+                            )}
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
+
+                {messengerTestMsg.text && (
+                  <div className={`p-4 rounded-xl border text-xs font-medium ${
+                    messengerTestMsg.isError
+                      ? "bg-rose-500/10 border-rose-500/20 text-rose-300"
+                      : "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
+                  }`}>
+                    {messengerTestMsg.text}
+                  </div>
+                )}
               </div>
             </div>
           )}
