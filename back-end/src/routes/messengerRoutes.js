@@ -3,7 +3,7 @@ const router = express.Router();
 const fs = require("fs");
 const path = require("path");
 const db = require("../../config/database_connection");
-const { sendDirectMessage, sendSenderAction } = require("../services/messengerAlertService");
+const { sendDirectMessage } = require("../services/messengerAlertService");
 const { addDeveloperLog, parseDevice, getClientIp } = require("../services/loggerService");
 
 const configPath = path.join(__dirname, "../../config/system_state.json");
@@ -41,7 +41,6 @@ async function handleBotCommand(senderPsid, rawText) {
 
   // 1. STATUS / PING / HEALTH
   if (cleanCmd === "STATUS" || cleanCmd === "PING" || cleanCmd === "HEALTH") {
-    await sendSenderAction(senderPsid, "typing_on");
     const start = Date.now();
     let dbLatency = "N/A";
     try {
@@ -73,14 +72,11 @@ async function handleBotCommand(senderPsid, rawText) {
 ━━━━━━━━━━━━━━━━━━━━
 💡 Reply 'LOGS' for recent events or 'HELP' for commands.`;
 
-    const res = await sendDirectMessage(senderPsid, reply);
-    await sendSenderAction(senderPsid, "typing_off");
-    return res;
+    return await sendDirectMessage(senderPsid, reply);
   }
 
   // 2. LOGS / ERRORS / EVENTS
   if (cleanCmd === "LOGS" || cleanCmd === "ERRORS" || cleanCmd === "EVENTS") {
-    await sendSenderAction(senderPsid, "typing_on");
     const state = readSystemState();
     const recentLogs = (state.logs || []).slice(0, 3);
 
@@ -94,14 +90,11 @@ ${logLines}
 ━━━━━━━━━━━━━━━━━━━━
 💡 Reply 'STATUS' or 'HELP'.`;
 
-    const res = await sendDirectMessage(senderPsid, reply);
-    await sendSenderAction(senderPsid, "typing_off");
-    return res;
+    return await sendDirectMessage(senderPsid, reply);
   }
 
   // 3. MAINTENANCE TOGGLE VIA CHAT
   if (cleanCmd === "MAINTENANCE ON" || cleanCmd === "MAINT ON") {
-    await sendSenderAction(senderPsid, "typing_on");
     updateSystemState({ maintenanceMode: true });
     addDeveloperLog(`Maintenance mode ENABLED via Messenger Command by PSID: ${senderPsid}`, {
       type: "MAINTENANCE",
@@ -109,13 +102,10 @@ ${logLines}
       ip: "Meta Webhook",
     });
     const reply = `🚧 [GOLDEN DRAGON MAINTENANCE]\n━━━━━━━━━━━━━━━━━━━━\nMaintenance Mode has been ENABLED across the platform.\nUsers will now see the Under Construction page.`;
-    const res = await sendDirectMessage(senderPsid, reply);
-    await sendSenderAction(senderPsid, "typing_off");
-    return res;
+    return await sendDirectMessage(senderPsid, reply);
   }
 
   if (cleanCmd === "MAINTENANCE OFF" || cleanCmd === "MAINT OFF") {
-    await sendSenderAction(senderPsid, "typing_on");
     updateSystemState({ maintenanceMode: false });
     addDeveloperLog(`Maintenance mode DISABLED via Messenger Command by PSID: ${senderPsid}`, {
       type: "MAINTENANCE",
@@ -123,9 +113,7 @@ ${logLines}
       ip: "Meta Webhook",
     });
     const reply = `✅ [GOLDEN DRAGON LIVE]\n━━━━━━━━━━━━━━━━━━━━\nMaintenance Mode has been DISABLED.\nPlatform is now fully accessible to all admins and clients.`;
-    const res = await sendDirectMessage(senderPsid, reply);
-    await sendSenderAction(senderPsid, "typing_off");
-    return res;
+    return await sendDirectMessage(senderPsid, reply);
   }
 
   // 0. ID / #ID / UID (Get sender's own PSID)
@@ -138,7 +126,6 @@ ${logLines}
     cleanCmd === "PSID" ||
     cleanCmd === "MY PSID"
   ) {
-    await sendSenderAction(senderPsid, "typing_on");
     const reply = 
 `🆔 [YOUR FACEBOOK MESSENGER PSID]
 ━━━━━━━━━━━━━━━━━━━━
@@ -146,22 +133,11 @@ ${logLines}
 ━━━━━━━━━━━━━━━━━━━━
 💡 Ito ang iyong unique Facebook ID sa Page na ito. Maaari itong i-save sa Developer Panel para makatanggap ka ng automated production alerts!`;
 
-    const res = await sendDirectMessage(senderPsid, reply);
-    await sendSenderAction(senderPsid, "typing_off");
-    return res;
+    return await sendDirectMessage(senderPsid, reply);
   }
 
-  // 4. HELP / COMMANDS / MENU
-  if (
-    cleanCmd === "HELP" ||
-    cleanCmd === "COMMANDS" ||
-    cleanCmd === "MENU" ||
-    cleanCmd === "BOT" ||
-    cleanCmd === "INFO" ||
-    cleanCmd === "?"
-  ) {
-    await sendSenderAction(senderPsid, "typing_on");
-    const reply = 
+  // 4. HELP / COMMANDS / FALLBACK MENU
+  const reply = 
 `🤖 [GOLDEN DRAGON BOT DIRECTORY]
 ━━━━━━━━━━━━━━━━━━━━
 Hello! Here are the commands you can chat:
@@ -175,14 +151,7 @@ Hello! Here are the commands you can chat:
 ━━━━━━━━━━━━━━━━━━━━
 ⚡ Live automated response from Golden Dragon Estate Server.`;
 
-    const res = await sendDirectMessage(senderPsid, reply);
-    await sendSenderAction(senderPsid, "typing_off");
-    return res;
-  }
-
-  // 5. Casual messages, Thumbs Up / Likes, or unrecognized text:
-  // Silent auto-seen only — no automated reply message sent.
-  return { success: true, action: "SEEN_ONLY" };
+  return await sendDirectMessage(senderPsid, reply);
 }
 
 // ── META WEBHOOK VERIFICATION HANDSHAKE ──
@@ -216,17 +185,12 @@ router.post("/webhook", async (req, res) => {
         const senderPsid = event.sender?.id;
         const messageText = event.message?.text;
 
-        if (senderPsid) {
-          // 1. Auto-Seen: Always mark incoming message / like / sticker as SEEN
-          sendSenderAction(senderPsid, "mark_seen").catch(() => {});
-
-          if (messageText) {
-            console.log(`💬 [MessengerWebhook] Received from ${senderPsid}: "${messageText}"`);
-            try {
-              await handleBotCommand(senderPsid, messageText);
-            } catch (cmdErr) {
-              console.error("Error processing bot command:", cmdErr);
-            }
+        if (senderPsid && messageText) {
+          console.log(`💬 [MessengerWebhook] Received command from ${senderPsid}: "${messageText}"`);
+          try {
+            await handleBotCommand(senderPsid, messageText);
+          } catch (cmdErr) {
+            console.error("Error processing bot command:", cmdErr);
           }
         }
       }
