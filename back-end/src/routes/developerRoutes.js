@@ -1666,25 +1666,23 @@ router.post("/messenger-webhook", async (req, res) => {
         if (senderPsid && cleanText) {
           console.log(`📩 [MessengerWebhook] Message received from PSID ${senderPsid}: "${rawText}"`);
 
-          // If user types #id, id, /id, myid, whoami
+          // If user asks for ID or sends #id
           if (
-            cleanText === "#id" ||
-            cleanText === "id" ||
-            cleanText === "/id" ||
-            cleanText === "#myid" ||
-            cleanText === "my id" ||
-            cleanText === "whoami" ||
-            cleanText === "psid" ||
-            cleanText === "#psid"
+            cleanText.includes("id") ||
+            cleanText.includes("whoami") ||
+            cleanText.includes("psid") ||
+            cleanText === "#" ||
+            cleanText === "?"
           ) {
             await sendDirectMessage(
               senderPsid,
               `🆔 [GOLDEN DRAGON BOT]\n━━━━━━━━━━━━━━━━━━━━\nAng iyong Facebook User ID (PSID) ay:\n👉 ${senderPsid}\n\n(I-paste ito sa iyong .env file bilang FB_RECIPIENT_PSID para makatanggap ng real-time system alerts)\n━━━━━━━━━━━━━━━━━━━━`
             );
-          } else if (cleanText === "help" || cleanText === "#help" || cleanText === "hi" || cleanText === "hello") {
+          } else {
+            // General greeting fallback
             await sendDirectMessage(
               senderPsid,
-              `👋 Hello! Ako ang Golden Dragon System Alert Bot.\n\nType "#id" para malaman ang iyong Facebook PSID.\nKapag nakakabit na ang iyong ID sa .env, padadalhan ka ng bot na ito ng instant alert tuwing may system error o database crash!`
+              `👋 Hello! Ako ang Golden Dragon System Alert Bot.\n\nType "#id" para malaman ang iyong Facebook PSID.\nNaka-link na ang system alert bot para magpadala ng instant notification sa'yo tuwing may system crash o database error!`
             );
           }
         }
