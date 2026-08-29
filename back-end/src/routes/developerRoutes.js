@@ -1877,7 +1877,34 @@ router.get("/alert-filters", requireDeveloper, (req, res) => {
     authSecurity: state.alertFilters?.authSecurity ?? true,
     systemChanges: state.alertFilters?.systemChanges ?? true,
   };
-  res.json({ success: true, filters });
+  res.json({
+    success: true,
+    filters,
+    messengerAlertsEnabled: state.messengerAlertsEnabled ?? true,
+  });
+});
+
+// ── TOGGLE MASTER MESSENGER DISPATCH SWITCH (ON/OFF) ──
+router.post("/toggle-messenger-master-switch", requireDeveloper, (req, res) => {
+  const { enabled } = req.body;
+  const isEnabled = typeof enabled === "boolean" ? enabled : true;
+
+  updateSystemStateFile({
+    messengerAlertsEnabled: isEnabled,
+    lastModified: new Date().toISOString(),
+  });
+
+  addDeveloperLog(`Messenger automated dispatch set to: ${isEnabled ? "ENABLED (ON)" : "PAUSED (OFF)"}`, {
+    type: "SYSTEM",
+    device: parseDevice(req.headers["user-agent"]),
+    ip: getClientIp(req),
+  });
+
+  res.json({
+    success: true,
+    messengerAlertsEnabled: isEnabled,
+    message: `Messenger dispatch is now ${isEnabled ? "ENABLED" : "PAUSED"}!`,
+  });
 });
 
 // ── SET ALERT FILTER PREFERENCES ──

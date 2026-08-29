@@ -116,12 +116,33 @@ ${logLines}
     return await sendDirectMessage(senderPsid, reply);
   }
 
+  // 0. ID / #ID / UID (Get sender's own PSID)
+  if (
+    cleanCmd === "#ID" ||
+    cleanCmd === "ID" ||
+    cleanCmd === "UID" ||
+    cleanCmd === "MY ID" ||
+    cleanCmd === "MYID" ||
+    cleanCmd === "PSID" ||
+    cleanCmd === "MY PSID"
+  ) {
+    const reply = 
+`🆔 [YOUR FACEBOOK MESSENGER PSID]
+━━━━━━━━━━━━━━━━━━━━
+🔑 Your PSID: ${senderPsid}
+━━━━━━━━━━━━━━━━━━━━
+💡 Ito ang iyong unique Facebook ID sa Page na ito. Maaari itong i-save sa Developer Panel para makatanggap ka ng automated production alerts!`;
+
+    return await sendDirectMessage(senderPsid, reply);
+  }
+
   // 4. HELP / COMMANDS / FALLBACK MENU
   const reply = 
 `🤖 [GOLDEN DRAGON BOT DIRECTORY]
 ━━━━━━━━━━━━━━━━━━━━
 Hello! Here are the commands you can chat:
 
+• #ID - Show your unique Facebook User PSID
 • STATUS - Live Server Uptime & Database Ping
 • LOGS - View recent system error & audit logs
 • MAINTENANCE ON - Turn platform maintenance mode ON

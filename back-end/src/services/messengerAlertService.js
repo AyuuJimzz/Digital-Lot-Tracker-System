@@ -69,6 +69,19 @@ const getAlertFilters = () => {
   };
 };
 
+const isMessengerAlertsEnabled = () => {
+  try {
+    const statePath = path.resolve(__dirname, "../../config/system_state.json");
+    if (fs.existsSync(statePath)) {
+      const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+      if (state.messengerAlertsEnabled !== undefined) {
+        return Boolean(state.messengerAlertsEnabled);
+      }
+    }
+  } catch (_) {}
+  return true;
+};
+
 /**
  * Send Facebook Messenger direct message alert to developer(s)
  * Supports single or multi-recipient comma-separated PSIDs
@@ -83,6 +96,12 @@ const sendMessengerAlert = async (title, details, meta = {}) => {
   if (!token || recipientIds.length === 0) {
     console.warn("[MessengerAlert] Missing credentials:", { hasToken: !!token, recipientCount: recipientIds.length });
     return { success: false, reason: "NOT_CONFIGURED" };
+  }
+
+  // 1. Master Messenger Alerts Kill-Switch / Pause Toggle
+  if (!isMessengerAlertsEnabled() && !meta.bypassMasterSwitch) {
+    console.log(`⏸️ [MessengerAlert] Master Messenger Dispatch is DISABLED in Dev Panel. Skipping alert: ${title}`);
+    return { success: false, reason: "MASTER_SWITCH_DISABLED" };
   }
 
   const category = meta.category || "criticalErrors";

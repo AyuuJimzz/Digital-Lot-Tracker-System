@@ -149,32 +149,6 @@ const DeveloperPanel = () => {
     return storedPin ? { "x-developer-pin": storedPin } : {};
   }, []);
 
-  const handleTestMessengerAlert = async () => {
-    setMessengerTestLoading(true);
-    setMessengerTestMsg({ text: "", isError: false });
-    try {
-      const res = await axios.post(
-        `${API_BASE_URL}/api/developer/test-messenger-alert`,
-        {},
-        {
-          headers: getDevHeaders(),
-          withCredentials: true,
-        }
-      );
-      if (res.data.success) {
-        setMessengerTestMsg({ text: res.data.message || "Test alert delivered to your Messenger!", isError: false });
-        fetchSystemState();
-      }
-    } catch (err) {
-      setMessengerTestMsg({
-        text: err.response?.data?.message || err.response?.data?.error || "Failed to dispatch test alert",
-        isError: true,
-      });
-    } finally {
-      setMessengerTestLoading(false);
-    }
-  };
-
   const [dismissedCount, setDismissedCount] = useState(0);
   const [alertFilters, setAlertFilters] = useState({
     criticalErrors: true,
@@ -183,17 +157,46 @@ const DeveloperPanel = () => {
     systemChanges: true,
   });
 
+  const [messengerMasterEnabled, setMessengerMasterEnabled] = useState(true);
+
   const fetchAlertFilters = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/developer/alert-filters`, {
         headers: getDevHeaders(),
         withCredentials: true,
       });
-      if (res.data?.success && res.data.filters) {
-        setAlertFilters(res.data.filters);
+      if (res.data?.success) {
+        if (res.data.filters) setAlertFilters(res.data.filters);
+        if (res.data.messengerAlertsEnabled !== undefined) {
+          setMessengerMasterEnabled(Boolean(res.data.messengerAlertsEnabled));
+        }
       }
     } catch (_) {}
   }, [getDevHeaders]);
+
+  const handleToggleMessengerMaster = async () => {
+    const nextState = !messengerMasterEnabled;
+    setMessengerMasterEnabled(nextState);
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/developer/toggle-messenger-master-switch`,
+        { enabled: nextState },
+        { headers: getDevHeaders(), withCredentials: true }
+      );
+      if (res.data?.success) {
+        setMessengerTestMsg({
+          text: `🔔 ${res.data.message}`,
+          isError: false,
+        });
+        fetchSystemState();
+      }
+    } catch (err) {
+      setMessengerTestMsg({
+        text: "❌ Failed to toggle master Messenger switch",
+        isError: true,
+      });
+    }
+  };
 
   const handleToggleFilter = async (filterKey) => {
     const updated = {
@@ -1351,19 +1354,19 @@ const DeveloperPanel = () => {
 
     // Status, Roles & Payment Types
     if (colName.includes("status") || colName.includes("payment_type") || colName.includes("role") || colName.includes("gender")) {
-      let badgeStyle = "bg-slate-800/80 text-slate-300 border-slate-700";
+      let badgeStyle = "bg-slate-900 text-slate-300 border-slate-800";
       const lower = valStr.toLowerCase();
       if (lower === "available" || lower === "cash" || lower === "admin" || lower === "active" || lower === "paid") {
-        badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+        badgeStyle = "bg-slate-900 text-emerald-300 border-emerald-500/30";
       } else if (lower === "reserved" || lower === "installment" || lower === "employee") {
-        badgeStyle = "bg-blue-500/10 text-blue-400 border-blue-500/20";
+        badgeStyle = "bg-slate-900 text-sky-300 border-sky-500/30";
       } else if (lower === "sold" || lower === "no downpayment" || lower === "pending") {
-        badgeStyle = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+        badgeStyle = "bg-slate-900 text-amber-300 border-amber-500/30";
       } else if (lower === "cancelled" || lower === "inactive" || lower === "failed") {
-        badgeStyle = "bg-rose-500/10 text-rose-400 border-rose-500/20";
+        badgeStyle = "bg-slate-900 text-rose-300 border-rose-500/30";
       }
       return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide border capitalize font-sans ${badgeStyle}`}>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border capitalize font-sans ${badgeStyle}`}>
           {valStr}
         </span>
       );
@@ -1372,7 +1375,7 @@ const DeveloperPanel = () => {
     // Primary Keys & Foreign Keys (#ID badges)
     if (col.isPrimary || colName.endsWith("_id") || colName === "id") {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300 font-mono text-[11px] font-semibold">
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800/80 text-slate-300 font-mono text-[11px]">
           #{valStr}
         </span>
       );
@@ -1383,7 +1386,7 @@ const DeveloperPanel = () => {
       const num = Number(val);
       if (!isNaN(num)) {
         return (
-          <span className="font-mono text-emerald-400 font-semibold text-xs">
+          <span className="font-mono text-slate-200 font-medium text-xs">
             ₱{num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         );
@@ -1393,7 +1396,7 @@ const DeveloperPanel = () => {
     // Area (sqm)
     if (colName.includes("area") || colName.includes("sqm")) {
       return (
-        <span className="font-mono text-teal-300 font-medium text-xs">
+        <span className="font-mono text-slate-200 font-medium text-xs">
           {valStr} <span className="text-[10px] text-slate-500">sqm</span>
         </span>
       );
@@ -1402,7 +1405,7 @@ const DeveloperPanel = () => {
     // Email
     if (colName.includes("email")) {
       return (
-        <span className="text-cyan-400 font-mono text-xs hover:underline" title={valStr}>
+        <span className="text-slate-300 font-mono text-xs" title={valStr}>
           {valStr}
         </span>
       );
@@ -1425,7 +1428,7 @@ const DeveloperPanel = () => {
           });
           return (
             <span className="text-slate-300 text-xs whitespace-nowrap" title={valStr}>
-              <span className="font-medium text-slate-200">{dateFormatted}</span>
+              <span className="text-slate-200">{dateFormatted}</span>
               <span className="text-slate-500 text-[10px] ml-1.5 font-mono">· {timeFormatted}</span>
             </span>
           );
@@ -1436,15 +1439,15 @@ const DeveloperPanel = () => {
     // Coordinates GeoJSON
     if (colName.includes("coordinate") || colName.includes("geometry") || colName.includes("polygon")) {
       return (
-        <span className="text-[10px] font-mono text-purple-400 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-md" title={valStr}>
-          🗺️ [GeoJSON Data]
+        <span className="text-[10px] font-mono text-slate-400 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded" title={valStr}>
+          🗺️ GeoJSON
         </span>
       );
     }
 
     // Default Text
     return (
-      <span className="text-slate-200 text-xs font-sans max-w-sm truncate block" title={valStr}>
+      <span className="text-slate-300 text-xs font-sans max-w-sm truncate block" title={valStr}>
         {valStr}
       </span>
     );
@@ -1890,245 +1893,228 @@ const DeveloperPanel = () => {
             <div className="space-y-6 animate-in fade-in duration-150">
               <div id="zone-controls-logs" className="grid grid-cols-1 lg:grid-cols-12 gap-6 scroll-mt-6">
                 {/* System Control Cards (Left Column - 5 cols) */}
-                <div className="lg:col-span-5 space-y-6">
-            {/* Card A: Database Backup */}
-            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                    </div>
-                    <h2 className="text-base font-bold text-white">Database Backup & Export</h2>
-                  </div>
-                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded">
-                    .SQL DUMP
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                  Extracts complete table structures (`CREATE TABLE`) and all current row data into an import-ready `.sql` file format.
-                </p>
-              </div>
-
-              <button
-                onClick={handleBackupDownload}
-                disabled={dbLoading}
-                className="w-full py-3 bg-gradient-to-r from-emerald-600 to-[#10b981] hover:from-emerald-500 hover:to-emerald-400 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50"
-              >
-                {dbLoading ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Extracting & Compiling Tables...
-                  </>
-                ) : (
-                  <>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                    </svg>
-                    Download Full Database (.sql)
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Card B: Maintenance Mode Gate */}
-            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`p-2 rounded-lg border ${maintenanceMode ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"}`}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                    </div>
-                    <h2 className="text-base font-bold text-white">Maintenance Mode Gate</h2>
-                  </div>
-                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${maintenanceMode ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
-                    {maintenanceMode ? "ACTIVE (LOCKED)" : "DISABLED"}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                  When enabled, all public web routes intercept traffic with a 503 Maintenance notice. Only active developer sessions can bypass.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
-                <span className="text-xs font-semibold text-slate-300">Toggle Maintenance State</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={maintenanceMode}
-                    onChange={handleToggleMaintenance}
-                    disabled={toggleLoading}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500" />
-                </label>
-              </div>
-            </div>
-
-            {/* Card C: Developer Security PIN Tool */}
-            <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-6 rounded-2xl shadow-xl">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <circle cx="12" cy="16" r="1" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-white">Developer Security PIN</h2>
-                    <p className="text-xs text-slate-400">Change master developer passkey</p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setIsChangePinOpen(!isChangePinOpen);
-                    setChangePinMsg({ text: "", isError: false });
-                  }}
-                  className="px-3 py-1.5 text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/80 transition flex items-center gap-1.5 shadow-sm"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  {isChangePinOpen ? "Cancel" : "Change PIN"}
-                </button>
-              </div>
-
-              {!isChangePinOpen ? (
-                <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl flex items-center justify-between text-xs text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <span className="text-purple-400 font-mono text-sm">••••</span>
-                    <span>Active Developer Authentication Key</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-                    PROTECTED
-                  </span>
-                </div>
-              ) : (
-                <form onSubmit={handleChangePinSubmit} className="space-y-3.5 pt-2 animate-in fade-in duration-150">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                      Current Developer PIN
-                    </label>
-                    <input
-                      type={showPinFields ? "text" : "password"}
-                      value={currentPinInput}
-                      onChange={(e) => setCurrentPinInput(e.target.value)}
-                      placeholder="Enter current PIN"
-                      autoComplete="off"
-                      className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-purple-500 outline-none transition text-white placeholder-slate-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="lg:col-span-5 space-y-4">
+                  {/* Card A: Database Backup */}
+                  <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                        New Security PIN
-                      </label>
-                      <input
-                        type={showPinFields ? "text" : "password"}
-                        value={newPinInput}
-                        onChange={(e) => setNewPinInput(e.target.value)}
-                        placeholder="Min 4 digits"
-                        autoComplete="new-password"
-                        className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-purple-500 outline-none transition text-white placeholder-slate-500"
-                      />
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center text-sm">
+                            💾
+                          </div>
+                          <h2 className="text-sm font-bold text-white">Database Backup & Export</h2>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-800 text-slate-400 border border-slate-700 rounded">
+                          .sql
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                        Extract complete table schemas and row data into an importable .sql dump file.
+                      </p>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                        Confirm New PIN
-                      </label>
-                      <input
-                        type={showPinFields ? "text" : "password"}
-                        value={confirmNewPinInput}
-                        onChange={(e) => setConfirmNewPinInput(e.target.value)}
-                        placeholder="Re-type new PIN"
-                        autoComplete="new-password"
-                        className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-purple-500 outline-none transition text-white placeholder-slate-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
                     <button
-                      type="button"
-                      onClick={() => setShowPinFields(!showPinFields)}
-                      className="text-[11px] text-slate-400 hover:text-white transition flex items-center gap-1"
+                      onClick={handleBackupDownload}
+                      disabled={dbLoading}
+                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold rounded-xl border border-slate-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                      {showPinFields ? "Hide PIN characters" : "Show PIN characters"}
+                      {dbLoading ? (
+                        <>
+                          <svg className="animate-spin h-3.5 w-3.5 text-slate-300" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          <span>Extracting Database...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                          </svg>
+                          <span>Download Database (.sql)</span>
+                        </>
+                      )}
                     </button>
                   </div>
 
-                  {changePinMsg.text && (
-                    <div className={`text-xs font-medium p-2.5 rounded-xl border ${changePinMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"}`}>
-                      {changePinMsg.text}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={changePinLoading || !currentPinInput.trim() || !newPinInput.trim() || !confirmNewPinInput.trim()}
-                    className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 disabled:opacity-40"
-                  >
-                    {changePinLoading ? "Updating Security PIN..." : "Save New Security PIN"}
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* Card D: Emergency Global Kill Switch / Force Logout All */}
-            <div className="bg-rose-950/20 backdrop-blur-xl border border-rose-500/30 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                        <line x1="12" y1="9" x2="12" y2="13" />
-                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                      </svg>
-                    </div>
+                  {/* Card B: Maintenance Mode Gate */}
+                  <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
                     <div>
-                      <h2 className="text-base font-bold text-white">Emergency Global Kill Switch</h2>
-                      <p className="text-xs text-slate-400">Force logout & session revocation</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center text-sm">
+                            🔒
+                          </div>
+                          <h2 className="text-sm font-bold text-white">Maintenance Mode Gate</h2>
+                        </div>
+                        <span className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${
+                          maintenanceMode
+                            ? "bg-amber-950/40 text-amber-300 border-amber-500/30"
+                            : "bg-slate-800 text-slate-400 border-slate-700"
+                        }`}>
+                          {maintenanceMode ? "ACTIVE" : "DISABLED"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                        When enabled, public web routes intercept traffic with a 503 Maintenance screen.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                      <span className="text-xs font-medium text-slate-300">Toggle Maintenance State</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={maintenanceMode}
+                          onChange={handleToggleMaintenance}
+                          disabled={toggleLoading}
+                          className="sr-only peer"
+                        />
+                        <div className="w-10 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600" />
+                      </label>
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                    FORCE LOGOUT
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed mb-6">
-                  Instantly terminates all active login sessions and invalidates all JWT tokens across all Admin and Employee accounts.
-                </p>
-              </div>
 
-              <button
-                type="button"
-                onClick={() => setShowKillSwitchModal(true)}
-                className="w-full py-3 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-rose-500/20"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-                  <line x1="12" y1="2" x2="12" y2="12" />
-                </svg>
-                🛑 Terminate All Active Sessions
-              </button>
-            </div>
-          </div>
+                  {/* Card C: Developer Security PIN Tool */}
+                  <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-5 rounded-2xl shadow-xl">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center text-sm">
+                          🔑
+                        </div>
+                        <div>
+                          <h2 className="text-sm font-bold text-white">Developer Security PIN</h2>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setIsChangePinOpen(!isChangePinOpen);
+                          setChangePinMsg({ text: "", isError: false });
+                        }}
+                        className="px-2.5 py-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition"
+                      >
+                        {isChangePinOpen ? "Cancel" : "Change PIN"}
+                      </button>
+                    </div>
+
+                    {!isChangePinOpen ? (
+                      <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between text-xs text-slate-400 mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400 font-mono text-sm">••••</span>
+                          <span>Active Developer Passkey</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-400 px-2 py-0.5 rounded bg-slate-800 border border-slate-700">
+                          PROTECTED
+                        </span>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleChangePinSubmit} className="space-y-3 pt-2 animate-in fade-in duration-150">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                            Current PIN
+                          </label>
+                          <input
+                            type={showPinFields ? "text" : "password"}
+                            value={currentPinInput}
+                            onChange={(e) => setCurrentPinInput(e.target.value)}
+                            placeholder="Enter current PIN"
+                            autoComplete="off"
+                            className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-500 outline-none transition text-white placeholder-slate-500"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                              New PIN
+                            </label>
+                            <input
+                              type={showPinFields ? "text" : "password"}
+                              value={newPinInput}
+                              onChange={(e) => setNewPinInput(e.target.value)}
+                              placeholder="Min 4 digits"
+                              autoComplete="new-password"
+                              className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-500 outline-none transition text-white placeholder-slate-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                              Confirm PIN
+                            </label>
+                            <input
+                              type={showPinFields ? "text" : "password"}
+                              value={confirmNewPinInput}
+                              onChange={(e) => setConfirmNewPinInput(e.target.value)}
+                              placeholder="Re-type PIN"
+                              autoComplete="new-password"
+                              className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-500 outline-none transition text-white placeholder-slate-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowPinFields(!showPinFields)}
+                            className="text-[10px] text-slate-400 hover:text-white transition"
+                          >
+                            {showPinFields ? "Hide digits" : "Show digits"}
+                          </button>
+                        </div>
+
+                        {changePinMsg.text && (
+                          <div className={`text-xs font-medium p-2.5 rounded-xl border ${changePinMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"}`}>
+                            {changePinMsg.text}
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={changePinLoading || !currentPinInput.trim() || !newPinInput.trim() || !confirmNewPinInput.trim()}
+                          className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition flex items-center justify-center gap-2 disabled:opacity-40"
+                        >
+                          {changePinLoading ? "Updating PIN..." : "Save PIN"}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+
+                  {/* Card D: Emergency Global Kill Switch / Force Logout All */}
+                  <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 p-5 rounded-2xl shadow-xl flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-rose-400 flex items-center justify-center text-sm">
+                            ⚠️
+                          </div>
+                          <div>
+                            <h2 className="text-sm font-bold text-white">Emergency Kill Switch</h2>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                          SESSIONS
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                        Invalidates all active login sessions and JWT tokens for Admin and Employee accounts.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowKillSwitchModal(true)}
+                      className="w-full py-2.5 bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 hover:text-rose-200 text-xs font-semibold rounded-xl border border-rose-500/30 transition flex items-center justify-center gap-2"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                        <line x1="12" y1="2" x2="12" y2="12" />
+                      </svg>
+                      <span>Terminate All Active Sessions</span>
+                    </button>
+                  </div>
+                </div>
 
           {/* ── SEPARATED ACTIVITY LOGS DIRECTORY (4 INTERACTIVE CARDS) ── */}
           <div className="lg:col-span-7 flex flex-col gap-4">
@@ -2455,68 +2441,67 @@ const DeveloperPanel = () => {
 
               <div className="p-6 space-y-6">
                 {/* 4 Hero KPI Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <span>🟢</span> System Availability
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      System Availability
                     </div>
-                    <div className="text-xl font-bold font-mono text-emerald-400">
+                    <div className="text-lg font-bold font-mono text-slate-200">
                       {apiHealthData ? `${Math.round((apiHealthData.healthyCount / apiHealthData.totalEndpoints) * 100)}%` : "100%"}
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
-                      {apiHealthData ? `${apiHealthData.healthyCount} of ${apiHealthData.totalEndpoints} routes healthy` : "All routes responsive"}
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      {apiHealthData ? `${apiHealthData.healthyCount} of ${apiHealthData.totalEndpoints} routes active` : "All routes responsive"}
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <span>⚡</span> Average Latency
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Average Latency
                     </div>
-                    <div className="text-xl font-bold font-mono text-sky-400">
+                    <div className="text-lg font-bold font-mono text-slate-200">
                       {apiHealthData ? `${apiHealthData.avgLatencyMs} ms` : "—"}
                     </div>
-                    <div className="text-[10px] text-emerald-400 mt-1">
-                      &lt; 50ms Optimal Response
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Optimal response time
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <span>🎯</span> Monitored Routes
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Monitored Routes
                     </div>
-                    <div className="text-xl font-bold font-mono text-purple-400">
+                    <div className="text-lg font-bold font-mono text-slate-200">
                       {apiHealthData ? `${apiHealthData.totalEndpoints} Endpoints` : "9 Endpoints"}
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
-                      Public, Admin, & DB
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Public, Admin, & DB APIs
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <span>🕒</span> Last Checked
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Last Checked
                     </div>
-                    <div className="text-sm font-bold text-slate-200 mt-1 truncate">
-                      {apiHealthData ? new Date(apiHealthData.timestamp).toLocaleTimeString() : "Just now"}
+                    <div className="text-lg font-bold font-mono text-slate-200">
+                      {apiHealthData ? new Date(apiHealthData.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Just now"}
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
+                    <div className="text-[10px] text-slate-500 mt-0.5">
                       Auto-verified live
                     </div>
                   </div>
                 </div>
 
                 {/* Domain Filter Pills */}
-                <div className="flex items-center gap-2 flex-wrap pt-2">
-                  <span className="text-xs text-slate-400 font-medium mr-1">Domain Filter:</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {["ALL", "Public / Map", "Transactions", "Analytics", "Developer Core", "Infrastructure"].map((dom) => (
                     <button
                       key={dom}
                       type="button"
                       onClick={() => setApiDomainFilter(dom)}
-                      className={`px-3 py-1 rounded-xl text-xs font-semibold transition ${
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                         apiDomainFilter === dom
-                          ? "bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm"
-                          : "bg-slate-950/80 text-slate-400 hover:text-slate-200 border border-slate-800"
+                          ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
+                          : "bg-slate-950/60 text-slate-400 hover:text-slate-200 border border-slate-800/60"
                       }`}
                     >
                       {dom}
@@ -2525,30 +2510,30 @@ const DeveloperPanel = () => {
                 </div>
 
                 {/* Endpoints Table Matrix */}
-                <div className="border border-slate-800/90 rounded-2xl overflow-hidden shadow-xl bg-slate-950/60">
+                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/60">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse text-xs">
-                      <thead className="bg-slate-900/95 border-b border-slate-800 text-slate-300">
+                      <thead className="bg-slate-900/90 border-b border-slate-800 text-slate-400">
                         <tr>
-                          <th className="py-3.5 px-4 font-semibold w-16 text-center">Method</th>
-                          <th className="py-3.5 px-4 font-semibold min-w-[200px]">Endpoint Path</th>
-                          <th className="py-3.5 px-4 font-semibold min-w-[220px]">Name & Purpose</th>
-                          <th className="py-3.5 px-4 font-semibold min-w-[130px]">Domain</th>
-                          <th className="py-3.5 px-4 font-semibold text-center min-w-[90px]">HTTP Status</th>
-                          <th className="py-3.5 px-4 font-semibold text-center min-w-[110px]">Response Time</th>
-                          <th className="py-3.5 px-4 font-semibold text-right min-w-[100px]">Health</th>
+                          <th className="py-3 px-4 font-semibold w-16 text-center">Method</th>
+                          <th className="py-3 px-4 font-semibold min-w-[180px]">Endpoint Path</th>
+                          <th className="py-3 px-4 font-semibold min-w-[200px]">Name & Purpose</th>
+                          <th className="py-3 px-4 font-semibold min-w-[110px]">Domain</th>
+                          <th className="py-3 px-4 font-semibold text-center min-w-[80px]">Status</th>
+                          <th className="py-3 px-4 font-semibold text-center min-w-[90px]">Latency</th>
+                          <th className="py-3 px-4 font-semibold text-right min-w-[80px]">Health</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/50">
+                      <tbody className="divide-y divide-slate-800/40">
                         {apiHealthLoading && !apiHealthData ? (
                           <tr>
-                            <td colSpan={7} className="py-16 text-center text-slate-500 font-mono text-xs">
+                            <td colSpan={7} className="py-12 text-center text-slate-500 font-mono text-xs">
                               Scanning and verifying platform endpoints...
                             </td>
                           </tr>
                         ) : !apiHealthData || !apiHealthData.endpoints || apiHealthData.endpoints.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="py-12 text-center text-slate-500 italic text-xs">
+                            <td colSpan={7} className="py-10 text-center text-slate-500 italic text-xs">
                               Click "Scan Endpoints" to test backend routes.
                             </td>
                           </tr>
@@ -2558,68 +2543,54 @@ const DeveloperPanel = () => {
                             .map((ep, idx) => (
                               <tr
                                 key={idx}
-                                className="odd:bg-slate-950/40 even:bg-slate-900/15 hover:bg-sky-500/[0.04] transition-colors"
+                                className="hover:bg-slate-900/40 transition-colors"
                               >
                                 {/* Method */}
-                                <td className="py-3.5 px-4 text-center">
+                                <td className="py-3 px-4 text-center">
                                   <span className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
                                     ep.method === "GET"
-                                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                      ? "bg-slate-800 text-emerald-300 border border-slate-700"
                                       : ep.method === "POST"
-                                      ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
-                                      : "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                                      ? "bg-slate-800 text-sky-300 border border-slate-700"
+                                      : "bg-slate-800 text-purple-300 border border-slate-700"
                                   }`}>
                                     {ep.method}
                                   </span>
                                 </td>
 
                                 {/* Path */}
-                                <td className="py-3.5 px-4 font-mono font-semibold text-slate-200">
+                                <td className="py-3 px-4 font-mono text-slate-200">
                                   {ep.path}
                                 </td>
 
                                 {/* Name & Purpose */}
-                                <td className="py-3.5 px-4">
-                                  <div className="font-semibold text-white">{ep.name}</div>
-                                  <div className="text-[11px] text-slate-400 mt-0.5">{ep.description}</div>
+                                <td className="py-3 px-4">
+                                  <div className="font-semibold text-slate-200">{ep.name}</div>
+                                  <div className="text-[10px] text-slate-400 mt-0.5">{ep.description}</div>
                                 </td>
 
                                 {/* Domain */}
-                                <td className="py-3.5 px-4">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-900 border border-slate-800 text-slate-300">
-                                    {ep.domain}
-                                  </span>
+                                <td className="py-3 px-4 text-slate-400 text-[11px]">
+                                  {ep.domain}
                                 </td>
 
                                 {/* HTTP Status */}
-                                <td className="py-3.5 px-4 text-center">
-                                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
-                                    ep.isHealthy
-                                      ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                                      : "bg-rose-500/15 text-rose-300 border border-rose-500/30"
-                                  }`}>
-                                    {ep.status} {ep.statusText}
+                                <td className="py-3 px-4 text-center">
+                                  <span className="text-[11px] font-mono text-slate-300">
+                                    {ep.status}
                                   </span>
                                 </td>
 
                                 {/* Latency */}
-                                <td className="py-3.5 px-4 text-center font-mono">
-                                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                                    ep.latencyMs <= 15
-                                      ? "bg-emerald-500/10 text-emerald-400"
-                                      : ep.latencyMs <= 60
-                                      ? "bg-sky-500/10 text-sky-400"
-                                      : "bg-amber-500/10 text-amber-400"
-                                  }`}>
-                                    ⚡ {ep.latencyMs} ms
-                                  </span>
+                                <td className="py-3 px-4 text-center font-mono text-[11px] text-slate-400">
+                                  {ep.latencyMs} ms
                                 </td>
 
                                 {/* Health */}
-                                <td className="py-3.5 px-4 text-right">
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                    Healthy
+                                <td className="py-3 px-4 text-right">
+                                  <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-300">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${ep.isHealthy ? "bg-emerald-400" : "bg-rose-500"}`} />
+                                    <span>{ep.isHealthy ? "Healthy" : "Failed"}</span>
                                   </span>
                                 </td>
                               </tr>
@@ -2692,68 +2663,59 @@ const DeveloperPanel = () => {
 
               <div className="p-6 space-y-6">
                 {/* 4 Hero KPI Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <span>🛡️</span> Required Variables
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Required Variables
                     </div>
-                    <div className="text-xl font-bold font-mono text-emerald-400">
+                    <div className="text-lg font-bold font-mono text-slate-200">
                       {envHealthData ? `${envHealthData.configuredRequired} / ${envHealthData.totalRequired}` : "5 / 5"}
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
-                      100% core variables satisfied
-                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">Core keys satisfied</div>
                   </div>
 
-                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <span>📦</span> Total Configured
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Total Configured
                     </div>
-                    <div className="text-xl font-bold font-mono text-amber-400">
-                      {envHealthData ? `${envHealthData.configuredCount} / ${envHealthData.totalCount}` : "10 / 11"}
+                    <div className="text-lg font-bold font-mono text-slate-200">
+                      {envHealthData ? `${envHealthData.configuredCount} / ${envHealthData.totalCount}` : "12 / 13"}
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
-                      Optional & system configs
-                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">System & optional configs</div>
                   </div>
 
-                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <span>🔒</span> Secret Protection
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Secret Masking
                     </div>
-                    <div className="text-xl font-bold font-mono text-sky-400">
-                      Active (Masked)
+                    <div className="text-lg font-bold font-mono text-slate-200">
+                      Active
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
-                      Zero plain text leak
-                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">Zero plain text exposure</div>
                   </div>
 
-                  <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                      <span>☁️</span> Deployment Target
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Target Cloud
                     </div>
-                    <div className="text-sm font-bold text-slate-200 mt-1 truncate font-mono">
-                      Render & Aiven DB
+                    <div className="text-lg font-bold font-mono text-slate-200">
+                      Render & Aiven
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">
-                      Production Ready
-                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">Production Ready</div>
                   </div>
                 </div>
 
                 {/* Category Filter Pills */}
-                <div className="flex items-center gap-2 flex-wrap pt-2">
-                  <span className="text-xs text-slate-400 font-medium mr-1">Category Filter:</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {["ALL", "Database", "Security", "Server", "Notifications"].map((cat) => (
                     <button
                       key={cat}
                       type="button"
                       onClick={() => setEnvCategoryFilter(cat)}
-                      className={`px-3 py-1 rounded-xl text-xs font-semibold transition ${
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
                         envCategoryFilter === cat
-                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
-                          : "bg-slate-950/80 text-slate-400 hover:text-slate-200 border border-slate-800"
+                          ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
+                          : "bg-slate-950/60 text-slate-400 hover:text-slate-200 border border-slate-800/60"
                       }`}
                     >
                       {cat}
@@ -2762,29 +2724,27 @@ const DeveloperPanel = () => {
                 </div>
 
                 {/* Environment Variables Table */}
-                <div className="border border-slate-800/90 rounded-2xl overflow-hidden shadow-xl bg-slate-950/60">
+                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/60">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse text-xs">
-                      <thead className="bg-slate-900/95 border-b border-slate-800 text-slate-300">
+                      <thead className="bg-slate-900/90 border-b border-slate-800 text-slate-400">
                         <tr>
-                          <th className="py-3.5 px-4 font-semibold min-w-[180px]">Variable Name</th>
-                          <th className="py-3.5 px-4 font-semibold min-w-[110px]">Category</th>
-                          <th className="py-3.5 px-4 font-semibold min-w-[80px] text-center">Type</th>
-                          <th className="py-3.5 px-4 font-semibold min-w-[220px]">Description</th>
-                          <th className="py-3.5 px-4 font-semibold min-w-[140px] text-center">Status</th>
-                          <th className="py-3.5 px-4 font-semibold min-w-[180px] text-right font-mono">Current Value</th>
+                          <th className="py-3 px-4 font-semibold min-w-[200px]">Variable</th>
+                          <th className="py-3 px-4 font-semibold min-w-[220px]">Description</th>
+                          <th className="py-3 px-4 font-semibold min-w-[120px] text-center">Status</th>
+                          <th className="py-3 px-4 font-semibold min-w-[180px] text-right font-mono">Value</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/50">
+                      <tbody className="divide-y divide-slate-800/40">
                         {envHealthLoading && !envHealthData ? (
                           <tr>
-                            <td colSpan={6} className="py-16 text-center text-slate-500 font-mono text-xs">
+                            <td colSpan={4} className="py-12 text-center text-slate-500 font-mono text-xs">
                               Auditing backend environment variables...
                             </td>
                           </tr>
                         ) : !envHealthData || !envHealthData.variables || envHealthData.variables.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="py-12 text-center text-slate-500 italic text-xs">
+                            <td colSpan={4} className="py-10 text-center text-slate-500 italic text-xs">
                               Click "Re-check .env" to inspect environment keys.
                             </td>
                           </tr>
@@ -2794,66 +2754,57 @@ const DeveloperPanel = () => {
                             .map((v, idx) => (
                               <tr
                                 key={idx}
-                                className="odd:bg-slate-950/40 even:bg-slate-900/15 hover:bg-amber-500/[0.04] transition-colors"
+                                className="hover:bg-slate-900/40 transition-colors"
                               >
-                                {/* Key */}
-                                <td className="py-3.5 px-4 font-mono font-bold text-white flex items-center gap-2">
-                                  <span className="text-slate-500">⚙️</span>
-                                  {v.key}
-                                </td>
-
-                                {/* Category */}
-                                <td className="py-3.5 px-4">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-900 border border-slate-800 text-slate-300">
-                                    {v.category}
-                                  </span>
-                                </td>
-
-                                {/* Type */}
-                                <td className="py-3.5 px-4 text-center">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                                    v.required
-                                      ? "bg-rose-500/15 text-rose-300 border border-rose-500/30"
-                                      : "bg-slate-800 text-slate-400 border border-slate-700"
-                                  }`}>
-                                    {v.required ? "REQUIRED" : "OPTIONAL"}
-                                  </span>
+                                {/* Key & Required Badge */}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold text-slate-200">{v.key}</span>
+                                    {v.required && (
+                                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20 font-bold">
+                                        req
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
 
                                 {/* Description */}
-                                <td className="py-3.5 px-4 text-slate-300 text-[11px]">
+                                <td className="py-3 px-4 text-slate-400 text-[11px]">
                                   {v.description}
                                 </td>
 
-                                {/* Status */}
-                                <td className="py-3.5 px-4 text-center">
-                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                                    v.status === "CONFIGURED"
-                                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                                      : v.status === "USING_DEFAULT"
-                                      ? "bg-sky-500/15 text-sky-400 border border-sky-500/30"
-                                      : v.status === "MISSING_REQUIRED"
-                                      ? "bg-rose-500/15 text-rose-400 border border-rose-500/30"
-                                      : "bg-slate-800/80 text-slate-400 border border-slate-700"
-                                  }`}>
-                                    {v.status === "CONFIGURED"
-                                      ? "🟢 Configured"
-                                      : v.status === "USING_DEFAULT"
-                                      ? "⚡ Using Default"
-                                      : v.status === "MISSING_REQUIRED"
-                                      ? "❌ Missing"
-                                      : "⚪ Not Set (Optional)"}
+                                {/* Status Dot */}
+                                <td className="py-3 px-4 text-center">
+                                  <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-300">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${
+                                      v.status === "CONFIGURED"
+                                        ? "bg-emerald-400"
+                                        : v.status === "USING_DEFAULT"
+                                        ? "bg-sky-400"
+                                        : v.status === "MISSING_REQUIRED"
+                                        ? "bg-rose-500"
+                                        : "bg-slate-600"
+                                    }`} />
+                                    <span>
+                                      {v.status === "CONFIGURED"
+                                        ? "Set"
+                                        : v.status === "USING_DEFAULT"
+                                        ? "Default"
+                                        : v.status === "MISSING_REQUIRED"
+                                        ? "Missing"
+                                        : "Unset"}
+                                    </span>
                                   </span>
                                 </td>
 
                                 {/* Masked Value */}
-                                <td className="py-3.5 px-4 text-right font-mono text-xs">
+                                <td className="py-3 px-4 text-right font-mono text-[11px]">
                                   {v.displayValue ? (
-                                    <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 font-medium">
+                                    <span className="text-slate-300">
                                       {v.displayValue}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-600 italic text-[11px]">Empty / Unset</span>
+                                    <span className="text-slate-600 italic">Unset</span>
                                   )}
                                 </td>
                               </tr>
@@ -2873,446 +2824,314 @@ const DeveloperPanel = () => {
               {/* Header Bar */}
               <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-400 flex items-center justify-center text-xl shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-sky-400 flex items-center justify-center text-lg shrink-0">
                     💬
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-white flex items-center gap-2">
-                      Facebook Messenger Real-Time Alert System
-                    </h2>
-                    <p className="text-xs text-slate-400">
-                      Multi-recipient broadcast engine: pushes instant notifications to all selected developer Facebook accounts simultaneously.
-                    </p>
+                    <h2 className="text-sm font-bold text-white">Facebook Messenger Bot & Alerts</h2>
+                    <p className="text-[11px] text-slate-400">Manage broadcast recipients, notification categories, and bot commands.</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* Master Switch */}
                   <button
                     type="button"
-                    onClick={fetchMessengerRecipients}
-                    disabled={fetchRecipientsLoading}
-                    className="px-3.5 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 hover:text-sky-200 rounded-xl border border-sky-500/30 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50"
+                    onClick={handleToggleMessengerMaster}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-2 border ${
+                      messengerMasterEnabled
+                        ? "bg-slate-800/80 hover:bg-slate-800 text-slate-200 border-slate-700"
+                        : "bg-rose-950/30 text-rose-300 border-rose-500/30 hover:bg-rose-950/50"
+                    }`}
                   >
-                    {fetchRecipientsLoading ? (
-                      <>
-                        <span className="w-3 h-3 rounded-full border-2 border-sky-400 border-t-white animate-spin" />
-                        <span>Scanning Chats...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>🔍</span>
-                        <span>Detect & Scan Chats</span>
-                      </>
-                    )}
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${messengerMasterEnabled ? "bg-emerald-400" : "bg-rose-500"}`} />
+                    <span>{messengerMasterEnabled ? "Alerts: Enabled" : "Alerts: Paused"}</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={handleTestMessengerAlert}
-                    disabled={messengerTestLoading}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700 text-xs font-semibold transition flex items-center gap-2 disabled:opacity-50 shadow-sm"
+                    onClick={fetchMessengerRecipients}
+                    disabled={fetchRecipientsLoading}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    {messengerTestLoading ? (
-                      <>
-                        <span className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-white animate-spin" />
-                        <span>Broadcasting Alert...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>⚡</span>
-                        <span>Broadcast Test Alert</span>
-                      </>
-                    )}
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={fetchRecipientsLoading ? "animate-spin" : ""}>
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                    <span>{fetchRecipientsLoading ? "Scanning..." : "Scan Contacts"}</span>
                   </button>
                 </div>
               </div>
 
               {/* Body */}
-              <div className="p-6 space-y-6">
-                {/* Active Recipient Broadcast Banner */}
-                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl shrink-0">
-                      📡
+              <div className="p-6 space-y-5">
+                {/* Master Paused Banner */}
+                {!messengerMasterEnabled && (
+                  <div className="p-3.5 rounded-xl bg-slate-900 border border-rose-500/30 flex items-center justify-between gap-3 text-xs text-rose-300">
+                    <div className="flex items-center gap-2.5">
+                      <span>⏸️</span>
+                      <span>Messenger notifications are currently paused. No alerts will be sent to Facebook.</span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Broadcast Recipients:</span>
-                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                          {messengerRecipients.filter(r => r.isCurrent).length} ACCOUNTS ACTIVE
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                        {messengerRecipients.filter(r => r.isCurrent).length === 0 ? (
-                          <span className="text-sm font-semibold text-slate-400 italic">No recipients selected. Pick from the list below!</span>
-                        ) : (
-                          messengerRecipients
-                            .filter(r => r.isCurrent)
-                            .map(r => (
-                              <span key={r.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/40 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
-                                <span>👤</span> {r.name}
-                              </span>
-                            ))
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 mt-2">
-                        All database timeouts, uncaught backend exceptions, and 500 API failures are broadcasted in parallel to all active accounts above.
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleToggleMessengerMaster}
+                      className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/40 rounded-lg text-[11px] font-semibold transition"
+                    >
+                      Resume
+                    </button>
                   </div>
-                </div>
+                )}
 
-                {/* Alert Notification Filters & Preferences */}
-                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                        <span>🔔</span>
-                        <span>Custom Alert Notification Filters (Choose What Gets Sent)</span>
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Click on any category card below to toggle automatic Messenger alerts ON or OFF.
-                      </p>
-                    </div>
+                {/* 1. Category Notification Filters (Clean 4-column Grid) */}
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+                  <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                    <span>🔔</span>
+                    <span>Notification Filters</span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {/* 1. Critical 500 & DB Crashes */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                    {/* Crash Errors */}
                     <div
                       onClick={() => handleToggleFilter("criticalErrors")}
-                      className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 select-none ${
+                      className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between select-none ${
                         alertFilters.criticalErrors
-                          ? "bg-rose-950/25 border-rose-500/50 text-rose-300 shadow-md shadow-rose-950/20"
-                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 opacity-60"
+                          ? "bg-slate-900 border-slate-700 text-white"
+                          : "bg-slate-950 border-slate-800/60 text-slate-500 opacity-50"
                       }`}
                     >
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xl">🚨</span>
-                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold border ${
-                            alertFilters.criticalErrors
-                              ? "bg-rose-500/20 text-rose-400 border-rose-500/30"
-                              : "bg-slate-800 text-slate-500 border-slate-700"
-                          }`}>
-                            {alertFilters.criticalErrors ? "ACTIVE" : "MUTED"}
-                          </span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm">🚨</span>
+                        <div>
+                          <div className="text-xs font-bold">500 & Crash Errors</div>
+                          <div className="text-[10px] text-slate-400">Database & server exceptions</div>
                         </div>
-                        <h5 className="text-xs font-bold text-white mt-2.5">Fatal & 500 Crashes</h5>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Database dropouts, unhandled API 500 errors & server crash exceptions.
-                        </p>
                       </div>
-                      <div className="text-[11px] font-semibold flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
-                        <span>{alertFilters.criticalErrors ? "🟢 Sending to Messenger" : "⚪ Muted (No Chat)"}</span>
-                      </div>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                        alertFilters.criticalErrors ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-800 text-slate-500"
+                      }`}>
+                        {alertFilters.criticalErrors ? "ON" : "OFF"}
+                      </span>
                     </div>
 
-                    {/* 2. Lot Reservations & Transactions */}
+                    {/* Lot Reservations */}
                     <div
                       onClick={() => handleToggleFilter("reservations")}
-                      className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 select-none ${
+                      className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between select-none ${
                         alertFilters.reservations
-                          ? "bg-amber-950/25 border-amber-500/50 text-amber-300 shadow-md shadow-amber-950/20"
-                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 opacity-60"
+                          ? "bg-slate-900 border-slate-700 text-white"
+                          : "bg-slate-950 border-slate-800/60 text-slate-500 opacity-50"
                       }`}
                     >
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xl">📝</span>
-                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold border ${
-                            alertFilters.reservations
-                              ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                              : "bg-slate-800 text-slate-500 border-slate-700"
-                          }`}>
-                            {alertFilters.reservations ? "ACTIVE" : "MUTED"}
-                          </span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm">📝</span>
+                        <div>
+                          <div className="text-xs font-bold">Lot Reservations</div>
+                          <div className="text-[10px] text-slate-400">Client & staff booking events</div>
                         </div>
-                        <h5 className="text-xs font-bold text-white mt-2.5">Lot Reservations</h5>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Real-time alert when a client or staff books a lot reservation/transaction.
-                        </p>
                       </div>
-                      <div className="text-[11px] font-semibold flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
-                        <span>{alertFilters.reservations ? "🟢 Sending to Messenger" : "⚪ Muted (No Chat)"}</span>
-                      </div>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                        alertFilters.reservations ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-800 text-slate-500"
+                      }`}>
+                        {alertFilters.reservations ? "ON" : "OFF"}
+                      </span>
                     </div>
 
-                    {/* 3. Staff & Admin Security Logins */}
+                    {/* Security Logins */}
                     <div
                       onClick={() => handleToggleFilter("authSecurity")}
-                      className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 select-none ${
+                      className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between select-none ${
                         alertFilters.authSecurity
-                          ? "bg-sky-950/25 border-sky-500/50 text-sky-300 shadow-md shadow-sky-950/20"
-                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 opacity-60"
+                          ? "bg-slate-900 border-slate-700 text-white"
+                          : "bg-slate-950 border-slate-800/60 text-slate-500 opacity-50"
                       }`}
                     >
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xl">🛡️</span>
-                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold border ${
-                            alertFilters.authSecurity
-                              ? "bg-sky-500/20 text-sky-400 border-sky-500/30"
-                              : "bg-slate-800 text-slate-500 border-slate-700"
-                          }`}>
-                            {alertFilters.authSecurity ? "ACTIVE" : "MUTED"}
-                          </span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm">🛡️</span>
+                        <div>
+                          <div className="text-xs font-bold">Security Logins</div>
+                          <div className="text-[10px] text-slate-400">Admin & staff portal sign-ins</div>
                         </div>
-                        <h5 className="text-xs font-bold text-white mt-2.5">Security & Staff Logins</h5>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Notifies whenever an Admin or Employee account logs into the portal.
-                        </p>
                       </div>
-                      <div className="text-[11px] font-semibold flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
-                        <span>{alertFilters.authSecurity ? "🟢 Sending to Messenger" : "⚪ Muted (No Chat)"}</span>
-                      </div>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                        alertFilters.authSecurity ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-800 text-slate-500"
+                      }`}>
+                        {alertFilters.authSecurity ? "ON" : "OFF"}
+                      </span>
                     </div>
 
-                    {/* 4. Maintenance & System Changes */}
+                    {/* System Config */}
                     <div
                       onClick={() => handleToggleFilter("systemChanges")}
-                      className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 select-none ${
+                      className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between select-none ${
                         alertFilters.systemChanges
-                          ? "bg-purple-950/25 border-purple-500/50 text-purple-300 shadow-md shadow-purple-950/20"
-                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 opacity-60"
+                          ? "bg-slate-900 border-slate-700 text-white"
+                          : "bg-slate-950 border-slate-800/60 text-slate-500 opacity-50"
                       }`}
                     >
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xl">⚙️</span>
-                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded font-bold border ${
-                            alertFilters.systemChanges
-                              ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
-                              : "bg-slate-800 text-slate-500 border-slate-700"
-                          }`}>
-                            {alertFilters.systemChanges ? "ACTIVE" : "MUTED"}
-                          </span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm">⚙️</span>
+                        <div>
+                          <div className="text-xs font-bold">System Toggles</div>
+                          <div className="text-[10px] text-slate-400">Maintenance mode & PIN updates</div>
                         </div>
-                        <h5 className="text-xs font-bold text-white mt-2.5">System Config Toggles</h5>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          Notifies when Maintenance Mode or Developer Security PIN is modified.
-                        </p>
                       </div>
-                      <div className="text-[11px] font-semibold flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
-                        <span>{alertFilters.systemChanges ? "🟢 Sending to Messenger" : "⚪ Muted (No Chat)"}</span>
-                      </div>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                        alertFilters.systemChanges ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-800 text-slate-500"
+                      }`}>
+                        {alertFilters.systemChanges ? "ON" : "OFF"}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Recipient Selection Card */}
-                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                        <span>👥</span>
-                        <span>Recent People Who Messaged Your Page</span>
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Click on any contact to toggle them ON/OFF. You can also click the 🗑️ icon to permanently hide/delete unwanted contacts from this list.
-                      </p>
+                {/* 2. Broadcast Recipients List */}
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                      <span>👥</span>
+                      <span>Broadcast Recipients ({messengerRecipients.filter((r) => r.isCurrent).length} Active)</span>
                     </div>
-                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                      {dismissedCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={handleRestoreRecipients}
-                          disabled={messengerTestLoading}
-                          className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs rounded-lg border border-amber-500/25 transition flex items-center gap-1"
-                          title="Restore all hidden contacts"
-                        >
-                          <span>🔄</span>
-                          <span>Restore {dismissedCount} Hidden</span>
-                        </button>
-                      )}
-
+                    {dismissedCount > 0 && (
                       <button
                         type="button"
-                        onClick={fetchMessengerRecipients}
-                        disabled={fetchRecipientsLoading}
-                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1.5 shrink-0"
+                        onClick={handleRestoreRecipients}
+                        disabled={messengerTestLoading}
+                        className="text-[11px] text-slate-400 hover:text-slate-200 transition flex items-center gap-1"
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={fetchRecipientsLoading ? "animate-spin" : ""}>
-                          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                        </svg>
-                        <span>Refresh List</span>
+                        <span>🔄</span>
+                        <span>Restore ({dismissedCount}) Hidden</span>
                       </button>
-                    </div>
+                    )}
                   </div>
 
                   {messengerRecipients.length === 0 ? (
-                    <div className="p-6 bg-slate-900/40 rounded-xl border border-slate-800 text-xs text-slate-400 text-center space-y-2">
-                      {fetchRecipientsLoading ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="w-3.5 h-3.5 rounded-full border-2 border-sky-400 border-t-transparent animate-spin" />
-                          <span>Scanning Golden Dragon Facebook Page conversations...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div>No visible conversations in scan list. Send a message like 'hello' to your Golden Dragon Page, then click Refresh!</div>
-                          {dismissedCount > 0 && (
-                            <button
-                              type="button"
-                              onClick={handleRestoreRecipients}
-                              className="text-sky-400 hover:underline text-xs"
-                            >
-                              Unhide {dismissedCount} dismissed contacts
-                            </button>
-                          )}
-                        </>
-                      )}
+                    <div className="p-4 bg-slate-900/50 rounded-lg text-center text-xs text-slate-400">
+                      {fetchRecipientsLoading ? "Scanning Facebook Page chats..." : "No contacts found. Send a message to your Page first!"}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                       {messengerRecipients.map((rec) => (
                         <div
                           key={rec.id}
-                          className={`p-4 rounded-xl border flex flex-col justify-between gap-3 transition relative group ${
+                          className={`p-3 rounded-lg border transition flex items-center justify-between gap-2 ${
                             rec.isCurrent
-                              ? "bg-emerald-950/25 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-950/20"
-                              : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700"
+                              ? "bg-slate-900/90 border-slate-700 text-white"
+                              : "bg-slate-950 border-slate-800 text-slate-400"
                           }`}
                         >
-                          <div>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-bold text-sm text-white truncate">{rec.name}</span>
-                              <div className="flex items-center gap-1.5">
-                                {rec.isCurrent ? (
-                                  <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 flex items-center gap-1">
-                                    <span>✓</span> ACTIVE
-                                  </span>
-                                ) : (
-                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                                    Inactive
-                                  </span>
-                                )}
-
-                                {/* Delete / Hide contact button */}
-                                <button
-                                  type="button"
-                                  onClick={() => handleDismissRecipient(rec)}
-                                  disabled={messengerTestLoading}
-                                  className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
-                                  title="Hide this contact from console list"
-                                >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                  </svg>
-                                </button>
-                              </div>
+                          <div className="flex items-center gap-2.5 truncate">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                              rec.isCurrent ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-slate-800 text-slate-400"
+                            }`}>
+                              {rec.name?.charAt(0) || "U"}
                             </div>
-                            <div className="text-[11px] font-mono text-slate-400 mt-1">
-                              PSID: <span className="text-slate-300 font-semibold">{rec.id}</span>
+                            <div className="truncate">
+                              <div className="text-xs font-bold truncate">{rec.name}</div>
+                              <div className="text-[10px] font-mono text-slate-400 truncate">PSID: {rec.id}</div>
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleToggleRecipient(rec)}
-                            disabled={messengerTestLoading}
-                            className={`w-full py-2 text-xs font-bold rounded-lg transition shadow-sm flex items-center justify-center gap-1.5 ${
-                              rec.isCurrent
-                                ? "bg-emerald-500/15 hover:bg-rose-500/20 text-emerald-300 hover:text-rose-300 border border-emerald-500/30 hover:border-rose-500/30"
-                                : "bg-sky-600 hover:bg-sky-500 text-white"
-                            }`}
-                          >
-                            {rec.isCurrent ? (
-                              <span>✅ Active Receiver (Click to Remove)</span>
-                            ) : (
-                              <span>➕ Add to Alert Broadcast</span>
-                            )}
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleRecipient(rec)}
+                              disabled={messengerTestLoading}
+                              className={`px-2 py-1 rounded text-[10px] font-bold transition ${
+                                rec.isCurrent
+                                  ? "bg-emerald-500/20 text-emerald-400 hover:bg-rose-500/20 hover:text-rose-300"
+                                  : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"
+                              }`}
+                            >
+                              {rec.isCurrent ? "Active" : "Add"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDismissRecipient(rec)}
+                              disabled={messengerTestLoading}
+                              className="p-1 text-slate-500 hover:text-rose-400 transition"
+                              title="Hide contact"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Interactive Two-Way Bot Commands & Webhook Guide */}
-                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                        <span>🤖</span>
-                        <span>Messenger Two-Way Interactive Bot Commands</span>
-                      </h4>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Chat directly with your Golden Dragon Facebook Page from Messenger to trigger automated diagnostics!
-                      </p>
-                    </div>
+                {/* 3. Interactive Bot Commands */}
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+                  <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                    <span>🤖</span>
+                    <span>Quick Command Simulator</span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSimulateBotCommand("#ID")}
+                      disabled={messengerTestLoading}
+                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
+                    >
+                      <div className="text-xs font-bold text-slate-200">🆔 #ID</div>
+                      <div className="text-[10px] text-slate-400">Get User PSID</div>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handleSimulateBotCommand("STATUS")}
                       disabled={messengerTestLoading}
-                      className="p-3.5 bg-slate-900 hover:bg-sky-950/40 border border-slate-800 hover:border-sky-500/40 rounded-xl text-left transition group disabled:opacity-50"
+                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
                     >
-                      <div className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
-                        <span>⏱️</span>
-                        <span>STATUS</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-1">Uptime & DB latency ping</div>
+                      <div className="text-xs font-bold text-slate-200">⏱️ STATUS</div>
+                      <div className="text-[10px] text-slate-400">Uptime & Latency</div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleSimulateBotCommand("LOGS")}
                       disabled={messengerTestLoading}
-                      className="p-3.5 bg-slate-900 hover:bg-purple-950/40 border border-slate-800 hover:border-purple-500/40 rounded-xl text-left transition group disabled:opacity-50"
+                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
                     >
-                      <div className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
-                        <span>📋</span>
-                        <span>LOGS</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-1">Recent error & system events</div>
+                      <div className="text-xs font-bold text-slate-200">📋 LOGS</div>
+                      <div className="text-[10px] text-slate-400">Recent 3 Logs</div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleSimulateBotCommand("MAINTENANCE ON")}
                       disabled={messengerTestLoading}
-                      className="p-3.5 bg-slate-900 hover:bg-amber-950/40 border border-slate-800 hover:border-amber-500/40 rounded-xl text-left transition group disabled:opacity-50"
+                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
                     >
-                      <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                        <span>🚧</span>
-                        <span>MAINT ON</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-1">Enable Under Construction</div>
+                      <div className="text-xs font-bold text-slate-200">🚧 MAINT ON</div>
+                      <div className="text-[10px] text-slate-400">Lock Site</div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleSimulateBotCommand("HELP")}
                       disabled={messengerTestLoading}
-                      className="p-3.5 bg-slate-900 hover:bg-emerald-950/40 border border-slate-800 hover:border-emerald-500/40 rounded-xl text-left transition group disabled:opacity-50"
+                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
                     >
-                      <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                        <span>💡</span>
-                        <span>HELP</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-1">Show full command menu</div>
+                      <div className="text-xs font-bold text-slate-200">💡 HELP</div>
+                      <div className="text-[10px] text-slate-400">Show Commands</div>
                     </button>
                   </div>
 
-                  <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
-                    <div className="font-semibold text-slate-300 flex items-center gap-1.5">
-                      <span>🌐</span> <span>Render / Live Webhook Configuration Guide:</span>
-                    </div>
-                    <div className="font-mono text-[10px] text-sky-300">
-                      Callback URL: <span className="text-white">https://&lt;your-render-app&gt;.onrender.com/api/messenger/webhook</span>
-                    </div>
-                    <div className="font-mono text-[10px] text-amber-300">
-                      Verify Token: <span className="text-white">golden_dragon_bot_2026</span>
-                    </div>
+                  <div className="pt-2 text-[10px] font-mono text-slate-500 flex flex-wrap items-center gap-4">
+                    <span>Webhook: <span className="text-slate-400">/api/messenger/webhook</span></span>
+                    <span>Verify Token: <span className="text-slate-400">golden_dragon_bot_2026</span></span>
                   </div>
                 </div>
 
                 {messengerTestMsg.text && (
-                  <div className={`p-4 rounded-xl border text-xs font-medium ${
+                  <div className={`p-3 rounded-xl border text-xs ${
                     messengerTestMsg.isError
-                      ? "bg-rose-500/10 border-rose-500/20 text-rose-300"
-                      : "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
+                      ? "bg-rose-950/20 border-rose-500/30 text-rose-300"
+                      : "bg-slate-900 border-slate-700 text-slate-200"
                   }`}>
                     {messengerTestMsg.text}
                   </div>
@@ -3324,394 +3143,369 @@ const DeveloperPanel = () => {
           {/* ── MODULE 2: LIVE DATABASE TABLE & STORAGE INSPECTOR ── */}
           {activeSidebarTab === "DATABASE" && (
             <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-in fade-in duration-150">
-          {/* Header Bar */}
-          <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/25 text-blue-400 flex items-center justify-center shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <ellipse cx="12" cy="5" rx="9" ry="3" />
-                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-                  <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  Aiven Database Table & Storage Inspector
-                </h2>
-                <p className="text-xs text-slate-400">Live breakdown of tables, record counts, storage footprint, and cloud response latency</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-              {/* Latency badge */}
-              {dbStats && (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border ${
-                  dbStats.statusColor === "emerald"
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                    : dbStats.statusColor === "blue"
-                    ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                    : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                }`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
-                  ⚡ {dbStats.latencyMs}ms ({dbStats.status})
-                </span>
-              )}
-
-              {/* Ping & Refresh Button */}
-              <button
-                onClick={fetchDbStats}
-                disabled={dbStatsLoading}
-                className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700/80 text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  className={dbStatsLoading ? "animate-spin text-emerald-400" : ""}
-                >
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                </svg>
-                {dbStatsLoading ? "Pinging..." : "Ping & Refresh"}
-              </button>
-
-              {/* Seed Demo Data Button */}
-              <button
-                onClick={() => {
-                  setDemoDataSuccessMsg("");
-                  setShowDemoDataModal(true);
-                }}
-                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-600 text-emerald-400 hover:text-white rounded-xl border border-emerald-500/30 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
-                title="Generate realistic demo buyers and transactions for presentations"
-              >
-                <span>🎲</span>
-                <span>Generate Demo Data</span>
-              </button>
-
-              {/* Compact Purge Test Data Button */}
-              <button
-                onClick={() => setShowPurgeModal(true)}
-                className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white rounded-xl border border-rose-500/30 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
-                title="Purge test inquiries, customers, and transactions"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
-                Purge Test Data
-              </button>
-            </div>
-          </div>
-
-          <div className="p-6 space-y-6">
-            {/* KPI Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Metric 1: Ping / Latency */}
-              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>⚡</span> Cloud Latency
+              {/* Header Bar */}
+              <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-sky-400 flex items-center justify-center text-lg shrink-0">
+                    🗄️
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-white">Database Tables & Storage Inspector</h2>
+                    <p className="text-[11px] text-slate-400">Live breakdown of tables, record counts, storage footprint, and cloud response latency.</p>
+                  </div>
                 </div>
-                <div className="text-lg font-bold text-white font-mono">
-                  {dbStats ? `${dbStats.latencyMs} ms` : "--"}
-                </div>
-                <div className="text-[11px] text-emerald-400 font-medium mt-0.5">
-                  {dbStats ? `Connection: ${dbStats.status}` : "Direct Query Ping"}
+
+                <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                  {/* Latency badge */}
+                  {dbStats && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      {dbStats.latencyMs}ms ({dbStats.status})
+                    </span>
+                  )}
+
+                  {/* Ping & Refresh Button */}
+                  <button
+                    onClick={fetchDbStats}
+                    disabled={dbStatsLoading}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      className={dbStatsLoading ? "animate-spin text-sky-400" : ""}
+                    >
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                    <span>{dbStatsLoading ? "Pinging..." : "Refresh"}</span>
+                  </button>
+
+                  {/* Seed Demo Data Button */}
+                  <button
+                    onClick={() => {
+                      setDemoDataSuccessMsg("");
+                      setShowDemoDataModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
+                    title="Generate realistic demo buyers and transactions for presentations"
+                  >
+                    <span>🎲</span>
+                    <span>Demo Data</span>
+                  </button>
+
+                  {/* Purge Test Data Button */}
+                  <button
+                    onClick={() => setShowPurgeModal(true)}
+                    className="px-3 py-1.5 bg-rose-950/30 hover:bg-rose-950/60 text-rose-300 hover:text-rose-200 text-xs rounded-xl border border-rose-500/30 transition flex items-center gap-1.5"
+                    title="Purge test inquiries, customers, and transactions"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    <span>Purge Data</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Metric 2: Database Storage Size */}
-              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>📦</span> Database Storage
-                </div>
-                <div className="text-lg font-bold text-white font-mono">
-                  {dbStats?.totalSizeFormatted || "0 KB"}
-                </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  {dbStats?.totalBytes ? `${dbStats.totalBytes.toLocaleString()} bytes consumed` : "Zero waste"}
-                </div>
-              </div>
+              <div className="p-6 space-y-5">
+                {/* KPI Summary Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Metric 1: Ping / Latency */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Cloud Latency
+                    </div>
+                    <div className="text-lg font-bold text-slate-200 font-mono">
+                      {dbStats ? `${dbStats.latencyMs} ms` : "--"}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      {dbStats ? `Status: ${dbStats.status}` : "Direct Query Ping"}
+                    </div>
+                  </div>
 
-              {/* Metric 3: Total Tables */}
-              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>🗄️</span> Managed Tables
-                </div>
-                <div className="text-lg font-bold text-white font-mono">
-                  {dbStats?.tableCount || 0} Tables
-                </div>
-                <div className="text-[11px] text-slate-400 mt-0.5 font-mono truncate">
-                  Schema: {dbStats?.databaseName || "aiven_db"}
-                </div>
-              </div>
+                  {/* Metric 2: Database Storage Size */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Database Storage
+                    </div>
+                    <div className="text-lg font-bold text-slate-200 font-mono">
+                      {dbStats?.totalSizeFormatted || "0 KB"}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      {dbStats?.totalBytes ? `${dbStats.totalBytes.toLocaleString()} bytes` : "Storage usage"}
+                    </div>
+                  </div>
 
-              {/* Metric 4: Total Records Count */}
-              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>📝</span> Total Records
-                </div>
-                <div className="text-lg font-bold text-white font-mono">
-                  {dbStats?.totalRows ? dbStats.totalRows.toLocaleString() : 0} Rows
-                </div>
-                <div className="text-[11px] text-emerald-400 mt-0.5 font-medium">
-                  Active database records
-                </div>
-              </div>
-            </div>
+                  {/* Metric 3: Total Tables */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Managed Tables
+                    </div>
+                    <div className="text-lg font-bold text-slate-200 font-mono">
+                      {dbStats?.tableCount || 0} Tables
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5 font-mono truncate">
+                      Schema: {dbStats?.databaseName || "golden_dragon_corp"}
+                    </div>
+                  </div>
 
-            {/* Table-by-Table Breakdown Grid */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Database Tables Breakdown ({dbStats?.tables?.length || 0})
-                </h3>
-                <span className="text-[11px] text-slate-400">Sorted by memory footprint</span>
-              </div>
-
-              {dbStatsLoading && !dbStats ? (
-                <div className="p-8 text-center text-slate-500 italic border border-dashed border-slate-800 rounded-xl">
-                  Inspecting Aiven Cloud Database tables and storage...
+                  {/* Metric 4: Total Records Count */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Total Records
+                    </div>
+                    <div className="text-lg font-bold text-slate-200 font-mono">
+                      {dbStats?.totalRows ? dbStats.totalRows.toLocaleString() : 0} Rows
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Active database records
+                    </div>
+                  </div>
                 </div>
-              ) : !dbStats?.tables || dbStats.tables.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 italic border border-dashed border-slate-800 rounded-xl">
-                  No tables found in current database schema.
-                </div>
-              ) : (
-                (() => {
-                  const maxBytes = Math.max(...dbStats.tables.map((t) => t.totalBytes || 1), 1);
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                      {dbStats.tables.map((tbl) => {
-                        const styleMeta = getTableIcon(tbl.name);
-                        const pctOfLargest = Math.max(6, Math.round((tbl.totalBytes / maxBytes) * 100));
 
-                        return (
-                          <div
-                            key={tbl.name}
-                            onClick={() => handleOpenTableData(tbl.name)}
-                            className="p-3.5 bg-slate-950/50 hover:bg-slate-900/80 border border-slate-800/80 hover:border-emerald-500/40 rounded-xl transition flex flex-col justify-between gap-3 group cursor-pointer shadow-sm hover:shadow-lg hover:shadow-emerald-500/5"
-                            title={`Click to inspect live records in '${tbl.name}' table`}
-                          >
-                            <div>
-                              <div className="flex items-center justify-between gap-2 mb-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm border ${styleMeta.color} shrink-0`}>
-                                    {styleMeta.icon}
-                                  </span>
-                                  <div className="min-w-0">
-                                    <div className="text-xs font-bold text-white truncate group-hover:text-emerald-400 transition flex items-center gap-1">
-                                      <span>{tbl.name}</span>
-                                      <span className="text-[10px] text-emerald-400 opacity-0 group-hover:opacity-100 transition">↗</span>
+                {/* Table-by-Table Breakdown Grid */}
+                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                      <span>🗂️</span>
+                      <span>Database Tables ({dbStats?.tables?.length || 0})</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500">Click any card to inspect rows</span>
+                  </div>
+
+                  {dbStatsLoading && !dbStats ? (
+                    <div className="p-6 text-center text-slate-500 text-xs">
+                      Inspecting database tables and storage...
+                    </div>
+                  ) : !dbStats?.tables || dbStats.tables.length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 italic text-xs">
+                      No tables found in current database schema.
+                    </div>
+                  ) : (
+                    (() => {
+                      const maxBytes = Math.max(...dbStats.tables.map((t) => t.totalBytes || 1), 1);
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {dbStats.tables.map((tbl) => {
+                            const pctOfLargest = Math.max(4, Math.round((tbl.totalBytes / maxBytes) * 100));
+
+                            return (
+                              <div
+                                key={tbl.name}
+                                onClick={() => handleOpenTableData(tbl.name)}
+                                className="p-3.5 bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-lg transition flex flex-col justify-between gap-2.5 group cursor-pointer"
+                                title={`Click to inspect records in '${tbl.name}'`}
+                              >
+                                <div>
+                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="w-7 h-7 rounded-md bg-slate-800 text-slate-300 flex items-center justify-center text-xs shrink-0">
+                                        📄
+                                      </span>
+                                      <div className="min-w-0">
+                                        <div className="text-xs font-bold text-slate-200 truncate group-hover:text-white transition">
+                                          {tbl.name}
+                                        </div>
+                                        <div className="text-[10px] text-slate-500">
+                                          Table Schema
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-[10px] text-slate-500 font-mono">
-                                      Table Schema
-                                    </div>
+                                    <span className="text-[10px] font-mono font-bold text-slate-300 px-1.5 py-0.5 bg-slate-800 rounded shrink-0">
+                                      {tbl.sizeFormatted}
+                                    </span>
+                                  </div>
+
+                                  {/* Relative Footprint Visual Bar */}
+                                  <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-emerald-500/80 rounded-full transition-all duration-500"
+                                      style={{ width: `${pctOfLargest}%` }}
+                                    />
                                   </div>
                                 </div>
-                                <span className="text-[11px] font-mono font-bold text-white px-2 py-0.5 bg-slate-900 border border-slate-800 rounded-md shrink-0">
-                                  {tbl.sizeFormatted}
-                                </span>
-                              </div>
 
-                              {/* Relative Footprint Visual Bar */}
-                              <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mb-2">
-                                <div
-                                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
-                                  style={{ width: `${pctOfLargest}%` }}
-                                />
+                                {/* Table Record & Size Details */}
+                                <div className="flex items-center justify-between text-[10px] font-mono pt-1 text-slate-400">
+                                  <span>{tbl.rows.toLocaleString()} rows</span>
+                                  <span className="text-slate-300 group-hover:text-white transition">
+                                    View Data ↗
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-
-                            {/* Table Record & Size Details */}
-                            <div className="flex items-center justify-between text-[11px] font-mono pt-2 border-t border-slate-900">
-                              <span className="text-slate-300 flex items-center gap-1 font-semibold">
-                                <span className="text-emerald-400">👥</span> {tbl.rows.toLocaleString()} rows
-                              </span>
-                              <span className="text-emerald-400/90 text-[10px] font-sans font-semibold group-hover:underline flex items-center gap-0.5">
-                                View Data ↗
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()
-              )}
+                            );
+                          })}
+                        </div>
+                      );
+                    })()
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          )}
       )}
 
           {/* ── MODULE 3: MAP & LOT COORDINATE DIAGNOSTICS ── */}
           {activeSidebarTab === "MAP" && (
             <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-in fade-in duration-150">
-          {/* Header Bar */}
-          <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/25 text-teal-400 flex items-center justify-center shrink-0">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-                  <line x1="8" y1="2" x2="8" y2="18" />
-                  <line x1="16" y1="6" x2="16" y2="22" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  Map & Lot Coordinate Diagnostics
-                </h2>
-                <p className="text-xs text-slate-400">Scan 2D polygon geometries, detect missing lot coordinates, and verify map readiness</p>
-              </div>
-            </div>
+              {/* Header Bar */}
+              <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-teal-400 flex items-center justify-center text-lg shrink-0">
+                    🗺️
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-white">Map & Lot Coordinate Diagnostics</h2>
+                    <p className="text-[11px] text-slate-400">Scan 2D polygon geometries, detect missing lot coordinates, and verify map readiness.</p>
+                  </div>
+                </div>
 
-            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-              {/* Coverage badge */}
-              {mapDiag && (
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border ${
-                  mapDiag.overallCoveragePct >= 90
-                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                    : mapDiag.overallCoveragePct >= 60
-                    ? "bg-teal-500/10 text-teal-400 border-teal-500/20"
-                    : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                }`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                  🎯 {mapDiag.overallCoveragePct}% Map Ready ({mapDiag.mappedCount}/{mapDiag.totalLots} Lots)
-                </span>
-              )}
+                <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                  {/* Coverage badge */}
+                  {mapDiag && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      {mapDiag.overallCoveragePct}% Ready ({mapDiag.mappedCount}/{mapDiag.totalLots} Lots)
+                    </span>
+                  )}
 
-              {/* Scan / Refresh Button */}
-              <button
-                onClick={fetchMapDiagnostics}
-                disabled={mapDiagLoading}
-                className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700/80 text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  className={mapDiagLoading ? "animate-spin text-teal-400" : ""}
-                >
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                </svg>
-                {mapDiagLoading ? "Scanning Geometries..." : "Scan & Diagnostics"}
-              </button>
-            </div>
-          </div>
-
-          <div className="p-6 space-y-6">
-            {/* KPI Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Metric 1: Overall Map Coverage */}
-              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>🗺️</span> Map Coverage
-                </div>
-                <div className="text-lg font-bold text-white font-mono">
-                  {mapDiag ? `${mapDiag.overallCoveragePct}%` : "--"}
-                </div>
-                <div className="text-[11px] text-teal-400 font-medium mt-0.5">
-                  {mapDiag ? `${mapDiag.mappedCount} of ${mapDiag.totalLots} Lots Geocoded` : "Scanning lots..."}
-                </div>
-              </div>
-
-              {/* Metric 2: Valid Polygons */}
-              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>📐</span> Valid 2D Polygons
-                </div>
-                <div className="text-lg font-bold text-emerald-400 font-mono">
-                  {mapDiag?.polygonCount || 0} Lots
-                </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  Full multi-vertex boundaries
-                </div>
-              </div>
-
-              {/* Metric 3: Missing Coordinates */}
-              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>⚠️</span> Unmapped Lots
-                </div>
-                <div className={`text-lg font-bold font-mono ${mapDiag?.unmappedCount > 0 ? "text-amber-400" : "text-slate-300"}`}>
-                  {mapDiag?.unmappedCount || 0} Lots
-                </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  Missing coordinates in database
-                </div>
-              </div>
-
-              {/* Metric 4: Corrupted / Broken */}
-              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl">
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <span>🚨</span> Geometry Warnings
-                </div>
-                <div className={`text-lg font-bold font-mono ${mapDiag?.corruptedCount > 0 ? "text-rose-400" : "text-emerald-400"}`}>
-                  {mapDiag?.corruptedCount || 0} Errors
-                </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">
-                  {mapDiag?.corruptedCount > 0 ? "Malformed geometry syntax" : "Clean coordinate syntax"}
-                </div>
-              </div>
-            </div>
-
-            {/* Subdivision-by-Subdivision Coverage Breakdown */}
-            {mapDiag?.propertyBreakdown && mapDiag.propertyBreakdown.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-                  Subdivision Coverage Breakdown ({mapDiag.propertyBreakdown.length} Properties)
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {mapDiag.propertyBreakdown.map((prop) => (
-                    <div
-                      key={prop.propertyId}
-                      className="p-4 bg-slate-950/50 border border-slate-800 rounded-xl space-y-2.5"
+                  {/* Scan / Refresh Button */}
+                  <button
+                    onClick={fetchMapDiagnostics}
+                    disabled={mapDiagLoading}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      className={mapDiagLoading ? "animate-spin text-teal-400" : ""}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-white truncate">
-                            {prop.propertyName}
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                    <span>{mapDiagLoading ? "Scanning..." : "Scan & Diagnostics"}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {/* KPI Summary Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Metric 1: Overall Map Coverage */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Map Coverage
+                    </div>
+                    <div className="text-lg font-bold text-slate-200 font-mono">
+                      {mapDiag ? `${mapDiag.overallCoveragePct}%` : "--"}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      {mapDiag ? `${mapDiag.mappedCount} of ${mapDiag.totalLots} Lots Geocoded` : "Scanning..."}
+                    </div>
+                  </div>
+
+                  {/* Metric 2: Valid Polygons */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Valid Polygons
+                    </div>
+                    <div className="text-lg font-bold text-slate-200 font-mono">
+                      {mapDiag?.polygonCount || 0}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Full 2D boundary points
+                    </div>
+                  </div>
+
+                  {/* Metric 3: Missing Coordinates */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Unmapped Lots
+                    </div>
+                    <div className="text-lg font-bold font-mono text-slate-200">
+                      {mapDiag?.unmappedCount || 0}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Missing database coordinates
+                    </div>
+                  </div>
+
+                  {/* Metric 4: Corrupted / Broken */}
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Geometry Warnings
+                    </div>
+                    <div className="text-lg font-bold font-mono text-slate-200">
+                      {mapDiag?.corruptedCount || 0}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      Syntax integrity status
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subdivision-by-Subdivision Coverage Breakdown */}
+                {mapDiag?.propertyBreakdown && mapDiag.propertyBreakdown.length > 0 && (
+                  <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-3">
+                    <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                      <span>📐</span>
+                      <span>Subdivision Coverage ({mapDiag.propertyBreakdown.length} Properties)</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {mapDiag.propertyBreakdown.map((prop) => (
+                        <div
+                          key={prop.propertyId}
+                          className="p-3.5 bg-slate-900/60 border border-slate-800/80 rounded-lg space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-200 truncate">
+                                {prop.propertyName}
+                              </div>
+                              <div className="text-[10px] text-slate-400 truncate">
+                                {prop.location || "Location not set"}
+                              </div>
+                            </div>
+                            <span className="text-xs font-mono font-bold text-slate-300 px-2 py-0.5 bg-slate-800 rounded shrink-0">
+                              {prop.coveragePct}%
+                            </span>
                           </div>
-                          <div className="text-[10px] text-slate-500 truncate">
-                            {prop.location || "Location not set"}
+
+                          {/* Coverage Progress Bar */}
+                          <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                prop.coveragePct === 100
+                                  ? "bg-emerald-500/80"
+                                  : prop.coveragePct > 0
+                                  ? "bg-sky-500/80"
+                                  : "bg-slate-700"
+                              }`}
+                              style={{ width: `${Math.max(3, prop.coveragePct)}%` }}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-0.5">
+                            <span>{prop.mappedLots} / {prop.totalLots} lots mapped</span>
+                            {prop.unmappedLots > 0 && (
+                              <span className="text-amber-400">
+                                {prop.unmappedLots} unmapped
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <span className="text-xs font-mono font-bold text-teal-400 px-2 py-0.5 bg-slate-900 border border-slate-800 rounded-md shrink-0">
-                          {prop.coveragePct}%
-                        </span>
-                      </div>
-
-                      {/* Coverage Progress Bar */}
-                      <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            prop.coveragePct === 100
-                              ? "bg-gradient-to-r from-emerald-500 to-teal-400"
-                              : prop.coveragePct >= 50
-                              ? "bg-gradient-to-r from-teal-500 to-cyan-400"
-                              : "bg-gradient-to-r from-amber-500 to-orange-400"
-                          }`}
-                          style={{ width: `${Math.max(4, prop.coveragePct)}%` }}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1">
-                        <span>{prop.mappedLots} / {prop.totalLots} Lots Mapped</span>
-                        {prop.unmappedLots > 0 && (
-                          <span className="text-amber-400 text-[10px]">
-                            {prop.unmappedLots} unmapped
-                          </span>
-                        )}
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
             {/* Flagged / Unmapped Lots Section - Only visible if there are issues */}
             {mapDiag && mapDiag.flaggedLots && mapDiag.flaggedLots.length > 0 && (
@@ -4906,42 +4700,39 @@ const DeveloperPanel = () => {
                       <div className="border border-slate-800/90 rounded-2xl overflow-hidden shadow-xl bg-slate-950/60 w-full">
                         <div className="overflow-x-auto w-full">
                           <table className="w-full min-w-max text-left border-collapse text-xs">
-                            {/* Modern Spacious Table Header */}
-                            <thead className="bg-slate-900/95 sticky top-0 z-10 border-b border-slate-800 text-slate-300">
+                            {/* Clean Table Header */}
+                            <thead className="bg-slate-900/90 sticky top-0 z-10 border-b border-slate-800 text-slate-400">
                               <tr>
-                                <th className="py-4 px-4 font-mono text-[11px] font-bold text-slate-500 w-16 text-center select-none min-w-[64px]">
+                                <th className="py-3 px-4 font-mono text-[11px] text-slate-500 w-12 text-center select-none min-w-[48px]">
                                   #
                                 </th>
                                 {tableData.columns.map((col) => (
                                   <th
                                     key={col.name}
-                                    className="py-4 px-6 font-semibold text-slate-200 whitespace-nowrap min-w-[170px]"
+                                    className="py-3 px-5 font-semibold text-slate-300 whitespace-nowrap min-w-[150px]"
                                   >
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5">
                                       {col.isPrimary && (
                                         <span title="Primary Key" className="text-amber-400 text-xs">🔑</span>
                                       )}
-                                      <span className="font-semibold text-white tracking-tight text-xs">{col.name}</span>
-                                      <span className="text-[9px] font-mono text-slate-400 font-medium px-1.5 py-0.5 rounded bg-slate-950/80 border border-slate-800 uppercase">
-                                        {col.type}
-                                      </span>
+                                      <span className="font-semibold text-slate-200 tracking-tight text-xs">{col.name}</span>
                                     </div>
                                   </th>
                                 ))}
-                                <th className="py-4 px-4 font-semibold text-slate-200 text-center w-24 min-w-[100px] sticky right-0 bg-slate-900/95 border-l border-slate-800 select-none">
+                                <th className="py-3 px-4 font-semibold text-slate-400 text-center w-16 min-w-[70px] sticky right-0 bg-slate-900/95 border-l border-slate-800 select-none">
                                   Action
                                 </th>
                               </tr>
                             </thead>
 
-                            {/* Modern Spacious Rows */}
-                            <tbody className="divide-y divide-slate-800/40 font-sans text-xs">
+                            {/* Clean Rows */}
+                            <tbody className="divide-y divide-slate-800/40 text-xs">
                               {filteredRows.map((row, rowIdx) => (
                                 <tr
                                   key={rowIdx}
-                                  className="odd:bg-slate-950/40 even:bg-slate-900/15 hover:bg-emerald-500/[0.04] transition-colors group"
+                                  className="hover:bg-slate-900/30 transition-colors group"
                                 >
-                                  <td className="py-4 px-4 text-slate-500 text-center font-mono text-[11px] select-none">
+                                  <td className="py-3 px-4 text-slate-500 text-center font-mono text-[11px] select-none">
                                     {rowIdx + 1}
                                   </td>
                                   {tableData.columns.map((col) => {
@@ -4949,14 +4740,14 @@ const DeveloperPanel = () => {
                                     return (
                                       <td
                                         key={col.name}
-                                        className="py-4 px-6 text-slate-300 align-middle whitespace-nowrap min-w-[170px]"
+                                        className="py-3 px-5 text-slate-300 align-middle whitespace-nowrap min-w-[150px]"
                                       >
                                         {renderTableExplorerCell(col, val)}
                                       </td>
                                     );
                                   })}
                                   {/* Row Action: Delete */}
-                                  <td className="py-4 px-4 text-center sticky right-0 bg-slate-950/95 border-l border-slate-800/60 min-w-[100px]">
+                                  <td className="py-3 px-4 text-center sticky right-0 bg-slate-950/95 border-l border-slate-800/60 min-w-[70px]">
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -4969,13 +4760,12 @@ const DeveloperPanel = () => {
                                           rowSummary: `${primaryKeyCol.name} #${pkVal} (${label})`,
                                         });
                                       }}
-                                      className="px-2.5 py-1 text-[11px] font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/25 rounded-lg transition inline-flex items-center gap-1 shadow-sm"
+                                      className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition"
                                       title={`Delete record #${row[primaryKeyCol.name]} from ${selectedTable}`}
                                     >
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                                       </svg>
-                                      Delete
                                     </button>
                                   </td>
                                 </tr>
