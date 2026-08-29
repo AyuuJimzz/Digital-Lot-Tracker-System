@@ -4,31 +4,55 @@ import axios from "axios";
 import AccessDenied from "../view/AccessDenied";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-	const [auth, setAuth] = useState({ loading: true, isAuthorized: false });
+	const rolesKey = Array.isArray(allowedRoles) ? allowedRoles.join(",") : "";
+	const allowedRolesList = rolesKey ? rolesKey.split(",") : [];
+
+	const [auth, setAuth] = useState(() => {
+		const initialToken = localStorage.getItem("authToken");
+		const initialRole = localStorage.getItem("role");
+		const isRoleValid = !allowedRolesList.length || (initialRole && allowedRolesList.includes(initialRole));
+		const isLocallyAuthorized = Boolean(initialToken && isRoleValid);
+
+		return {
+			loading: !isLocallyAuthorized,
+			isAuthorized: isLocallyAuthorized,
+			isAuthenticated: Boolean(initialToken),
+		};
+	});
 
 	useEffect(() => {
 		// Restore saved JWT token for cross-origin deployments (Vercel + Render)
 		const savedToken = localStorage.getItem("authToken");
+		const headers = {};
 		if (savedToken) {
+			headers["Authorization"] = `Bearer ${savedToken}`;
 			axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
 		}
+
 		axios
 			.get(`${API_BASE_URL}/api/auth/check-session`, {
+				headers,
 				withCredentials: true,
 			})
 			.then((response) => {
-				if (response.data.authenticated && allowedRoles.includes(response.data.role)) {
+				if (response.data && response.data.authenticated) {
 					localStorage.setItem("role", response.data.role || "");
 					localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
-					setAuth({ loading: false, isAuthorized: true });
+					const roles = rolesKey ? rolesKey.split(",") : [];
+					const hasRole = roles.length > 0 ? roles.includes(response.data.role) : true;
+					setAuth({ loading: false, isAuthorized: hasRole, isAuthenticated: true });
 				} else {
-					setAuth({ loading: false, isAuthorized: false });
+					localStorage.removeItem("authToken");
+					localStorage.removeItem("role");
+					setAuth({ loading: false, isAuthorized: false, isAuthenticated: false });
 				}
 			})
 			.catch(() => {
-				setAuth({ loading: false, isAuthorized: false });
+				localStorage.removeItem("authToken");
+				localStorage.removeItem("role");
+				setAuth({ loading: false, isAuthorized: false, isAuthenticated: false });
 			});
-	}, [allowedRoles]);
+	}, [rolesKey]);
 
 	if (auth.loading) {
 		return (
