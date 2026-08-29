@@ -171,6 +171,37 @@ ${meta.route ? `🌐 Endpoint: ${meta.route}\n` : ""}${meta.user ? `👤 Trigger
   }
 };
 
+/**
+ * Send direct reply to a specific user PSID (for interactive bot commands)
+ * @param {string} recipientPsid
+ * @param {string} text
+ */
+const sendDirectMessage = async (recipientPsid, text) => {
+  const token = getActiveToken();
+  if (!token || !recipientPsid) {
+    return { success: false, reason: "NOT_CONFIGURED" };
+  }
+
+  try {
+    const response = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientPsid },
+        message: { text },
+      }),
+    });
+    const data = await response.json();
+    if (response.ok && data?.message_id) {
+      return { success: true, messageId: data.message_id };
+    }
+    return { success: false, error: data?.error?.message || "Failed" };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   sendMessengerAlert,
+  sendDirectMessage,
 };

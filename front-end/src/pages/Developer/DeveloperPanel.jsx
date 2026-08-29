@@ -225,6 +225,32 @@ const DeveloperPanel = () => {
     }
   };
 
+  const handleSimulateBotCommand = async (commandName) => {
+    setMessengerTestLoading(true);
+    setMessengerTestMsg({ text: "", isError: false });
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/messenger/simulate-command`,
+        { command: commandName },
+        { headers: getDevHeaders(), withCredentials: true }
+      );
+      if (res.data?.success) {
+        setMessengerTestMsg({
+          text: `🤖 Simulated chat '${commandName}' executed! Check your Messenger inbox for the bot reply.`,
+          isError: false,
+        });
+        fetchSystemState();
+      }
+    } catch (err) {
+      setMessengerTestMsg({
+        text: `❌ Command execution failed: ${err.response?.data?.error || err.message}`,
+        isError: true,
+      });
+    } finally {
+      setMessengerTestLoading(false);
+    }
+  };
+
   const handleDismissRecipient = async (recipient) => {
     if (!window.confirm(`Hide "${recipient.name}" from this scan list?`)) return;
     setMessengerTestLoading(true);
@@ -3199,6 +3225,87 @@ const DeveloperPanel = () => {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Interactive Two-Way Bot Commands & Webhook Guide */}
+                <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>🤖</span>
+                        <span>Messenger Two-Way Interactive Bot Commands</span>
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Chat directly with your Golden Dragon Facebook Page from Messenger to trigger automated diagnostics!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleSimulateBotCommand("STATUS")}
+                      disabled={messengerTestLoading}
+                      className="p-3.5 bg-slate-900 hover:bg-sky-950/40 border border-slate-800 hover:border-sky-500/40 rounded-xl text-left transition group disabled:opacity-50"
+                    >
+                      <div className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                        <span>⏱️</span>
+                        <span>STATUS</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">Uptime & DB latency ping</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSimulateBotCommand("LOGS")}
+                      disabled={messengerTestLoading}
+                      className="p-3.5 bg-slate-900 hover:bg-purple-950/40 border border-slate-800 hover:border-purple-500/40 rounded-xl text-left transition group disabled:opacity-50"
+                    >
+                      <div className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
+                        <span>📋</span>
+                        <span>LOGS</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">Recent error & system events</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSimulateBotCommand("MAINTENANCE ON")}
+                      disabled={messengerTestLoading}
+                      className="p-3.5 bg-slate-900 hover:bg-amber-950/40 border border-slate-800 hover:border-amber-500/40 rounded-xl text-left transition group disabled:opacity-50"
+                    >
+                      <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                        <span>🚧</span>
+                        <span>MAINT ON</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">Enable Under Construction</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSimulateBotCommand("HELP")}
+                      disabled={messengerTestLoading}
+                      className="p-3.5 bg-slate-900 hover:bg-emerald-950/40 border border-slate-800 hover:border-emerald-500/40 rounded-xl text-left transition group disabled:opacity-50"
+                    >
+                      <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                        <span>💡</span>
+                        <span>HELP</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">Show full command menu</div>
+                    </button>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+                    <div className="font-semibold text-slate-300 flex items-center gap-1.5">
+                      <span>🌐</span> <span>Render / Live Webhook Configuration Guide:</span>
+                    </div>
+                    <div className="font-mono text-[10px] text-sky-300">
+                      Callback URL: <span className="text-white">https://&lt;your-render-app&gt;.onrender.com/api/messenger/webhook</span>
+                    </div>
+                    <div className="font-mono text-[10px] text-amber-300">
+                      Verify Token: <span className="text-white">golden_dragon_bot_2026</span>
+                    </div>
+                  </div>
                 </div>
 
                 {messengerTestMsg.text && (

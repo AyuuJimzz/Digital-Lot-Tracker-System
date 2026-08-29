@@ -12,6 +12,7 @@ const lotRoutes = require("./routes/lotRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const developerRoutes = require("./routes/developerRoutes");
+const messengerRoutes = require("./routes/messengerRoutes");
 const { checkMaintenance } = require("./middleware/maintenanceCheck");
 
 const app = express();
@@ -102,6 +103,7 @@ app.use("/api/properties", propertyRoutes);
 app.use("/api/lots", lotRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/transactions", transactionRoutes);
+app.use("/api/messenger", messengerRoutes);
 app.use("/api/admin", sessionOrToken({ roles: ["admin"] }), adminRoutes);
 
 // 404 handler
