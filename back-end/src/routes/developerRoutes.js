@@ -849,14 +849,6 @@ router.get("/env-health", requireDeveloper, (req, res) => {
       description: "Developer personal Facebook Messenger User ID (PSID)",
       mask: true,
     },
-    {
-      key: "FB_VERIFY_TOKEN",
-      category: "Notifications",
-      required: false,
-      description: "Meta Webhook subscription verification token",
-      default: "golden_dragon_webhook_secret_2026",
-      mask: true,
-    },
   ];
 
   const maskValue = (val) => {
@@ -1726,67 +1718,5 @@ router.post("/set-messenger-recipient", requireDeveloper, async (req, res) => {
   }
 });
 
-// ── MESSENGER WEBHOOK VERIFICATION (GET) ──
-router.get("/messenger-webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  const VERIFY_TOKEN = process.env.FB_VERIFY_TOKEN || "golden_dragon_webhook_secret_2026";
-
-  if (mode && token) {
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      console.log("✅ [MessengerWebhook] Webhook verified successfully!");
-      return res.status(200).send(challenge);
-    }
-    return res.sendStatus(403);
-  }
-  return res.sendStatus(400);
-});
-
-// ── MESSENGER INCOMING MESSAGE AUTO-REPLY (POST) ──
-const { sendDirectMessage } = require("../services/messengerAlertService");
-
-router.post("/messenger-webhook", async (req, res) => {
-  const body = req.body;
-
-  if (body.object === "page") {
-    for (const entry of body.entry || []) {
-      for (const event of entry.messaging || []) {
-        const senderPsid = event.sender?.id;
-        const rawText = event.message?.text || "";
-        const cleanText = rawText.trim().toLowerCase();
-
-        if (senderPsid && cleanText) {
-          console.log(`📩 [MessengerWebhook] Message received from PSID ${senderPsid}: "${rawText}"`);
-
-          // If user asks for ID or sends #id
-          if (
-            cleanText.includes("id") ||
-            cleanText.includes("whoami") ||
-            cleanText.includes("psid") ||
-            cleanText === "#" ||
-            cleanText === "?"
-          ) {
-            await sendDirectMessage(
-              senderPsid,
-              `🆔 [GOLDEN DRAGON BOT]\n━━━━━━━━━━━━━━━━━━━━\nAng iyong Facebook User ID (PSID) ay:\n👉 ${senderPsid}\n\n(I-paste ito sa iyong .env file bilang FB_RECIPIENT_PSID para makatanggap ng real-time system alerts)\n━━━━━━━━━━━━━━━━━━━━`
-            );
-          } else {
-            // General greeting fallback
-            await sendDirectMessage(
-              senderPsid,
-              `👋 Hello! Ako ang Golden Dragon System Alert Bot.\n\nType "#id" para malaman ang iyong Facebook PSID.\nNaka-link na ang system alert bot para magpadala ng instant notification sa'yo tuwing may system crash o database error!`
-            );
-          }
-        }
-      }
-    }
-
-    return res.status(200).send("EVENT_RECEIVED");
-  }
-
-  return res.sendStatus(404);
-});
-
 module.exports = router;
+

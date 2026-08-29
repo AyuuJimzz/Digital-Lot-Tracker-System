@@ -74,31 +74,6 @@ ${meta.route ? `🌐 Endpoint: ${meta.route}\n` : ""}${meta.user ? `👤 Trigger
   }
 };
 
-/**
- * Send a direct custom message to a specific recipient PSID
- */
-const sendDirectMessage = async (recipientId, text) => {
-  const token = process.env.FB_PAGE_ACCESS_TOKEN;
-  if (!token || !recipientId) return { success: false, reason: "NOT_CONFIGURED" };
-
-  try {
-    const response = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient: { id: recipientId },
-        message: { text },
-      }),
-    });
-    const data = await response.json();
-    return { success: response.ok, data };
-  } catch (err) {
-    console.error("[MessengerAlert] Failed to send direct message:", err.message);
-    return { success: false, error: err.message };
-  }
-};
-
 module.exports = {
   sendMessengerAlert,
-  sendDirectMessage,
 };
