@@ -3341,7 +3341,6 @@ const DeveloperPanel = () => {
               </div>
             </div>
           )}
-      )}
 
           {/* ── MODULE 3: MAP & LOT COORDINATE DIAGNOSTICS ── */}
           {activeSidebarTab === "MAP" && (
