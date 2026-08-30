@@ -179,7 +179,7 @@ export function AdminHeader({ sidebarCollapsed }) {
       const cached = sessionStorage.getItem("propertiesCache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed
             .filter((p) => p.status !== "inactive")
             .map((p) => ({
@@ -191,11 +191,7 @@ export function AdminHeader({ sidebarCollapsed }) {
         }
       }
     } catch (e) {}
-    return [
-      { id: 1, name: "LOT-3896 Oton Cadastre", coordinates: [10.7372, 122.4998] },
-      { id: 2, name: "Lot-2018 Oton Cadestra", coordinates: [10.737956, 122.505478] },
-      { id: 3, name: "Lot-204 Nanga Guimbal", coordinates: [10.671313, 122.335284] },
-    ];
+    return [];
   });
 
   // Fetch dynamic properties from API
@@ -203,7 +199,7 @@ export function AdminHeader({ sidebarCollapsed }) {
     const fetchProperties = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true });
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           const mapped = res.data
             .filter((p) => p.status !== "inactive")
             .map((p) => ({
@@ -359,23 +355,29 @@ export function AdminHeader({ sidebarCollapsed }) {
             {/* Property Dropdown Menu */}
             {propertyDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[9999]">
-                {properties.map((property, idx) => (
-                  <button
-                    key={property.id}
-                    className={`flex w-full items-center gap-2 px-3.5 py-2 text-xs sm:text-sm transition-colors text-left ${
-                      property.id === selectedProperty
-                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
-                        : "text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
-                    }`}
-                    onClick={() => handlePropertySelect(property)}
-                  >
-                    <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-                    <span className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 shrink-0">
-                      #{idx + 1}
-                    </span>
-                    <span className="truncate">{property.name}</span>
-                  </button>
-                ))}
+                {properties.length > 0 ? (
+                  properties.map((property, idx) => (
+                    <button
+                      key={property.id}
+                      className={`flex w-full items-center gap-2 px-3.5 py-2 text-xs sm:text-sm transition-colors text-left ${
+                        property.id === selectedProperty
+                          ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
+                          : "text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                      }`}
+                      onClick={() => handlePropertySelect(property)}
+                    >
+                      <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+                      <span className="px-1.5 py-0.5 text-[11px] font-bold rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 shrink-0">
+                        #{idx + 1}
+                      </span>
+                      <span className="truncate">{property.name}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3.5 py-2.5 text-xs text-gray-400 dark:text-slate-400 text-center">
+                    No properties found
+                  </div>
+                )}
               </div>
             )}
           </div>

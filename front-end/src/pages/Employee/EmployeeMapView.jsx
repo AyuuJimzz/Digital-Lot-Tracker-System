@@ -314,11 +314,7 @@ const EmployeeMapView = () => {
         };
       });
     }
-    return [
-      { id: 1, name: "LOT-3896 Oton Cadastre", coordinates: [10.7372, 122.4998] },
-      { id: 2, name: "Lot-2018 Oton Cadestra", coordinates: [10.737956, 122.505478] },
-      { id: 3, name: "Lot-204 Nanga Guimbal", coordinates: [10.671313, 122.335284] },
-    ];
+    return [];
   }, [mapData]);
 
   // Pre-cache satellite tiles for all properties in background
@@ -498,8 +494,8 @@ const EmployeeMapView = () => {
       style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}
     >
       <MapContainer
-        center={selectedPropertyCoords}
-        zoom={18}
+        center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
+        zoom={properties && properties.length > 0 ? 18 : 9}
         maxZoom={21}
         zoomControl={false}
         attributionControl={false}

@@ -199,7 +199,12 @@ function MapController({
   // Fly to selected property on initial mount or when arriving from Manage Properties
   const initialFlyDoneRef = useRef(false);
   useEffect(() => {
-    if (!map || !properties || properties.length === 0 || initialFlyDoneRef.current) return;
+    if (!map || initialFlyDoneRef.current) return;
+    if (!properties || properties.length === 0) {
+      initialFlyDoneRef.current = true;
+      map.setView([10.90, 122.60], 9);
+      return;
+    }
     const targetProp = properties.find((p) => Number(p.id) === Number(selectedProperty));
     if (targetProp && targetProp.coordinates) {
       initialFlyDoneRef.current = true;
@@ -714,11 +719,7 @@ function AdminViewMap() {
         };
       });
     }
-    return [
-      { id: 1, name: "LOT-3896 Oton Cadastre", coordinates: [10.7372, 122.4998], hasLots: true },
-      { id: 2, name: "Lot-2018 Oton Cadestra", coordinates: [10.737956, 122.505478], hasLots: true },
-      { id: 3, name: "Lot-204 Nanga Guimbal", coordinates: [10.671313, 122.335284], hasLots: true },
-    ];
+    return [];
   }, [mapData]);
 
   // Pre-cache satellite tiles for all properties in background
@@ -787,7 +788,7 @@ function AdminViewMap() {
       }
     } catch (e) {}
 
-    return [10.7372, 122.4998];
+    return properties.length > 0 ? [10.7372, 122.4998] : [10.90, 122.60];
   }, [properties, selectedProperty]);
 
   // ── Optimization: O(1) status → color lookup ──────────────────────────────
@@ -1037,8 +1038,8 @@ function AdminViewMap() {
       style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}
     >
       <MapContainer
-        center={selectedPropertyCoords}
-        zoom={18}
+        center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
+        zoom={properties && properties.length > 0 ? 18 : 9}
         maxZoom={21}
         zoomControl={false}
         attributionControl={false}

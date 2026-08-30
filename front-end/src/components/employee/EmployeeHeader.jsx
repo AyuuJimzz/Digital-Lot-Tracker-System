@@ -140,7 +140,7 @@ export function EmployeeHeader({ sidebarCollapsed }) {
       const cached = sessionStorage.getItem("propertiesCache");
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed
             .filter((p) => p.status !== "inactive")
             .map((p) => ({
@@ -152,11 +152,7 @@ export function EmployeeHeader({ sidebarCollapsed }) {
         }
       }
     } catch (e) {}
-    return [
-      { id: 1, name: "LOT-3896 Oton Cadastre", coordinates: [10.7372, 122.4998] },
-      { id: 2, name: "Lot-2018 Oton Cadestra", coordinates: [10.737956, 122.505478] },
-      { id: 3, name: "Lot-204 Nanga Guimbal", coordinates: [10.671313, 122.335284] },
-    ];
+    return [];
   });
 
   // Fetch dynamic properties from API
@@ -166,7 +162,7 @@ export function EmployeeHeader({ sidebarCollapsed }) {
         const res = await fetch(`${API_BASE_URL}/api/properties`, { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             const mapped = data
               .filter((p) => p.status !== "inactive")
               .map((p) => ({
