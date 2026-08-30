@@ -228,31 +228,6 @@ const DeveloperPanel = () => {
     }
   };
 
-  const handleSimulateBotCommand = async (commandName) => {
-    setMessengerTestLoading(true);
-    setMessengerTestMsg({ text: "", isError: false });
-    try {
-      const res = await axios.post(
-        `${API_BASE_URL}/api/messenger/simulate-command`,
-        { command: commandName },
-        { headers: getDevHeaders(), withCredentials: true }
-      );
-      if (res.data?.success) {
-        setMessengerTestMsg({
-          text: `🤖 Simulated chat '${commandName}' executed! Check your Messenger inbox for the bot reply.`,
-          isError: false,
-        });
-        fetchSystemState();
-      }
-    } catch (err) {
-      setMessengerTestMsg({
-        text: `❌ Command execution failed: ${err.response?.data?.error || err.message}`,
-        isError: true,
-      });
-    } finally {
-      setMessengerTestLoading(false);
-    }
-  };
 
   const handleDismissRecipient = async (recipient) => {
     if (!window.confirm(`Hide "${recipient.name}" from this scan list?`)) return;
