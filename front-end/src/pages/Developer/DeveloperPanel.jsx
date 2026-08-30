@@ -3062,63 +3062,82 @@ const DeveloperPanel = () => {
                   )}
                 </div>
 
-                {/* 3. Interactive Bot Commands */}
+                {/* 3. Available Messenger Bot Commands Directory */}
                 <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 space-y-3">
-                  <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-                    <span>🤖</span>
-                    <span>Quick Command Simulator</span>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                      <span>💬</span>
+                      <span>Available Messenger Bot Commands</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-mono">Chat directly to Facebook Page</span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSimulateBotCommand("#ID")}
-                      disabled={messengerTestLoading}
-                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
-                    >
-                      <div className="text-xs font-bold text-slate-200">🆔 #ID</div>
-                      <div className="text-[10px] text-slate-400">Get User PSID</div>
-                    </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {/* Command 1: #ID */}
+                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-200">#ID</span>
+                        <span className="text-[9px] font-mono text-slate-500">or UID / PSID</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Returns your unique Facebook Page-Scoped User ID for alert registration.
+                      </p>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleSimulateBotCommand("STATUS")}
-                      disabled={messengerTestLoading}
-                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
-                    >
-                      <div className="text-xs font-bold text-slate-200">⏱️ STATUS</div>
-                      <div className="text-[10px] text-slate-400">Uptime & Latency</div>
-                    </button>
+                    {/* Command 2: STATUS */}
+                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-200">STATUS</span>
+                        <span className="text-[9px] font-mono text-slate-500">or PING</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Replies with live server uptime, Aiven database latency, and platform status.
+                      </p>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleSimulateBotCommand("LOGS")}
-                      disabled={messengerTestLoading}
-                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
-                    >
-                      <div className="text-xs font-bold text-slate-200">📋 LOGS</div>
-                      <div className="text-[10px] text-slate-400">Recent 3 Logs</div>
-                    </button>
+                    {/* Command 3: LOGS */}
+                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-200">LOGS</span>
+                        <span className="text-[9px] font-mono text-slate-500">or ERRORS</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Dispatches the 3 most recent system events, logins, and error audit logs.
+                      </p>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleSimulateBotCommand("MAINTENANCE ON")}
-                      disabled={messengerTestLoading}
-                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
-                    >
-                      <div className="text-xs font-bold text-slate-200">🚧 MAINT ON</div>
-                      <div className="text-[10px] text-slate-400">Lock Site</div>
-                    </button>
+                    {/* Command 4: MAINT ON */}
+                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-200">MAINT ON</span>
+                        <span className="text-[9px] font-mono text-slate-500">or MAINTENANCE ON</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Remotely activates 503 Maintenance Mode across public web routes.
+                      </p>
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleSimulateBotCommand("HELP")}
-                      disabled={messengerTestLoading}
-                      className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-left transition disabled:opacity-50"
-                    >
-                      <div className="text-xs font-bold text-slate-200">💡 HELP</div>
-                      <div className="text-[10px] text-slate-400">Show Commands</div>
-                    </button>
+                    {/* Command 5: MAINT OFF */}
+                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-200">MAINT OFF</span>
+                        <span className="text-[9px] font-mono text-slate-500">or MAINTENANCE OFF</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Deactivates Maintenance Mode and restores full public website access.
+                      </p>
+                    </div>
+
+                    {/* Command 6: HELP */}
+                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-200">HELP</span>
+                        <span className="text-[9px] font-mono text-slate-500">or MENU</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Sends the complete directory of interactive bot commands.
+                      </p>
+                    </div>
                   </div>
 
                   <div className="pt-2 text-[10px] font-mono text-slate-500 flex flex-wrap items-center gap-4">
