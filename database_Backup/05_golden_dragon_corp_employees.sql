@@ -28,9 +28,11 @@ CREATE TABLE `employees` (
   `last_name` varchar(100) NOT NULL,
   `email` varchar(150) DEFAULT NULL,
   `password` varchar(150) DEFAULT NULL,
-  `date_of_birth` date NOT NULL,
-  `gender` varchar(10) NOT NULL,
-  `phone_number` varchar(20) NOT NULL,
+  `status` varchar(20) DEFAULT 'active',
+  `last_login` datetime DEFAULT NULL,
+  `password_reset_required` tinyint(1) DEFAULT '0',
+  `temp_password_expiry` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`employee_id`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -42,7 +44,7 @@ CREATE TABLE `employees` (
 
 LOCK TABLES `employees` WRITE;
 /*!40000 ALTER TABLE `employees` DISABLE KEYS */;
-INSERT INTO `employees` VALUES (1,'james','delos santos','jamesdelossantos1028@gmail.com','$2b$10$TJxfFmUPzFzEzy20dla5pOe4X1a9T4iekYbx4rgbIghEU.t8Wu4H2','2001-10-28','Male','9303003196');
+INSERT INTO `employees` (`employee_id`, `first_name`, `last_name`, `email`, `password`, `status`) VALUES (1,'james','delos santos','jamesdelossantos1028@gmail.com','$2b$10$TJxfFmUPzFzEzy20dla5pOe4X1a9T4iekYbx4rgbIghEU.t8Wu4H2','active');
 /*!40000 ALTER TABLE `employees` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

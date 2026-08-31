@@ -28,6 +28,13 @@ const loginEmployee = async (email, password) => {
 
 		if (!match) return { success: false };
 
+		// Track last login timestamp for 30-day active/inactive status
+		try {
+			await db.query("UPDATE employees SET last_login = NOW() WHERE employee_id = ?", [employee.employee_id]);
+		} catch (trackErr) {
+			// Silently continue if last_login column is not yet migrated
+		}
+
 		return {
 			success: true,
 			message: "Login successful",

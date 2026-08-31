@@ -295,28 +295,6 @@ const ManageProperties = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Total Lots</label>
-                <input
-                  type="number"
-                  name="total_lots"
-                  value={formData.total_lots}
-                  onChange={handleInputChange}
-                  min="0"
-                  placeholder="0"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Status</label>
-                <select name="status" value={formData.status} onChange={handleInputChange} className={inputCls}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-            </div>
-
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
@@ -357,51 +335,63 @@ const ManageProperties = () => {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Property List ({properties.length})</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full divide-y divide-gray-200 dark:divide-slate-700 table-auto">
-            <thead className="bg-gray-50 dark:bg-slate-800">
+          <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
+            <thead className="bg-gray-50 dark:bg-slate-800/80">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-12 hidden sm:table-cell">#</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Property Name</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Location</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-20">Total Lots</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-20">Status</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell">Created At</th>
-                <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider w-28">Actions</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-14 hidden sm:table-cell">#</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Property Name</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Location</th>
+                <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Total Lots</th>
+                <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+                <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell whitespace-nowrap">Created At</th>
+                <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap w-32">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
               {properties.length === 0 ? (
-                <tr><td colSpan="7" className="px-3 py-4 text-center text-sm text-gray-500 dark:text-slate-400">No properties found</td></tr>
+                <tr><td colSpan="7" className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">No properties found</td></tr>
               ) : (
                 properties.map((property, index) => (
-                  <tr key={property.property_id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-3 py-3 text-left text-sm font-semibold text-gray-700 dark:text-slate-300 hidden sm:table-cell">#{index + 1}</td>
-                    <td className="px-3 py-3 text-left text-sm font-medium text-gray-900 dark:text-white break-words">{property.property_name}</td>
-                    <td className="px-3 py-3 text-left text-sm text-gray-500 dark:text-slate-400 break-words">{property.location}</td>
-                    <td className="px-2 py-3 text-center text-sm text-gray-500 dark:text-slate-400">{property.total_lots}</td>
-                    <td className="px-2 py-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${property.status === "active" ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"}`}>
+                  <tr key={property.property_id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-4 py-3.5 text-left text-sm font-semibold text-gray-500 dark:text-slate-400 hidden sm:table-cell">#{index + 1}</td>
+                    <td className="px-4 py-3.5 text-left text-sm font-bold text-gray-900 dark:text-white">{property.property_name}</td>
+                    <td className="px-4 py-3.5 text-left text-sm text-gray-600 dark:text-slate-300">{property.location}</td>
+                    <td className="px-4 py-3.5 text-center text-sm font-semibold text-gray-700 dark:text-slate-200">{property.total_lots}</td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <span className={`inline-flex px-2.5 py-0.5 text-xs font-bold rounded-full ${
+                        property.status === "active"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-500/30"
+                          : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-500/30"
+                      }`}>
                         {property.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-center text-sm text-gray-500 dark:text-slate-400 hidden lg:table-cell whitespace-nowrap">{new Date(property.created_at).toLocaleDateString()}</td>
-                    <td className="px-3 py-3 text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => handleEdit(property)} className="inline-flex items-center justify-center w-7 h-7 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 transition-colors" title="Edit">
+                    <td className="px-4 py-3.5 text-center text-sm text-gray-500 dark:text-slate-400 hidden lg:table-cell whitespace-nowrap">{new Date(property.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3.5 text-right text-sm font-medium whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleEdit(property)}
+                          className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                          title="Edit Property"
+                        >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleToggleStatus(property.property_id, property.status)}
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-md text-sm font-medium transition-colors ${
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                             property.status === "active"
-                              ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:hover:bg-yellow-900/50"
-                              : "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50"
+                              ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300"
+                              : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300"
                           }`}
-                          title={property.status === "active" ? "Deactivate" : "Activate"}
+                          title={property.status === "active" ? "Deactivate Property" : "Activate Property"}
                         >
-                          {property.status === "active" ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                          {property.status === "active" ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                         </button>
-                        <button onClick={() => handleDelete(property.property_id)} className="inline-flex items-center justify-center w-7 h-7 text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300 transition-colors" title="Delete">
+                        <button
+                          onClick={() => handleDelete(property.property_id)}
+                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
+                          title="Delete Property"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>

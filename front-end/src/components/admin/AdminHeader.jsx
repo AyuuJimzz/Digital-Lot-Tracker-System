@@ -3,7 +3,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus } from "lucide-react";
 import axios from "axios";
-import { AddLotModal } from "./AddLotModal";
 import { geocodeAddress } from "../../utils/geocoding";
 
 const DEFAULT_COORDINATES_MAP = {
@@ -91,8 +90,7 @@ const resolvePropertyCoords = (p) => {
 export function AdminHeader({ sidebarCollapsed }) {
   const [isOpen, setIsOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
-  const [lotsDropdownOpen, setLotsDropdownOpen] = useState(false); // dropdown state for Manage Lots
-  const [addLotModalOpen, setAddLotModalOpen] = useState(false);
+  const [lotsDropdownOpen, setLotsDropdownOpen] = useState(false);
   const [profileInitials, setProfileInitials] = useState(null);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
   const [selectedProperty, setSelectedProperty] = useState(() => {
@@ -151,9 +149,11 @@ export function AdminHeader({ sidebarCollapsed }) {
     return () => window.removeEventListener("selectProperty", handleSelectProperty);
   }, []);
 
-  // Listen for modal open events triggered from map popups
+  // Listen for modal open events triggered from map popups -> direct to Quick Add Floating window
   useEffect(() => {
-    const handleOpenAddLot = () => setAddLotModalOpen(true);
+    const handleOpenAddLot = () => {
+      window.dispatchEvent(new CustomEvent("openQuickAddLot"));
+    };
 
     window.addEventListener("openAddLotModal", handleOpenAddLot);
 
@@ -311,9 +311,9 @@ export function AdminHeader({ sidebarCollapsed }) {
                   Site Plan Overlay
                 </button>
                 <button
-                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700"
+                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700 cursor-pointer"
                   onClick={() => {
-                    setAddLotModalOpen(true);
+                    window.dispatchEvent(new CustomEvent("openQuickAddLot"));
                     setLotsDropdownOpen(false);
                   }}
                 >
@@ -450,16 +450,6 @@ export function AdminHeader({ sidebarCollapsed }) {
         </div>
       </div>
 
-      <AddLotModal
-        addLotModalOpen={addLotModalOpen}
-        setAddLotModalOpen={setAddLotModalOpen}
-        properties={properties}
-        defaultPropertyId={selectedProperty}
-        onLotCreated={() => {
-          // Emit event to refresh map data
-          window.dispatchEvent(new CustomEvent("refreshMapData"));
-        }}
-      />
     </header>
   );
 }

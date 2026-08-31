@@ -7,6 +7,7 @@ const {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  getEmployeeActivities,
 } = require("../controllers/Employee/employeeController");
 
 // GET all employees
@@ -14,6 +15,13 @@ router.get(
   "/",
   sessionOrToken({ roles: ["admin", "employee"] }),
   getAllEmployees,
+);
+
+// GET employee activities (Audit Log)
+router.get(
+  "/:id/activities",
+  sessionOrToken({ roles: ["admin"] }),
+  getEmployeeActivities,
 );
 
 // CREATE employee

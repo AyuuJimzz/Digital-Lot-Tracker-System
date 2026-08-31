@@ -976,19 +976,6 @@ exports.updateLotDetails = async (req, res) => {
       return res.status(404).json({ error: "Lot not found" });
     }
 
-    // Check if new lot number is already taken by another lot in the same property
-    const propertyId = lotRows[0].property_id;
-    const [existingLot] = await db.query(
-      "SELECT * FROM lots WHERE property_id = ? AND lot_number = ? AND lot_id != ?",
-      [propertyId, lot_number.trim(), id]
-    );
-
-    if (existingLot.length > 0) {
-      return res
-        .status(400)
-        .json({ error: `Lot number '${lot_number}' already exists in this property.` });
-    }
-
     // Update lot details
     await db.query("UPDATE lots SET lot_number = ?, area_sqm = ? WHERE lot_id = ?", [
       lot_number.trim(),

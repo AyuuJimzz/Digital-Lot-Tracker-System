@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect } from "react";
-import { X, Plus, MapPin } from "lucide-react";
+import { X, Plus, MapPin, Layers } from "lucide-react";
 import axios from "axios";
 
 export function AddLotModal({
@@ -117,12 +117,26 @@ export function AddLotModal({
                 <Plus className="h-5 w-5 text-emerald-600" />
                 Add New Lot
               </h2>
-              <button
-                onClick={() => setAddLotModalOpen(false)}
-                className="text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddLotModalOpen(false);
+                    window.dispatchEvent(new CustomEvent("openQuickAddLot"));
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-blue-300 dark:border-slate-700 transition-all cursor-pointer shadow-sm"
+                  title="Switch to Draggable Floating Widget on Map"
+                >
+                  <Layers className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Floating Mode</span>
+                </button>
+                <button
+                  onClick={() => setAddLotModalOpen(false)}
+                  className="text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">

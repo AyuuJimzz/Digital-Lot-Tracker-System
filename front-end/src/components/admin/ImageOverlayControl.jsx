@@ -1,5 +1,16 @@
 import React, { useRef } from "react";
-import { Upload, Eye, EyeOff, X, Move } from "lucide-react";
+import {
+  Upload,
+  Eye,
+  EyeOff,
+  X,
+  Move,
+  Check,
+  RotateCcw,
+  RotateCw,
+  Sparkles,
+  Crop,
+} from "lucide-react";
 
 export function ImageOverlayControl({
   overlayImage,
@@ -7,11 +18,21 @@ export function ImageOverlayControl({
   overlayVisible,
   isEditingOverlay,
   overlayRotation = 0,
+  overlayMultiply = true,
+  overlayWhiteLines = true,
+  overlayLineColor = "cyan",
+  onToggleWhiteLines,
+  onLineColorChange,
   isBulkShifting = false,
   onImageUpload,
   onOpacityChange,
   onRotationChange,
+  onRotate90,
+  onReset,
+  onToggleMultiply,
+  onScaleOverlay,
   onFitToView,
+  onOpenCrop,
   onToggleVisible,
   onToggleEdit,
   onToggleBulkShift,
@@ -30,7 +51,8 @@ export function ImageOverlayControl({
       const script = document.createElement("script");
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
       script.onload = () => {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
         resolve(window.pdfjsLib);
       };
       script.onerror = () => reject(new Error("Failed to load PDF converter library"));
@@ -42,7 +64,6 @@ export function ImageOverlayControl({
     const file = e.target.files[0];
     if (!file) return;
 
-    // Check if it is a PDF
     if (file.type === "application/pdf") {
       setIsConvertingPdf(true);
       loadPdfJs()
@@ -54,8 +75,7 @@ export function ImageOverlayControl({
               const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
               const page = await pdf.getPage(1);
 
-              // Render first page at high scale (2.5x) for maximum visual clarity on the map
-              const viewport = page.getViewport({ scale: 2.5 });
+              const viewport = page.getViewport({ scale: 3.5 });
               const canvas = document.createElement("canvas");
               const context = canvas.getContext("2d");
               canvas.height = viewport.height;
@@ -84,12 +104,11 @@ export function ImageOverlayControl({
           alert("Failed to load PDF converter library. Please check your internet connection.");
           setIsConvertingPdf(false);
         });
-      
+
       e.target.value = "";
       return;
     }
 
-    // Default image validation
     if (!file.type.match(/^image\/(png|jpeg|jpg|webp)$/)) {
       alert("Please upload a PNG, JPG, WebP image, or a PDF file.");
       return;
@@ -102,17 +121,21 @@ export function ImageOverlayControl({
 
   return (
     <div
-      className="absolute top-4 left-4 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl shadow-2xl p-4 w-72 transition-all duration-300 overflow-y-auto"
+      className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-xl border border-slate-700/70 rounded-2xl shadow-2xl p-4 w-80 transition-all duration-200 overflow-y-auto text-slate-200"
       style={{ zIndex: 1000, maxHeight: "calc(100vh - 6rem)" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-slate-800 pb-2">
-        <h3 className="font-semibold text-gray-800 dark:text-white text-sm flex items-center gap-1.5">
-          <span>📎</span> Site Plan Overlay
-        </h3>
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.9)]"></div>
+          <h3 className="font-bold text-white text-sm tracking-wide">
+            Site Plan Blueprint Overlay
+          </h3>
+        </div>
         <button
+          type="button"
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 transition-colors rounded-full p-0.5"
+          className="text-slate-400 hover:text-white hover:bg-slate-800 transition-all rounded-lg p-1 cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
@@ -120,35 +143,26 @@ export function ImageOverlayControl({
 
       {/* No image uploaded yet */}
       {!overlayImage ? (
-        <div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mb-3 leading-relaxed">
-            Upload a <strong>PNG, JPG, or PDF file</strong> of your site development plan. If you upload a PDF, we will automatically convert the first page to a high-resolution image to overlay on the map.
+        <div className="pt-3">
+          <p className="text-xs text-slate-400 mb-3 leading-relaxed">
+            Upload your subdivision site plan (PDF, PNG, JPG) to overlay CAD lines directly onto the satellite map.
           </p>
 
           {isConvertingPdf ? (
-            <div className="w-full flex flex-col items-center justify-center gap-2 py-4 border-2 border-dashed border-purple-300 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-950/10 rounded-lg text-purple-600 dark:text-purple-400">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
-              <span className="text-xs font-semibold">Converting PDF to Image...</span>
+            <div className="w-full flex flex-col items-center justify-center gap-2 py-6 border border-dashed border-indigo-500/40 bg-indigo-500/10 rounded-xl text-indigo-300">
+              <div className="animate-spin rounded-full h-7 w-7 border-t-2 border-b-2 border-indigo-400"></div>
+              <span className="text-xs font-semibold">Converting PDF to Map Layer...</span>
             </div>
           ) : (
             <button
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors text-sm font-medium"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 border border-dashed border-indigo-500/50 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-xl transition-all text-xs font-semibold shadow-sm active:scale-95 cursor-pointer"
             >
               <Upload className="w-4 h-4" />
-              Upload Site Plan (Image / PDF)
+              <span>Upload Site Plan (PDF / Image)</span>
             </button>
           )}
-
-          <p className="text-xs text-gray-400 dark:text-slate-500 mt-2 text-center">
-            PNG, JPG, WebP, PDF supported
-          </p>
-
-          <div className="mt-3 bg-gray-50 dark:bg-slate-800 rounded-lg p-2.5">
-            <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
-              💡 <strong>Tip:</strong> PDF plans will be rendered with high clarity so you can zoom in and trace accurately.
-            </p>
-          </div>
 
           <input
             ref={fileInputRef}
@@ -159,133 +173,299 @@ export function ImageOverlayControl({
           />
         </div>
       ) : (
-        /* Image loaded - show controls */
-        <div className="space-y-3">
-          {/* Opacity Slider */}
-          <div>
-            <label className="flex justify-between text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5">
-              <span>Opacity</span>
-              <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                {Math.round(overlayOpacity * 100)}%
-              </span>
-            </label>
-            <input
-              type="range"
-              min="0.05"
-              max="1"
-              step="0.05"
-              value={overlayOpacity}
-              onChange={(e) => onOpacityChange(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
-            />
-            <div className="flex justify-between text-xs text-gray-400 dark:text-slate-500 mt-0.5">
-              <span>Transparent</span>
-              <span>Solid</span>
-            </div>
-          </div>
-
-          {/* Rotation Slider */}
-          <div>
-            <label className="flex justify-between text-xs font-medium text-gray-700 dark:text-slate-300 mb-1.5">
-              <span>🔄 Rotation</span>
-              <span className="text-purple-600 dark:text-purple-400 font-semibold">{overlayRotation}°</span>
-            </label>
-            <input
-              type="range"
-              min="-180"
-              max="180"
-              step="1"
-              value={overlayRotation}
-              onChange={(e) => onRotationChange(parseInt(e.target.value))}
-              className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
-            />
-            <div className="flex justify-between text-xs text-gray-400 dark:text-slate-500 mt-0.5">
-              <span>-180°</span>
-              <button
-                onClick={() => onRotationChange(0)}
-                className="text-purple-500 hover:text-purple-700 underline"
-              >
-                Reset
-              </button>
-              <span>+180°</span>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 flex-wrap">
-            {/* Show/Hide */}
+        /* Image loaded - Sleek Executive Controls */
+        <div className="pt-3 space-y-3">
+          {/* 1. Primary Action: Crop / Frame Blueprint */}
+          {onOpenCrop && (
             <button
-              onClick={onToggleVisible}
-              title={overlayVisible ? "Hide overlay" : "Show overlay"}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                overlayVisible
-                  ? "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700"
-                  : "bg-slate-700 text-white border-slate-700 hover:bg-slate-600"
-              }`}
+              type="button"
+              onClick={onOpenCrop}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 hover:text-blue-300 border border-blue-500/30 hover:border-blue-500/50 rounded-xl text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-sm"
+              title="Cut away outside tables and borders"
             >
-              {overlayVisible ? (
-                <Eye className="w-3 h-3" />
-              ) : (
-                <EyeOff className="w-3 h-3" />
-              )}
-              {overlayVisible ? "Visible" : "Hidden"}
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            {/* Align corners mode */}
-            <button
-              onClick={onToggleEdit}
-              title="Drag corners to align image with the map"
-              className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                isEditingOverlay
-                  ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
-                  : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:bg-gray-200 dark:hover:bg-slate-700"
-              }`}
-            >
-              <Move className="w-3 h-3" />
-              {isEditingOverlay ? "Done Aligning" : "Align Image"}
-            </button>
-
-            {/* Remove */}
-            <button
-              onClick={onRemove}
-              title="Remove overlay"
-              className="flex items-center justify-center w-8 h-8 text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Bulk Shift Lots Toggle */}
-          <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
-            <button
-              onClick={onToggleBulkShift}
-              title="Shift all existing lots together to align them with the site plan"
-              className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition-all ${
-                isBulkShifting
-                  ? "bg-red-600 text-white border-red-600 hover:bg-red-700 shadow-md animate-pulse"
-                  : "bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900 hover:bg-purple-100 dark:hover:bg-purple-950/40"
-              }`}
-            >
-              <Move className="w-3.5 h-3.5" />
-              {isBulkShifting ? "Done Bulk Aligning" : "⚡ Bulk Align Traced Lots"}
-            </button>
-          </div>
-
-          {/* Replace image */}
-          {isConvertingPdf ? (
-            <div className="w-full text-xs text-purple-600 dark:text-purple-400 text-center font-medium animate-pulse pt-1">
-              ⏳ Converting PDF to Image...
-            </div>
-          ) : (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors underline text-center pt-1"
-            >
-              Replace image
+              <Crop className="w-4 h-4 text-blue-400" />
+              <span>Crop & Frame Subdivision Lots</span>
             </button>
           )}
+
+          {/* 2. Visual Style & Color Card */}
+          <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-2.5">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-300">Line Color</span>
+                <span className="text-[10px] text-cyan-400 font-semibold uppercase tracking-wider">High Contrast</span>
+              </div>
+              <div className="grid grid-cols-5 gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700/80">
+                <button
+                  type="button"
+                  onClick={() => onLineColorChange ? onLineColorChange("cyan") : onToggleWhiteLines && onToggleWhiteLines()}
+                  className={`py-1.5 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                    overlayLineColor === "cyan"
+                      ? "bg-cyan-500 text-slate-950 shadow-md font-extrabold ring-1 ring-cyan-300"
+                      : "text-cyan-400 hover:bg-slate-800"
+                  }`}
+                  title="Cyan / Aqua (Best for Satellite Maps)"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 border border-slate-900"></span>
+                  <span>Cyan</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLineColorChange && onLineColorChange("amber")}
+                  className={`py-1.5 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                    overlayLineColor === "amber"
+                      ? "bg-amber-400 text-slate-950 shadow-md font-extrabold ring-1 ring-amber-200"
+                      : "text-amber-400 hover:bg-slate-800"
+                  }`}
+                  title="Amber / Gold (Warm & High Visibility)"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-slate-900"></span>
+                  <span>Amber</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLineColorChange && onLineColorChange("lime")}
+                  className={`py-1.5 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                    overlayLineColor === "lime"
+                      ? "bg-emerald-400 text-slate-950 shadow-md font-extrabold ring-1 ring-emerald-200"
+                      : "text-emerald-400 hover:bg-slate-800"
+                  }`}
+                  title="Neon Lime (High Visibility)"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-slate-900"></span>
+                  <span>Lime</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLineColorChange ? onLineColorChange("white") : onToggleWhiteLines && onToggleWhiteLines()}
+                  className={`py-1.5 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                    overlayLineColor === "white" || (overlayWhiteLines && !overlayLineColor)
+                      ? "bg-white text-slate-900 shadow-md font-extrabold ring-1 ring-slate-200"
+                      : "text-slate-300 hover:bg-slate-800"
+                  }`}
+                  title="Pure White"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-white border border-slate-400"></span>
+                  <span>White</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLineColorChange ? onLineColorChange("black") : onToggleWhiteLines && onToggleWhiteLines()}
+                  className={`py-1.5 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                    overlayLineColor === "black" || (!overlayWhiteLines && !overlayLineColor)
+                      ? "bg-slate-700 text-white shadow-md font-extrabold ring-1 ring-slate-500"
+                      : "text-slate-400 hover:bg-slate-800"
+                  }`}
+                  title="Dark / Black Ink"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-600"></span>
+                  <span>Black</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Brightness / Opacity Slider */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium text-slate-400">Brightness</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-white">
+                    {Math.round(overlayOpacity * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onToggleVisible}
+                    className={`p-1 rounded-md border transition-all cursor-pointer ${
+                      overlayVisible
+                        ? "bg-slate-700/80 border-slate-600 text-white"
+                        : "bg-slate-800 border-slate-700 text-slate-500"
+                    }`}
+                    title={overlayVisible ? "Hide Layer" : "Show Layer"}
+                  >
+                    {overlayVisible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                  </button>
+                </div>
+              </div>
+              <input
+                type="range"
+                min="0.1"
+                max="1"
+                step="0.05"
+                value={overlayOpacity}
+                onChange={(e) => onOpacityChange(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-white"
+              />
+            </div>
+
+            {/* Transparent Paper Toggle */}
+            <div className="pt-1 flex items-center justify-between border-t border-slate-700/40">
+              <span className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+                <span>Transparent Paper</span>
+              </span>
+              <button
+                type="button"
+                onClick={onToggleMultiply}
+                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-all cursor-pointer ${
+                  overlayMultiply
+                    ? "bg-white/20 text-white border-white/40 shadow-sm"
+                    : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200"
+                }`}
+              >
+                {overlayMultiply ? "ENABLED" : "OFF"}
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Orientation & Angle Slider Card */}
+          <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-300">Orientation</span>
+              <div className="flex items-center gap-1.5">
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    min="-180"
+                    max="180"
+                    step="0.5"
+                    value={overlayRotation}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      onRotationChange(isNaN(val) ? 0 : val);
+                    }}
+                    className="w-16 px-1.5 py-0.5 text-center text-xs font-mono font-bold text-white bg-slate-900/90 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    title="Type exact rotation angle in degrees"
+                  />
+                  <span className="text-xs font-mono text-slate-400 -ml-4 pr-1 pointer-events-none">°</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={onReset || (() => onRotationChange(0))}
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[10px] font-semibold rounded-lg transition-all active:scale-95 cursor-pointer"
+                  title="Reset rotation to 0°"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Turn & Fine Nudge Buttons */}
+            <div className="grid grid-cols-6 gap-1 pt-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  let next = Math.round(overlayRotation) - 90;
+                  if (next < -180) next += 360;
+                  onRotationChange(next);
+                }}
+                className="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 text-[10px] font-semibold rounded-lg flex items-center justify-center gap-0.5 transition-all active:scale-95 cursor-pointer"
+                title="Rotate 90° counter-clockwise"
+              >
+                <RotateCcw className="w-2.5 h-2.5" /> -90°
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  let next = Math.round(overlayRotation) - 5;
+                  if (next < -180) next += 360;
+                  onRotationChange(next);
+                }}
+                className="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 text-[10px] font-semibold rounded-lg transition-all active:scale-95 cursor-pointer"
+                title="Nudge -5°"
+              >
+                -5°
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  let next = Math.round(overlayRotation) - 1;
+                  if (next < -180) next += 360;
+                  onRotationChange(next);
+                }}
+                className="py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-bold rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm"
+                title="Fine-tune -1°"
+              >
+                -1°
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  let next = Math.round(overlayRotation) + 1;
+                  if (next > 180) next -= 360;
+                  onRotationChange(next);
+                }}
+                className="py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-bold rounded-lg transition-all active:scale-95 cursor-pointer shadow-sm"
+                title="Fine-tune +1°"
+              >
+                +1°
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  let next = Math.round(overlayRotation) + 5;
+                  if (next > 180) next -= 360;
+                  onRotationChange(next);
+                }}
+                className="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 text-[10px] font-semibold rounded-lg transition-all active:scale-95 cursor-pointer"
+                title="Nudge +5°"
+              >
+                +5°
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  let next = Math.round(overlayRotation) + 90;
+                  if (next > 180) next -= 360;
+                  onRotationChange(next);
+                }}
+                className="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 text-[10px] font-semibold rounded-lg flex items-center justify-center gap-0.5 transition-all active:scale-95 cursor-pointer"
+                title="Rotate 90° clockwise"
+              >
+                <RotateCw className="w-2.5 h-2.5" /> +90°
+              </button>
+            </div>
+          </div>
+
+          {/* 5. Main Action: Lock or Edit Alignment */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={onToggleEdit}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer ${
+                isEditingOverlay
+                  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25 ring-2 ring-emerald-400/40"
+                  : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/25"
+              }`}
+            >
+              {isEditingOverlay ? <Check className="w-4 h-4" /> : <Move className="w-4 h-4" />}
+              <span>{isEditingOverlay ? "Done Aligning (Lock Blueprint)" : "Adjust & Move Blueprint"}</span>
+            </button>
+          </div>
+
+          {/* 6. Footer Utilities */}
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+            {isConvertingPdf ? (
+              <span className="text-white animate-pulse">Converting...</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-slate-400 hover:text-slate-200 transition-colors underline cursor-pointer"
+              >
+                Replace file
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onRemove}
+              className="text-red-400 hover:text-red-300 hover:bg-red-950/30 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+              title="Remove blueprint overlay"
+            >
+              Remove
+            </button>
+          </div>
+
           <input
             ref={fileInputRef}
             type="file"

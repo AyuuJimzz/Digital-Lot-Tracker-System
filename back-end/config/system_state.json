@@ -3,6 +3,195 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-08-31T11:05:21.131Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T11:05:15.447Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T11:04:16.094Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T11:04:12.904Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:45:43.329Z",
+      "event": "Email delivered to: johnedwardbearnezaa@gmail.com | Subject: \"Welcome to Golden Dragon - Your Staff Credentials\"",
+      "type": "EMAIL",
+      "user": "johnedwardbearnezaa@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-08-31T10:16:17.499Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:11:10.762Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:11:08.048Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:10:53.142Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:10:50.586Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:08:03.584Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:07:58.391Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:07:45.250Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:07:41.100Z",
+      "event": "Failed login attempt: Botschats12@gmail.com",
+      "type": "SECURITY",
+      "user": "Botschats12@gmail.com",
+      "role": "Unknown",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T10:07:37.570Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T09:49:03.201Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T09:48:59.934Z",
+      "event": "User Logged Out: asd@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "asd@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T09:48:48.287Z",
+      "event": "User Logged In: asd@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "asd@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-31T09:48:43.346Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-30T16:19:56.225Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-08-30T14:31:49.085Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-08-30T06:00:00.834Z",
       "event": "Email delivered to: hankvedjohaan@gmail.com | Subject: \"Lot Reservation Reminder (12 Hours) - Golden Dragon Estate Corporation\"",
       "type": "EMAIL",

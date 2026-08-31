@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Copy } from "lucide-react";
 import { API_BASE_URL } from "../../config/api";
 import { exportSingleLotWordDoc } from "../../utils/exportUtils";
 
@@ -11,6 +11,7 @@ const LotOffcanvas = ({
   allowedStatuses = ["Available", "Pending", "Sold"],
   showCoordinateEdit = false,
   onStartCoordinateEdit,
+  onDuplicateLot,
   isAdmin: isAdminProp,
   propertyName,
   propertyLocation,
@@ -383,34 +384,47 @@ const LotOffcanvas = ({
                   <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Coordinates
                   </span>
-                  {showCoordinateEdit && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onStartCoordinateEdit) {
-                          onStartCoordinateEdit(selectedLot);
-                        }
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Adjust lot shape & pins directly on map"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                      <span>Edit Shape on Map</span>
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {isAdmin && onDuplicateLot && (
+                      <button
+                        type="button"
+                        onClick={() => onDuplicateLot(selectedLot)}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Clone this lot & auto-increment next lot number"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Duplicate Next</span>
+                      </button>
+                    )}
+                    {showCoordinateEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onStartCoordinateEdit) {
+                            onStartCoordinateEdit(selectedLot);
+                          }
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Adjust lot shape & pins directly on map"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                        <span>Edit Shape</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

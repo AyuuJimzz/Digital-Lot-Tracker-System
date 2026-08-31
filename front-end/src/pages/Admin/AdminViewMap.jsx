@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import ReactDOM from "react-dom";
 
 import {
   MapContainer,
@@ -14,14 +15,23 @@ import axios from "axios";
 import L from "leaflet";
 import LotOffcanvas from "../../components/admin/LotOffcanvas";
 import { ImageOverlayControl } from "../../components/admin/ImageOverlayControl";
+import { BlueprintCropModal } from "../../components/admin/BlueprintCropModal";
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
-import {
-  MapLayerControls,
-  ActiveMapTileLayer,
-  MAP_LAYERS,
-} from "../../components/admin/MapLayerControls";
+import { MapLayerControls, ActiveMapTileLayer, MAP_LAYERS } from "../../components/admin/MapLayerControls";
 import { preloadAllProperties } from "../../utils/tilePreloader";
 import { geocodeAddress } from "../../utils/geocoding";
+import {
+  calculateGeodesicArea,
+  autoIncrementLotNumber,
+  findSnapVertex,
+  offsetPolygonAdjacent,
+} from "../../utils/geoUtils";
+import { Magnet, Copy, Ruler, Plus, X, GripHorizontal } from "lucide-react";
+import {
+  saveBlueprintOverlay,
+  loadBlueprintOverlay,
+  removeBlueprintOverlay,
+} from "../../utils/overlayStorage";
 
 // Fix for default icons in react-leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -111,10 +121,18 @@ function MapController({
     };
   }, [map, setMap, setCurrentZoom]);
 
-  // Ensure map recalculates its exact full-screen dimensions
+  // Ensure map recalculates its exact full-screen dimensions and supports deep zooming
   useEffect(() => {
     if (!map) return;
+    map.setMaxZoom(28);
+    map.setMinZoom(1);
     map.invalidateSize();
+
+    const handleZoomIn = () => map.zoomIn(1);
+    const handleZoomOut = () => map.zoomOut(1);
+
+    window.addEventListener("mapZoomIn", handleZoomIn);
+    window.addEventListener("mapZoomOut", handleZoomOut);
 
     const t1 = setTimeout(() => map.invalidateSize(), 150);
     const handleResize = () => {
@@ -125,6 +143,8 @@ function MapController({
     return () => {
       clearTimeout(t1);
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("mapZoomIn", handleZoomIn);
+      window.removeEventListener("mapZoomOut", handleZoomOut);
     };
   }, [map]);
 
@@ -251,6 +271,9 @@ function AdminViewMap() {
   const [editingCoords, setEditingCoords] = useState([]);
   const [isSavingCoords, setIsSavingCoords] = useState(false);
 
+  // ── Snapping Magnet States ────────────────────────────────────────────────
+  const [enableSnapping, setEnableSnapping] = useState(true);
+
   // State and Ref for dragging the entire polygon
   const [isDraggingPolygon, setIsDraggingPolygon] = useState(false);
   const polygonDragRef = React.useRef(null);
@@ -261,17 +284,155 @@ function AdminViewMap() {
   const dragCoordsRef = React.useRef([]);
   const cornerMarkersRef = React.useRef([]); // stores refs to Leaflet Marker instances for direct DOM positioning during drag
 
+  // Live Real-Time Geodesic Area Calculations
+  const liveAreaSqm = useMemo(() => {
+    return calculateGeodesicArea(editingCoords);
+  }, [editingCoords]);
+
+  const targetAreaSqm = useMemo(() => {
+    if (!editingLot) return 0;
+    if (editingLot.area_sqm) return Number(editingLot.area_sqm);
+    const found = mapData?.lots?.find((l) => Number(l.lot_id) === Number(editingLot.lot_id));
+    return found ? Number(found.area_sqm) : 0;
+  }, [editingLot, mapData]);
+
   // ── Image Overlay States ──────────────────────────────────────────────────
   const [overlayImage, setOverlayImage] = useState(null);
   const [overlayBounds, setOverlayBounds] = useState(null); // [[sw_lat, sw_lng], [ne_lat, ne_lng]]
-  const [overlayOpacity, setOverlayOpacity] = useState(0.5);
+  const [overlayOpacity, setOverlayOpacity] = useState(1);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [isEditingOverlay, setIsEditingOverlay] = useState(false);
   const [showOverlayPanel, setShowOverlayPanel] = useState(false);
   const [overlayRotation, setOverlayRotation] = useState(0); // degrees
+  const [overlayMultiply, setOverlayMultiply] = useState(true); // Transparent white paper mode
+  const [overlayLineColor, setOverlayLineColor] = useState("cyan"); // High-contrast CAD color (cyan/amber/lime/white/black)
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const originalUploadedImageRef = React.useRef(null);
+  const rawOverlayRef = React.useRef(null);
+  const transparentOverlayRef = React.useRef(null);
   const overlayRef = React.useRef(null);
   const overlayMoveStartRef = React.useRef(null);
   const overlayCornerDragRef = React.useRef(null); // stores {initBounds, currentBounds} during corner drag
+  const unrotatedSpanRef = React.useRef(null);
+
+  // ── Draggable Floating Quick Add Lot States ────────────────────────────────
+  const [showQuickAddLot, setShowQuickAddLot] = useState(false);
+  const [quickLotNumber, setQuickLotNumber] = useState("");
+  const [quickAreaSqm, setQuickAreaSqm] = useState(100);
+  const [quickStatus, setQuickStatus] = useState("Available");
+  const [isCreatingQuickLot, setIsCreatingQuickLot] = useState(false);
+  const [floatingPos, setFloatingPos] = useState(() => ({
+    x: typeof window !== "undefined" ? Math.max(340, Math.floor(window.innerWidth / 2 - 160)) : 380,
+    y: 110,
+  }));
+  const isDraggingFloatingRef = React.useRef(false);
+  const dragOffsetRef = React.useRef({ x: 0, y: 0 });
+
+  const getNextSuggestedLotNumber = useCallback(() => {
+    if (!mapData?.lots || mapData.lots.length === 0) return "Lot 1";
+    const propertyLots = mapData.lots.filter(
+      (l) => Number(l.property_id) === Number(selectedProperty)
+    );
+    if (propertyLots.length === 0) return "Lot 1";
+
+    let maxNum = 0;
+    for (const lot of propertyLots) {
+      const match = String(lot.lot_number).match(/(\d+)/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    }
+    return `Lot ${maxNum + 1}`;
+  }, [mapData, selectedProperty]);
+
+  const handleOpenQuickAdd = useCallback(() => {
+    setQuickLotNumber(getNextSuggestedLotNumber());
+    setQuickAreaSqm(100);
+    setQuickStatus("Available");
+    setFloatingPos({
+      x: typeof window !== "undefined" ? Math.max(340, Math.floor(window.innerWidth / 2 - 160)) : 380,
+      y: 110,
+    });
+    setShowQuickAddLot(true);
+  }, [getNextSuggestedLotNumber]);
+
+  // Listen for openQuickAddLot event from AdminHeader Manage Lots
+  useEffect(() => {
+    const handleOpenQuickAddEvent = () => handleOpenQuickAdd();
+    window.addEventListener("openQuickAddLot", handleOpenQuickAddEvent);
+    return () => window.removeEventListener("openQuickAddLot", handleOpenQuickAddEvent);
+  }, [handleOpenQuickAdd]);
+
+  // Draggable Floating window drag handler
+  const handleFloatingMouseDown = (e) => {
+    if (e.target.closest("button") || e.target.closest("input") || e.target.closest("select")) return;
+    isDraggingFloatingRef.current = true;
+    dragOffsetRef.current = {
+      x: e.clientX - floatingPos.x,
+      y: e.clientY - floatingPos.y,
+    };
+
+    const handleMouseMove = (moveEvent) => {
+      if (!isDraggingFloatingRef.current) return;
+      const newX = Math.max(10, Math.min(window.innerWidth - 320, moveEvent.clientX - dragOffsetRef.current.x));
+      const newY = Math.max(10, Math.min(window.innerHeight - 340, moveEvent.clientY - dragOffsetRef.current.y));
+      setFloatingPos({ x: newX, y: newY });
+    };
+
+    const handleMouseUp = () => {
+      isDraggingFloatingRef.current = false;
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleCreateQuickLot = async (e) => {
+    if (e) e.preventDefault();
+    const lotNum = (quickLotNumber || getNextSuggestedLotNumber()).trim();
+    const area = parseFloat(quickAreaSqm) || 100;
+    if (!lotNum) return;
+
+    setIsCreatingQuickLot(true);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/lots`,
+        {
+          property_id: parseInt(selectedProperty),
+          lot_number: lotNum,
+          area_sqm: area,
+          status: quickStatus,
+        },
+        { withCredentials: true }
+      );
+
+      const newLot = response.data;
+      const nextNum = autoIncrementLotNumber(lotNum);
+      setQuickLotNumber(nextNum);
+      await handleLotUpdated();
+
+      // Automatically launch the interactive 4-corner polygon coordinate editor on the map!
+      window.dispatchEvent(
+        new CustomEvent("startVisualEdit", {
+          detail: {
+            lot_id: newLot.lot_id,
+            lot_number: newLot.lot_number,
+            property_id: newLot.property_id,
+            area_sqm: area,
+            coordinates: null, // centers a default square right at current map focus
+          },
+        })
+      );
+    } catch (err) {
+      console.error("Error creating quick lot:", err);
+      alert(err.response?.data?.error || err.message || "Failed to create lot");
+    } finally {
+      setIsCreatingQuickLot(false);
+    }
+  };
 
   // ── Bulk Shift States ──────────────────────────────────────────────────────
   const [isBulkShifting, setIsBulkShifting] = useState(false);
@@ -281,23 +442,67 @@ function AdminViewMap() {
   // Handle moving a vertex on drag (updates Leaflet instance directly for performance/smoothness)
   const handleVertexDrag = (index, event) => {
     const { lat, lng } = event.target.getLatLng();
-    const currentCoords = dragCoordsRef.current;
-    if (currentCoords && currentCoords.length > index) {
-      currentCoords[index] = [lat, lng];
+
+    // Check vertex magnetic snapping to adjacent lots
+    let targetLat = lat;
+    let targetLng = lng;
+    if (enableSnapping && map && mapData?.lots) {
+      const snapCoords = findSnapVertex(
+        [lat, lng],
+        mapData.lots,
+        editingLot?.lot_id,
+        map,
+        14
+      );
+      if (snapCoords) {
+        targetLat = snapCoords[0];
+        targetLng = snapCoords[1];
+      }
+    }
+
+    if (!dragCoordsRef.current || dragCoordsRef.current.length === 0) {
+      dragCoordsRef.current = editingCoords.map((c) => [...c]);
+    }
+
+    if (dragCoordsRef.current.length > index) {
+      dragCoordsRef.current[index] = [targetLat, targetLng];
       if (editingPolygonRef.current) {
-        editingPolygonRef.current.setLatLngs(currentCoords);
+        editingPolygonRef.current.setLatLngs(dragCoordsRef.current);
       }
     }
   };
 
   // Sync back to React state only when dragging finishes
   const handleVertexDragEnd = (index, event) => {
-    const { lat, lng } = event.target.getLatLng();
-    setEditingCoords((prev) => {
-      const newCoords = [...prev];
-      newCoords[index] = [lat, lng];
-      return newCoords;
-    });
+    let { lat, lng } = event.target.getLatLng();
+
+    if (enableSnapping && map && mapData?.lots) {
+      const snapCoords = findSnapVertex(
+        [lat, lng],
+        mapData.lots,
+        editingLot?.lot_id,
+        map,
+        14
+      );
+      if (snapCoords) {
+        lat = snapCoords[0];
+        lng = snapCoords[1];
+      }
+    }
+
+    event.target.setLatLng([lat, lng]);
+
+    if (!dragCoordsRef.current || dragCoordsRef.current.length === 0) {
+      dragCoordsRef.current = editingCoords.map((c) => [...c]);
+    }
+    dragCoordsRef.current[index] = [lat, lng];
+
+    const updated = dragCoordsRef.current.map((c) => [...c]);
+    setEditingCoords(updated);
+
+    if (editingPolygonRef.current) {
+      editingPolygonRef.current.setLatLngs(updated);
+    }
   };
 
   // Remove a vertex by index (triggered by double-clicking a corner handle)
@@ -306,16 +511,25 @@ function AdminViewMap() {
       alert("A polygon must have at least 3 corners.");
       return;
     }
-    setEditingCoords((prev) => prev.filter((_, idx) => idx !== index));
+    const base = dragCoordsRef.current?.length === editingCoords.length ? dragCoordsRef.current : editingCoords;
+    const newCoords = base.filter((_, idx) => idx !== index);
+    dragCoordsRef.current = newCoords.map((c) => [...c]);
+    setEditingCoords(newCoords);
+    if (editingPolygonRef.current) {
+      editingPolygonRef.current.setLatLngs(newCoords);
+    }
   };
 
   // Add a new vertex at a specific index
   const handleAddVertexAtIndex = (insertIndex, position) => {
-    setEditingCoords((prev) => {
-      const newCoords = [...prev];
-      newCoords.splice(insertIndex, 0, position);
-      return newCoords;
-    });
+    const base = dragCoordsRef.current?.length === editingCoords.length ? dragCoordsRef.current : editingCoords;
+    const newCoords = [...base];
+    newCoords.splice(insertIndex, 0, position);
+    dragCoordsRef.current = newCoords.map((c) => [...c]);
+    setEditingCoords(newCoords);
+    if (editingPolygonRef.current) {
+      editingPolygonRef.current.setLatLngs(newCoords);
+    }
   };
 
   // Calculate midpoints of all edges of the polygon to add new corners
@@ -372,33 +586,35 @@ function AdminViewMap() {
       html: `
         <div style="
           position: relative;
-          width: 24px;
-          height: 24px;
+          width: 32px;
+          height: 32px;
           display: flex;
           align-items: center;
           justify-content: center;
-          cursor: move;
+          cursor: grab;
+          user-select: none;
         ">
-          <!-- Dashed outer ring for visibility and dragging target area -->
+          <!-- Outer pulsing ring for visibility and generous touch/drag target -->
           <div style="
             position: absolute;
-            width: 22px;
-            height: 22px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
-            border: 1.5px dashed #10b981;
-            background-color: rgba(16, 185, 129, 0.15);
+            border: 2px dashed #10b981;
+            background-color: rgba(16, 185, 129, 0.25);
             pointer-events: none;
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
           "></div>
           
           <!-- Exact center point (vertex) -->
           <div style="
             position: absolute;
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background-color: #10b981;
             border: 2px solid #ffffff;
-            box-shadow: 0 0 3px rgba(0,0,0,0.5);
+            box-shadow: 0 0 4px rgba(0,0,0,0.6);
             pointer-events: none;
             z-index: 2;
           "></div>
@@ -406,20 +622,20 @@ function AdminViewMap() {
           <!-- Corner number label (offset to top-right) -->
           <div style="
             position: absolute;
-            top: -4px;
-            right: -4px;
+            top: -2px;
+            right: -2px;
             background-color: #047857;
             color: #ffffff;
-            font-size: 8px;
-            font-weight: bold;
-            min-width: 14px;
-            height: 14px;
+            font-size: 9px;
+            font-weight: 800;
+            min-width: 16px;
+            height: 16px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid #ffffff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            border: 1.5px solid #ffffff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
             z-index: 3;
             pointer-events: none;
           ">
@@ -427,8 +643,8 @@ function AdminViewMap() {
           </div>
         </div>
       `,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
     });
   };
 
@@ -459,117 +675,515 @@ function AdminViewMap() {
     });
   }, []);
 
-  // ── Overlay corner drag — no React re-render during drag ────────────────
+  // Helper: computes exact 4 GPS corners of the rotated blueprint image
+  const getRotatedBlueprintCorners = (bounds, rotationDeg, unrotatedSpan) => {
+    if (!bounds || bounds.length < 2) return null;
+    const cLat = (bounds[0][0] + bounds[1][0]) / 2;
+    const cLng = (bounds[0][1] + bounds[1][1]) / 2;
+
+    let baseLatSpan = unrotatedSpan ? unrotatedSpan.latSpan : Math.abs(bounds[1][0] - bounds[0][0]);
+    let baseLngSpan = unrotatedSpan ? unrotatedSpan.lngSpan : Math.abs(bounds[1][1] - bounds[0][1]);
+    const halfLat = baseLatSpan / 2;
+    const halfLng = baseLngSpan / 2;
+
+    const rad = ((rotationDeg || 0) * Math.PI) / 180;
+    const sin = Math.sin(rad);
+    const cos = Math.cos(rad);
+
+    const rotateOffset = (dLat, dLng) => {
+      const rotLat = dLat * cos - dLng * sin;
+      const rotLng = dLng * cos + dLat * sin;
+      return [cLat + rotLat, cLng + rotLng];
+    };
+
+    return {
+      nw: rotateOffset(halfLat, -halfLng),
+      ne: rotateOffset(halfLat, halfLng),
+      se: rotateOffset(-halfLat, halfLng),
+      sw: rotateOffset(-halfLat, -halfLng),
+    };
+  };
+
+  // ── Overlay Corner Alignment Handles Handlers (Pinned & Synchronized to White Box) ─────
   const handleOverlayCornerDragStart = useCallback(
-    (currentBounds) => {
-      console.log("Corner drag start. Current bounds:", currentBounds);
+    (corner, currentBounds) => {
       if (map) map.dragging.disable();
-      overlayCornerDragRef.current = currentBounds.map((c) => [...c]);
+      const corners = getRotatedBlueprintCorners(currentBounds, overlayRotation, unrotatedSpanRef.current);
+      if (!corners) return;
+
+      const oppositeCorner =
+        corner === "sw" ? "ne" : corner === "ne" ? "sw" : corner === "se" ? "nw" : "se";
+      const anchorPos = corners[oppositeCorner];
+
+      overlayCornerDragRef.current = {
+        corner,
+        oppositeCorner,
+        anchorPos,
+        initBounds: currentBounds.map((c) => [...c]),
+      };
     },
-    [map]
+    [map, overlayRotation]
   );
 
-  const handleOverlayCornerDrag = useCallback((corner, e) => {
-    if (!overlayCornerDragRef.current || !overlayRef.current) {
-      console.log("Corner drag ignored. Ref current or overlayRef null:", {
-        ref: !!overlayCornerDragRef.current,
-        overlay: !!overlayRef.current,
-      });
-      return;
-    }
-    const { lat, lng } = e.target.getLatLng();
-    const [sw, ne] = overlayCornerDragRef.current;
-    let newBounds;
-    switch (corner) {
-      case "sw":
-        newBounds = [[lat, lng], ne];
-        break;
-      case "se":
-        newBounds = [
-          [lat, sw[1]],
-          [ne[0], lng],
-        ];
-        break;
-      case "ne":
-        newBounds = [sw, [lat, lng]];
-        break;
-      case "nw":
-        newBounds = [
-          [sw[0], lng],
-          [lat, ne[1]],
-        ];
-        break;
-      default:
-        return;
-    }
-    console.log(`Corner drag (${corner}) to:`, newBounds);
-    overlayCornerDragRef.current = newBounds;
-    overlayRef.current.setBounds(newBounds); // Direct Leaflet — zero React re-render
-  }, []);
+  const handleOverlayCornerDrag = useCallback(
+    (corner, e) => {
+      if (!overlayCornerDragRef.current || !overlayRef.current) return;
+      const { lat, lng } = e.target.getLatLng();
+      const { anchorPos } = overlayCornerDragRef.current;
+      const [anchorLat, anchorLng] = anchorPos;
+
+      const newCenterLat = (anchorLat + lat) / 2;
+      const newCenterLng = (anchorLng + lng) / 2;
+
+      const dLat = lat - newCenterLat;
+      const dLng = lng - newCenterLng;
+
+      const rad = (-overlayRotation * Math.PI) / 180;
+      const sin = Math.sin(rad);
+      const cos = Math.cos(rad);
+      const unrotLat = dLat * cos - dLng * sin;
+      const unrotLng = dLng * cos + dLat * sin;
+
+      const halfLat = Math.max(0.0001, Math.abs(unrotLat));
+      const halfLng = Math.max(0.0001, Math.abs(unrotLng));
+      const baseLatSpan = halfLat * 2;
+      const baseLngSpan = halfLng * 2;
+
+      unrotatedSpanRef.current = { latSpan: baseLatSpan, lngSpan: baseLngSpan };
+
+      const absRad = (overlayRotation * Math.PI) / 180;
+      const absSin = Math.abs(Math.sin(absRad));
+      const absCos = Math.abs(Math.cos(absRad));
+      const bboxLatSpan = baseLatSpan * absCos + baseLngSpan * absSin;
+      const bboxLngSpan = baseLatSpan * absSin + baseLngSpan * absCos;
+
+      const newBounds = [
+        [newCenterLat - bboxLatSpan / 2, newCenterLng - bboxLngSpan / 2],
+        [newCenterLat + bboxLatSpan / 2, newCenterLng + bboxLngSpan / 2],
+      ];
+      overlayCornerDragRef.current.currentBounds = newBounds;
+      overlayRef.current.setBounds(newBounds);
+    },
+    [overlayRotation]
+  );
+
+  // Helper: converts Blob/URL to permanent base64 Data URL for persistent IndexedDB storage
+  const toDataURL = (urlOrBlob) => {
+    return new Promise((resolve) => {
+      if (!urlOrBlob) return resolve(urlOrBlob);
+      if (typeof urlOrBlob === "string" && urlOrBlob.startsWith("data:")) {
+        return resolve(urlOrBlob);
+      }
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = img.width;
+        c.height = img.height;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        try {
+          resolve(c.toDataURL("image/png"));
+        } catch (e) {
+          resolve(urlOrBlob);
+        }
+      };
+      img.onerror = () => resolve(urlOrBlob);
+      img.src = urlOrBlob;
+    });
+  };
+
+  // Helper: converts paper/transparent background into alpha transparency & CAD lines into chosen high-contrast color, rotated on Canvas
+  const createTransparentPaperImage = (imageUrl, lineColor = "cyan", rotationDeg = 0) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const rad = ((rotationDeg || 0) * Math.PI) / 180;
+        const sin = Math.abs(Math.sin(rad));
+        const cos = Math.abs(Math.cos(rad));
+
+        const w = img.width;
+        const h = img.height;
+        const newW = Math.max(10, Math.floor(w * cos + h * sin));
+        const newH = Math.max(10, Math.floor(w * sin + h * cos));
+
+        canvas.width = newW;
+        canvas.height = newH;
+
+        ctx.translate(newW / 2, newH / 2);
+        ctx.rotate(rad);
+        ctx.drawImage(img, -w / 2, -h / 2);
+
+        try {
+          const imgData = ctx.getImageData(0, 0, newW, newH);
+          const data = imgData.data;
+
+          // Color selection
+          let targetR = 0, targetG = 240, targetB = 255; // Cyan default
+          if (lineColor === "amber" || lineColor === "gold" || lineColor === "yellow") {
+            targetR = 251; targetG = 191; targetB = 36;
+          } else if (lineColor === "lime" || lineColor === "green") {
+            targetR = 52; targetG = 211; targetB = 153;
+          } else if (lineColor === "white") {
+            targetR = 255; targetG = 255; targetB = 255;
+          } else if (lineColor === "black") {
+            targetR = 15; targetG = 23; targetB = 42;
+          }
+
+          const isDarkInk = lineColor === "black";
+
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const a = data[i + 3];
+
+            if (a < 30 || (r > 215 && g > 215 && b > 215)) {
+              data[i + 3] = 0; // 100% transparent background
+            } else if (!isDarkInk) {
+              const darkness = 255 - ((r + g + b) / 3);
+              const alpha = Math.min(255, Math.max(0, darkness * 2.8));
+              data[i] = targetR;
+              data[i + 1] = targetG;
+              data[i + 2] = targetB;
+              data[i + 3] = alpha > 40 ? 255 : Math.round(alpha);
+            }
+          }
+
+          // Dilation / Stroke Thickening Pass: makes thin CAD lines 2px bold for crystal-clear visibility at far distance
+          if (!isDarkInk) {
+            const copy = new Uint8ClampedArray(data);
+            for (let y = 1; y < newH - 1; y++) {
+              for (let x = 1; x < newW - 1; x++) {
+                const idx = (y * newW + x) * 4;
+                if (copy[idx + 3] === 0) {
+                  const topA = copy[((y - 1) * newW + x) * 4 + 3];
+                  const btmA = copy[((y + 1) * newW + x) * 4 + 3];
+                  const lftA = copy[(y * newW + (x - 1)) * 4 + 3];
+                  const rgtA = copy[(y * newW + (x + 1)) * 4 + 3];
+                  if (topA > 180 || btmA > 180 || lftA > 180 || rgtA > 180) {
+                    data[idx] = targetR;
+                    data[idx + 1] = targetG;
+                    data[idx + 2] = targetB;
+                    data[idx + 3] = 250;
+                  }
+                }
+              }
+            }
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+        } catch (e) {}
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(URL.createObjectURL(blob));
+          } else {
+            resolve(imageUrl);
+          }
+        }, "image/png");
+      };
+      img.onerror = () => resolve(imageUrl);
+      img.src = imageUrl;
+    });
+  };
+
+  // ── Load Persistent Blueprint Overlay from IndexedDB on Mount or Property Switch ───
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchSavedOverlay = async () => {
+      if (!selectedProperty) return;
+      try {
+        const data = await loadBlueprintOverlay(selectedProperty);
+        if (isCancelled) return;
+
+        if (data && data.rawImage && data.bounds) {
+          rawOverlayRef.current = data.rawImage;
+          originalUploadedImageRef.current = data.originalImage || data.rawImage;
+          unrotatedSpanRef.current = data.unrotatedSpan || null;
+          setOverlayRotation(data.rotation || 0);
+          setOverlayOpacity(data.opacity ?? 1);
+          const lineColor = data.lineColor || "cyan";
+          setOverlayLineColor(lineColor);
+          setOverlayMultiply(data.multiply ?? true);
+          setOverlayBounds(data.bounds);
+
+          const transUrl = await createTransparentPaperImage(data.rawImage, lineColor, data.rotation || 0);
+          if (isCancelled) return;
+          transparentOverlayRef.current = transUrl;
+          setOverlayImage(transUrl);
+          setOverlayVisible(true);
+        }
+      } catch (err) {
+        console.error("Error loading saved blueprint overlay:", err);
+      }
+    };
+
+    fetchSavedOverlay();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedProperty]);
 
   const handleOverlayCornerDragEnd = useCallback(() => {
-    console.log("Corner drag end. Final bounds to set:", overlayCornerDragRef.current);
     if (map) map.dragging.enable();
-    if (overlayCornerDragRef.current) {
-      setOverlayBounds(overlayCornerDragRef.current); // Sync to React state once on drop
+    if (overlayCornerDragRef.current && overlayCornerDragRef.current.currentBounds) {
+      const finalBounds = overlayCornerDragRef.current.currentBounds;
+      setOverlayBounds(finalBounds);
       overlayCornerDragRef.current = null;
+
+      if (selectedProperty && rawOverlayRef.current) {
+        saveBlueprintOverlay(selectedProperty, {
+          rawImage: rawOverlayRef.current,
+          originalImage: originalUploadedImageRef.current || rawOverlayRef.current,
+          bounds: finalBounds,
+          rotation: overlayRotation,
+          opacity: overlayOpacity,
+          lineColor: overlayLineColor,
+          multiply: overlayMultiply,
+          unrotatedSpan: unrotatedSpanRef.current,
+        });
+      }
     }
-  }, [map]);
+  }, [map, selectedProperty, overlayRotation, overlayOpacity, overlayLineColor, overlayMultiply]);
+
+  // Handle Rotation with Canvas rendering — centered and 100% synchronized with map coordinates
+  const handleRotationChange = useCallback(
+    async (deg) => {
+      setOverlayRotation(deg);
+      const baseImg = rawOverlayRef.current || originalUploadedImageRef.current;
+      if (!baseImg) return;
+
+      const transUrl = await createTransparentPaperImage(baseImg, overlayLineColor, deg);
+      if (transparentOverlayRef.current && transparentOverlayRef.current !== transUrl) {
+        try { URL.revokeObjectURL(transparentOverlayRef.current); } catch (e) {}
+      }
+      transparentOverlayRef.current = transUrl;
+      setOverlayImage(transUrl);
+
+      let finalBounds = null;
+      setOverlayBounds((prev) => {
+        if (!prev) return prev;
+        const cLat = (prev[0][0] + prev[1][0]) / 2;
+        const cLng = (prev[0][1] + prev[1][1]) / 2;
+
+        const rad = ((deg || 0) * Math.PI) / 180;
+        const sin = Math.abs(Math.sin(rad));
+        const cos = Math.abs(Math.cos(rad));
+
+        const baseLatSpan = unrotatedSpanRef.current ? unrotatedSpanRef.current.latSpan : Math.abs(prev[1][0] - prev[0][0]);
+        const baseLngSpan = unrotatedSpanRef.current ? unrotatedSpanRef.current.lngSpan : Math.abs(prev[1][1] - prev[0][1]);
+
+        if (!unrotatedSpanRef.current) {
+          unrotatedSpanRef.current = { latSpan: baseLatSpan, lngSpan: baseLngSpan };
+        }
+
+        const newLatSpan = baseLatSpan * cos + baseLngSpan * sin;
+        const newLngSpan = baseLatSpan * sin + baseLngSpan * cos;
+
+        const newBounds = [
+          [cLat - newLatSpan / 2, cLng - newLngSpan / 2],
+          [cLat + newLatSpan / 2, cLng + newLngSpan / 2],
+        ];
+        if (overlayRef.current) overlayRef.current.setBounds(newBounds);
+        finalBounds = newBounds;
+        return newBounds;
+      });
+
+      if (selectedProperty && baseImg) {
+        saveBlueprintOverlay(selectedProperty, {
+          rawImage: baseImg,
+          originalImage: originalUploadedImageRef.current || baseImg,
+          bounds: finalBounds || overlayBounds,
+          rotation: deg,
+          opacity: overlayOpacity,
+          lineColor: overlayLineColor,
+          multiply: overlayMultiply,
+          unrotatedSpan: unrotatedSpanRef.current,
+        });
+      }
+    },
+    [overlayLineColor, selectedProperty, overlayBounds, overlayOpacity, overlayMultiply]
+  );
+
+  // Switch CAD Line Color (Cyan, Amber, Lime, White, Black)
+  const handleLineColorChange = useCallback(
+    async (color) => {
+      setOverlayLineColor(color);
+      const src = rawOverlayRef.current;
+      if (!src) return;
+      const transUrl = await createTransparentPaperImage(src, color, overlayRotation);
+      transparentOverlayRef.current = transUrl;
+      setOverlayImage(transUrl);
+
+      if (selectedProperty && overlayBounds) {
+        saveBlueprintOverlay(selectedProperty, {
+          rawImage: src,
+          originalImage: originalUploadedImageRef.current || src,
+          bounds: overlayBounds,
+          rotation: overlayRotation,
+          opacity: overlayOpacity,
+          lineColor: color,
+          multiply: overlayMultiply,
+          unrotatedSpan: unrotatedSpanRef.current,
+        });
+      }
+    },
+    [overlayRotation, selectedProperty, overlayBounds, overlayOpacity, overlayMultiply]
+  );
+
+  // Crop overlay on canvas to keep only the subdivision lots
+  const handleApplyCrop = useCallback(
+    async (croppedUrl, cropBounds) => {
+      const dataUrl = await toDataURL(croppedUrl);
+      rawOverlayRef.current = dataUrl;
+      setOverlayRotation(0);
+      const transUrl = await createTransparentPaperImage(dataUrl, overlayLineColor, 0);
+      transparentOverlayRef.current = transUrl;
+      setOverlayImage(transUrl);
+
+      let finalBounds = overlayBounds;
+      let finalSpan = unrotatedSpanRef.current;
+
+      if (overlayBounds) {
+        const origLatSpan = Math.abs(overlayBounds[1][0] - overlayBounds[0][0]);
+        const origLngSpan = Math.abs(overlayBounds[1][1] - overlayBounds[0][1]);
+        const cLat = (overlayBounds[0][0] + overlayBounds[1][0]) / 2;
+        const cLng = (overlayBounds[0][1] + overlayBounds[1][1]) / 2;
+
+        if (cropBounds && cropBounds.width && cropBounds.height) {
+          const newLatSpan = origLatSpan * (cropBounds.height / 100);
+          const newLngSpan = origLngSpan * (cropBounds.width / 100);
+
+          const cropCenterXRatio = (cropBounds.minX + cropBounds.maxX) / 200;
+          const cropCenterYRatio = (cropBounds.minY + cropBounds.maxY) / 200;
+
+          const lngOffset = (cropCenterXRatio - 0.5) * origLngSpan;
+          const latOffset = (0.5 - cropCenterYRatio) * origLatSpan;
+
+          const newCenterLat = cLat + latOffset;
+          const newCenterLng = cLng + lngOffset;
+
+          finalBounds = [
+            [newCenterLat - newLatSpan / 2, newCenterLng - newLngSpan / 2],
+            [newCenterLat + newLatSpan / 2, newCenterLng + newLngSpan / 2],
+          ];
+          finalSpan = { latSpan: newLatSpan, lngSpan: newLngSpan };
+          unrotatedSpanRef.current = finalSpan;
+          if (overlayRef.current) overlayRef.current.setBounds(finalBounds);
+          setOverlayBounds(finalBounds);
+        }
+      }
+
+      if (selectedProperty && finalBounds) {
+        saveBlueprintOverlay(selectedProperty, {
+          rawImage: dataUrl,
+          originalImage: originalUploadedImageRef.current || dataUrl,
+          bounds: finalBounds,
+          rotation: 0,
+          opacity: overlayOpacity,
+          lineColor: overlayLineColor,
+          multiply: overlayMultiply,
+          unrotatedSpan: finalSpan,
+        });
+      }
+    },
+    [overlayBounds, overlayLineColor, selectedProperty, overlayOpacity, overlayMultiply]
+  );
+
+  // Reset overlay rotation back to 0° (preserving the cropped blueprint image and scale)
+  const handleResetOverlay = useCallback(async () => {
+    handleRotationChange(0);
+  }, [handleRotationChange]);
 
   // Handle image upload — place overlay centered on current map view
   const handleImageUpload = useCallback(
-    (imageUrl) => {
-      if (overlayImage) URL.revokeObjectURL(overlayImage);
-      setOverlayImage(imageUrl);
-      setOverlayVisible(true);
-      setIsEditingOverlay(true); // auto-enter alignment mode
+    async (imageUrl) => {
+      const dataUrl = await toDataURL(imageUrl);
+      if (rawOverlayRef.current && rawOverlayRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(rawOverlayRef.current);
+      }
+      if (transparentOverlayRef.current && transparentOverlayRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(transparentOverlayRef.current);
+      }
 
+      originalUploadedImageRef.current = dataUrl;
+      rawOverlayRef.current = dataUrl;
+      setOverlayRotation(0);
+
+      const transUrl = await createTransparentPaperImage(dataUrl, overlayLineColor, 0);
+      transparentOverlayRef.current = transUrl;
+
+      setOverlayImage(transUrl);
+      setOverlayVisible(true);
+      setIsEditingOverlay(true);
+
+      let initBounds = null;
+      let initSpan = null;
       if (map) {
         const bounds = map.getBounds();
         const latSpan = (bounds.getNorth() - bounds.getSouth()) * 0.7;
         const lngSpan = (bounds.getEast() - bounds.getWest()) * 0.7;
         const center = map.getCenter();
-        setOverlayBounds([
+        initBounds = [
           [center.lat - latSpan / 2, center.lng - lngSpan / 2],
           [center.lat + latSpan / 2, center.lng + lngSpan / 2],
-        ]);
-      } else {
-        // Fallback: center on Property 1's default coordinates
-        const fallback = [10.7372, 122.4998];
-        const offset = 0.003;
-        setOverlayBounds([
-          [fallback[0] - offset, fallback[1] - offset],
-          [fallback[0] + offset, fallback[1] + offset],
-        ]);
+        ];
+        initSpan = { latSpan, lngSpan };
+        unrotatedSpanRef.current = initSpan;
+        setOverlayBounds(initBounds);
+      }
+
+      if (selectedProperty && initBounds) {
+        saveBlueprintOverlay(selectedProperty, {
+          rawImage: dataUrl,
+          originalImage: dataUrl,
+          bounds: initBounds,
+          rotation: 0,
+          opacity: overlayOpacity,
+          lineColor: overlayLineColor,
+          multiply: overlayMultiply,
+          unrotatedSpan: initSpan,
+        });
       }
     },
-    [map, overlayImage]
+    [map, overlayLineColor, selectedProperty, overlayOpacity, overlayMultiply]
   );
 
-  // Apply CSS rotation — extracted so we can call it both on mount and on slider change
-  const applyRotation = useCallback((deg) => {
-    if (overlayRef.current && overlayRef.current._image) {
-      const img = overlayRef.current._image;
-      img.style.transformOrigin = "center center";
-      img.style.rotate = `${deg}deg`; // Use modern CSS rotate property to avoid resetting Leaflet's transform position
-    }
-  }, []);
+  // Scale overlay size proportionally (keeping exact aspect ratio)
+  const handleScaleOverlay = useCallback((factor) => {
+    setOverlayBounds((prev) => {
+      if (!prev) return prev;
+      const cLat = (prev[0][0] + prev[1][0]) / 2;
+      const cLng = (prev[0][1] + prev[1][1]) / 2;
+      const halfLat = ((prev[1][0] - prev[0][0]) / 2) * factor;
+      const halfLng = ((prev[1][1] - prev[0][1]) / 2) * factor;
+      const newBounds = [
+        [cLat - halfLat, cLng - halfLng],
+        [cLat + halfLat, cLng + halfLng],
+      ];
+      if (overlayRef.current) overlayRef.current.setBounds(newBounds);
 
-  // Re-apply rotation when the ImageOverlay remounts (url/bounds change recreates the DOM node)
-  useEffect(() => {
-    applyRotation(overlayRotation);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlayImage, overlayBounds, applyRotation]);
+      if (selectedProperty && rawOverlayRef.current) {
+        saveBlueprintOverlay(selectedProperty, {
+          rawImage: rawOverlayRef.current,
+          originalImage: originalUploadedImageRef.current || rawOverlayRef.current,
+          bounds: newBounds,
+          rotation: overlayRotation,
+          opacity: overlayOpacity,
+          lineColor: overlayLineColor,
+          multiply: overlayMultiply,
+          unrotatedSpan: unrotatedSpanRef.current,
+        });
+      }
 
-  // Fit overlay to current map view
-  const handleFitToView = useCallback(() => {
-    if (!map) return;
-    const b = map.getBounds();
-    setOverlayBounds([
-      [b.getSouth(), b.getWest()],
-      [b.getNorth(), b.getEast()],
-    ]);
-  }, [map]);
+      return newBounds;
+    });
+  }, [selectedProperty, overlayRotation, overlayOpacity, overlayLineColor, overlayMultiply]);
 
   // Create bulk shift controller crosshair icon
   const createBulkShiftCenterIcon = useCallback(() => {
@@ -858,41 +1472,40 @@ function AdminViewMap() {
   }, []);
 
   // Function to refresh map data when lot is updated
-  const handleLotUpdated = () => {
-    const fetchMapData = async () => {
-      try {
-        const [mapResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
-        ]);
+  const handleLotUpdated = useCallback(async () => {
+    try {
+      const mapResponse = await axios.get(`${API_BASE_URL}/api/lots/map-data`, {
+        withCredentials: true,
+      });
 
-        // Fetch customer details for all pending/sold lots
-        const lotsWithCustomerData = await Promise.all(
-          mapResponse.data.lots.map(async (lot) => {
-            if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
-              try {
-                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
-                  withCredentials: true,
-                });
-                return { ...lot, customer: lotDetails.data.customer };
-              } catch (error) {
-                console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
-                return lot;
-              }
+      // Fetch customer details for all pending/sold lots
+      const lotsWithCustomerData = await Promise.all(
+        mapResponse.data.lots.map(async (lot) => {
+          if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
+            try {
+              const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
+                withCredentials: true,
+              });
+              return { ...lot, customer: lotDetails.data.customer };
+            } catch (error) {
+              return lot;
             }
-            return lot;
-          })
-        );
+          }
+          return lot;
+        })
+      );
 
-        const finalMapData = { ...mapResponse.data, lots: lotsWithCustomerData };
-        setMapData(finalMapData);
-        try { sessionStorage.setItem("mapDataCache", JSON.stringify(finalMapData)); } catch (e) {}
-      } catch (err) {
-        console.error("Map Refresh Error:", err);
-      }
-    };
-
-    fetchMapData();
-  };
+      const finalMapData = { ...mapResponse.data, lots: lotsWithCustomerData };
+      setMapData(finalMapData);
+      try {
+        sessionStorage.setItem("mapDataCache", JSON.stringify(finalMapData));
+      } catch (e) {}
+      return finalMapData;
+    } catch (err) {
+      console.error("Map Refresh Error:", err);
+      return null;
+    }
+  }, []);
 
   // Listen for coordinate updates from AdminHeader
   useEffect(() => {
@@ -905,7 +1518,7 @@ function AdminViewMap() {
     return () => {
       window.removeEventListener("refreshMapData", handleRefreshMapData);
     };
-  }, []);
+  }, [handleLotUpdated]);
 
   // Listen for openOverlayPanel event from AdminHeader
   useEffect(() => {
@@ -917,12 +1530,12 @@ function AdminViewMap() {
   // Listen for start visual edit event
   useEffect(() => {
     const handleStartVisualEdit = (event) => {
-      const { lot_id, lot_number, property_id, coordinates } = event.detail;
-      setEditingLot({ lot_id, lot_number, property_id });
+      const { lot_id, lot_number, property_id, coordinates, area_sqm } = event.detail;
+      setEditingLot({ lot_id, lot_number, property_id, area_sqm });
 
+      let initCoords = [];
       if (coordinates && Array.isArray(coordinates) && coordinates.length > 0) {
-        // Deep copy
-        setEditingCoords(coordinates.map((c) => [...c]));
+        initCoords = coordinates.map((c) => [...c]);
       } else {
         // Use current active map center if available so coordinates appear exactly where user is focused
         const currentCenter = map ? map.getCenter() : null;
@@ -932,56 +1545,109 @@ function AdminViewMap() {
             : properties.find((p) => Number(p.id) === Number(property_id))?.coordinates ||
               selectedPropertyCoords;
 
-        const offset = 0.00015;
-        // Make a square centered at current view coordinates
-        setEditingCoords([
-          [baseCoords[0] - offset, baseCoords[1] - offset],
-          [baseCoords[0] + offset, baseCoords[1] - offset],
-          [baseCoords[0] + offset, baseCoords[1] + offset],
-          [baseCoords[0] - offset, baseCoords[1] + offset],
-        ]);
+        const targetArea = parseFloat(area_sqm) || 100;
+        const sideMeters = Math.sqrt(targetArea); // ~10m for 100 sqm
+        const latRad = (baseCoords[0] * Math.PI) / 180;
+        const dLat = (sideMeters / 2) / 111320;
+        const dLng = (sideMeters / 2) / (111320 * Math.cos(latRad));
+
+        // Rotate initial square according to blueprint rotation angle
+        const rotRad = ((overlayRotation || 0) * Math.PI) / 180;
+        const cosR = Math.cos(rotRad);
+        const sinR = Math.sin(rotRad);
+
+        const corners = [
+          [-dLat, -dLng],
+          [dLat, -dLng],
+          [dLat, dLng],
+          [-dLat, dLng],
+        ];
+
+        initCoords = corners.map(([dy, dx]) => {
+          const rotY = dy * cosR - dx * sinR;
+          const rotX = dy * sinR + dx * cosR;
+          return [baseCoords[0] + rotY, baseCoords[1] + rotX];
+        });
       }
+
+      dragCoordsRef.current = initCoords.map((c) => [...c]);
+      setEditingCoords(initCoords);
     };
 
     window.addEventListener("startVisualEdit", handleStartVisualEdit);
     return () => {
       window.removeEventListener("startVisualEdit", handleStartVisualEdit);
     };
-  }, [map, properties, selectedPropertyCoords]);
+  }, [map, properties, selectedPropertyCoords, overlayRotation]);
 
-  // Handle dragging the entire polygon shape
+  // Handle dragging the entire polygon shape with global pointer tracking & magnetic snapping
   useEffect(() => {
     if (!map) return;
 
-    const handleMapMouseMove = (e) => {
-      if (!isDraggingPolygon || !polygonDragRef.current) return;
+    const handleGlobalMouseMove = (e) => {
+      if (!isDraggingPolygon || !polygonDragRef.current || !map) return;
 
       const { startLatLng, initialCoords } = polygonDragRef.current;
-      const currentLatLng = e.latlng;
+      let mouseLatLng = e.latlng;
+      if (!mouseLatLng && typeof e.clientX === "number" && typeof e.clientY === "number") {
+        try {
+          mouseLatLng = map.mouseEventToLatLng(e);
+        } catch (err) {
+          return;
+        }
+      }
+      if (!mouseLatLng) return;
 
-      const deltaLat = currentLatLng.lat - startLatLng.lat;
-      const deltaLng = currentLatLng.lng - startLatLng.lng;
+      let deltaLat = mouseLatLng.lat - startLatLng.lat;
+      let deltaLng = mouseLatLng.lng - startLatLng.lng;
 
-      const newCoords = initialCoords.map(([lat, lng]) => [lat + deltaLat, lng + deltaLng]);
+      let candidateCoords = initialCoords.map(([lat, lng]) => [
+        lat + deltaLat,
+        lng + deltaLng,
+      ]);
+
+      // Magnetic snapping for the entire polygon: snap any corner to adjacent lot vertices
+      if (enableSnapping && mapData?.lots) {
+        for (let i = 0; i < candidateCoords.length; i++) {
+          const corner = candidateCoords[i];
+          const snapTarget = findSnapVertex(
+            corner,
+            mapData.lots,
+            editingLot?.lot_id,
+            map,
+            16
+          );
+          if (snapTarget) {
+            const snapDeltaLat = snapTarget[0] - corner[0];
+            const snapDeltaLng = snapTarget[1] - corner[1];
+            candidateCoords = candidateCoords.map(([lat, lng]) => [
+              lat + snapDeltaLat,
+              lng + snapDeltaLng,
+            ]);
+            break;
+          }
+        }
+      }
 
       // Direct Leaflet element updates for buttery smooth 60 FPS movement
       if (editingPolygonRef.current) {
-        editingPolygonRef.current.setLatLngs(newCoords);
+        editingPolygonRef.current.setLatLngs(candidateCoords);
       }
 
+      // Synchronously move all corner markers with the polygon
       if (cornerMarkersRef.current) {
         cornerMarkersRef.current.forEach((marker, index) => {
-          if (marker && newCoords[index]) {
-            marker.setLatLng(newCoords[index]);
+          if (marker && candidateCoords[index]) {
+            marker.setLatLng(candidateCoords[index]);
           }
         });
       }
 
-      // Store in ref to retrieve on mouseup
-      draggedCoordsRef.current = newCoords;
+      dragCoordsRef.current = candidateCoords.map((c) => [...c]);
+      draggedCoordsRef.current = candidateCoords;
     };
 
-    const handleMapMouseUp = () => {
+    const handleGlobalMouseUp = () => {
       if (isDraggingPolygon) {
         setIsDraggingPolygon(false);
         polygonDragRef.current = null;
@@ -989,24 +1655,88 @@ function AdminViewMap() {
           map.dragging.enable();
         }
 
-        // Sync back to React state only once on mouse release
         if (draggedCoordsRef.current) {
-          setEditingCoords(draggedCoordsRef.current);
+          const finalCoords = draggedCoordsRef.current.map((c) => [...c]);
+          dragCoordsRef.current = finalCoords.map((c) => [...c]);
+          setEditingCoords(finalCoords);
           draggedCoordsRef.current = null;
         }
       }
     };
 
     if (isDraggingPolygon) {
-      map.on("mousemove", handleMapMouseMove);
-      map.on("mouseup", handleMapMouseUp);
+      window.addEventListener("mousemove", handleGlobalMouseMove);
+      window.addEventListener("mouseup", handleGlobalMouseUp);
+      map.on("mousemove", handleGlobalMouseMove);
+      map.on("mouseup", handleGlobalMouseUp);
     }
 
     return () => {
-      map.off("mousemove", handleMapMouseMove);
-      map.off("mouseup", handleMapMouseUp);
+      window.removeEventListener("mousemove", handleGlobalMouseMove);
+      window.removeEventListener("mouseup", handleGlobalMouseUp);
+      map.off("mousemove", handleGlobalMouseMove);
+      map.off("mouseup", handleGlobalMouseUp);
     };
-  }, [map, isDraggingPolygon]);
+  }, [map, isDraggingPolygon, enableSnapping, mapData, editingLot]);
+
+  // Handle scaling the current editing polygon around its center
+  const handleScaleEditingCoords = (factor) => {
+    if (!editingCoords || editingCoords.length === 0) return;
+    let sumLat = 0;
+    let sumLng = 0;
+    editingCoords.forEach(([lat, lng]) => {
+      sumLat += lat;
+      sumLng += lng;
+    });
+    const cLat = sumLat / editingCoords.length;
+    const cLng = sumLng / editingCoords.length;
+
+    const scaled = editingCoords.map(([lat, lng]) => [
+      cLat + (lat - cLat) * factor,
+      cLng + (lng - cLng) * factor,
+    ]);
+
+    setEditingCoords(scaled);
+    dragCoordsRef.current = scaled.map((c) => [...c]);
+  };
+
+  // Handle resetting the polygon to an exact standard lot square (e.g. 100 sqm)
+  const handleResetToSquareSize = (targetArea = 100) => {
+    if (!editingCoords || editingCoords.length === 0) return;
+    let sumLat = 0;
+    let sumLng = 0;
+    editingCoords.forEach(([lat, lng]) => {
+      sumLat += lat;
+      sumLng += lng;
+    });
+    const cLat = sumLat / editingCoords.length;
+    const cLng = sumLng / editingCoords.length;
+
+    const sideMeters = Math.sqrt(targetArea);
+    const latRad = (cLat * Math.PI) / 180;
+    const dLat = (sideMeters / 2) / 111320;
+    const dLng = (sideMeters / 2) / (111320 * Math.cos(latRad));
+
+    const rotRad = ((overlayRotation || 0) * Math.PI) / 180;
+    const cosR = Math.cos(rotRad);
+    const sinR = Math.sin(rotRad);
+
+    const corners = [
+      [-dLat, -dLng],
+      [dLat, -dLng],
+      [dLat, dLng],
+      [-dLat, dLng],
+    ];
+
+    const newCoords = corners.map(([dy, dx]) => {
+      const rotY = dy * cosR - dx * sinR;
+      const rotX = dy * sinR + dx * cosR;
+      return [cLat + rotY, cLng + rotX];
+    });
+
+    setEditingCoords(newCoords);
+    dragCoordsRef.current = newCoords.map((c) => [...c]);
+  };
 
   // Handle saving visual coordinates
   const handleSaveVisualCoords = async () => {
@@ -1029,6 +1759,157 @@ function AdminViewMap() {
     }
   };
 
+  // Handle saving visual coordinates and immediately auto-creating the adjacent next lot!
+  const handleSaveAndAddNext = async () => {
+    if (!editingLot || editingCoords.length < 3) return;
+    setIsSavingCoords(true);
+    try {
+      await axios.put(`${API_BASE_URL}/api/lots/${editingLot.lot_id}/coordinates`, {
+        coordinates: editingCoords,
+      });
+      await handleLotUpdated();
+      // Immediately duplicate & place adjacent next lot
+      await handleDuplicateLot();
+    } catch (err) {
+      console.error("Error saving coordinates:", err);
+      alert(err.response?.data?.error || "Failed to update coordinates");
+    } finally {
+      setIsSavingCoords(false);
+    }
+  };
+
+  // Handle duplicating / cloning a lot with auto-incremented identifier & adjacent offset
+  const handleDuplicateLot = async (lotToDuplicate) => {
+    const sourceLot =
+      lotToDuplicate ||
+      (editingLot
+        ? {
+            lot_id: editingLot.lot_id,
+            lot_number: editingLot.lot_number,
+            property_id: editingLot.property_id,
+            area_sqm: targetAreaSqm || editingLot.area_sqm || 100,
+            coordinates: editingCoords.length >= 3 ? editingCoords : null,
+          }
+        : selectedLot);
+
+    if (!sourceLot) {
+      alert("Please select a lot to duplicate.");
+      return;
+    }
+
+    const propId = sourceLot.property_id || selectedProperty;
+    const nextLotNumber = autoIncrementLotNumber(sourceLot.lot_number || "Lot 1");
+    const targetArea = sourceLot.area_sqm || 100;
+
+    const confirmedName = window.prompt(
+      `Duplicate Lot: Enter identifier for the new adjacent lot:`,
+      nextLotNumber
+    );
+
+    // If user clicked cancel
+    if (confirmedName === null) return;
+    const finalLotName = (confirmedName || nextLotNumber).trim() || nextLotNumber;
+
+    try {
+      // 1. Resolve source lot polygon coordinates
+      let rawCoords = null;
+      if (editingCoords && Array.isArray(editingCoords) && editingCoords.length >= 3) {
+        rawCoords = editingCoords;
+      } else if (sourceLot.coordinates) {
+        if (typeof sourceLot.coordinates === "string") {
+          try {
+            rawCoords = JSON.parse(sourceLot.coordinates);
+          } catch (e) {}
+        } else if (Array.isArray(sourceLot.coordinates)) {
+          rawCoords = sourceLot.coordinates;
+        }
+      }
+
+      if (!rawCoords || rawCoords.length < 3) {
+        const foundInMap = mapData?.lots?.find(
+          (l) => Number(l.lot_id) === Number(sourceLot.lot_id)
+        );
+        if (foundInMap && foundInMap.coordinates) {
+          rawCoords =
+            typeof foundInMap.coordinates === "string"
+              ? JSON.parse(foundInMap.coordinates)
+              : foundInMap.coordinates;
+        }
+      }
+
+      if (!rawCoords || !Array.isArray(rawCoords) || rawCoords.length < 3) {
+        const currentCenter = map ? map.getCenter() : null;
+        const baseCoords = currentCenter ? [currentCenter.lat, currentCenter.lng] : selectedPropertyCoords;
+        const offset = 0.00015;
+        rawCoords = [
+          [baseCoords[0] - offset, baseCoords[1] - offset],
+          [baseCoords[0] + offset, baseCoords[1] - offset],
+          [baseCoords[0] + offset, baseCoords[1] + offset],
+          [baseCoords[0] - offset, baseCoords[1] + offset],
+        ];
+      }
+
+      // 2. Generate adjacent offset coordinates
+      const newCoords = offsetPolygonAdjacent(rawCoords);
+
+      // 3. Create new lot record in backend database
+      const createRes = await axios.post(
+        `${API_BASE_URL}/api/lots`,
+        {
+          property_id: parseInt(propId),
+          lot_number: finalLotName,
+          area_sqm: parseFloat(targetArea) || 100,
+          status: "Available",
+        },
+        { withCredentials: true }
+      );
+
+      const newLotId = createRes.data.lot_id;
+
+      // 4. Save adjacent offset coordinates for the new lot
+      if (newCoords && Array.isArray(newCoords) && newCoords.length >= 3) {
+        await axios.put(
+          `${API_BASE_URL}/api/lots/${newLotId}/coordinates`,
+          { coordinates: newCoords },
+          { withCredentials: true }
+        );
+      }
+
+      // 5. Invalidate caches and refresh map data
+      try {
+        sessionStorage.removeItem("mapDataCache");
+      } catch (e) {}
+      await handleLotUpdated();
+
+      // 6. Close drawer and switch visual coordinate editor to the new lot
+      setIsOffcanvasOpen(false);
+      setEditingLot({
+        lot_id: newLotId,
+        lot_number: finalLotName,
+        property_id: parseInt(propId),
+        area_sqm: parseFloat(targetArea) || 100,
+      });
+      setEditingCoords(newCoords.map((c) => [...c]));
+
+      window.dispatchEvent(
+        new CustomEvent("startVisualEdit", {
+          detail: {
+            lot_id: newLotId,
+            lot_number: finalLotName,
+            property_id: parseInt(propId),
+            area_sqm: parseFloat(targetArea) || 100,
+            coordinates: newCoords,
+          },
+        })
+      );
+
+      alert(`✅ Successfully created ${finalLotName}! You can now adjust its corners.`);
+    } catch (err) {
+      console.error("Error duplicating lot:", err);
+      alert(err.response?.data?.error || err.message || "Failed to duplicate lot");
+    }
+  };
+
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
 
   return (
@@ -1040,7 +1921,7 @@ function AdminViewMap() {
       <MapContainer
         center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
         zoom={properties && properties.length > 0 ? 18 : 9}
-        maxZoom={21}
+        maxZoom={28}
         zoomControl={false}
         attributionControl={false}
         zoomAnimation={true}
@@ -1049,8 +1930,8 @@ function AdminViewMap() {
         touchZoom={true}
         tap={false}
         bounceAtZoomLimits={false}
-        wheelDebounceTime={40}
-        wheelPxPerZoomLevel={120}
+        wheelDebounceTime={20}
+        wheelPxPerZoomLevel={60}
         inertia={true}
         inertiaDeceleration={3000}
         inertiaMaxSpeed={1500}
@@ -1099,11 +1980,8 @@ function AdminViewMap() {
             autoPan={false}
             offset={[0, -10]}
           >
-            <div style={{ minWidth: "150px", padding: "2px" }} className="text-center">
-              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
-                Lot ID: {activePopupLot.lot_id}
-              </div>
-              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "2px" }}>
+            <div style={{ minWidth: "140px", padding: "2px" }} className="text-center">
+              <div style={{ fontSize: "14px", fontWeight: 800, color: "#0f172a", marginBottom: "2px" }}>
                 {activePopupLot.lot_number}
               </div>
               <div style={{ fontSize: "11.5px", color: "#475569", marginBottom: "6px" }}>
@@ -1228,55 +2106,72 @@ function AdminViewMap() {
           />
         )}
 
-        {/* ── Overlay Corner Alignment Handles ─────────────────── */}
-        {overlayImage && overlayBounds && isEditingOverlay && (
-          <>
-            {/* SW */}
-            <Marker
-              position={[overlayBounds[0][0], overlayBounds[0][1]]}
-              draggable={true}
-              icon={createOverlayCornerIcon("SW")}
-              eventHandlers={{
-                dragstart: () => handleOverlayCornerDragStart(overlayBounds),
-                drag: (e) => handleOverlayCornerDrag("sw", e),
-                dragend: handleOverlayCornerDragEnd,
-              }}
-            />
-            {/* SE */}
-            <Marker
-              position={[overlayBounds[0][0], overlayBounds[1][1]]}
-              draggable={true}
-              icon={createOverlayCornerIcon("SE")}
-              eventHandlers={{
-                dragstart: () => handleOverlayCornerDragStart(overlayBounds),
-                drag: (e) => handleOverlayCornerDrag("se", e),
-                dragend: handleOverlayCornerDragEnd,
-              }}
-            />
-            {/* NE */}
-            <Marker
-              position={[overlayBounds[1][0], overlayBounds[1][1]]}
-              draggable={true}
-              icon={createOverlayCornerIcon("NE")}
-              eventHandlers={{
-                dragstart: () => handleOverlayCornerDragStart(overlayBounds),
-                drag: (e) => handleOverlayCornerDrag("ne", e),
-                dragend: handleOverlayCornerDragEnd,
-              }}
-            />
-            {/* NW */}
-            <Marker
-              position={[overlayBounds[1][0], overlayBounds[0][1]]}
-              draggable={true}
-              icon={createOverlayCornerIcon("NW")}
-              eventHandlers={{
-                dragstart: () => handleOverlayCornerDragStart(overlayBounds),
-                drag: (e) => handleOverlayCornerDrag("nw", e),
-                dragend: handleOverlayCornerDragEnd,
-              }}
-            />
-          </>
-        )}
+        {/* ── Overlay Blueprint Frame / Boundary Guide (Connected to Rotated White Box) ──────────── */}
+        {overlayImage && overlayBounds && isEditingOverlay && (() => {
+          const corners = getRotatedBlueprintCorners(overlayBounds, overlayRotation, unrotatedSpanRef.current);
+          if (!corners) return null;
+          return (
+            <>
+              {/* Outer Glowing Yellow Dashed Line Connected to 4 Corners of White Box */}
+              <Polygon
+                positions={[corners.nw, corners.ne, corners.se, corners.sw]}
+                pathOptions={{
+                  color: "#f59e0b",
+                  weight: 2.5,
+                  dashArray: "6, 6",
+                  fillColor: "#f59e0b",
+                  fillOpacity: 0.04,
+                  interactive: false,
+                }}
+              />
+
+              {/* SW */}
+              <Marker
+                position={corners.sw}
+                draggable={true}
+                icon={createOverlayCornerIcon("SW")}
+                eventHandlers={{
+                  dragstart: () => handleOverlayCornerDragStart("sw", overlayBounds),
+                  drag: (e) => handleOverlayCornerDrag("sw", e),
+                  dragend: handleOverlayCornerDragEnd,
+                }}
+              />
+              {/* SE */}
+              <Marker
+                position={corners.se}
+                draggable={true}
+                icon={createOverlayCornerIcon("SE")}
+                eventHandlers={{
+                  dragstart: () => handleOverlayCornerDragStart("se", overlayBounds),
+                  drag: (e) => handleOverlayCornerDrag("se", e),
+                  dragend: handleOverlayCornerDragEnd,
+                }}
+              />
+              {/* NE */}
+              <Marker
+                position={corners.ne}
+                draggable={true}
+                icon={createOverlayCornerIcon("NE")}
+                eventHandlers={{
+                  dragstart: () => handleOverlayCornerDragStart("ne", overlayBounds),
+                  drag: (e) => handleOverlayCornerDrag("ne", e),
+                  dragend: handleOverlayCornerDragEnd,
+                }}
+              />
+              {/* NW */}
+              <Marker
+                position={corners.nw}
+                draggable={true}
+                icon={createOverlayCornerIcon("NW")}
+                eventHandlers={{
+                  dragstart: () => handleOverlayCornerDragStart("nw", overlayBounds),
+                  drag: (e) => handleOverlayCornerDrag("nw", e),
+                  dragend: handleOverlayCornerDragEnd,
+                }}
+              />
+            </>
+          );
+        })()}
 
         {/* ── Overlay Center Move Handle ─────────────────────────── */}
         {overlayImage &&
@@ -1340,9 +2235,21 @@ function AdminViewMap() {
                       [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
                     ];
                     console.log("Center drag end. Setting final bounds state to:", finalBounds);
-                    // Sync final position to React state once on drop
                     setOverlayBounds(finalBounds);
                     overlayMoveStartRef.current = null;
+
+                    if (selectedProperty && rawOverlayRef.current) {
+                      saveBlueprintOverlay(selectedProperty, {
+                        rawImage: rawOverlayRef.current,
+                        originalImage: originalUploadedImageRef.current || rawOverlayRef.current,
+                        bounds: finalBounds,
+                        rotation: overlayRotation,
+                        opacity: overlayOpacity,
+                        lineColor: overlayLineColor,
+                        multiply: overlayMultiply,
+                        unrotatedSpan: unrotatedSpanRef.current,
+                      });
+                    }
                   },
                 }}
               />
@@ -1457,7 +2364,6 @@ function AdminViewMap() {
           };
 
           const handleLotClick = (e) => {
-            if (editingLot) return;
             if (e?.originalEvent) {
               e.originalEvent.stopPropagation();
               e.originalEvent.preventDefault();
@@ -1501,8 +2407,7 @@ function AdminViewMap() {
                 {!isTouchDevice && (
                   <Tooltip permanent={false} direction="top" offset={[0, -18]}>
                     <div className="text-center text-xs leading-tight">
-                      <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
-                      <div className="mb-1 font-bold">{lot.lot_number}</div>
+                      <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
                       <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
                       <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
                         {lot.status}
@@ -1548,7 +2453,12 @@ function AdminViewMap() {
                 mousedown: (e) => {
                   e.originalEvent.stopPropagation();
                   const startLatLng = e.latlng;
-                  const initialCoords = editingCoords.map((c) => [...c]);
+                  const currentCoords =
+                    dragCoordsRef.current &&
+                    dragCoordsRef.current.length === editingCoords.length
+                      ? dragCoordsRef.current
+                      : editingCoords;
+                  const initialCoords = currentCoords.map((c) => [...c]);
                   polygonDragRef.current = { startLatLng, initialCoords };
                   setIsDraggingPolygon(true);
                   if (map) {
@@ -1569,7 +2479,9 @@ function AdminViewMap() {
                     if (map) {
                       map.dragging.disable();
                     }
-                    dragCoordsRef.current = editingCoords.map((c) => [...c]);
+                    if (!dragCoordsRef.current || dragCoordsRef.current.length !== editingCoords.length) {
+                      dragCoordsRef.current = editingCoords.map((c) => [...c]);
+                    }
                   },
                   drag: (e) => handleVertexDrag(index, e),
                   dragend: (e) => {
@@ -1604,42 +2516,265 @@ function AdminViewMap() {
         )}
       </MapContainer>
 
-      {/* Floating Coordinate Editor Panel */}
+      {/* Floating Coordinate Editor Panel — Eye-Friendly Executive Glassmorphic Design */}
       {editingLot && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-2xl p-4 z-[999] flex flex-col sm:flex-row items-center gap-4 transition-all duration-300 w-11/12 max-w-lg">
-          <div className="flex-1">
-            <span className="font-semibold text-gray-800 dark:text-white block text-sm">
-              Editing Coordinates: Lot {editingLot.lot_number}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
-              Drag corners (1, 2, 3...) to adjust. Double-click a corner to delete. Click "+" on any
-              side to add a corner there.
-            </span>
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-slate-900/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-700/70 rounded-2xl shadow-2xl p-3.5 z-[999] flex flex-col gap-2.5 transition-all duration-200 w-11/12 max-w-lg text-slate-200">
+          {/* Header Row */}
+          <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] shrink-0"></div>
+              <span className="font-bold text-white text-xs sm:text-sm truncate" title={editingLot.lot_number}>
+                Lot {editingLot.lot_number}
+              </span>
+
+              {/* Clean Area Badge */}
+              <div
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-slate-800/90 border border-slate-700 text-emerald-400 text-xs font-semibold shrink-0"
+                title={
+                  targetAreaSqm > 0
+                    ? `Area: ${liveAreaSqm.toFixed(1)} m² (Target: ${targetAreaSqm} m²)`
+                    : `Area: ${liveAreaSqm.toFixed(1)} m²`
+                }
+              >
+                <Ruler className="w-3 h-3 text-emerald-400" />
+                <span>{liveAreaSqm.toFixed(1)} m²</span>
+                {targetAreaSqm > 0 && (
+                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">
+                    / {targetAreaSqm} m²
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Size Scale Adjusters */}
+            <div className="flex items-center gap-1 bg-slate-950/60 p-0.5 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => handleScaleEditingCoords(0.85)}
+                className="px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                title="Shrink size (-15%)"
+              >
+                -15%
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScaleEditingCoords(1.15)}
+                className="px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                title="Enlarge size (+15%)"
+              >
+                +15%
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResetToSquareSize(targetAreaSqm || 100)}
+                className="px-2 py-1 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 rounded-lg transition-colors cursor-pointer"
+                title={`Reset to neat ${targetAreaSqm || 100}m² square`}
+              >
+                📐 Fit {targetAreaSqm || 100}m²
+              </button>
+            </div>
+
+            {/* Subtle Magnet Snapping Toggle */}
+            <button
+              type="button"
+              onClick={() => setEnableSnapping((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition-all cursor-pointer select-none shrink-0 ${
+                enableSnapping
+                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow-sm"
+                  : "bg-slate-800/80 text-slate-400 border-slate-700 hover:text-slate-200"
+              }`}
+              title="Magnetic Snapping to nearby corners"
+            >
+              <Magnet className={`w-3.5 h-3.5 ${enableSnapping ? "text-indigo-400" : "text-slate-400"}`} />
+              <span>Snap {enableSnapping ? "ON" : "OFF"}</span>
+            </button>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto justify-end">
+
+          {/* Action Buttons Row */}
+          <div className="flex items-center justify-between gap-2 pt-0.5">
             <button
-              onClick={handleSaveVisualCoords}
-              disabled={isSavingCoords}
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+              type="button"
+              onClick={() => handleDuplicateLot()}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
+              title="Clone this lot & position adjacent"
             >
-              {isSavingCoords ? "Saving..." : "Save"}
+              <Copy className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Duplicate</span>
             </button>
-            <button
-              onClick={() => setEditingLot(null)}
-              className="px-3 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 text-xs font-semibold rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingLot(null)}
+                className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800/80 text-xs font-medium rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveVisualCoords}
+                disabled={isSavingCoords}
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold rounded-xl transition-all active:scale-95 cursor-pointer"
+              >
+                {isSavingCoords ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAndAddNext}
+                disabled={isSavingCoords}
+                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-800 disabled:to-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-600/25 active:scale-95 cursor-pointer flex items-center gap-1.5"
+                title="Save coordinates and immediately start tracing the next adjacent lot!"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Save & Next</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Draggable Quick Add Lot Modal */}
+      {showQuickAddLot && !isBulkShifting && typeof document !== "undefined" &&
+        ReactDOM.createPortal(
+          <div
+            style={{
+              position: "fixed",
+              left: `${floatingPos.x}px`,
+              top: `${floatingPos.y}px`,
+              zIndex: 999999,
+            }}
+            className="bg-slate-900/95 backdrop-blur-2xl border border-slate-700/90 rounded-2xl shadow-2xl p-5 w-88 text-slate-200 select-none cursor-default animate-in fade-in zoom-in-95 duration-150"
+          >
+            {/* Draggable Header */}
+            <div
+              onMouseDown={handleFloatingMouseDown}
+              className="flex items-center justify-between pb-3 mb-3.5 border-b border-slate-800 cursor-move active:cursor-grabbing select-none"
+              title="Hold and drag to move this box"
+            >
+              <div className="flex items-center gap-2.5">
+                <GripHorizontal className="w-5 h-5 text-slate-400" />
+                <span className="font-bold text-white text-sm tracking-wide">Quick Add Lot</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuickAddLot(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateQuickLot} className="space-y-3.5 cursor-default">
+              {/* Lot Number Input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Lot Identifier / Number
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quickLotNumber}
+                  onChange={(e) => setQuickLotNumber(e.target.value)}
+                  placeholder="e.g. Lot 1"
+                  className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-semibold cursor-text shadow-inner"
+                  autoFocus
+                />
+              </div>
+
+              {/* Area (SQM) Input */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-slate-300">Area (m²)</label>
+                  <div className="flex items-center gap-1">
+                    {[100, 120, 150].map((sz) => (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => setQuickAreaSqm(sz)}
+                        className={`text-[11px] px-1.5 py-0.5 rounded-md border transition-all cursor-pointer font-semibold ${
+                          Number(quickAreaSqm) === sz
+                            ? "bg-blue-600 text-white border-blue-500 shadow-sm font-bold"
+                            : "bg-slate-800/90 text-slate-400 border-slate-700 hover:text-slate-200 hover:bg-slate-700"
+                        }`}
+                      >
+                        {sz}m²
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <input
+                  type="number"
+                  min="1"
+                  step="any"
+                  required
+                  value={quickAreaSqm}
+                  onChange={(e) => setQuickAreaSqm(e.target.value)}
+                  placeholder="100"
+                  className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-semibold cursor-text shadow-inner"
+                />
+              </div>
+
+              {/* Status Selector */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Status</label>
+                <div className="grid grid-cols-3 gap-1.5 bg-slate-950/70 p-1.5 rounded-xl border border-slate-800">
+                  {[
+                    { key: "Available", label: "Available" },
+                    { key: "Pending", label: "Pending" },
+                    { key: "Sold", label: "Sold" },
+                  ].map((st) => (
+                    <button
+                      key={st.key}
+                      type="button"
+                      onClick={() => setQuickStatus(st.key)}
+                      className={`py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer text-center ${
+                        quickStatus === st.key
+                          ? "bg-slate-700 text-white border-slate-600 shadow-sm ring-1 ring-white/10"
+                          : "border-transparent text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Action Button */}
+              <div className="pt-2 flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAddLot(false)}
+                  className="flex-1 py-2.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl text-xs font-semibold transition-colors cursor-pointer text-center"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingQuickLot}
+                  className="flex-[2] py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-800 disabled:to-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/30 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isCreatingQuickLot ? (
+                    <span>Placing...</span>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>Place Lot</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body
+        )}
 
       {/* Floating Bulk Shift Alignment Editor Panel */}
       {isBulkShifting && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-2xl p-4 z-[999] flex flex-col sm:flex-row items-center gap-4 transition-all duration-300 w-11/12 max-w-lg">
           <div className="flex-1">
             <span className="font-semibold text-red-600 dark:text-red-400 block text-sm flex items-center gap-1.5">
-              <span>⚡</span> Bulk Aligning Lots
+              Bulk Aligning Lots
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
               Drag the red crosshair handle in the center to slide all green lots into alignment.
@@ -1686,6 +2821,10 @@ function AdminViewMap() {
         onLotUpdated={handleLotUpdated}
         allowedStatuses={["Available", "Pending", "Sold"]}
         showCoordinateEdit={true}
+        onDuplicateLot={(lot) => {
+          setIsOffcanvasOpen(false);
+          handleDuplicateLot(lot);
+        }}
         onStartCoordinateEdit={(lot) => {
           setIsOffcanvasOpen(false);
           window.dispatchEvent(
@@ -1709,30 +2848,66 @@ function AdminViewMap() {
           overlayVisible={overlayVisible}
           isEditingOverlay={isEditingOverlay}
           overlayRotation={overlayRotation}
+          overlayMultiply={overlayMultiply}
+          overlayLineColor={overlayLineColor}
+          onLineColorChange={handleLineColorChange}
           isBulkShifting={isBulkShifting}
           onImageUpload={handleImageUpload}
           onOpacityChange={setOverlayOpacity}
-          onRotationChange={(deg) => {
-            setOverlayRotation(deg);
-            applyRotation(deg); // instant DOM update — no React state lag
+          onToggleMultiply={async () => {
+            const next = !overlayMultiply;
+            setOverlayMultiply(next);
+            if (next) {
+              if (!transparentOverlayRef.current && rawOverlayRef.current) {
+                transparentOverlayRef.current = await createTransparentPaperImage(rawOverlayRef.current, overlayLineColor, overlayRotation);
+              }
+              if (transparentOverlayRef.current) {
+                setOverlayImage(transparentOverlayRef.current);
+              }
+            } else {
+              if (rawOverlayRef.current) {
+                setOverlayImage(rawOverlayRef.current);
+              }
+            }
           }}
-          onFitToView={handleFitToView}
+          onRotationChange={handleRotationChange}
+          onRotate90={(delta) => handleRotationChange((overlayRotation + delta) % 360)}
+          onReset={handleResetOverlay}
+          onScaleOverlay={handleScaleOverlay}
+          onOpenCrop={() => setIsCropModalOpen(true)}
           onToggleVisible={() => setOverlayVisible((prev) => !prev)}
           onToggleEdit={() => setIsEditingOverlay((prev) => !prev)}
           onToggleBulkShift={() => {
             setIsBulkShifting((prev) => !prev);
             setBulkShiftOffset({ lat: 0, lng: 0 });
           }}
-          onRemove={() => {
-            if (overlayImage) URL.revokeObjectURL(overlayImage);
+          onRemove={async () => {
+            if (overlayImage && overlayImage.startsWith("blob:")) {
+              try { URL.revokeObjectURL(overlayImage); } catch (e) {}
+            }
             setOverlayImage(null);
             setOverlayBounds(null);
             setIsEditingOverlay(false);
             setOverlayRotation(0);
+            rawOverlayRef.current = null;
+            originalUploadedImageRef.current = null;
+            transparentOverlayRef.current = null;
+            unrotatedSpanRef.current = null;
+            if (selectedProperty) {
+              await removeBlueprintOverlay(selectedProperty);
+            }
           }}
           onClose={() => setShowOverlayPanel(false)}
         />
       )}
+
+      {/* ── Visual Blueprint Cropping Modal ──────────────────────────── */}
+      <BlueprintCropModal
+        isOpen={isCropModalOpen}
+        imageUrl={originalUploadedImageRef.current || rawOverlayRef.current}
+        onApplyCrop={handleApplyCrop}
+        onClose={() => setIsCropModalOpen(false)}
+      />
     </div>
   );
 }

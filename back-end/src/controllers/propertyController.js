@@ -2,11 +2,23 @@
 const db = require("../../config/database_connection");
 
 // ============================================================
-// GET ALL PROPERTIES - View all properties
+// GET ALL PROPERTIES - View all properties with dynamic lot count
 // ============================================================
 exports.getAllProperties = async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT * FROM properties ORDER BY property_id ASC");
+    const query = `
+      SELECT 
+        p.*,
+        COALESCE(lot_counts.actual_lots, 0) AS total_lots
+      FROM properties p
+      LEFT JOIN (
+        SELECT property_id, COUNT(*) AS actual_lots
+        FROM lots
+        GROUP BY property_id
+      ) lot_counts ON p.property_id = lot_counts.property_id
+      ORDER BY p.property_id ASC
+    `;
+    const [rows] = await db.query(query);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -14,13 +26,25 @@ exports.getAllProperties = async (req, res) => {
 };
 
 // ============================================================
-// GET SINGLE PROPERTY - View property details
+// GET SINGLE PROPERTY - View property details with dynamic lot count
 // ============================================================
 exports.getPropertyById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [rows] = await db.query("SELECT * FROM properties WHERE property_id = ?", [id]);
+    const query = `
+      SELECT 
+        p.*,
+        COALESCE(lot_counts.actual_lots, 0) AS total_lots
+      FROM properties p
+      LEFT JOIN (
+        SELECT property_id, COUNT(*) AS actual_lots
+        FROM lots
+        GROUP BY property_id
+      ) lot_counts ON p.property_id = lot_counts.property_id
+      WHERE p.property_id = ?
+    `;
+    const [rows] = await db.query(query, [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: "Property not found" });

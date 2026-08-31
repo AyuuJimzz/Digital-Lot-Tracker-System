@@ -19,7 +19,7 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
       <TileLayer
         url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         subdomains={["mt0", "mt1", "mt2", "mt3"]}
-        maxZoom={21}
+        maxZoom={28}
         maxNativeZoom={20}
         crossOrigin={false}
         keepBuffer={16}
@@ -35,7 +35,7 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
       <TileLayer
         url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
         subdomains={["mt0", "mt1", "mt2", "mt3"]}
-        maxZoom={21}
+        maxZoom={28}
         maxNativeZoom={20}
         crossOrigin={false}
         keepBuffer={16}
@@ -51,7 +51,7 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
     <TileLayer
       url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
       subdomains={["mt0", "mt1", "mt2", "mt3"]}
-      maxZoom={21}
+      maxZoom={28}
       maxNativeZoom={20}
       crossOrigin={false}
       keepBuffer={16}

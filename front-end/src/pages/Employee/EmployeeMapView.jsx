@@ -103,10 +103,18 @@ function MapController({
     };
   }, [map, setMap, setCurrentZoom]);
 
-  // Ensure map recalculates its exact full-screen dimensions
+  // Ensure map recalculates its exact full-screen dimensions and supports deep zooming
   useEffect(() => {
     if (!map) return;
+    map.setMaxZoom(28);
+    map.setMinZoom(1);
     map.invalidateSize();
+
+    const handleZoomIn = () => map.zoomIn(1);
+    const handleZoomOut = () => map.zoomOut(1);
+
+    window.addEventListener("mapZoomIn", handleZoomIn);
+    window.addEventListener("mapZoomOut", handleZoomOut);
 
     const t1 = setTimeout(() => map.invalidateSize(), 150);
     const handleResize = () => {
@@ -117,6 +125,8 @@ function MapController({
     return () => {
       clearTimeout(t1);
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener("mapZoomIn", handleZoomIn);
+      window.removeEventListener("mapZoomOut", handleZoomOut);
     };
   }, [map]);
 
@@ -496,7 +506,7 @@ const EmployeeMapView = () => {
       <MapContainer
         center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
         zoom={properties && properties.length > 0 ? 18 : 9}
-        maxZoom={21}
+        maxZoom={28}
         zoomControl={false}
         attributionControl={false}
         zoomAnimation={true}
@@ -505,8 +515,8 @@ const EmployeeMapView = () => {
         touchZoom={true}
         tap={false}
         bounceAtZoomLimits={false}
-        wheelDebounceTime={40}
-        wheelPxPerZoomLevel={120}
+        wheelDebounceTime={20}
+        wheelPxPerZoomLevel={60}
         inertia={true}
         inertiaDeceleration={3000}
         inertiaMaxSpeed={1500}
@@ -554,11 +564,8 @@ const EmployeeMapView = () => {
             autoPan={false}
             offset={[0, -10]}
           >
-            <div style={{ minWidth: "150px", padding: "2px" }} className="text-center">
-              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
-                Lot ID: {activePopupLot.lot_id}
-              </div>
-              <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a", marginBottom: "2px" }}>
+            <div style={{ minWidth: "140px", padding: "2px" }} className="text-center">
+              <div style={{ fontSize: "14px", fontWeight: 800, color: "#0f172a", marginBottom: "2px" }}>
                 {activePopupLot.lot_number}
               </div>
               <div style={{ fontSize: "11.5px", color: "#475569", marginBottom: "6px" }}>
@@ -773,8 +780,7 @@ const EmployeeMapView = () => {
                 {!isTouchDevice && (
                   <Tooltip permanent={false} direction="top" offset={[0, -18]}>
                     <div className="text-center text-xs leading-tight">
-                      <div className="mb-1 font-bold">Lot ID: {lot.lot_id}</div>
-                      <div className="mb-1 font-bold">{lot.lot_number}</div>
+                      <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
                       <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
                       <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
                         {lot.status}
