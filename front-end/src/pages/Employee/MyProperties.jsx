@@ -51,13 +51,24 @@ const MyProperties = () => {
         const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
         const fetchedProperties = Array.isArray(propertiesResponse.data) ? propertiesResponse.data : [];
 
+        // Map property names for clean display
+        const propNameMap = new Map();
+        fetchedProperties.forEach((p) => {
+          propNameMap.set(Number(p.property_id), p.property_name || `Property ${p.property_id}`);
+        });
+
         // Get IDs of active properties only
         const activePropertyIds = new Set(
           fetchedProperties.filter((p) => p.status !== "inactive").map((p) => p.property_id)
         );
 
         // Filter lots to only those belonging to active properties
-        const activeLots = fetchedLots.filter((lot) => activePropertyIds.has(lot.property_id));
+        const activeLots = fetchedLots
+          .filter((lot) => activePropertyIds.has(lot.property_id))
+          .map((lot) => ({
+            ...lot,
+            property_name: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
+          }));
 
         setLots(activeLots);
         try { sessionStorage.setItem("employeeLotsCache", JSON.stringify(activeLots)); } catch (e) {}
@@ -71,7 +82,8 @@ const MyProperties = () => {
 
   const filteredLots = useMemo(() => {
     return lots.filter((lot) => {
-      const searchText = `${lot.lot_id} ${lot.lot_number} ${lot.property_id} ${lot.area_sqm} ${lot.status}`.toLowerCase();
+      const propText = `${lot.property_name || ""} Property ${lot.property_id || ""}`.toLowerCase();
+      const searchText = `${lot.lot_number} ${propText} ${lot.area_sqm} ${lot.status}`.toLowerCase();
       const matchesSearch = searchTerm.trim() ? searchText.includes(searchTerm.trim().toLowerCase()) : true;
       const matchesStatus = statusFilter === "all" ? true : String(lot.status || "").toLowerCase() === statusFilter;
       return matchesSearch && matchesStatus;
@@ -108,7 +120,7 @@ const MyProperties = () => {
       {!error && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search lot id, lot number, property" className={inputCls} />
+            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search lot number, property..." className={inputCls} />
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={selectCls}>
               <option value="all">All Status</option>
               <option value="available">Available</option>
@@ -125,7 +137,7 @@ const MyProperties = () => {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                   <thead className="bg-gray-50 dark:bg-slate-800">
                     <tr>
-                      {["Lot ID", "Lot Number", "Property", "Area (sqm)", "Status"].map((col) => (
+                      {["Lot Number", "Property", "Area (sqm)", "Status"].map((col) => (
                         <th key={col} className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">{col}</th>
                       ))}
                     </tr>
@@ -133,10 +145,9 @@ const MyProperties = () => {
                   <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                     {paginatedLots.map((lot) => (
                       <tr key={lot.lot_id} className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">#{lot.lot_id}</td>
-                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{lot.lot_number}</td>
-                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">Property {lot.property_id}</td>
-                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">{lot.area_sqm ?? "-"}</td>
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm font-semibold text-blue-600 dark:text-blue-400">{lot.lot_number}</td>
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-800 dark:text-slate-200">{lot.property_name || `Property ${lot.property_id}`}</td>
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{lot.area_sqm ? `${lot.area_sqm} sqm` : "-"}</td>
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(lot.status)}`}>{lot.status ?? "Unknown"}</span>
                         </td>

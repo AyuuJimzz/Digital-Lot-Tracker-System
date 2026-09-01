@@ -91,6 +91,14 @@ const EmployeeDashboard = () => {
           sessionStorage.setItem("employeeStatsCache", JSON.stringify(newStats));
         } catch (e) {}
 
+        const propertiesList = Array.isArray(mapDataResponse?.data?.properties)
+          ? mapDataResponse.data.properties
+          : [];
+        const propNameMap = new Map();
+        propertiesList.forEach((p) => {
+          propNameMap.set(Number(p.property_id), p.property_name || `Property ${p.property_id}`);
+        });
+
         const updates = lots
           .slice()
           .sort((a, b) => Number(b.lot_id || 0) - Number(a.lot_id || 0))
@@ -98,6 +106,7 @@ const EmployeeDashboard = () => {
             id: lot.lot_id,
             lotNumber: lot.lot_number,
             propertyId: lot.property_id,
+            propertyName: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
             status: lot.status || "Unknown",
             area: lot.area_sqm,
           }));

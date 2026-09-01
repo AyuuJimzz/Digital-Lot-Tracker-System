@@ -28,8 +28,7 @@ body {
 }
 
 /* ── High-Performance Zoom Visibility (0 DOM node churn during flyTo) ── */
-.map-view-zoomed-out .custom-pin,
-.map-view-zoomed-out .map-road-label-icon {
+.map-view-zoomed-out .custom-pin {
   display: none !important;
 }
 
@@ -37,14 +36,28 @@ body {
   display: none !important;
 }
 
-/* ── Geo-anchored Road Labels: scale with map like polygons ── */
+.property-overview-beacon-marker {
+  overflow: visible !important;
+  background: transparent !important;
+  border: none !important;
+  z-index: 1000 !important;
+}
+
+/* ── Geo-anchored Road Labels: 100% hidden unless at street close-up level (Zoom 20+) ── */
 .map-road-label-icon {
+  display: none !important;
   overflow: visible !important;
   background: transparent !important;
   border: none !important;
   width: 0 !important;
   height: 0 !important;
 }
+
+.map-zoom-street-level .map-road-label-icon,
+.map-editing-labels-active .map-road-label-icon {
+  display: block !important;
+}
+
 .map-road-label-inner {
   will-change: transform;
   transition: transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);

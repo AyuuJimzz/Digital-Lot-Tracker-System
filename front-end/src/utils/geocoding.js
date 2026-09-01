@@ -1,7 +1,161 @@
 // front-end/src/utils/geocoding.js
 import axios from "axios";
 
-// Known Iloilo / Panay Locations & Municipalities Database (Instant High-Accuracy Local Cache)
+/**
+ * ── Comprehensive Municipalities & Cities Coordinates Database ──
+ * Covers all 43 LGUs of Iloilo Province, Iloilo City, Guimaras, and neighboring Panay/Negros hubs.
+ * Provides instant 0-latency coordinates even with weak internet or offline signal.
+ */
+export const MUNICIPALITY_COORDINATES = {
+  // ── Iloilo City & Districts ──
+  "iloilo city": [10.7202, 122.5621],
+  "iloilo": [10.7202, 122.5621],
+  "city proper": [10.6969, 122.5708],
+  "molo": [10.6961, 122.5442],
+  "timawa": [10.6975, 122.5486],
+  "mandurriao": [10.7167, 122.5333],
+  "jaro": [10.7289, 122.5594],
+  "la paz": [10.7103, 122.5694],
+  "lapaz": [10.7103, 122.5694],
+  "lapuz": [10.7025, 122.5806],
+  "villa arevalo": [10.6861, 122.5186],
+  "arevalo": [10.6861, 122.5186],
+
+  // ── 1st District (Southern Iloilo) ──
+  "oton": [10.7372, 122.4998],
+  "abilay": [10.7372, 122.4998],
+  "tigbauan": [10.6750, 122.3789],
+  "guimbal": [10.6713, 122.3353],
+  "nanga": [10.6713, 122.3353],
+  "tubungan": [10.8167, 122.3167],
+  "igbaras": [10.7167, 122.2667],
+  "miagao": [10.6431, 122.2339],
+  "miag-ao": [10.6431, 122.2339],
+  "san joaquin": [10.5878, 122.1408],
+
+  // ── 2nd District (Central Iloilo) ──
+  "pavia": [10.7744, 122.5408],
+  "pagsanga-an": [10.7685, 122.5365],
+  "santa barbara": [10.8242, 122.5342],
+  "sta. barbara": [10.8242, 122.5342],
+  "sta barbara": [10.8242, 122.5342],
+  "san miguel": [10.7797, 122.4644],
+  "alimodian": [10.8167, 122.4333],
+  "leon": [10.7833, 122.3833],
+  "leganes": [10.7833, 122.5833],
+  "zarraga": [10.8217, 122.6108],
+  "new lucena": [10.8667, 122.5833],
+
+  // ── 3rd District (Mid-North Iloilo) ──
+  "cabatuan": [10.8800, 122.4883],
+  "maasin": [10.8833, 122.4333],
+  "janiuay": [10.9575, 122.5022],
+  "badiangan": [10.9500, 122.5500],
+  "mina": [10.9167, 122.5833],
+  "pototan": [10.9472, 122.6289],
+  "calinog": [11.1167, 122.5000],
+  "bingawan": [11.1667, 122.5333],
+  "lambunao": [11.0500, 122.4833],
+
+  // ── 4th District (Eastern Iloilo) ──
+  "dingle": [11.0039, 122.6714],
+  "duenas": [11.0667, 122.6167],
+  "dueñas": [11.0667, 122.6167],
+  "san enrique": [11.0833, 122.6333],
+  "passi": [11.1072, 122.6414],
+  "passi city": [11.1072, 122.6414],
+  "barotac nuevo": [10.8906, 122.7042],
+  "barotac": [10.8906, 122.7042],
+  "dumangas": [10.8250, 122.7167],
+  "anilao": [10.9833, 122.7500],
+  "banate": [11.0167, 122.8000],
+
+  // ── 5th District (Northern Iloilo) ──
+  "barotac viejo": [11.0500, 122.8500],
+  "san rafael": [11.1667, 122.8500],
+  "lemery": [11.2333, 122.9167],
+  "ajuy": [11.1667, 122.9833],
+  "sara": [11.2667, 123.0167],
+  "concepcion": [11.2167, 123.1167],
+  "san dionisio": [11.2667, 123.0833],
+  "batad": [11.3167, 123.0833],
+  "estancia": [11.4500, 123.1500],
+  "balasan": [11.4333, 123.1000],
+  "carles": [11.5833, 123.1667],
+
+  // ── Guimaras Island ──
+  "jordan": [10.6500, 122.6000],
+  "buenavista": [10.7333, 122.6667],
+  "nueva valencia": [10.5333, 122.5333],
+  "san lorenzo": [10.6167, 122.6833],
+  "sibunag": [10.5500, 122.6000],
+  "guimaras": [10.6000, 122.6000],
+
+  // ── Neighboring Hubs (Panay / Negros) ──
+  "bacolod": [10.6766, 122.9510],
+  "bacolod city": [10.6766, 122.9510],
+  "roxas": [11.5853, 122.7511],
+  "roxas city": [11.5853, 122.7511],
+  "kalibo": [11.7083, 122.3667],
+  "san jose": [10.7500, 121.9333],
+};
+
+/**
+ * Default fallback coordinates map for the pre-seeded demo properties
+ */
+export const DEFAULT_COORDINATES_MAP = {
+  1: [10.7372, 122.4998], // LOT-3896 Oton Cadastre
+  2: [10.737956, 122.505478], // Lot-2018 Oton Cadastre
+  3: [10.671313, 122.335284], // Lot-204 Nanga Guimbal
+};
+
+/**
+ * ── Dynamic Property Location Resolver ──
+ * Resolves accurate coordinates for any existing, newly created, or offline property:
+ * 1. Checks localStorage cache (if property center was previously calculated from lots).
+ * 2. Checks MUNICIPALITY_COORDINATES table by scanning location string and property name.
+ * 3. Checks pre-seeded DEFAULT_COORDINATES_MAP if available.
+ * 4. Falls back to Iloilo Province Center [10.7202, 122.5621].
+ *
+ * @param {number|string} propertyId
+ * @param {string} [locationString]
+ * @param {string} [propertyName]
+ * @returns {[number, number]} [lat, lng]
+ */
+export function getPropertyFallbackCoordinates(propertyId, locationString = "", propertyName = "") {
+  const propIdNum = Number(propertyId);
+
+  // 1. Check auto-saved cache in localStorage
+  try {
+    const cached = localStorage.getItem(`prop_center_${propIdNum}`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length >= 2 && Number.isFinite(parsed[0]) && Number.isFinite(parsed[1])) {
+        return [parsed[0], parsed[1]];
+      }
+    }
+  } catch (e) {}
+
+  // 2. Scan location string & property name against our 43+ Municipalities Database
+  const combined = `${locationString || ""} ${propertyName || ""}`.toLowerCase();
+  for (const [key, coords] of Object.entries(MUNICIPALITY_COORDINATES)) {
+    if (combined.includes(key)) {
+      return coords;
+    }
+  }
+
+  // 3. Pre-seeded demo properties fallback
+  if (DEFAULT_COORDINATES_MAP[propIdNum]) {
+    return DEFAULT_COORDINATES_MAP[propIdNum];
+  }
+
+  // 4. Universal Iloilo Province Center
+  return [10.7202, 122.5621];
+}
+
+/**
+ * Known Iloilo / Panay Locations & Municipalities Database (Instant High-Accuracy Local Cache)
+ */
 const KNOWN_ILOILO_PLACES = [
   { keywords: ["timawa", "timawa i", "timawa ii", "timawa avenue", "molo timawa"], lat: 10.6975, lng: 122.5486, name: "Timawa, Molo, Iloilo City" },
   { keywords: ["molo", "molo plaza", "san pedro molo", "infante", "calumpang", "san juan molo"], lat: 10.6961, lng: 122.5442, name: "Molo, Iloilo City" },
@@ -195,5 +349,3 @@ export async function geocodeAddress(address) {
 
   return null;
 }
-
-

@@ -11,7 +11,7 @@ const getStatusClass = (status) => {
 
 const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
   const ROWS_PER_PAGE_OPTIONS = [5, 10, 20];
-  const SORTABLE_COLUMNS = ["id", "lotNumber", "propertyId", "area", "status"];
+  const SORTABLE_COLUMNS = ["lotNumber", "propertyName", "propertyId", "area", "status"];
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialSearchTerm = searchParams.get("q") || "";
@@ -24,12 +24,12 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
   const initialRowsPerPage = ROWS_PER_PAGE_OPTIONS.includes(parsedPerPage) ? parsedPerPage : 5;
   const parsedPage = Number(searchParams.get("page") || 1);
   const initialPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-  const initialSortKey = SORTABLE_COLUMNS.includes(searchParams.get("sort") || "id")
-    ? searchParams.get("sort") || "id"
-    : "id";
-  const initialSortDirection = ["asc", "desc"].includes(searchParams.get("dir") || "desc")
-    ? searchParams.get("dir") || "desc"
-    : "desc";
+  const initialSortKey = SORTABLE_COLUMNS.includes(searchParams.get("sort") || "lotNumber")
+    ? searchParams.get("sort") || "lotNumber"
+    : "lotNumber";
+  const initialSortDirection = ["asc", "desc"].includes(searchParams.get("dir") || "asc")
+    ? searchParams.get("dir") || "asc"
+    : "asc";
 
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearchTerm);
@@ -50,8 +50,9 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const status = String(item.status || "").toLowerCase();
+      const propText = `${item.propertyName || ""} Property ${item.propertyId || ""}`.toLowerCase();
       const searchText =
-        `${item.id} ${item.lotNumber} ${item.propertyId} ${item.status} ${item.area}`.toLowerCase();
+        `${item.lotNumber} ${propText} ${item.status} ${item.area}`.toLowerCase();
 
       const matchesSearch = debouncedSearchTerm.trim()
         ? searchText.includes(debouncedSearchTerm.trim().toLowerCase())
@@ -140,11 +141,11 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
       nextParams.set("page", String(currentPage));
     }
 
-    if (sortKey !== "id") {
+    if (sortKey !== "lotNumber") {
       nextParams.set("sort", sortKey);
     }
 
-    if (sortDirection !== "desc") {
+    if (sortDirection !== "asc") {
       nextParams.set("dir", sortDirection);
     }
 
@@ -169,7 +170,7 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
             type="text"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search lot id, lot number, property, status"
+            placeholder="Search lot number, property, status..."
             className="w-full lg:max-w-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
           />
 
@@ -218,19 +219,14 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
             <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
               <thead className="bg-gray-50/80 dark:bg-slate-800/80">
                 <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[15%]">
-                    <button type="button" onClick={() => handleSort("id")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
-                      Lot ID <span className="text-[10px] text-gray-400">{getSortIndicator("id")}</span>
-                    </button>
-                  </th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[28%]">
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[35%]">
                     <button type="button" onClick={() => handleSort("lotNumber")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
                       Lot Number <span className="text-[10px] text-gray-400">{getSortIndicator("lotNumber")}</span>
                     </button>
                   </th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[27%]">
-                    <button type="button" onClick={() => handleSort("propertyId")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
-                      Property <span className="text-[10px] text-gray-400">{getSortIndicator("propertyId")}</span>
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[35%]">
+                    <button type="button" onClick={() => handleSort("propertyName")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
+                      Property <span className="text-[10px] text-gray-400">{getSortIndicator("propertyName")}</span>
                     </button>
                   </th>
                   <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell w-[15%]">
@@ -248,10 +244,15 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
               <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800 text-sm">
                 {paginatedItems.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-5 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">#{item.id}</td>
-                    <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-slate-200">{item.lotNumber}</td>
-                    <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300">Property {item.propertyId}</td>
-                    <td className="px-4 py-3.5 text-center text-gray-700 dark:text-slate-300 hidden sm:table-cell">{item.area ?? "-"}</td>
+                    <td className="px-5 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                      {item.lotNumber}
+                    </td>
+                    <td className="px-4 py-3.5 font-medium text-gray-800 dark:text-slate-200">
+                      {item.propertyName || `Property ${item.propertyId}`}
+                    </td>
+                    <td className="px-4 py-3.5 text-center text-gray-700 dark:text-slate-300 hidden sm:table-cell">
+                      {item.area ? `${item.area} sqm` : "-"}
+                    </td>
                     <td className="px-5 py-3.5 text-right whitespace-nowrap">
                       <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(item.status)}`}>
                         {item.status}

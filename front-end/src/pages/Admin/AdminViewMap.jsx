@@ -20,7 +20,11 @@ import { MapAnnotationControl } from "../../components/admin/MapAnnotationContro
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
 import { MapLayerControls, ActiveMapTileLayer, MAP_LAYERS } from "../../components/admin/MapLayerControls";
 import { preloadAllProperties } from "../../utils/tilePreloader";
-import { geocodeAddress } from "../../utils/geocoding";
+import {
+  geocodeAddress,
+  MUNICIPALITY_COORDINATES,
+  DEFAULT_COORDINATES_MAP,
+} from "../../utils/geocoding";
 import {
   calculateGeodesicArea,
   autoIncrementLotNumber,
@@ -42,50 +46,24 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
-const DEFAULT_COORDINATES_MAP = {
-  1: [10.7372, 122.4998], // LOT-3896 Oton Cadastre
-  2: [10.737956, 122.505478], // Lot-2018 Oton Cadestra
-  3: [10.671313, 122.335284], // Lot-204 Nanga Guimbal
-};
-
-const MUNICIPALITY_COORDINATES = {
-  "barotac nuevo": [10.8906, 122.7042],
-  "barotac": [10.8906, 122.7042],
-  "oton": [10.7372, 122.4998],
-  "guimbal": [10.6713, 122.3353],
-  "nanga": [10.6713, 122.3353],
-  "pavia": [10.7744, 122.5408],
-  "santa barbara": [10.8242, 122.5342],
-  "leganes": [10.7833, 122.5833],
-  "dumangas": [10.8250, 122.7167],
-  "zarraga": [10.8217, 122.6108],
-  "pototan": [10.9472, 122.6289],
-  "janiuay": [10.9575, 122.5022],
-  "miagao": [10.6444, 122.2358],
-  "san joaquin": [10.5878, 122.1408],
-  "tigbauan": [10.6756, 122.3811],
-  "iloilo": [10.7202, 122.5621],
-  "passi": [11.1075, 122.6419],
-};
-
 // ── Lightweight Static Overview Location Beacon (no animation = no GPU stutter) ──
 const createOverviewPropertyIcon = (name, lotCount) => {
   return L.divIcon({
     className: "property-overview-beacon-marker",
     html: `
-      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;pointer-events:auto;">
-        <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#10b981,#047857);border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(16,185,129,0.35),0 4px 10px rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;">
-          <svg width="14" height="14" fill="white" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;pointer-events:auto;user-select:none;transform:translateY(-10px);">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#10b981,#047857);border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(16,185,129,0.4),0 4px 14px rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease;">
+          <svg width="16" height="16" fill="white" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
         </div>
-        <div style="margin-top:3px;background:rgba(15,23,42,0.92);border:1px solid rgba(16,185,129,0.8);padding:3px 9px;border-radius:9999px;white-space:nowrap;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,0.5);">
-          <span style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;flex-shrink:0;"></span>
-          <span style="color:#fff;font-size:11.5px;font-weight:700;letter-spacing:0.2px;">${name}</span>
-          ${lotCount > 0 ? `<span style="color:#6ee7b7;font-size:10.5px;font-weight:600;">(${lotCount})</span>` : ""}
+        <div style="margin-top:4px;background:rgba(15,23,42,0.95);border:1.5px solid rgba(16,185,129,0.85);padding:4px 11px;border-radius:9999px;white-space:nowrap;display:flex;align-items:center;gap:5px;box-shadow:0 4px 14px rgba(0,0,0,0.65);">
+          <span style="width:7px;height:7px;border-radius:50%;background:#34d399;display:inline-block;flex-shrink:0;"></span>
+          <span style="color:#fff;font-size:12px;font-weight:800;letter-spacing:0.3px;">${name}</span>
+          ${lotCount > 0 ? `<span style="color:#6ee7b7;font-size:11px;font-weight:700;">(${lotCount})</span>` : ""}
         </div>
       </div>
     `,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
+    iconSize: [240, 70],
+    iconAnchor: [120, 35],
   });
 };
 
@@ -107,16 +85,27 @@ function MapController({
     if (setMap) setMap(map);
     if (setCurrentZoom) setCurrentZoom(map.getZoom());
 
-    // Set initial geo-scale CSS variable for road labels
+    // Real-time geo-scale & street-level class tracking on DOM container
     const container = map.getContainer();
-    const setGeoScale = (z) => {
-      container.style.setProperty("--road-label-scale", Math.pow(2, z - 19));
-    };
-    setGeoScale(map.getZoom());
+    const updateZoomClasses = (z) => {
+      const scale = Math.max(0.18, Math.pow(1.85, z - 19));
+      container.style.setProperty("--road-label-scale", scale);
 
-    // Real-time geo-scale update during zoom animation (matches polygon scaling)
+      // Only show road text labels when zoomed in super close to roads (zoom >= 19.6)
+      if (z >= 19.6) {
+        container.classList.add("map-zoom-street-level");
+      } else {
+        container.classList.remove("map-zoom-street-level");
+      }
+    };
+    updateZoomClasses(map.getZoom());
+
     const handleZoomAnim = (e) => {
-      setGeoScale(e.zoom);
+      updateZoomClasses(e.zoom);
+    };
+
+    const handleZoom = () => {
+      updateZoomClasses(map.getZoom());
     };
 
     // Only update React state on zoomend to avoid re-renders during active animations
@@ -124,15 +113,18 @@ function MapController({
     const handleZoomEnd = () => {
       clearTimeout(debounceTimer);
       const z = map.getZoom();
-      setGeoScale(z);
+      updateZoomClasses(z);
       debounceTimer = setTimeout(() => {
         if (setCurrentZoom) setCurrentZoom(z);
       }, 80);
     };
+
     map.on("zoomanim", handleZoomAnim);
+    map.on("zoom", handleZoom);
     map.on("zoomend", handleZoomEnd);
     return () => {
       map.off("zoomanim", handleZoomAnim);
+      map.off("zoom", handleZoom);
       map.off("zoomend", handleZoomEnd);
       clearTimeout(debounceTimer);
     };
@@ -203,9 +195,12 @@ function MapController({
 
     // Listen for property selection events (from header dropdown or overview beacon)
     const handleSelectProperty = (event) => {
-      const { propertyId, coordinates: detailCoords } = event.detail || {};
+      const { propertyId, coordinates: detailCoords, autoSwiped } = event.detail || {};
       if (setSelectedProperty) setSelectedProperty(propertyId);
       prevPropertyIdRef.current = propertyId;
+
+      // If triggered by automatic map pan / swipe, do NOT flyTo (user is already looking at it)
+      if (autoSwiped) return;
 
       let targetCoords = null;
       if (properties) {
@@ -232,6 +227,57 @@ function MapController({
       window.removeEventListener("selectProperty", handleSelectProperty);
     };
   }, [map, setSelectedProperty, triggerArrivalPulse, properties]);
+
+  // Auto-detect closest property when user pans / swipes the map
+  useEffect(() => {
+    if (!map || !properties || properties.length === 0) return;
+
+    let debounceMoveTimer;
+    const handleMoveEnd = () => {
+      clearTimeout(debounceMoveTimer);
+      debounceMoveTimer = setTimeout(() => {
+        const curCenter = map.getCenter();
+        let closestProp = null;
+        let minDistanceMeters = Infinity;
+
+        properties.forEach((p) => {
+          const coords = p.coordinates || DEFAULT_COORDINATES_MAP[p.id];
+          if (!coords || !Array.isArray(coords) || coords.length < 2) return;
+          try {
+            const dist = curCenter.distanceTo(L.latLng(coords[0], coords[1]));
+            if (dist < minDistanceMeters) {
+              minDistanceMeters = dist;
+              closestProp = p;
+            }
+          } catch (e) {}
+        });
+
+        // If user is within 3km of this property and it is different from current selection
+        if (closestProp && minDistanceMeters < 3500) {
+          const closestId = Number(closestProp.id || closestProp.property_id);
+          if (closestId && closestId !== Number(prevPropertyIdRef.current)) {
+            prevPropertyIdRef.current = closestId;
+            if (setSelectedProperty) setSelectedProperty(closestId);
+            try {
+              localStorage.setItem("selectedProperty", closestId.toString());
+            } catch (e) {}
+            // Dispatch event to update Header dropdown name immediately
+            window.dispatchEvent(
+              new CustomEvent("selectProperty", {
+                detail: { propertyId: closestId, autoSwiped: true },
+              })
+            );
+          }
+        }
+      }, 120);
+    };
+
+    map.on("moveend", handleMoveEnd);
+    return () => {
+      map.off("moveend", handleMoveEnd);
+      clearTimeout(debounceMoveTimer);
+    };
+  }, [map, properties, setSelectedProperty]);
 
   // Fly to selected property on initial mount or when arriving from Manage Properties
   const initialFlyDoneRef = useRef(false);
@@ -417,6 +463,31 @@ function AdminViewMap() {
       }
     }
   }, [selectedProperty, mapData]);
+
+  // All annotations across all active properties so labels appear without clicking dropdown
+  const allPropertiesAnnotations = useMemo(() => {
+    if (!mapData?.properties) return [];
+    const result = [];
+    mapData.properties.forEach((p) => {
+      if (showAnnotationPanel && Number(p.property_id) === Number(selectedProperty)) {
+        result.push(
+          ...annotations.map((a) => ({ ...a, property_id: p.property_id }))
+        );
+        return;
+      }
+      if (!p.annotations) return;
+      try {
+        const parsed =
+          typeof p.annotations === "string" ? JSON.parse(p.annotations) : p.annotations;
+        if (Array.isArray(parsed)) {
+          result.push(
+            ...parsed.map((a) => ({ ...a, property_id: p.property_id }))
+          );
+        }
+      } catch (e) {}
+    });
+    return result;
+  }, [mapData, showAnnotationPanel, selectedProperty, annotations]);
 
   // Listen for openAnnotationPanel event from AdminHeader
   useEffect(() => {
@@ -2143,7 +2214,7 @@ function AdminViewMap() {
   return (
     <div
       ref={mapWrapperRef}
-      className={`w-full h-full relative ${currentZoom < 17 ? "map-view-zoomed-out" : "map-view-zoomed-in"}`}
+      className={`w-full h-full relative ${currentZoom < 19 ? "map-view-zoomed-out" : "map-view-zoomed-in"} ${showAnnotationPanel && isEditingAnnotations ? "map-editing-labels-active" : ""}`}
       style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}
     >
       <MapContainer
@@ -2746,30 +2817,44 @@ function AdminViewMap() {
           </>
         )}
 
-        {/* ── Road & Map Text Annotations (Only visible when zoomed into the subdivision) ── */}
-        {currentZoom >= 16 &&
-          annotations.map((item) => (
-            <Marker
-              key={item.id}
-              position={[item.lat, item.lng]}
-              draggable={isEditingAnnotations && showAnnotationPanel}
-              icon={createRoadLabelIcon(
-                item,
-                isEditingAnnotations && showAnnotationPanel,
-                activeAnnotationId === item.id
-              )}
-              eventHandlers={{
-                click: () => {
-                  setActiveAnnotationId(item.id);
-                  setShowAnnotationPanel(true);
-                },
-                dragend: (e) => {
-                  const { lat, lng } = e.target.getLatLng();
-                  handleUpdateAnnotation(item.id, { lat, lng });
-                },
-              }}
-            />
-          ))}
+        {/* ── Road & Map Text Annotations (Visible on Super Close 19.5+ OR always when Editing Panel is Open) ── */}
+        {(showAnnotationPanel || currentZoom >= 19.5) &&
+          allPropertiesAnnotations.map((item) => {
+            const isThisPropActive =
+              Number(item.property_id) === Number(selectedProperty);
+            const isInteractive =
+              isEditingAnnotations && showAnnotationPanel && isThisPropActive;
+            return (
+              <Marker
+                key={`${item.property_id || "p"}-${item.id}`}
+                position={[item.lat, item.lng]}
+                draggable={isInteractive}
+                icon={createRoadLabelIcon(
+                  item,
+                  isInteractive,
+                  activeAnnotationId === item.id && isThisPropActive
+                )}
+                eventHandlers={{
+                  click: () => {
+                    if (
+                      item.property_id &&
+                      Number(item.property_id) !== Number(selectedProperty)
+                    ) {
+                      setSelectedProperty(item.property_id);
+                    }
+                    setActiveAnnotationId(item.id);
+                    setShowAnnotationPanel(true);
+                  },
+                  dragend: (e) => {
+                    if (isInteractive) {
+                      const { lat, lng } = e.target.getLatLng();
+                      handleUpdateAnnotation(item.id, { lat, lng });
+                    }
+                  },
+                }}
+              />
+            );
+          })}
       </MapContainer>
 
       {/* Floating Coordinate Editor Panel — Eye-Friendly Executive Glassmorphic Design */}
