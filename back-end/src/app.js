@@ -69,8 +69,12 @@ const apiLimiter = rateLimit({
 
 app.use("/api", apiLimiter);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// ── OWASP A03: Automatic XSS & HTML Injection Input Sanitization ──
+const { sanitizeBodyMiddleware } = require("./utils/sanitizer");
+app.use(sanitizeBodyMiddleware);
 
 // ── Session Configuration (OWASP A02 & A07) ──
 app.use(
@@ -90,10 +94,13 @@ app.use(
 // ── Maintenance Mode Check ──
 app.use(checkMaintenance);
 
-// Health check endpoint (used by UptimeRobot & monitoring)
-app.get("/api/health", (req, res) => {
+// ── Health Check & Keep-Alive Endpoints (Used by UptimeRobot & Render Keep-Awake) ──
+const handleHealthCheck = (req, res) => {
   res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
-});
+};
+app.get("/api/health", handleHealthCheck);
+app.get("/health", handleHealthCheck);
+app.get("/ping", handleHealthCheck);
 
 // ── Routes with Security Middleware ──
 app.use("/api/developer", developerRoutes);

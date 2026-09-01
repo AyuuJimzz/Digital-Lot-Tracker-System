@@ -28,8 +28,15 @@ body {
 }
 
 /* ── High-Performance Zoom Visibility (0 DOM node churn during flyTo) ── */
-.map-view-zoomed-out .custom-pin {
+.map-view-zoomed-out .custom-pin,
+.map-view-zoomed-out .leaflet-tooltip,
+.map-view-zoomed-out .leaflet-tooltip-pane {
   display: none !important;
+}
+
+.leaflet-tooltip {
+  pointer-events: none !important;
+  user-select: none !important;
 }
 
 .map-view-zoomed-in .property-overview-beacon-marker {

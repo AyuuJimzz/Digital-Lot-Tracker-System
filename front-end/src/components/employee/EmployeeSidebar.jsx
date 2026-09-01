@@ -5,10 +5,10 @@ import logo from "../../assets/image/golden-dragon-logo.png";
 
 const navItems = [
   { title: "Dashboard", url: "/employee-panel", icon: LayoutDashboard },
-  { title: "My Properties", url: "/employee/my-properties", icon: Home },
-  { title: "My Sales", url: "/employee/my-sales", icon: FileText },
-  { title: "My Clients", url: "/employee/my-clients", icon: Users },
   { title: "Map View", url: "/employee/map-view", icon: Map },
+  { title: "My Properties", url: "/employee/my-properties", icon: Home },
+  { title: "My Clients", url: "/employee/my-clients", icon: Users },
+  { title: "My Sales", url: "/employee/my-sales", icon: FileText },
   { title: "Settings", url: "/employee/settings", icon: Settings },
 ];
 

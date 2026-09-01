@@ -5,9 +5,9 @@ import logo from "../../assets/image/golden-dragon-logo.png";
 
 const navItems = [
   { title: "Dashboard", url: "/admin-panel", icon: LayoutDashboard },
-  { title: "Manage Employees", url: "/manage-employees", icon: Users },
-  { title: "Manage Properties", url: "/manage-properties", icon: Building2 },
   { title: "Map View", url: "/manage-lots", icon: Map },
+  { title: "Manage Properties", url: "/manage-properties", icon: Building2 },
+  { title: "Manage Employees", url: "/manage-employees", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

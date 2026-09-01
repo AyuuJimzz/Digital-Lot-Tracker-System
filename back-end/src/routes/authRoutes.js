@@ -9,21 +9,29 @@ const sessionOrToken = require("../middleware/session_or_token");
 
 const requireAuth = sessionOrToken({ roles: ["admin", "employee"] });
 
-// Rate limit specifically for actual credential verification (login & forgot-password)
+// ── OWASP Hardened Rate Limiter: Strict Brute-Force & Credential Stuffing Shield ──
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // 20 failed login attempts
+  windowMs: 15 * 60 * 1000, // 15 minutes lockout window
+  max: 5, // Strictly allow maximum 5 failed attempts per IP
+  skipSuccessfulRequests: true, // Do NOT count successful logins against the user
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Too many login attempts. Please try again after 15 minutes." },
+  message: {
+    success: false,
+    message: "Too many failed login attempts. Your IP has been temporarily locked. Please try again after 15 minutes.",
+  },
 });
 
 const forgotPasswordLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  windowMs: 15 * 60 * 1000, // 15 minutes lockout window
+  max: 5, // Maximum 5 attempts
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: "Too many password reset attempts. Please try again after 15 minutes." },
+  message: {
+    success: false,
+    message: "Too many password reset requests. Please try again after 15 minutes.",
+  },
 });
 
 // Login & Auth

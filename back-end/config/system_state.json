@@ -3,6 +3,114 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-09-01T18:51:04.047Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:51:02.684Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:39:19.623Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:39:17.888Z",
+      "event": "User Logged Out: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:38:38.119Z",
+      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:37:00.158Z",
+      "event": "Email delivered to: joan.bearneza.ui@phinmaed.com | Subject: \"Password Reset - Temporary Password\"",
+      "type": "EMAIL",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-01T18:35:00.965Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:34:21.227Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:34:19.387Z",
+      "event": "User Logged Out: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:27:00.377Z",
+      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:26:06.241Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T18:24:50.449Z",
+      "event": "Email delivered to: joan.bearneza.ui@phinmaed.com | Subject: \"Welcome to Golden Dragon - Your Staff Credentials\"",
+      "type": "EMAIL",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
       "timestamp": "2026-09-01T14:01:07.978Z",
       "event": "User Logged In: admin@gmail.com (ADMIN)",
       "type": "AUTH",

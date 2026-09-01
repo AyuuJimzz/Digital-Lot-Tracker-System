@@ -1,7 +1,38 @@
--- Golden Dragon Corp Database Backup
--- Table: lots
--- Generated on: 2026-09-01T18:39:54.895Z
+-- Golden Dragon Corp FULL CONSOLIDATED DATABASE BACKUP
+-- Generated on: 2026-09-01T18:39:54.907Z
+/*!40101 SET NAMES utf8mb4 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 
+-- ------------------------------------------------------
+-- Table structure for `properties`
+-- ------------------------------------------------------
+DROP TABLE IF EXISTS `properties`;
+CREATE TABLE `properties` (
+  `property_id` int NOT NULL AUTO_INCREMENT,
+  `property_name` varchar(255) DEFAULT NULL,
+  `location` text,
+  `total_lots` int DEFAULT NULL,
+  `status` enum('active','inactive') DEFAULT 'active',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `annotations` json DEFAULT NULL,
+  PRIMARY KEY (`property_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+LOCK TABLES `properties` WRITE;
+/*!40000 ALTER TABLE `properties` DISABLE KEYS */;
+INSERT INTO `properties` (`property_id`, `property_name`, `location`, `total_lots`, `status`, `created_at`, `updated_at`, `annotations`) VALUES
+  (1, 'LOT-3896 Oton Cadastre', 'Brgy. Abilay Norte, Oton, Iloilo', 207, 'active', '2026-03-18 14:44:24', '2026-09-01 21:28:43', '[{"id":"label_1788234376724","lat":10.738008969896567,"lng":122.49926112592222,"text":"ROAD LOT 2 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-55},{"id":"label_1788234472835","lat":10.737854149391804,"lng":122.49955147504808,"text":"ROAD LOT 3 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-55},{"id":"label_1788234804295","lat":10.73773951628608,"lng":122.49974727630617,"text":"ROAD LOT 3 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-55},{"id":"label_1788234901274","lat":10.737626200759534,"lng":122.49994441866878,"text":"ROAD LOT 4 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-55},{"id":"label_1788234957329","lat":10.737524743798526,"lng":122.50016167759895,"text":"ROAD LOT 5 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-55},{"id":"label_1788235010073","lat":10.737425922050502,"lng":122.50038832426074,"text":"ROAD LOT 6 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-55},{"id":"label_1788235118918","lat":10.737361358491022,"lng":122.50062435865404,"text":"ROAD LOT 7 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":29},{"id":"label_1788235202889","lat":10.737288230361058,"lng":122.49953672289853,"text":"ROAD LOT 8 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-57},{"id":"label_1788235258396","lat":10.737149879796492,"lng":122.50000275671484,"text":"ROAD LOT 9 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":26},{"id":"label_1788235307869","lat":10.73698517666085,"lng":122.49994777143004,"text":"ROAD LOT 10 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":26},{"id":"label_1788235354727","lat":10.73697463565711,"lng":122.49964132905008,"text":"ROAD LOT 11 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-57},{"id":"label_1788235424472","lat":10.73684089664025,"lng":122.4998277425766,"text":"ROAD LOT 12 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-56},{"id":"label_1788235464829","lat":10.736702545870871,"lng":122.50002019107345,"text":"ROAD LOT 13 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-57},{"id":"label_1788235501023","lat":10.736620194192351,"lng":122.50019922852518,"text":"ROAD LOT 14 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":26},{"id":"label_1788235644915","lat":10.736826402753092,"lng":122.50055730342866,"text":"ROAD LOT 15 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-56},{"id":"label_1788235707740","lat":10.736174835926043,"lng":122.50018917024136,"text":"ROAD LOT 16 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-57},{"id":"label_1788235759602","lat":10.735336822734205,"lng":122.49975733459,"text":"ROAD LOT 16 (6.50 M. WIDE)","color":"#34d399","fontSize":6,"rotation":-55}]'),
+  (2, 'Lot-2018 Oton Cadastre', 'Brgy. Abilay Norte, Oton, Iloilo', 166, 'active', '2026-03-24 09:07:18', '2026-09-02 00:23:20', '[{"id":"label_1788279019927","lat":10.738784718252392,"lng":122.50627208501102,"text":"ENTRANCE","color":"#34d399","fontSize":10,"rotation":-58},{"id":"label_1788279079142","lat":10.738486607124136,"lng":122.50566188246012,"text":"7 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":33},{"id":"label_1788279189230","lat":10.73814896709322,"lng":122.50556699931624,"text":"6 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":35},{"id":"label_1788279265504","lat":10.738045863281748,"lng":122.50600386410952,"text":"10 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":35},{"id":"label_1788279317923","lat":10.73853239437732,"lng":122.50637099146844,"text":"8 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":25},{"id":"label_1788279353361","lat":10.738273482192442,"lng":122.50620402395728,"text":"9 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":31},{"id":"label_1788279386433","lat":10.737779703759136,"lng":122.5058301910758,"text":"11 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":34},{"id":"label_1788279426471","lat":10.737905536631956,"lng":122.50544395297769,"text":"5 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":35},{"id":"label_1788279471191","lat":10.73751519103096,"lng":122.50568568706514,"text":"12 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":34},{"id":"label_1788279508994","lat":10.737671658737488,"lng":122.50529106706382,"text":"4 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":35},{"id":"label_1788279546468","lat":10.737275054119538,"lng":122.5054617226124,"text":"13 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":35},{"id":"label_1788279582741","lat":10.737424604426987,"lng":122.5051371753216,"text":"3 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":35},{"id":"label_1788279618487","lat":10.737007246886234,"lng":122.50528872013092,"text":"14 (6.00 M. W.)","color":"#34d399","fontSize":8,"rotation":34},{"id":"label_1788279648567","lat":10.737523096769657,"lng":122.50543255358936,"text":"ROAD LOT 1 (8.00 M. WIDE)","color":"#34d399","fontSize":8,"rotation":-57},{"id":"label_1788279707760","lat":10.73791278354974,"lng":122.5052494928241,"text":"ROAD LOT 2 (6.00 M. WIDE)","color":"#34d399","fontSize":8,"rotation":-60}]'),
+  (3, 'Lot-204 Nanga Guimbal', 'Brgy. Nanga, Guimbal, Iloilo', 223, 'active', '2026-04-09 18:00:19', '2026-09-02 01:21:50', '[{"id":"label_1788282183635","lat":10.673007043542524,"lng":122.33475387096406,"text":"ROAD LOT 9 (10.00 M. WIDE)","color":"#34d399","fontSize":10,"rotation":-31},{"id":"label_1788282232096","lat":10.6733127970266,"lng":122.33508311212064,"text":"8 M. W.","color":"#34d399","fontSize":10,"rotation":50},{"id":"label_1788282271974","lat":10.672673613746008,"lng":122.33516760170464,"text":"ROAD LOT 9 (10.00 METERS WIDE)","color":"#34d399","fontSize":10,"rotation":48},{"id":"label_1788282344561","lat":10.672404760995542,"lng":122.33472168445589,"text":"ROAD LOT 10 (10.00 M. W.)","color":"#34d399","fontSize":10,"rotation":52},{"id":"label_1788282410888","lat":10.67244429817964,"lng":122.3358810693026,"text":"ROAD LOT 1 (12.00 METERS WIDE)","color":"#34d399","fontSize":10,"rotation":-29},{"id":"label_1788282475728","lat":10.67217939894803,"lng":122.3362183570862,"text":"ROAD LOT 2 (10.00 METERS WIDE)","color":"#34d399","fontSize":10,"rotation":-28},{"id":"label_1788282582225","lat":10.67218928325187,"lng":122.33695797622204,"text":"ROAD LOT 6 (10.00 M. W.)","color":"#34d399","fontSize":10,"rotation":-26},{"id":"label_1788282650539","lat":10.671879574912406,"lng":122.33723156154156,"text":"ROAD LOT 5 (10.00 M. W.)","color":"#34d399","fontSize":10,"rotation":-26},{"id":"label_1788282706015","lat":10.67148288419553,"lng":122.33781158924104,"text":"ROAD LOT 2 (12.00 METERS WIDE)","color":"#34d399","fontSize":10,"rotation":59},{"id":"label_1788282785148","lat":10.67155009760922,"lng":122.33748435974124,"text":"ROAD LOT 3 (10.00 M. W.)","color":"#34d399","fontSize":10,"rotation":-26},{"id":"label_1788282941189","lat":10.67218730639112,"lng":122.33462378382686,"text":"RD LOT 7 (10.00 M. W.)","color":"#34d399","fontSize":10,"rotation":-29},{"id":"label_1788283075437","lat":10.671006459278424,"lng":122.33541101217271,"text":"ROAD LOT 3 (10.00 METERS WIDE)","color":"#34d399","fontSize":10,"rotation":-22},{"id":"label_1788283146100","lat":10.670593952454007,"lng":122.33518436551095,"text":"ROAD LOT 1 (12.00 METERS WIDE)","color":"#34d399","fontSize":10,"rotation":56},{"id":"label_1788283232830","lat":10.670827223155094,"lng":122.33461171388628,"text":"RD LOT 4 (7.00 M. W.)","color":"#34d399","fontSize":10,"rotation":62}]');
+/*!40000 ALTER TABLE `properties` ENABLE KEYS */;
+UNLOCK TABLES;
+
+-- ------------------------------------------------------
+-- Table structure for `lots`
+-- ------------------------------------------------------
 DROP TABLE IF EXISTS `lots`;
 CREATE TABLE `lots` (
   `lot_id` int NOT NULL AUTO_INCREMENT,
@@ -619,3 +650,95 @@ INSERT INTO `lots` (`lot_id`, `property_id`, `lot_number`, `area_sqm`, `status`,
   (613, 3, 'BLOCK 11 Lot 15', '120.00', 'Available', '[[10.672988587355864,122.33492251485586],[10.673021864454276,122.33489150181414],[10.673034878764051,122.33489401638506],[10.673111646706568,122.33502712100749],[10.673071285880829,122.33506483957174]]', NULL, NULL);
 /*!40000 ALTER TABLE `lots` ENABLE KEYS */;
 UNLOCK TABLES;
+
+-- ------------------------------------------------------
+-- Table structure for `customers`
+-- ------------------------------------------------------
+DROP TABLE IF EXISTS `customers`;
+CREATE TABLE `customers` (
+  `customer_id` int NOT NULL AUTO_INCREMENT,
+  `lot_id` int NOT NULL,
+  `full_name` varchar(255) NOT NULL,
+  `contact_number` varchar(50) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `address` text NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`customer_id`),
+  KEY `lot_id` (`lot_id`),
+  CONSTRAINT `customers_ibfk_1` FOREIGN KEY (`lot_id`) REFERENCES `lots` (`lot_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ------------------------------------------------------
+-- Table structure for `admins`
+-- ------------------------------------------------------
+DROP TABLE IF EXISTS `admins`;
+CREATE TABLE `admins` (
+  `admin_id` int NOT NULL AUTO_INCREMENT,
+  `email` varchar(150) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `full_name` varchar(200) NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `password_reset_required` tinyint(1) DEFAULT '0',
+  `temp_password_expiry` datetime DEFAULT NULL,
+  PRIMARY KEY (`admin_id`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+LOCK TABLES `admins` WRITE;
+/*!40000 ALTER TABLE `admins` DISABLE KEYS */;
+INSERT INTO `admins` (`admin_id`, `email`, `password`, `full_name`, `created_at`, `password_reset_required`, `temp_password_expiry`) VALUES
+  (2, 'admin@gmail.com', '$2b$10$tItB.AA02Ln7W7muEmm4wOY4o5sgFZ/th7FHxbRRn0IdOi5dpI1ri', 'My Admin', '2026-02-18 03:37:20', 0, NULL);
+/*!40000 ALTER TABLE `admins` ENABLE KEYS */;
+UNLOCK TABLES;
+
+-- ------------------------------------------------------
+-- Table structure for `employees`
+-- ------------------------------------------------------
+DROP TABLE IF EXISTS `employees`;
+CREATE TABLE `employees` (
+  `employee_id` int NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(100) NOT NULL,
+  `last_name` varchar(100) NOT NULL,
+  `email` varchar(150) DEFAULT NULL,
+  `password` varchar(150) DEFAULT NULL,
+  `password_reset_required` tinyint(1) DEFAULT '0',
+  `temp_password_expiry` datetime DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'active',
+  `last_login` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`employee_id`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+LOCK TABLES `employees` WRITE;
+/*!40000 ALTER TABLE `employees` DISABLE KEYS */;
+INSERT INTO `employees` (`employee_id`, `first_name`, `last_name`, `email`, `password`, `password_reset_required`, `temp_password_expiry`, `status`, `last_login`, `created_at`) VALUES
+  (1, 'james', 'delos santos', 'jamesdelossantos1028@gmail.com', '$2b$10$K6vblrnIP1B6SthMyHy8Uu39CS/Lg1gR76S/eJf1LGhc54FdZHF0S', 0, NULL, 'active', '2026-09-01 21:09:01', '2026-08-31 18:03:07'),
+  (7, 'John Edward', 'Bearneza', 'joan.bearneza.ui@phinmaed.com', '$2b$10$Kuw/JBnoiLgb3RE3vzmV1.78XUFvOgWSrpEzEbTWNa9Ltq3R6a3xa', 0, NULL, 'active', '2026-09-02 02:38:38', '2026-09-02 02:24:49');
+/*!40000 ALTER TABLE `employees` ENABLE KEYS */;
+UNLOCK TABLES;
+
+-- ------------------------------------------------------
+-- Table structure for `transactions`
+-- ------------------------------------------------------
+DROP TABLE IF EXISTS `transactions`;
+CREATE TABLE `transactions` (
+  `transaction_id` int NOT NULL AUTO_INCREMENT,
+  `lot_id` int NOT NULL,
+  `customer_id` int NOT NULL,
+  `transaction_date` datetime DEFAULT CURRENT_TIMESTAMP,
+  `payment_type` enum('Cash','Installment','No Downpayment','Bank Transfer','Online Payment') DEFAULT 'Cash',
+  `notes` text,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`transaction_id`),
+  KEY `lot_id` (`lot_id`),
+  KEY `customer_id` (`customer_id`),
+  KEY `idx_transaction_date` (`transaction_date`),
+  CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`lot_id`) REFERENCES `lots` (`lot_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;

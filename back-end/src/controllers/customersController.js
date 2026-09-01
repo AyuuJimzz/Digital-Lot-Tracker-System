@@ -1,5 +1,6 @@
 // controllers/customersController.js
 const db = require("../../config/database_connection");
+const { sanitizeText, sanitizeEmail, sanitizePhone, sanitizeNotes } = require("../utils/sanitizer");
 
 // =======================
 // GET ALL CUSTOMERS

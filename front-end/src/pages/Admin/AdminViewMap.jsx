@@ -88,11 +88,11 @@ function MapController({
     // Real-time geo-scale & street-level class tracking on DOM container
     const container = map.getContainer();
     const updateZoomClasses = (z) => {
-      const scale = Math.max(0.18, Math.pow(1.85, z - 19));
+      const scale = Math.max(0.45, Math.pow(1.4, z - 19));
       container.style.setProperty("--road-label-scale", scale);
 
-      // Only show road text labels when zoomed in super close to roads (zoom >= 19.6)
-      if (z >= 19.6) {
+      // Show road text labels at comfortable subdivision view (zoom >= 18.2)
+      if (z >= 18.2) {
         container.classList.add("map-zoom-street-level");
       } else {
         container.classList.remove("map-zoom-street-level");
@@ -119,13 +119,26 @@ function MapController({
       }, 80);
     };
 
+    // Auto-close any lingering hover tooltips when map begins moving/dragging/zooming
+    const handleDismissTooltips = () => {
+      try {
+        map.closeTooltip();
+      } catch (e) {}
+    };
+
     map.on("zoomanim", handleZoomAnim);
     map.on("zoom", handleZoom);
     map.on("zoomend", handleZoomEnd);
+    map.on("movestart", handleDismissTooltips);
+    map.on("dragstart", handleDismissTooltips);
+    map.on("zoomstart", handleDismissTooltips);
     return () => {
       map.off("zoomanim", handleZoomAnim);
       map.off("zoom", handleZoom);
       map.off("zoomend", handleZoomEnd);
+      map.off("movestart", handleDismissTooltips);
+      map.off("dragstart", handleDismissTooltips);
+      map.off("zoomstart", handleDismissTooltips);
       clearTimeout(debounceTimer);
     };
   }, [map, setMap, setCurrentZoom]);
@@ -137,8 +150,8 @@ function MapController({
     map.setMinZoom(1);
     map.invalidateSize();
 
-    const handleZoomIn = () => map.zoomIn(1);
-    const handleZoomOut = () => map.zoomOut(1);
+    const handleZoomIn = () => map.zoomIn(0.5);
+    const handleZoomOut = () => map.zoomOut(0.5);
 
     window.addEventListener("mapZoomIn", handleZoomIn);
     window.addEventListener("mapZoomOut", handleZoomOut);
@@ -279,19 +292,20 @@ function MapController({
     };
   }, [map, properties, setSelectedProperty]);
 
-  // Fly to selected property on initial mount or when arriving from Manage Properties
+  // Set view to selected property directly on initial mount (no delayed flyTo jump)
   const initialFlyDoneRef = useRef(false);
   useEffect(() => {
     if (!map || initialFlyDoneRef.current) return;
     if (!properties || properties.length === 0) {
       initialFlyDoneRef.current = true;
-      map.setView([10.90, 122.60], 9);
+      map.setView([10.90, 122.60], 9, { animate: false });
       return;
     }
     const targetProp = properties.find((p) => Number(p.id) === Number(selectedProperty));
     if (targetProp && targetProp.coordinates) {
       initialFlyDoneRef.current = true;
-      map.flyTo(targetProp.coordinates, 19, { duration: 2.0, easeLinearity: 0.18 });
+      map.setView(targetProp.coordinates, 19, { animate: false });
+      map.invalidateSize({ animate: false });
     }
   }, [map, properties, selectedProperty]);
 
@@ -2214,12 +2228,14 @@ function AdminViewMap() {
   return (
     <div
       ref={mapWrapperRef}
-      className={`w-full h-full relative ${currentZoom < 19 ? "map-view-zoomed-out" : "map-view-zoomed-in"} ${showAnnotationPanel && isEditingAnnotations ? "map-editing-labels-active" : ""}`}
+      className={`w-full h-full relative ${currentZoom < 18 ? "map-view-zoomed-out" : "map-view-zoomed-in"} ${showAnnotationPanel && isEditingAnnotations ? "map-editing-labels-active" : ""}`}
       style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}
     >
       <MapContainer
         center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
-        zoom={properties && properties.length > 0 ? 18 : 9}
+        zoom={properties && properties.length > 0 ? 19 : 9}
+        zoomDelta={0.5}
+        zoomSnap={0.25}
         maxZoom={28}
         zoomControl={false}
         attributionControl={false}
@@ -2229,8 +2245,8 @@ function AdminViewMap() {
         touchZoom={true}
         tap={false}
         bounceAtZoomLimits={false}
-        wheelDebounceTime={20}
-        wheelPxPerZoomLevel={60}
+        wheelDebounceTime={40}
+        wheelPxPerZoomLevel={140}
         inertia={true}
         inertiaDeceleration={3000}
         inertiaMaxSpeed={1500}
@@ -2705,8 +2721,15 @@ function AdminViewMap() {
                     click: handleLotClick,
                   }}
                 >
-                  {!isTouchDevice && (
-                    <Tooltip permanent={false} direction="top" offset={[0, -18]}>
+                  {!isTouchDevice && currentZoom >= 19 && (
+                    <Tooltip
+                      permanent={false}
+                      direction="top"
+                      offset={[0, -18]}
+                      sticky={false}
+                      interactive={false}
+                      opacity={0.95}
+                    >
                       <div className="text-center text-xs leading-tight">
                         <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
                         <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
