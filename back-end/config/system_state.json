@@ -3,6 +3,24 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-09-01T04:24:02.401Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-01T04:23:58.892Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-08-31T11:05:21.131Z",
       "event": "User Logged In: admin@gmail.com (ADMIN)",
       "type": "AUTH",

@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus } from "lucide-react";
+import { User, LogOut, Settings, UserCircle, MapPin, Edit, Moon, Sun, Plus, Type } from "lucide-react";
 import axios from "axios";
 import { geocodeAddress } from "../../utils/geocoding";
 
@@ -319,6 +319,16 @@ export function AdminHeader({ sidebarCollapsed }) {
                 >
                   <Plus className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   Add New Lot
+                </button>
+                <button
+                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700 cursor-pointer"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("openAnnotationPanel"));
+                    setLotsDropdownOpen(false);
+                  }}
+                >
+                  <Type className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  Road & Map Labels
                 </button>
               </div>
             )}

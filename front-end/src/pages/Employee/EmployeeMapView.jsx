@@ -88,16 +88,32 @@ function MapController({
     if (setMap) setMap(map);
     if (setCurrentZoom) setCurrentZoom(map.getZoom());
 
-    // Only update on zoomend to avoid React re-renders during active animations
+    // Set initial geo-scale CSS variable for road labels
+    const container = map.getContainer();
+    const setGeoScale = (z) => {
+      container.style.setProperty("--road-label-scale", Math.pow(2, z - 19));
+    };
+    setGeoScale(map.getZoom());
+
+    // Real-time geo-scale update during zoom animation (matches polygon scaling)
+    const handleZoomAnim = (e) => {
+      setGeoScale(e.zoom);
+    };
+
+    // Only update React state on zoomend
     let debounceTimer;
     const handleZoomEnd = () => {
       clearTimeout(debounceTimer);
+      const z = map.getZoom();
+      setGeoScale(z);
       debounceTimer = setTimeout(() => {
-        if (setCurrentZoom) setCurrentZoom(map.getZoom());
+        if (setCurrentZoom) setCurrentZoom(z);
       }, 80);
     };
+    map.on("zoomanim", handleZoomAnim);
     map.on("zoomend", handleZoomEnd);
     return () => {
+      map.off("zoomanim", handleZoomAnim);
       map.off("zoomend", handleZoomEnd);
       clearTimeout(debounceTimer);
     };
@@ -407,6 +423,52 @@ const EmployeeMapView = () => {
         .map((p) => Number(p.property_id))
     );
   }, [mapData]);
+
+  // Road & Map Text Annotations for selected property
+  const propertyAnnotations = useMemo(() => {
+    if (!selectedProperty || !mapData?.properties) return [];
+    const prop = mapData.properties.find(
+      (p) => Number(p.property_id) === Number(selectedProperty)
+    );
+    if (!prop || !prop.annotations) return [];
+    try {
+      const parsed =
+        typeof prop.annotations === "string"
+          ? JSON.parse(prop.annotations)
+          : prop.annotations;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [selectedProperty, mapData]);
+
+  const createRoadLabelIcon = useCallback((item) => {
+    return L.divIcon({
+      className: "map-road-label-icon",
+      html: `
+        <div class="map-road-label-inner" style="
+          position: absolute;
+          left: 0;
+          top: 0;
+          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(--road-label-scale, 1));
+          transform-origin: center center;
+          color: ${item.color || '#ffffff'};
+          font-size: ${item.fontSize || 12}px;
+          font-weight: 800;
+          font-family: system-ui, -apple-system, sans-serif;
+          letter-spacing: 0.6px;
+          text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,1);
+          white-space: nowrap;
+          user-select: none;
+          pointer-events: none;
+        ">
+          <span>${item.text || ''}</span>
+        </div>
+      `,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    });
+  }, []);
 
   // Render lots only for active properties
   const filteredLots = useMemo(() => {
@@ -806,6 +868,16 @@ const EmployeeMapView = () => {
             </React.Fragment>
           );
         })}
+
+        {/* ── Road & Map Text Annotations ─────────────────────────── */}
+        {propertyAnnotations.map((item) => (
+          <Marker
+            key={item.id}
+            position={[item.lat, item.lng]}
+            icon={createRoadLabelIcon(item)}
+            interactive={false}
+          />
+        ))}
       </MapContainer>
 
       {/* LotOffcanvas Component */}

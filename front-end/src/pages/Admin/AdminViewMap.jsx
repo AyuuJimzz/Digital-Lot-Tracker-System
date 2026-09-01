@@ -16,6 +16,7 @@ import L from "leaflet";
 import LotOffcanvas from "../../components/admin/LotOffcanvas";
 import { ImageOverlayControl } from "../../components/admin/ImageOverlayControl";
 import { BlueprintCropModal } from "../../components/admin/BlueprintCropModal";
+import { MapAnnotationControl } from "../../components/admin/MapAnnotationControl";
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
 import { MapLayerControls, ActiveMapTileLayer, MAP_LAYERS } from "../../components/admin/MapLayerControls";
 import { preloadAllProperties } from "../../utils/tilePreloader";
@@ -106,16 +107,32 @@ function MapController({
     if (setMap) setMap(map);
     if (setCurrentZoom) setCurrentZoom(map.getZoom());
 
-    // Only update on zoomend to avoid React re-renders during active animations
+    // Set initial geo-scale CSS variable for road labels
+    const container = map.getContainer();
+    const setGeoScale = (z) => {
+      container.style.setProperty("--road-label-scale", Math.pow(2, z - 19));
+    };
+    setGeoScale(map.getZoom());
+
+    // Real-time geo-scale update during zoom animation (matches polygon scaling)
+    const handleZoomAnim = (e) => {
+      setGeoScale(e.zoom);
+    };
+
+    // Only update React state on zoomend to avoid re-renders during active animations
     let debounceTimer;
     const handleZoomEnd = () => {
       clearTimeout(debounceTimer);
+      const z = map.getZoom();
+      setGeoScale(z);
       debounceTimer = setTimeout(() => {
-        if (setCurrentZoom) setCurrentZoom(map.getZoom());
+        if (setCurrentZoom) setCurrentZoom(z);
       }, 80);
     };
+    map.on("zoomanim", handleZoomAnim);
     map.on("zoomend", handleZoomEnd);
     return () => {
+      map.off("zoomanim", handleZoomAnim);
       map.off("zoomend", handleZoomEnd);
       clearTimeout(debounceTimer);
     };
@@ -318,6 +335,13 @@ function AdminViewMap() {
   const overlayCornerDragRef = React.useRef(null); // stores {initBounds, currentBounds} during corner drag
   const unrotatedSpanRef = React.useRef(null);
 
+  // ── Road & Map Text Labels (Annotations) States ───────────────────────────
+  const [showAnnotationPanel, setShowAnnotationPanel] = useState(false);
+  const [isEditingAnnotations, setIsEditingAnnotations] = useState(true);
+  const [activeAnnotationId, setActiveAnnotationId] = useState(null);
+  const [annotations, setAnnotations] = useState([]);
+  const [isSavingAnnotations, setIsSavingAnnotations] = useState(false);
+
   // ── Draggable Floating Quick Add Lot States ────────────────────────────────
   const [showQuickAddLot, setShowQuickAddLot] = useState(false);
   const [quickLotNumber, setQuickLotNumber] = useState("");
@@ -366,6 +390,117 @@ function AdminViewMap() {
     window.addEventListener("openQuickAddLot", handleOpenQuickAddEvent);
     return () => window.removeEventListener("openQuickAddLot", handleOpenQuickAddEvent);
   }, [handleOpenQuickAdd]);
+
+  // Sync annotations when selectedProperty or mapData changes
+  useEffect(() => {
+    if (selectedProperty && mapData?.properties) {
+      const prop = mapData.properties.find(
+        (p) => Number(p.property_id) === Number(selectedProperty)
+      );
+      if (prop && prop.annotations) {
+        try {
+          const parsed =
+            typeof prop.annotations === "string"
+              ? JSON.parse(prop.annotations)
+              : prop.annotations;
+          if (Array.isArray(parsed)) {
+            setAnnotations(parsed);
+            if (parsed.length > 0) setActiveAnnotationId(parsed[0].id);
+          } else {
+            setAnnotations([]);
+          }
+        } catch (e) {
+          setAnnotations([]);
+        }
+      } else {
+        setAnnotations([]);
+      }
+    }
+  }, [selectedProperty, mapData]);
+
+  // Listen for openAnnotationPanel event from AdminHeader
+  useEffect(() => {
+    const handleOpenAnnotationEvent = () => {
+      setShowAnnotationPanel((prev) => !prev);
+      setIsEditingAnnotations(true);
+    };
+    window.addEventListener("openAnnotationPanel", handleOpenAnnotationEvent);
+    return () =>
+      window.removeEventListener("openAnnotationPanel", handleOpenAnnotationEvent);
+  }, []);
+
+  const handleAddAnnotation = useCallback(() => {
+    const center = map
+      ? map.getCenter()
+      : {
+          lat: DEFAULT_COORDINATES_MAP[selectedProperty]?.[0] || 10.7372,
+          lng: DEFAULT_COORDINATES_MAP[selectedProperty]?.[1] || 122.4998,
+        };
+    const newId = "label_" + Date.now();
+    const newLabel = {
+      id: newId,
+      text: `ROAD LOT ${annotations.length + 1} (6.50 M. WIDE)`,
+      lat: center.lat,
+      lng: center.lng,
+      rotation: 0,
+      fontSize: 12,
+      color: "#ffffff",
+    };
+    setAnnotations((prev) => [...prev, newLabel]);
+    setActiveAnnotationId(newId);
+    setIsEditingAnnotations(true);
+    setShowAnnotationPanel(true);
+  }, [map, annotations.length, selectedProperty]);
+
+  const handleUpdateAnnotation = useCallback((id, updates) => {
+    setAnnotations((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
+    );
+  }, []);
+
+  const handleDeleteAnnotation = useCallback(
+    (id) => {
+      setAnnotations((prev) => prev.filter((a) => a.id !== id));
+      if (activeAnnotationId === id) {
+        setActiveAnnotationId(null);
+      }
+    },
+    [activeAnnotationId]
+  );
+
+  const createRoadLabelIcon = useCallback((item, isEditing, isSelected) => {
+    // Scaling is handled by CSS variable --road-label-scale (set on map container)
+    return L.divIcon({
+      className: "map-road-label-icon",
+      html: `
+        <div class="map-road-label-inner" style="
+          position: absolute;
+          left: 0;
+          top: 0;
+          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(--road-label-scale, 1));
+          transform-origin: center center;
+          color: ${item.color || '#ffffff'};
+          font-size: ${item.fontSize || 12}px;
+          font-weight: 700;
+          font-family: system-ui, -apple-system, sans-serif;
+          letter-spacing: 0.8px;
+          text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9);
+          white-space: nowrap;
+          user-select: none;
+          pointer-events: auto;
+          cursor: ${isEditing ? 'grab' : 'pointer'};
+          padding: 2px 4px;
+          border: ${isEditing && isSelected ? '1px dashed rgba(255,255,255,0.6)' : 'none'};
+          border-radius: 4px;
+          background: transparent;
+        ">
+          <span>${item.text || ''}</span>
+        </div>
+      `,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0],
+    });
+  }, []);
 
   // Draggable Floating window drag handler
   const handleFloatingMouseDown = (e) => {
@@ -1571,6 +1706,25 @@ function AdminViewMap() {
     }
   }, []);
 
+  const handleSaveAnnotations = useCallback(async () => {
+    if (!selectedProperty) return;
+    setIsSavingAnnotations(true);
+    try {
+      await axios.put(
+        `${API_BASE_URL}/api/properties/${selectedProperty}/annotations`,
+        { annotations },
+        { withCredentials: true }
+      );
+      alert("✅ Road & map labels saved successfully to database!");
+      await handleLotUpdated();
+    } catch (err) {
+      console.error("Error saving map annotations:", err);
+      alert(err.response?.data?.error || "Failed to save road labels");
+    } finally {
+      setIsSavingAnnotations(false);
+    }
+  }, [selectedProperty, annotations, handleLotUpdated]);
+
   // Listen for coordinate updates from AdminHeader
   useEffect(() => {
     const handleRefreshMapData = () => {
@@ -2591,6 +2745,31 @@ function AdminViewMap() {
             ))}
           </>
         )}
+
+        {/* ── Road & Map Text Annotations (Only visible when zoomed into the subdivision) ── */}
+        {currentZoom >= 16 &&
+          annotations.map((item) => (
+            <Marker
+              key={item.id}
+              position={[item.lat, item.lng]}
+              draggable={isEditingAnnotations && showAnnotationPanel}
+              icon={createRoadLabelIcon(
+                item,
+                isEditingAnnotations && showAnnotationPanel,
+                activeAnnotationId === item.id
+              )}
+              eventHandlers={{
+                click: () => {
+                  setActiveAnnotationId(item.id);
+                  setShowAnnotationPanel(true);
+                },
+                dragend: (e) => {
+                  const { lat, lng } = e.target.getLatLng();
+                  handleUpdateAnnotation(item.id, { lat, lng });
+                },
+              }}
+            />
+          ))}
       </MapContainer>
 
       {/* Floating Coordinate Editor Panel — Eye-Friendly Executive Glassmorphic Design */}
@@ -3036,6 +3215,23 @@ function AdminViewMap() {
         onApplyCrop={handleApplyCrop}
         onClose={() => setIsCropModalOpen(false)}
       />
+
+      {/* ── Road & Map Labels Floating Control ───────────────────────── */}
+      {showAnnotationPanel && (
+        <MapAnnotationControl
+          annotations={annotations}
+          activeAnnotationId={activeAnnotationId}
+          onSelectAnnotation={(id) => setActiveAnnotationId(id)}
+          onAddAnnotation={handleAddAnnotation}
+          onUpdateAnnotation={handleUpdateAnnotation}
+          onDeleteAnnotation={handleDeleteAnnotation}
+          onSaveAnnotations={handleSaveAnnotations}
+          isSaving={isSavingAnnotations}
+          isEditing={isEditingAnnotations}
+          onToggleEditing={() => setIsEditingAnnotations((prev) => !prev)}
+          onClose={() => setShowAnnotationPanel(false)}
+        />
+      )}
     </div>
   );
 }

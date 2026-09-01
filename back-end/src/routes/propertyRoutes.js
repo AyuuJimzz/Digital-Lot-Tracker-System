@@ -8,6 +8,7 @@ const {
   updateProperty,
   updatePropertyStatus,
   deleteProperty,
+  updatePropertyAnnotations,
 } = require("../controllers/propertyController");
 const sessionOrToken = require("../middleware/session_or_token");
 
@@ -18,6 +19,7 @@ router.get("/", requireRead, getAllProperties);
 router.get("/:id", requireRead, getPropertyById);
 router.post("/", requireAdmin, createProperty);
 router.put("/:id", requireAdmin, updateProperty);
+router.put("/:id/annotations", requireAdmin, updatePropertyAnnotations);
 router.patch("/:id/status", requireAdmin, updatePropertyStatus);
 router.delete("/:id", requireAdmin, deleteProperty);
 module.exports = router;

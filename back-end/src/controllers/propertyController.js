@@ -160,3 +160,28 @@ exports.deleteProperty = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ============================================================
+// UPDATE PROPERTY ANNOTATIONS - Save road labels & map texts
+// ============================================================
+exports.updatePropertyAnnotations = async (req, res) => {
+  const { id } = req.params;
+  const { annotations } = req.body;
+
+  try {
+    const jsonVal = typeof annotations === "string" ? annotations : JSON.stringify(annotations || []);
+    const [result] = await db.query(
+      "UPDATE properties SET annotations = ? WHERE property_id = ?",
+      [jsonVal, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    res.json({ message: "Property map annotations saved successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

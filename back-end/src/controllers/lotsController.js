@@ -68,7 +68,7 @@ exports.getLotById = async (req, res) => {
 exports.getMapData = async (req, res) => {
   try {
     const [propertyRows] = await db.query(
-      `SELECT property_id, property_name, location, total_lots, status FROM properties ORDER BY property_id ASC`
+      `SELECT property_id, property_name, location, total_lots, status, annotations FROM properties ORDER BY property_id ASC`
     );
 
     const [rows] = await db.query(
