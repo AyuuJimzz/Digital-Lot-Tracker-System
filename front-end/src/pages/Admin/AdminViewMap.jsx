@@ -306,11 +306,14 @@ function AdminViewMap() {
   const [overlayRotation, setOverlayRotation] = useState(0); // degrees
   const [overlayMultiply, setOverlayMultiply] = useState(true); // Transparent white paper mode
   const [overlayLineColor, setOverlayLineColor] = useState("cyan"); // High-contrast CAD color (cyan/amber/lime/white/black)
+  const [overlayLineBoldness, setOverlayLineBoldness] = useState("super_fine"); // super_fine (hairline), fine, normal, bold
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const originalUploadedImageRef = React.useRef(null);
   const rawOverlayRef = React.useRef(null);
   const transparentOverlayRef = React.useRef(null);
   const overlayRef = React.useRef(null);
+  const overlayFrameRef = React.useRef(null);
+  const overlayCornerMarkersRef = React.useRef({});
   const overlayMoveStartRef = React.useRef(null);
   const overlayCornerDragRef = React.useRef(null); // stores {initBounds, currentBounds} during corner drag
   const unrotatedSpanRef = React.useRef(null);
@@ -437,7 +440,6 @@ function AdminViewMap() {
   // ── Bulk Shift States ──────────────────────────────────────────────────────
   const [isBulkShifting, setIsBulkShifting] = useState(false);
   const [bulkShiftOffset, setBulkShiftOffset] = useState({ lat: 0, lng: 0 });
-  const bulkShiftStartRef = React.useRef(null);
 
   // Handle moving a vertex on drag (updates Leaflet instance directly for performance/smoothness)
   const handleVertexDrag = (index, event) => {
@@ -762,7 +764,24 @@ function AdminViewMap() {
         [newCenterLat + bboxLatSpan / 2, newCenterLng + bboxLngSpan / 2],
       ];
       overlayCornerDragRef.current.currentBounds = newBounds;
-      overlayRef.current.setBounds(newBounds);
+
+      // 1. Update ImageOverlay in real-time directly on Leaflet
+      if (overlayRef.current) {
+        overlayRef.current.setBounds(newBounds);
+      }
+
+      // 2. Update the yellow dashed boundary box & other 3 corner handles in real-time!
+      const liveCorners = getRotatedBlueprintCorners(newBounds, overlayRotation, { latSpan: baseLatSpan, lngSpan: baseLngSpan });
+      if (liveCorners) {
+        if (overlayFrameRef.current) {
+          overlayFrameRef.current.setLatLngs([liveCorners.nw, liveCorners.ne, liveCorners.se, liveCorners.sw]);
+        }
+        ["nw", "ne", "se", "sw"].forEach((cKey) => {
+          if (cKey !== corner && overlayCornerMarkersRef.current[cKey]) {
+            overlayCornerMarkersRef.current[cKey].setLatLng(liveCorners[cKey]);
+          }
+        });
+      }
     },
     [overlayRotation]
   );
@@ -794,7 +813,7 @@ function AdminViewMap() {
   };
 
   // Helper: converts paper/transparent background into alpha transparency & CAD lines into chosen high-contrast color, rotated on Canvas
-  const createTransparentPaperImage = (imageUrl, lineColor = "cyan", rotationDeg = 0) => {
+  const createTransparentPaperImage = (imageUrl, lineColor = "cyan", rotationDeg = 0, lineBoldness = "fine") => {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -813,6 +832,9 @@ function AdminViewMap() {
 
         canvas.width = newW;
         canvas.height = newH;
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
 
         ctx.translate(newW / 2, newH / 2);
         ctx.rotate(rad);
@@ -836,40 +858,67 @@ function AdminViewMap() {
 
           const isDarkInk = lineColor === "black";
 
+          // Smooth paper cutoff and curve exponent
+          let paperThreshold = 225;
+          let exponent = 2.0;
+          if (lineBoldness === "super_fine") {
+            paperThreshold = 210;
+            exponent = 2.4;
+          } else if (lineBoldness === "fine") {
+            paperThreshold = 225;
+            exponent = 1.7;
+          } else if (lineBoldness === "normal") {
+            paperThreshold = 235;
+            exponent = 1.2;
+          } else {
+            paperThreshold = 245;
+            exponent = 0.8;
+          }
+
           for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
             const a = data[i + 3];
 
-            if (a < 30 || (r > 215 && g > 215 && b > 215)) {
+            if (a < 20) {
+              data[i + 3] = 0;
+              continue;
+            }
+
+            const lum = (r + g + b) / 3;
+
+            if (lum >= paperThreshold) {
               data[i + 3] = 0; // 100% transparent background
             } else if (!isDarkInk) {
-              const darkness = 255 - ((r + g + b) / 3);
-              const alpha = Math.min(255, Math.max(0, darkness * 2.8));
+              const norm = (paperThreshold - lum) / paperThreshold; // 0 to 1
+              // Cubic Hermite smoothstep for anti-aliasing without blur or stair-steps
+              const smoothStep = norm * norm * (3 - 2 * norm);
+              const alpha = Math.min(255, Math.max(0, Math.pow(smoothStep, exponent) * 255));
+
               data[i] = targetR;
               data[i + 1] = targetG;
               data[i + 2] = targetB;
-              data[i + 3] = alpha > 40 ? 255 : Math.round(alpha);
+              data[i + 3] = Math.round(alpha);
             }
           }
 
-          // Dilation / Stroke Thickening Pass: makes thin CAD lines 2px bold for crystal-clear visibility at far distance
-          if (!isDarkInk) {
+          // Dilation / Stroke Thickening Pass: only active when user explicitly chooses "bold"
+          if (!isDarkInk && lineBoldness === "bold") {
             const copy = new Uint8ClampedArray(data);
             for (let y = 1; y < newH - 1; y++) {
               for (let x = 1; x < newW - 1; x++) {
                 const idx = (y * newW + x) * 4;
-                if (copy[idx + 3] === 0) {
+                if (copy[idx + 3] < 50) {
                   const topA = copy[((y - 1) * newW + x) * 4 + 3];
                   const btmA = copy[((y + 1) * newW + x) * 4 + 3];
                   const lftA = copy[(y * newW + (x - 1)) * 4 + 3];
                   const rgtA = copy[(y * newW + (x + 1)) * 4 + 3];
-                  if (topA > 180 || btmA > 180 || lftA > 180 || rgtA > 180) {
+                  if (topA > 200 || btmA > 200 || lftA > 200 || rgtA > 200) {
                     data[idx] = targetR;
                     data[idx + 1] = targetG;
                     data[idx + 2] = targetB;
-                    data[idx + 3] = 250;
+                    data[idx + 3] = 200;
                   }
                 }
               }
@@ -908,11 +957,13 @@ function AdminViewMap() {
           setOverlayRotation(data.rotation || 0);
           setOverlayOpacity(data.opacity ?? 1);
           const lineColor = data.lineColor || "cyan";
+          const lineBoldness = data.lineBoldness || "super_fine";
           setOverlayLineColor(lineColor);
+          setOverlayLineBoldness(lineBoldness);
           setOverlayMultiply(data.multiply ?? true);
           setOverlayBounds(data.bounds);
 
-          const transUrl = await createTransparentPaperImage(data.rawImage, lineColor, data.rotation || 0);
+          const transUrl = await createTransparentPaperImage(data.rawImage, lineColor, data.rotation || 0, lineBoldness);
           if (isCancelled) return;
           transparentOverlayRef.current = transUrl;
           setOverlayImage(transUrl);
@@ -958,7 +1009,7 @@ function AdminViewMap() {
       const baseImg = rawOverlayRef.current || originalUploadedImageRef.current;
       if (!baseImg) return;
 
-      const transUrl = await createTransparentPaperImage(baseImg, overlayLineColor, deg);
+      const transUrl = await createTransparentPaperImage(baseImg, overlayLineColor, deg, overlayLineBoldness);
       if (transparentOverlayRef.current && transparentOverlayRef.current !== transUrl) {
         try { URL.revokeObjectURL(transparentOverlayRef.current); } catch (e) {}
       }
@@ -1002,12 +1053,13 @@ function AdminViewMap() {
           rotation: deg,
           opacity: overlayOpacity,
           lineColor: overlayLineColor,
+          lineBoldness: overlayLineBoldness,
           multiply: overlayMultiply,
           unrotatedSpan: unrotatedSpanRef.current,
         });
       }
     },
-    [overlayLineColor, selectedProperty, overlayBounds, overlayOpacity, overlayMultiply]
+    [overlayLineColor, overlayLineBoldness, selectedProperty, overlayBounds, overlayOpacity, overlayMultiply]
   );
 
   // Switch CAD Line Color (Cyan, Amber, Lime, White, Black)
@@ -1016,7 +1068,7 @@ function AdminViewMap() {
       setOverlayLineColor(color);
       const src = rawOverlayRef.current;
       if (!src) return;
-      const transUrl = await createTransparentPaperImage(src, color, overlayRotation);
+      const transUrl = await createTransparentPaperImage(src, color, overlayRotation, overlayLineBoldness);
       transparentOverlayRef.current = transUrl;
       setOverlayImage(transUrl);
 
@@ -1028,12 +1080,40 @@ function AdminViewMap() {
           rotation: overlayRotation,
           opacity: overlayOpacity,
           lineColor: color,
+          lineBoldness: overlayLineBoldness,
           multiply: overlayMultiply,
           unrotatedSpan: unrotatedSpanRef.current,
         });
       }
     },
-    [overlayRotation, selectedProperty, overlayBounds, overlayOpacity, overlayMultiply]
+    [overlayRotation, overlayLineBoldness, selectedProperty, overlayBounds, overlayOpacity, overlayMultiply]
+  );
+
+  // Switch CAD Line Boldness / Thickness (Fine, Normal, Bold)
+  const handleLineBoldnessChange = useCallback(
+    async (boldness) => {
+      setOverlayLineBoldness(boldness);
+      const src = rawOverlayRef.current;
+      if (!src) return;
+      const transUrl = await createTransparentPaperImage(src, overlayLineColor, overlayRotation, boldness);
+      transparentOverlayRef.current = transUrl;
+      setOverlayImage(transUrl);
+
+      if (selectedProperty && overlayBounds) {
+        saveBlueprintOverlay(selectedProperty, {
+          rawImage: src,
+          originalImage: originalUploadedImageRef.current || src,
+          bounds: overlayBounds,
+          rotation: overlayRotation,
+          opacity: overlayOpacity,
+          lineColor: overlayLineColor,
+          lineBoldness: boldness,
+          multiply: overlayMultiply,
+          unrotatedSpan: unrotatedSpanRef.current,
+        });
+      }
+    },
+    [overlayLineColor, overlayRotation, selectedProperty, overlayBounds, overlayOpacity, overlayMultiply]
   );
 
   // Crop overlay on canvas to keep only the subdivision lots
@@ -1185,22 +1265,6 @@ function AdminViewMap() {
     });
   }, [selectedProperty, overlayRotation, overlayOpacity, overlayLineColor, overlayMultiply]);
 
-  // Create bulk shift controller crosshair icon
-  const createBulkShiftCenterIcon = useCallback(() => {
-    return L.divIcon({
-      className: "bulk-shift-center-icon",
-      html: `
-        <div style="width:44px;height:44px;border-radius:50%;background-color:rgba(220,38,38,0.9);border:3px solid #ffffff;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;cursor:move;">
-          <svg width="24" height="24" fill="white" viewBox="0 0 24 24">
-            <path d="M12 2v20M2 12h20M12 2l-3 3h6l-3-3zm0 20l-3-3h6l-3 3zM2 12l3-3v6l-3-3zm20 0l-3-3v6l3-3z"/>
-          </svg>
-        </div>
-      `,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22],
-    });
-  }, []);
-
   // Save bulk shifted coordinates to database
   const handleSaveBulkShift = async () => {
     if (bulkShiftOffset.lat === 0 && bulkShiftOffset.lng === 0) {
@@ -1208,7 +1272,7 @@ function AdminViewMap() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to shift all lots for this property?`)) {
+    if (!window.confirm(`Are you sure you want to save the new position for all lots in this property?`)) {
       return;
     }
 
@@ -1218,7 +1282,7 @@ function AdminViewMap() {
         deltaLng: bulkShiftOffset.lng,
       });
 
-      alert("All lots shifted and aligned successfully!");
+      alert("✅ All lots have been moved and saved successfully!");
       // Reload map data to get fresh coordinates from database
       handleLotUpdated();
       setIsBulkShifting(false);
@@ -1525,6 +1589,16 @@ function AdminViewMap() {
     const handleOpenOverlay = () => setShowOverlayPanel(true);
     window.addEventListener("openOverlayPanel", handleOpenOverlay);
     return () => window.removeEventListener("openOverlayPanel", handleOpenOverlay);
+  }, []);
+
+  // Listen for toggleBulkShiftLots event from AdminHeader
+  useEffect(() => {
+    const handleToggleBulkShift = () => {
+      setIsBulkShifting((prev) => !prev);
+      setBulkShiftOffset({ lat: 0, lng: 0 });
+    };
+    window.addEventListener("toggleBulkShiftLots", handleToggleBulkShift);
+    return () => window.removeEventListener("toggleBulkShiftLots", handleToggleBulkShift);
   }, []);
 
   // Listen for start visual edit event
@@ -2114,6 +2188,7 @@ function AdminViewMap() {
             <>
               {/* Outer Glowing Yellow Dashed Line Connected to 4 Corners of White Box */}
               <Polygon
+                ref={overlayFrameRef}
                 positions={[corners.nw, corners.ne, corners.se, corners.sw]}
                 pathOptions={{
                   color: "#f59e0b",
@@ -2127,6 +2202,7 @@ function AdminViewMap() {
 
               {/* SW */}
               <Marker
+                ref={(el) => { if (el) overlayCornerMarkersRef.current["sw"] = el; }}
                 position={corners.sw}
                 draggable={true}
                 icon={createOverlayCornerIcon("SW")}
@@ -2138,6 +2214,7 @@ function AdminViewMap() {
               />
               {/* SE */}
               <Marker
+                ref={(el) => { if (el) overlayCornerMarkersRef.current["se"] = el; }}
                 position={corners.se}
                 draggable={true}
                 icon={createOverlayCornerIcon("SE")}
@@ -2149,6 +2226,7 @@ function AdminViewMap() {
               />
               {/* NE */}
               <Marker
+                ref={(el) => { if (el) overlayCornerMarkersRef.current["ne"] = el; }}
                 position={corners.ne}
                 draggable={true}
                 icon={createOverlayCornerIcon("NE")}
@@ -2160,6 +2238,7 @@ function AdminViewMap() {
               />
               {/* NW */}
               <Marker
+                ref={(el) => { if (el) overlayCornerMarkersRef.current["nw"] = el; }}
                 position={corners.nw}
                 draggable={true}
                 icon={createOverlayCornerIcon("NW")}
@@ -2187,12 +2266,6 @@ function AdminViewMap() {
                 icon={createOverlayCenterIcon()}
                 eventHandlers={{
                   dragstart: (e) => {
-                    console.log(
-                      "Center drag start. Target LatLng:",
-                      e.target.getLatLng(),
-                      "Overlay bounds:",
-                      overlayBounds
-                    );
                     if (map) map.dragging.disable();
                     overlayMoveStartRef.current = {
                       startLat: e.target.getLatLng().lat,
@@ -2201,13 +2274,7 @@ function AdminViewMap() {
                     };
                   },
                   drag: (e) => {
-                    if (!overlayMoveStartRef.current || !overlayRef.current) {
-                      console.log("Center drag ignored. Start ref or overlay ref null:", {
-                        start: !!overlayMoveStartRef.current,
-                        overlay: !!overlayRef.current,
-                      });
-                      return;
-                    }
+                    if (!overlayMoveStartRef.current || !overlayRef.current) return;
                     const { lat, lng } = e.target.getLatLng();
                     const { startLat, startLng, initBounds } = overlayMoveStartRef.current;
                     const dLat = lat - startLat;
@@ -2216,16 +2283,25 @@ function AdminViewMap() {
                       [initBounds[0][0] + dLat, initBounds[0][1] + dLng],
                       [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
                     ];
-                    console.log("Center drag. Offset:", { dLat, dLng }, "New bounds:", newBounds);
-                    // Update Leaflet layer directly — no React re-render during drag
+                    // 1. Update Leaflet ImageOverlay directly
                     overlayRef.current.setBounds(newBounds);
+
+                    // 2. Update dashed frame & 4 corners in real-time!
+                    const liveCorners = getRotatedBlueprintCorners(newBounds, overlayRotation, unrotatedSpanRef.current);
+                    if (liveCorners) {
+                      if (overlayFrameRef.current) {
+                        overlayFrameRef.current.setLatLngs([liveCorners.nw, liveCorners.ne, liveCorners.se, liveCorners.sw]);
+                      }
+                      ["nw", "ne", "se", "sw"].forEach((cKey) => {
+                        if (overlayCornerMarkersRef.current[cKey]) {
+                          overlayCornerMarkersRef.current[cKey].setLatLng(liveCorners[cKey]);
+                        }
+                      });
+                    }
                   },
                   dragend: (e) => {
                     if (map) map.dragging.enable();
-                    if (!overlayMoveStartRef.current) {
-                      console.log("Center dragend ignored — start ref null");
-                      return;
-                    }
+                    if (!overlayMoveStartRef.current) return;
                     const { lat, lng } = e.target.getLatLng();
                     const { startLat, startLng, initBounds } = overlayMoveStartRef.current;
                     const dLat = lat - startLat;
@@ -2234,7 +2310,6 @@ function AdminViewMap() {
                       [initBounds[0][0] + dLat, initBounds[0][1] + dLng],
                       [initBounds[1][0] + dLat, initBounds[1][1] + dLng],
                     ];
-                    console.log("Center drag end. Setting final bounds state to:", finalBounds);
                     setOverlayBounds(finalBounds);
                     overlayMoveStartRef.current = null;
 
@@ -2256,41 +2331,7 @@ function AdminViewMap() {
             );
           })()}
 
-        {/* ── Bulk Shift Controller Handle ────────────────────────── */}
-        {isBulkShifting &&
-          (() => {
-            const center = map
-              ? map.getCenter()
-              : { lat: selectedPropertyCoords[0], lng: selectedPropertyCoords[1] };
-            return (
-              <Marker
-                position={[center.lat, center.lng]}
-                draggable={true}
-                icon={createBulkShiftCenterIcon()}
-                eventHandlers={{
-                  dragstart: (e) => {
-                    if (map) map.dragging.disable();
-                    bulkShiftStartRef.current = {
-                      startLat: e.target.getLatLng().lat,
-                      startLng: e.target.getLatLng().lng,
-                    };
-                  },
-                  drag: (e) => {
-                    if (!bulkShiftStartRef.current) return;
-                    const { lat, lng } = e.target.getLatLng();
-                    const { startLat, startLng } = bulkShiftStartRef.current;
-                    setBulkShiftOffset({
-                      lat: lat - startLat,
-                      lng: lng - startLng,
-                    });
-                  },
-                  dragend: () => {
-                    if (map) map.dragging.enable();
-                  },
-                }}
-              />
-            );
-          })()}
+
 
         {filteredLots.map((lot) => {
           // Skip rendering original polygon if it's currently being edited visually
@@ -2386,50 +2427,86 @@ function AdminViewMap() {
                 key={`poly-${lot.lot_id}-${lot.status}`}
                 positions={coords}
                 pathOptions={{
-                  color: statusColor,
-                  fillColor: statusColor,
-                  fillOpacity: 0.6,
-                  weight: 2,
+                  color: isBulkShifting ? "#3b82f6" : statusColor,
+                  fillColor: isBulkShifting ? "#3b82f6" : statusColor,
+                  fillOpacity: isBulkShifting ? 0.65 : 0.6,
+                  weight: isBulkShifting ? 2.5 : 2,
+                  dashArray: isBulkShifting ? "4, 4" : undefined,
+                  className: isBulkShifting ? "cursor-grab active:cursor-grabbing" : undefined,
                 }}
                 eventHandlers={{
-                  click: handleLotClick,
+                  mousedown: (e) => {
+                    if (isBulkShifting && map) {
+                      if (e?.originalEvent) {
+                        e.originalEvent.stopPropagation();
+                        e.originalEvent.preventDefault();
+                      }
+                      map.dragging.disable();
+                      const startPoint = e.latlng;
+                      const initOffset = { ...bulkShiftOffset };
+
+                      const handleMove = (moveEvent) => {
+                        const dLat = moveEvent.latlng.lat - startPoint.lat;
+                        const dLng = moveEvent.latlng.lng - startPoint.lng;
+                        setBulkShiftOffset({
+                          lat: initOffset.lat + dLat,
+                          lng: initOffset.lng + dLng,
+                        });
+                      };
+
+                      const handleUp = () => {
+                        map.dragging.enable();
+                        map.off("mousemove", handleMove);
+                        map.off("mouseup", handleUp);
+                      };
+
+                      map.on("mousemove", handleMove);
+                      map.on("mouseup", handleUp);
+                    }
+                  },
+                  click: (e) => {
+                    if (isBulkShifting) return;
+                    handleLotClick(e);
+                  },
                 }}
               />
 
-              <Marker
-                key={`pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
-                position={[centerLat, centerLng]}
-                icon={createPinIcon(lot.status)}
-                eventHandlers={{
-                  click: handleLotClick,
-                }}
-              >
-                {!isTouchDevice && (
-                  <Tooltip permanent={false} direction="top" offset={[0, -18]}>
-                    <div className="text-center text-xs leading-tight">
-                      <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
-                      <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
-                      <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
-                        {lot.status}
-                      </div>
-                      {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
-                        <>
-                          <div className="mt-2 pt-2 border-t border-gray-300">
-                            <div className="text-[11px] text-gray-700">
-                              <div className="font-semibold">Customer Info:</div>
-                              <div>{lot.customer.full_name || "N/A"}</div>
-                              <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
-                              <div className="text-gray-600">
-                                {lot.customer.contact_number || "N/A"}
+              {!isBulkShifting && (
+                <Marker
+                  key={`pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
+                  position={[centerLat, centerLng]}
+                  icon={createPinIcon(lot.status)}
+                  eventHandlers={{
+                    click: handleLotClick,
+                  }}
+                >
+                  {!isTouchDevice && (
+                    <Tooltip permanent={false} direction="top" offset={[0, -18]}>
+                      <div className="text-center text-xs leading-tight">
+                        <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
+                        <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
+                        <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
+                          {lot.status}
+                        </div>
+                        {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
+                          <>
+                            <div className="mt-2 pt-2 border-t border-gray-300">
+                              <div className="text-[11px] text-gray-700">
+                                <div className="font-semibold">Customer Info:</div>
+                                <div>{lot.customer.full_name || "N/A"}</div>
+                                <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
+                                <div className="text-gray-600">
+                                  {lot.customer.contact_number || "N/A"}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </Tooltip>
-                )}
-              </Marker>
+                          </>
+                        )}
+                      </div>
+                    </Tooltip>
+                  )}
+                </Marker>
+              )}
             </React.Fragment>
           );
 
@@ -2771,29 +2848,78 @@ function AdminViewMap() {
 
       {/* Floating Bulk Shift Alignment Editor Panel */}
       {isBulkShifting && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-2xl p-4 z-[999] flex flex-col sm:flex-row items-center gap-4 transition-all duration-300 w-11/12 max-w-lg">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-slate-900/95 backdrop-blur-xl border border-slate-700/90 rounded-2xl shadow-2xl p-4 z-[9999] flex flex-col sm:flex-row items-center gap-4 transition-all duration-300 w-11/12 max-w-xl text-slate-200">
           <div className="flex-1">
-            <span className="font-semibold text-red-600 dark:text-red-400 block text-sm flex items-center gap-1.5">
-              Bulk Aligning Lots
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+              <span className="font-bold text-white text-sm">
+                Move All Lots Together
+              </span>
+            </div>
+            <span className="text-xs text-slate-400 block mt-1 leading-relaxed">
+              Click & drag any lot directly on the map, or use the nudge buttons below to slide all lots into alignment.
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
-              Drag the red crosshair handle in the center to slide all green lots into alignment.
-              Click "Save" to apply.
-            </span>
+
+            {/* Micro Nudge Steppers */}
+            <div className="flex items-center gap-1.5 mt-2.5">
+              <span className="text-[11px] font-semibold text-slate-400 mr-1">Nudge:</span>
+              <button
+                type="button"
+                onClick={() => setBulkShiftOffset((prev) => ({ ...prev, lat: prev.lat + 0.00003 }))}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                title="Nudge Up (North)"
+              >
+                ▲ Up
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkShiftOffset((prev) => ({ ...prev, lat: prev.lat - 0.00003 }))}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                title="Nudge Down (South)"
+              >
+                ▼ Down
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkShiftOffset((prev) => ({ ...prev, lng: prev.lng - 0.00003 }))}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                title="Nudge Left (West)"
+              >
+                ◄ Left
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkShiftOffset((prev) => ({ ...prev, lng: prev.lng + 0.00003 }))}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                title="Nudge Right (East)"
+              >
+                ► Right
+              </button>
+              {(bulkShiftOffset.lat !== 0 || bulkShiftOffset.lng !== 0) && (
+                <button
+                  type="button"
+                  onClick={() => setBulkShiftOffset({ lat: 0, lng: 0 })}
+                  className="px-2 py-1 text-slate-400 hover:text-slate-200 text-xs underline cursor-pointer ml-1"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto justify-end">
+
+          <div className="flex sm:flex-col gap-2 w-full sm:w-auto justify-end shrink-0">
             <button
               onClick={handleSaveBulkShift}
-              className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+              className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-600/30 active:scale-95 cursor-pointer text-center"
             >
-              Save Shift
+              Save All Lots
             </button>
             <button
               onClick={() => {
                 setIsBulkShifting(false);
                 setBulkShiftOffset({ lat: 0, lng: 0 });
               }}
-              className="px-3 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 text-xs font-semibold rounded-lg transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 text-xs font-semibold rounded-xl transition-all active:scale-95 cursor-pointer text-center"
             >
               Cancel
             </button>
@@ -2850,7 +2976,9 @@ function AdminViewMap() {
           overlayRotation={overlayRotation}
           overlayMultiply={overlayMultiply}
           overlayLineColor={overlayLineColor}
+          overlayLineBoldness={overlayLineBoldness}
           onLineColorChange={handleLineColorChange}
+          onLineBoldnessChange={handleLineBoldnessChange}
           isBulkShifting={isBulkShifting}
           onImageUpload={handleImageUpload}
           onOpacityChange={setOverlayOpacity}
@@ -2859,7 +2987,7 @@ function AdminViewMap() {
             setOverlayMultiply(next);
             if (next) {
               if (!transparentOverlayRef.current && rawOverlayRef.current) {
-                transparentOverlayRef.current = await createTransparentPaperImage(rawOverlayRef.current, overlayLineColor, overlayRotation);
+                transparentOverlayRef.current = await createTransparentPaperImage(rawOverlayRef.current, overlayLineColor, overlayRotation, overlayLineBoldness);
               }
               if (transparentOverlayRef.current) {
                 setOverlayImage(transparentOverlayRef.current);

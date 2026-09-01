@@ -21,8 +21,10 @@ export function ImageOverlayControl({
   overlayMultiply = true,
   overlayWhiteLines = true,
   overlayLineColor = "cyan",
+  overlayLineBoldness = "super_fine",
   onToggleWhiteLines,
   onLineColorChange,
+  onLineBoldnessChange,
   isBulkShifting = false,
   onImageUpload,
   onOpacityChange,
@@ -75,9 +77,12 @@ export function ImageOverlayControl({
               const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
               const page = await pdf.getPage(1);
 
-              const viewport = page.getViewport({ scale: 3.5 });
+              const unscaled = page.getViewport({ scale: 1.0 });
+              const maxDim = 4096;
+              const scale = Math.min(5.0, Math.max(3.5, maxDim / Math.max(unscaled.width, unscaled.height)));
+              const viewport = page.getViewport({ scale });
               const canvas = document.createElement("canvas");
-              const context = canvas.getContext("2d");
+              const context = canvas.getContext("2d", { alpha: true });
               canvas.height = viewport.height;
               canvas.width = viewport.width;
 
@@ -297,6 +302,43 @@ export function ImageOverlayControl({
               />
             </div>
 
+            {/* Line Thickness / Boldness selector */}
+            <div className="pt-2 border-t border-slate-700/40">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium text-slate-400">Line Thickness</span>
+                <span className="text-[10px] text-blue-400 font-semibold">
+                  {overlayLineBoldness === "super_fine"
+                    ? "Super Fine"
+                    : overlayLineBoldness === "fine"
+                    ? "Fine"
+                    : overlayLineBoldness === "normal"
+                    ? "Normal"
+                    : "Bold"}
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800">
+                {[
+                  { key: "super_fine", label: "Super Fine" },
+                  { key: "fine", label: "Fine" },
+                  { key: "normal", label: "Normal" },
+                  { key: "bold", label: "Bold" },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => onLineBoldnessChange && onLineBoldnessChange(item.key)}
+                    className={`py-1 text-[9px] font-bold rounded-lg transition-all cursor-pointer text-center ${
+                      overlayLineBoldness === item.key
+                        ? "bg-blue-600 text-white shadow-sm ring-1 ring-blue-400/40"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Transparent Paper Toggle */}
             <div className="pt-1 flex items-center justify-between border-t border-slate-700/40">
               <span className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
@@ -427,7 +469,7 @@ export function ImageOverlayControl({
           </div>
 
           {/* 5. Main Action: Lock or Edit Alignment */}
-          <div className="pt-1">
+          <div className="pt-1 space-y-2">
             <button
               type="button"
               onClick={onToggleEdit}
@@ -440,6 +482,22 @@ export function ImageOverlayControl({
               {isEditingOverlay ? <Check className="w-4 h-4" /> : <Move className="w-4 h-4" />}
               <span>{isEditingOverlay ? "Done Aligning (Lock Blueprint)" : "Adjust & Move Blueprint"}</span>
             </button>
+
+            {onToggleBulkShift && (
+              <button
+                type="button"
+                onClick={onToggleBulkShift}
+                className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all border active:scale-95 cursor-pointer ${
+                  isBulkShifting
+                    ? "bg-indigo-500/25 text-indigo-200 border-indigo-400/60 shadow-md shadow-indigo-500/20"
+                    : "bg-slate-800/90 hover:bg-slate-700/90 text-slate-300 border-slate-700 hover:text-white"
+                }`}
+                title="Slide and arrange all lots on this property together"
+              >
+                <Move className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{isBulkShifting ? "Exit Move All Lots Mode" : "Move All Lots Together"}</span>
+              </button>
+            )}
           </div>
 
           {/* 6. Footer Utilities */}

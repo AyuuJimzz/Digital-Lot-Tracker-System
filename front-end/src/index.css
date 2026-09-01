@@ -36,6 +36,12 @@ body {
   display: none !important;
 }
 
+/* High-quality rendering for Blueprint Overlay */
+.leaflet-image-layer {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
+}
+
 /* Prevent text selection or blue highlight during touch drags on tablets */
 .leaflet-container,
 .leaflet-pane,
