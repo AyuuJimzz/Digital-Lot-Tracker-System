@@ -79,11 +79,13 @@ exports.createProperty = async (req, res) => {
       total_lots || 0,
       status || "active",
     ]);
+    console.log(`🏢 [New Property Created] ID #${result.insertId} | "${property_name}" (${location}) | Lots: ${total_lots || 0}`);
     res.status(201).json({
       message: "Property added successfully",
       property_id: result.insertId,
     });
   } catch (err) {
+    console.error("❌ [Create Property Error]:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -109,8 +111,10 @@ exports.updateProperty = async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
+    console.log(`🏢 [Property Updated] ID #${id} | "${property_name}" | Status: ${status}`);
     res.json({ message: "Property updated successfully" });
   } catch (err) {
+    console.error(`❌ [Update Property Error] ID #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -136,8 +140,10 @@ exports.updatePropertyStatus = async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
+    console.log(`🏢 [Property Status Changed] ID #${id} → ${status.toUpperCase()}`);
     res.json({ message: "Property status updated successfully" });
   } catch (err) {
+    console.error(`❌ [Update Property Status Error] ID #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -155,8 +161,10 @@ exports.deleteProperty = async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
+    console.log(`🗑️ [Property Deleted] ID #${id}`);
     res.json({ message: "Property deleted successfully" });
   } catch (err) {
+    console.error(`❌ [Delete Property Error] ID #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -179,8 +187,10 @@ exports.updatePropertyAnnotations = async (req, res) => {
       return res.status(404).json({ error: "Property not found" });
     }
 
+    console.log(`🗺️ [Property Annotations Saved] ID #${id} (${Array.isArray(annotations) ? annotations.length : 0} labels)`);
     res.json({ message: "Property map annotations saved successfully" });
   } catch (err) {
+    console.error(`❌ [Save Annotations Error] ID #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };

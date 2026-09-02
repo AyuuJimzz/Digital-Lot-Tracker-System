@@ -20,14 +20,25 @@ if (savedToken) {
   axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
 }
 
-// Global Interceptor: Catch concurrent device session expiration
+// Global Interceptor: Catch concurrent device session expiration & log API failures
 let isHandlingKickout = false;
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error.response?.status;
+    const url = error.config?.url || 'unknown url';
+    const method = (error.config?.method || 'get').toUpperCase();
     const data = error.response?.data;
+
+    // Structured diagnostic log for easy debugging
+    if (status && status >= 400) {
+      console.warn(`⚠️ [API Response ${status}] ${method} ${url}:`, data?.message || data?.error || error.message);
+    } else if (!error.response) {
+      console.error(`🚨 [Network/CORS Error] Failed to connect to backend at ${url}:`, error.message);
+    }
+
     if (
-      error.response?.status === 401 &&
+      status === 401 &&
       (data?.code === 'CONCURRENT_SESSION_EXPIRED' ||
         (data?.message && data.message.toLowerCase().includes('another device')))
     ) {

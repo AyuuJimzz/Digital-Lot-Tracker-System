@@ -122,12 +122,14 @@ exports.createEmployee = async (req, res) => {
       console.warn("Could not dispatch welcome email:", emailErr.message);
     }
 
+    console.log(`👥 [Employee Created] ID #${result.insertId} | "${first_name} ${last_name}" (${email})`);
     res.status(201).json({
       message: "Employee added successfully. An email with login credentials has been sent.",
       employee_id: result.insertId,
       email_sent: true,
     });
   } catch (err) {
+    console.error("❌ [Create Employee Error]:", err);
     if (err.code === "ER_DUP_ENTRY") {
       return res.status(400).json({ error: "An employee with this email already exists." });
     }
@@ -164,8 +166,10 @@ exports.updateEmployee = async (req, res) => {
       return res.status(404).json({ error: "Employee not found" });
     }
 
+    console.log(`👥 [Employee Updated] ID #${id} | "${first_name} ${last_name}" (${email})`);
     res.json({ message: "Employee updated successfully" });
   } catch (err) {
+    console.error(`❌ [Update Employee Error] ID #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -186,8 +190,10 @@ exports.deleteEmployee = async (req, res) => {
       return res.status(404).json({ error: "Employee not found" });
     }
 
+    console.log(`🗑️ [Employee Deleted] ID #${id}`);
     res.json({ message: "Employee deleted successfully" });
   } catch (err) {
+    console.error(`❌ [Delete Employee Error] ID #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };

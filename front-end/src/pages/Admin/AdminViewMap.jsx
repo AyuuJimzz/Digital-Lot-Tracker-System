@@ -46,6 +46,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
 });
 
+const getAuthConfig = () => {
+  const token = localStorage.getItem("authToken");
+  return { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+};
+
 // ── Lightweight Static Overview Location Beacon (no animation = no GPU stutter) ──
 const createOverviewPropertyIcon = (name, lotCount) => {
   return L.divIcon({
@@ -629,7 +634,7 @@ function AdminViewMap() {
           area_sqm: area,
           status: quickStatus,
         },
-        { withCredentials: true }
+        { withCredentials: true, ...getAuthConfig() }
       );
 
       const newLot = response.data;
@@ -1722,8 +1727,9 @@ function AdminViewMap() {
   useEffect(() => {
     const fetchMapData = async () => {
       try {
+        const authConfig = getAuthConfig();
         const [mapResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig),
         ]);
 
         // Fetch customer details for all pending/sold lots
@@ -1731,9 +1737,7 @@ function AdminViewMap() {
           mapResponse.data.lots.map(async (lot) => {
             if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
               try {
-                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
-                  withCredentials: true,
-                });
+                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, authConfig);
                 return { ...lot, customer: lotDetails.data.customer };
               } catch (error) {
                 console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
@@ -1758,18 +1762,15 @@ function AdminViewMap() {
   // Function to refresh map data when lot is updated
   const handleLotUpdated = useCallback(async () => {
     try {
-      const mapResponse = await axios.get(`${API_BASE_URL}/api/lots/map-data`, {
-        withCredentials: true,
-      });
+      const authConfig = getAuthConfig();
+      const mapResponse = await axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig);
 
       // Fetch customer details for all pending/sold lots
       const lotsWithCustomerData = await Promise.all(
         mapResponse.data.lots.map(async (lot) => {
           if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
             try {
-              const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
-                withCredentials: true,
-              });
+              const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, authConfig);
               return { ...lot, customer: lotDetails.data.customer };
             } catch (error) {
               return lot;
@@ -1798,7 +1799,7 @@ function AdminViewMap() {
       await axios.put(
         `${API_BASE_URL}/api/properties/${selectedProperty}/annotations`,
         { annotations },
-        { withCredentials: true }
+        getAuthConfig()
       );
       alert("✅ Road & map labels saved successfully to database!");
       await handleLotUpdated();
@@ -2174,7 +2175,7 @@ function AdminViewMap() {
           area_sqm: parseFloat(targetArea) || 100,
           status: "Available",
         },
-        { withCredentials: true }
+        getAuthConfig()
       );
 
       const newLotId = createRes.data.lot_id;
@@ -2184,7 +2185,7 @@ function AdminViewMap() {
         await axios.put(
           `${API_BASE_URL}/api/lots/${newLotId}/coordinates`,
           { coordinates: newCoords },
-          { withCredentials: true }
+          getAuthConfig()
         );
       }
 
@@ -2631,9 +2632,7 @@ function AdminViewMap() {
             try {
               const lotDetails = await axios.get(
                 `${API_BASE_URL}/api/lots/${lot.lot_id}`,
-                {
-                  withCredentials: true,
-                }
+                getAuthConfig()
               );
               setSelectedLot({
                 ...lotDetails.data,

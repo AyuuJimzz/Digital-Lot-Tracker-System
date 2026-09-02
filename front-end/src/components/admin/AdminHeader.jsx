@@ -89,8 +89,10 @@ export function AdminHeader({ sidebarCollapsed }) {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        const token = localStorage.getItem("authToken");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
-          withCredentials: true,
+          withCredentials: true, headers,
         });
         const initials = getInitials(res.data.first_name, res.data.last_name);
         setProfileInitials(initials);
@@ -180,7 +182,9 @@ export function AdminHeader({ sidebarCollapsed }) {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true });
+        const token = localStorage.getItem("authToken");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true, headers });
         if (Array.isArray(res.data)) {
           const mapped = res.data
             .filter((p) => p.status !== "inactive")

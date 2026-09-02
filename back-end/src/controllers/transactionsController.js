@@ -77,6 +77,8 @@ const createTransaction = async (req, res) => {
     // Commit transaction
     await db.commit();
 
+    console.log(`💳 [New Transaction Created] TXN ID: ${result.insertId} | Lot #${lot_id} | Cust #${customer_id} | Payment: ${payment_type || "No Downpayment"} | Agent: ${req.user?.email || "System"}`);
+
     try {
       const { sendMessengerAlert } = require("../services/messengerAlertService");
       sendMessengerAlert(

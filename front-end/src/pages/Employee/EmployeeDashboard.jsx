@@ -33,14 +33,6 @@ const EmployeeDashboard = () => {
       };
     }
   });
-  const [recentLotUpdates, setRecentLotUpdates] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem("employeeRecentCache");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
   const [loading, setLoading] = useState(() => !sessionStorage.getItem("employeeStatsCache"));
 
   useEffect(() => {
@@ -60,7 +52,6 @@ const EmployeeDashboard = () => {
         ]);
 
         const summary = mapDataResponse?.data?.summary || {};
-        const lots = Array.isArray(mapDataResponse?.data?.lots) ? mapDataResponse.data.lots : [];
         const employees = Array.isArray(employeesResponse?.data) ? employeesResponse.data : [];
         const customers = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
 
@@ -84,81 +75,6 @@ const EmployeeDashboard = () => {
         setStats(newStats);
         try {
           sessionStorage.setItem("employeeStatsCache", JSON.stringify(newStats));
-        } catch (e) {}
-
-        const propertiesList = Array.isArray(mapDataResponse?.data?.properties)
-          ? mapDataResponse.data.properties
-          : [];
-        const propNameMap = new Map();
-        propertiesList.forEach((p) => {
-          propNameMap.set(Number(p.property_id), p.property_name || `Property ${p.property_id}`);
-        });
-
-        // Build customer lookup map for quick access by lot_id
-        const custMap = new Map();
-        customers.forEach((c) => {
-          if (c.lot_id) {
-            custMap.set(Number(c.lot_id), c);
-          }
-        });
-
-        // Build employee name lookup map by employee_id
-        const empNameMap = new Map();
-        employees.forEach((e) => {
-          empNameMap.set(Number(e.employee_id), `${e.first_name || ""} ${e.last_name || ""}`.trim());
-        });
-
-        // Recent Lot Updates: Include Sold, Pending, and Cancelled lot interactions
-        const processedCustLotKeys = new Set();
-        const updates = [];
-
-        customers.forEach((c) => {
-          if (!c.lot_number) return;
-          const rawStatus = String(c.lot_status || "").toLowerCase();
-          const normalizedStatus =
-            rawStatus === "available" || rawStatus === "cancelled"
-              ? "Cancelled"
-              : rawStatus === "sold"
-              ? "Sold"
-              : "Pending";
-          const agentId = c?.employee_id ? Number(c.employee_id) : null;
-          processedCustLotKeys.add(Number(c.lot_id));
-
-          updates.push({
-            id: c.customer_id,
-            lotNumber: c.lot_number,
-            propertyId: c.property_id,
-            propertyName: c.property_name || propNameMap.get(Number(c.property_id)) || `Property ${c.property_id}`,
-            status: normalizedStatus,
-            area: c.area_sqm || "—",
-            clientName: c.full_name || "—",
-            clientContact: c.contact_number || "",
-            clientEmail: c.email || "",
-            agentName: agentId ? (empNameMap.get(agentId) || "—") : "Admin",
-          });
-        });
-
-        // Add any lots that are Sold or Pending but don't have customer records
-        lots.forEach((lot) => {
-          if (["Sold", "Pending"].includes(lot.status) && !processedCustLotKeys.has(Number(lot.lot_id))) {
-            updates.push({
-              id: lot.lot_id,
-              lotNumber: lot.lot_number,
-              propertyId: lot.property_id,
-              propertyName: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
-              status: lot.status,
-              area: lot.area_sqm || "—",
-              clientName: "—",
-              clientContact: "",
-              clientEmail: "",
-              agentName: "Admin",
-            });
-          }
-        });
-
-        setRecentLotUpdates(updates);
-        try {
-          sessionStorage.setItem("employeeRecentCache", JSON.stringify(updates));
         } catch (e) {}
       } catch (dashboardError) {
         setError("Unable to load employee dashboard data. Please refresh and try again.");
@@ -228,7 +144,7 @@ const EmployeeDashboard = () => {
       </div>
 
       <div className="pt-2">
-        <EmployeeTransactions loading={loading} error={error} items={recentLotUpdates} />
+        <EmployeeTransactions />
       </div>
     </div>
   );

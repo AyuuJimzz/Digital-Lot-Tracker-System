@@ -14,8 +14,18 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
+// Test initial database connection on boot
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error(`❌ [MySQL Database Connection Failed]: ${err.message} (Host: ${process.env.DB_HOST || "localhost"})`);
+  } else {
+    console.log(`🗄️  [MySQL Database Connected] Host: ${process.env.DB_HOST || "localhost"} | DB: ${process.env.DB_NAME || "goldendragon"} | SSL: ${!!process.env.DB_SSL || !!process.env.DB_HOST?.includes("aivencloud.com")}`);
+    connection.release();
+  }
+});
+
 pool.on("error", (err) => {
-  console.error("❌ MySQL Pool Error:", err.message);
+  console.error("❌ [MySQL Pool Disconnection Error]:", err.message);
   try {
     const { sendMessengerAlert } = require("../src/services/messengerAlertService");
     sendMessengerAlert("Aiven MySQL Database Error", err.message || "Database pool disconnection").catch(() => {});

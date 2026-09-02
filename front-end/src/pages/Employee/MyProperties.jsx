@@ -35,10 +35,12 @@ const MyProperties = () => {
   useEffect(() => {
     const fetchLots = async () => {
       try {
+        const token = localStorage.getItem("authToken");
+        const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
         // Fetch properties and lots in parallel
         const [lotsResponse, propertiesResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/all`, { withCredentials: true }),
-          axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/all`, authConfig),
+          axios.get(`${API_BASE_URL}/api/properties`, authConfig),
         ]);
 
         const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];

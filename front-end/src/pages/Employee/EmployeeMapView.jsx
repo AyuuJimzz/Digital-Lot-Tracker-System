@@ -30,6 +30,11 @@ import {
 
 import "leaflet/dist/leaflet.css";
 
+const getAuthConfig = () => {
+  const token = localStorage.getItem("authToken");
+  return { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+};
+
 // ── Lightweight Static Overview Location Beacon (no animation = no GPU stutter) ──
 const createOverviewPropertyIcon = (name, lotCount) => {
   return L.divIcon({
@@ -417,8 +422,9 @@ const EmployeeMapView = () => {
   useEffect(() => {
     const fetchMapData = async () => {
       try {
+        const authConfig = getAuthConfig();
         const [mapResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig),
         ]);
 
         // Fetch customer details for all pending/sold lots
@@ -426,9 +432,7 @@ const EmployeeMapView = () => {
           mapResponse.data.lots.map(async (lot) => {
             if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
               try {
-                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
-                  withCredentials: true,
-                });
+                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, authConfig);
                 return { ...lot, customer: lotDetails.data.customer };
               } catch (error) {
                 console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
@@ -589,8 +593,9 @@ const EmployeeMapView = () => {
   const handleLotUpdated = () => {
     const fetchMapData = async () => {
       try {
+        const authConfig = getAuthConfig();
         const [mapResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig),
         ]);
 
         // Fetch customer details for all pending/sold lots
@@ -598,9 +603,7 @@ const EmployeeMapView = () => {
           mapResponse.data.lots.map(async (lot) => {
             if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
               try {
-                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, {
-                  withCredentials: true,
-                });
+                const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, authConfig);
                 return { ...lot, customer: lotDetails.data.customer };
               } catch (error) {
                 console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
@@ -749,7 +752,7 @@ const EmployeeMapView = () => {
                   setIsOffcanvasOpen(true);
                   setActivePopupLot(null);
 
-                  axios.get(`${API_BASE_URL}/api/lots/${activePopupLot.lot_id}`, { withCredentials: true })
+                  axios.get(`${API_BASE_URL}/api/lots/${activePopupLot.lot_id}`, getAuthConfig())
                     .then((res) => {
                       setSelectedLot(prev => prev && prev.lot_id === activePopupLot.lot_id ? { ...prev, ...res.data } : prev);
                     }).catch(() => {});
@@ -851,7 +854,7 @@ const EmployeeMapView = () => {
             try {
               const lotDetails = await axios.get(
                 `${API_BASE_URL}/api/lots/${lot.lot_id}`,
-                { withCredentials: true }
+                getAuthConfig()
               );
               setSelectedLot({
                 ...lotDetails.data,

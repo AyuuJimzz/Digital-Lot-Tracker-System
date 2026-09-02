@@ -22,6 +22,7 @@ const sessionOrToken = ({ roles = [], permission } = {}) => {
     // Helper function to handle unauthorized/forbidden responses
     const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:3000";
     const handleUnauthorized = (status, message, redirectPath, extraData = {}) => {
+      console.warn(`🔒 [Auth Required] ${status} - ${message} on [${req.method} ${req.originalUrl || req.url}]`);
       if (req.headers.accept && req.headers.accept.includes("text/html")) {
         return res.redirect(
           `${frontendUrl}/${redirectPath}?status=${status}&message=${encodeURIComponent(message)}`,

@@ -3,6 +3,330 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-09-02T15:31:22.800Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:16:26.782Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:16:21.006Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:16:04.051Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:13:46.345Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:13:14.729Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:13:12.086Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:12:24.560Z",
+      "event": "Email delivered to: john@gamil.com | Subject: \"Lot Reservation Confirmation - EX (LOT-3896 Oton Cadastre)\"",
+      "type": "EMAIL",
+      "user": "john@gamil.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T15:12:01.197Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:11:58.138Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:11:47.444Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:11:29.506Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:02:49.966Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:02:46.891Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:57:11.602Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:57:07.838Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:54:40.071Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:54:35.951Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:54:27.931Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:54:26.426Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:16:33.364Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:16:28.610Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:15:45.678Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:15:34.385Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:15:19.306Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:15:18.281Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:15:16.947Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:15:10.194Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:14:52.136Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:14:49.726Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:14:35.956Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:14:35.095Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:14:34.243Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:14:33.281Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:13:59.411Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T14:13:50.532Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-09-02T11:54:15.578Z",
       "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
       "type": "AUTH",
@@ -56,5 +380,12 @@
       "device": "Windows PC · Chrome",
       "ip": "127.0.0.1"
     }
-  ]
+  ],
+  "alertFilters": {
+    "criticalErrors": false,
+    "reservations": false,
+    "authSecurity": false,
+    "systemChanges": false
+  },
+  "lastModified": "2026-09-02T14:15:19.302Z"
 }

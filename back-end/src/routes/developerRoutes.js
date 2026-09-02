@@ -483,7 +483,7 @@ router.post("/purge-test-data", requireDeveloper, async (req, res) => {
     // 2. Delete all customers
     await db.query("DELETE FROM customers");
     // 3. Reset all lot statuses back to 'Available'
-    await db.query("UPDATE lots SET status = 'Available'");
+    await db.query("UPDATE lots SET status = 'Available', pending_since = NULL");
 
     addDeveloperLog("Purged all test customers & transactions. Reset all lots to 'Available'.", {
       type: "SECURITY",
@@ -542,6 +542,10 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
     const createdRecords = [];
     const now = new Date();
 
+    // Fetch first available employee to assign as demo agent
+    const [empRows] = await db.query("SELECT employee_id FROM employees LIMIT 1");
+    const demoEmployeeId = empRows.length > 0 ? empRows[0].employee_id : null;
+
     for (let i = 0; i < Math.min(count, availableLots.length); i++) {
       const lot = availableLots[i];
       const buyer = sampleBuyers[i % sampleBuyers.length];
@@ -560,9 +564,9 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
 
       // 1. Insert into customers
       const [custResult] = await db.query(
-        `INSERT INTO customers (lot_id, full_name, contact_number, email, address, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [lot.lot_id, buyer.name, buyer.phone, buyerEmail, buyer.city, isoTransDate, isoTransDate]
+        `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [lot.lot_id, buyer.name, buyer.phone, buyerEmail, buyer.city, demoEmployeeId, targetStatus === "Sold" ? "Sold" : "Pending", isoTransDate, isoTransDate]
       );
       const customerId = custResult.insertId;
 
@@ -572,9 +576,9 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
         : `Demo Inquiry: Active lot reservation pending client verification.`;
 
       await db.query(
-        `INSERT INTO transactions (lot_id, customer_id, transaction_date, payment_type, notes, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [lot.lot_id, customerId, isoTransDate, paymentType, noteText, isoTransDate, isoTransDate]
+        `INSERT INTO transactions (lot_id, customer_id, employee_id, transaction_date, payment_type, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [lot.lot_id, customerId, demoEmployeeId, isoTransDate, paymentType, noteText, isoTransDate, isoTransDate]
       );
 
       // 3. Update lot status
@@ -1393,7 +1397,7 @@ router.delete("/delete-admin/:admin_id", requireDeveloper, async (req, res) => {
 router.get("/employees", requireDeveloper, async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT employee_id, first_name, last_name, email, phone_number, gender, date_of_birth FROM employees ORDER BY employee_id ASC"
+      "SELECT employee_id, first_name, last_name, email, status, last_login FROM employees ORDER BY employee_id ASC"
     );
     res.json({ success: true, employees: rows });
   } catch (err) {
@@ -1404,7 +1408,7 @@ router.get("/employees", requireDeveloper, async (req, res) => {
 
 // ── CREATE / PROVISION EMPLOYEE ACCOUNT ──
 router.post("/create-employee", requireDeveloper, async (req, res) => {
-  const { first_name, last_name, email, password, phone_number, gender, date_of_birth } = req.body;
+  const { first_name, last_name, email, password } = req.body;
 
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: "First name, last name, email, and password are required" });
@@ -1433,16 +1437,13 @@ router.post("/create-employee", requireDeveloper, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
     const [result] = await db.query(
-      `INSERT INTO employees (first_name, last_name, email, password, phone_number, gender, date_of_birth)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO employees (first_name, last_name, email, password, status, password_reset_required)
+       VALUES (?, ?, ?, ?, 'active', 0)`,
       [
         cleanFirstName,
         cleanLastName,
         cleanEmail,
         hashedPassword,
-        phone_number?.trim() || null,
-        gender || "Prefer not to say",
-        date_of_birth || null,
       ]
     );
 
@@ -1462,7 +1463,6 @@ router.post("/create-employee", requireDeveloper, async (req, res) => {
         first_name: cleanFirstName,
         last_name: cleanLastName,
         email: cleanEmail,
-        phone_number: phone_number?.trim() || null,
       },
     });
   } catch (err) {
@@ -1513,7 +1513,7 @@ router.post("/reset-employee-password", requireDeveloper, async (req, res) => {
 
 // ── UPDATE EMPLOYEE PROFILE ──
 router.put("/update-employee", requireDeveloper, async (req, res) => {
-  const { employee_id, first_name, last_name, email, phone_number } = req.body;
+  const { employee_id, first_name, last_name, email } = req.body;
 
   if (!employee_id || !first_name || !last_name || !email) {
     return res.status(400).json({ error: "employee_id, first_name, last_name, and email are required" });
@@ -1543,8 +1543,8 @@ router.put("/update-employee", requireDeveloper, async (req, res) => {
     }
 
     const [result] = await db.query(
-      "UPDATE employees SET first_name = ?, last_name = ?, email = ?, phone_number = ? WHERE employee_id = ?",
-      [cleanFirstName, cleanLastName, cleanEmail, phone_number?.trim() || null, employee_id]
+      "UPDATE employees SET first_name = ?, last_name = ?, email = ? WHERE employee_id = ?",
+      [cleanFirstName, cleanLastName, cleanEmail, employee_id]
     );
 
     if (result.affectedRows === 0) {
@@ -1567,7 +1567,6 @@ router.put("/update-employee", requireDeveloper, async (req, res) => {
         first_name: cleanFirstName,
         last_name: cleanLastName,
         email: cleanEmail,
-        phone_number: phone_number?.trim() || null,
       },
     });
   } catch (err) {

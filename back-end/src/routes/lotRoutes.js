@@ -28,9 +28,9 @@ router.get("/dashboard-stats", requireAuth, getDashboardStats);
 router.get("/property-stats", requireAuth, getPropertyLotStats);
 router.get("/monthly-sales", requireAuth, getMonthlySalesData);
 router.get("/time-based-sales", requireAuth, getTimeBasedPropertySales);
-router.get("/all", getAllLots);
-router.get("/property/:propertyId", getLotsByProperty);
-router.get("/:id", getLotById);
+router.get("/all", requireAuth, getAllLots);
+router.get("/property/:propertyId", requireAuth, getLotsByProperty);
+router.get("/:id", requireAuth, getLotById);
 
 // Write / Mutation routes (Protected)
 router.post("/", requireAdmin, createLot);

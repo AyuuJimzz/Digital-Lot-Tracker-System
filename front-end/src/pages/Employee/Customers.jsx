@@ -28,7 +28,9 @@ const Customers = () => {
 
   const fetchCustomers = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/customers`, { withCredentials: true });
+      const token = localStorage.getItem("authToken");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_BASE_URL}/api/customers`, { withCredentials: true, headers });
       const fetched = Array.isArray(res.data) ? res.data : [];
       setCustomers(fetched);
       try {

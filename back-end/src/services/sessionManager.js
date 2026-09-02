@@ -55,6 +55,15 @@ async function ensureSessionSchema() {
       WHERE t.transaction_id IS NULL AND c.lot_id IS NOT NULL
     `);
 
+    // Ensure any Pending/Sold lots without transactions also have an audit transaction row
+    await db.query(`
+      INSERT INTO transactions (lot_id, customer_id, payment_type, notes, transaction_date)
+      SELECT l.lot_id, NULL, 'No Downpayment', CONCAT('Direct ', l.status, ' record'), COALESCE(l.pending_since, NOW())
+      FROM lots l
+      LEFT JOIN transactions t ON l.lot_id = t.lot_id
+      WHERE t.transaction_id IS NULL AND l.status IN ('Sold', 'Pending')
+    `);
+
     isSchemaEnsured = true;
   } catch (err) {
     console.warn("Session schema ensure notice:", err.message);

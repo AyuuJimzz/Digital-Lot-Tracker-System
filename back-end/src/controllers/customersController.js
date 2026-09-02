@@ -149,12 +149,13 @@ exports.createCustomer = async (req, res) => {
       [full_name.trim(), contact_number.trim(), email.trim(), address.trim(), employeeId]
     );
 
+    console.log(`👤 [New Customer Added] ID #${result.insertId} | "${full_name.trim()}" (${email.trim()})`);
     res.status(201).json({
       message: "Customer added successfully.",
       customer_id: result.insertId,
     });
   } catch (err) {
-    console.error("Error in createCustomer:", err);
+    console.error("❌ [Create Customer Error]:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -189,9 +190,10 @@ exports.updateCustomer = async (req, res) => {
       ]
     );
 
+    console.log(`👤 [Customer Updated] ID #${id} | "${full_name?.trim() || existing[0].full_name}"`);
     res.json({ message: "Customer updated successfully." });
   } catch (err) {
-    console.error("Error in updateCustomer:", err);
+    console.error(`❌ [Update Customer Error] ID #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -208,9 +210,10 @@ exports.deleteCustomer = async (req, res) => {
     }
 
     await db.query("DELETE FROM customers WHERE customer_id = ?", [id]);
+    console.log(`🗑️ [Customer Deleted] ID #${id} (${existing[0].full_name})`);
     res.json({ message: "Customer deleted successfully." });
   } catch (err) {
-    console.error("Error in deleteCustomer:", err);
+    console.error(`❌ [Delete Customer Error] ID #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -263,6 +266,7 @@ exports.createOrUpdateCustomer = async (req, res) => {
            WHERE lot_id = ? AND customer_id = ?`,
           [full_name.trim(), contact_number.trim(), email.trim(), address.trim(), id, existingCustomerForLot[0].customer_id]
         );
+        console.log(`👤 [Customer Record Updated] Cust #${existingCustomerForLot[0].customer_id} (${full_name}) for Lot #${id}`);
         res.json({ message: "Customer information updated successfully" });
         return;
       }

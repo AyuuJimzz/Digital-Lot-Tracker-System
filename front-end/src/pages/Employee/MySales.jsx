@@ -53,11 +53,13 @@ const MySales = () => {
   useEffect(() => {
     const fetchSalesData = async () => {
       try {
+        const token = localStorage.getItem("authToken");
+        const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
         const [lotsResponse, customersResponse, propertiesResponse, txnsResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/all`, { withCredentials: true }),
-          axios.get(`${API_BASE_URL}/api/customers`, { withCredentials: true }),
-          axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true }),
-          axios.get(`${API_BASE_URL}/api/transactions`, { withCredentials: true }).catch(() => ({ data: [] })),
+          axios.get(`${API_BASE_URL}/api/lots/all`, authConfig),
+          axios.get(`${API_BASE_URL}/api/customers`, authConfig),
+          axios.get(`${API_BASE_URL}/api/properties`, authConfig),
+          axios.get(`${API_BASE_URL}/api/transactions`, authConfig).catch(() => ({ data: [] })),
         ]);
 
         const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];

@@ -44,7 +44,9 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/lots/dashboard-stats`);
+        const token = localStorage.getItem("authToken");
+        const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+        const response = await axios.get(`${API_BASE_URL}/api/lots/dashboard-stats`, authConfig);
 
         const newStats = {
           totalLots: response.data.totalLots || 0,
@@ -67,7 +69,10 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchPropertyStats = async () => {
       try {
+        const token = localStorage.getItem("authToken");
+        const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
         const response = await axios.get(`${API_BASE_URL}/api/lots/time-based-sales`, {
+          ...authConfig,
           params: { period: selectedPeriod.toLowerCase() },
         });
 
@@ -84,7 +89,9 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchMonthlySalesData = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/lots/monthly-sales`);
+        const token = localStorage.getItem("authToken");
+        const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+        const response = await axios.get(`${API_BASE_URL}/api/lots/monthly-sales`, authConfig);
 
         console.log("Monthly sales data fetched:", response.data);
         setMonthlyData(response.data);

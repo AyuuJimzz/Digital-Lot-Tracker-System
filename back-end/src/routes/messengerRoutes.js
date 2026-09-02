@@ -31,6 +31,23 @@ function updateSystemState(fields) {
   }
 }
 
+// Helper to verify developer access
+function requireDeveloper(req, res, next) {
+  let activePin = (process.env.DEVELOPER_PIN || "1234").toString().trim();
+  try {
+    if (fs.existsSync(configPath)) {
+      const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      if (state.developerPin) activePin = state.developerPin.toString().trim();
+    }
+  } catch (err) {}
+
+  const devKey = req.headers["x-developer-pin"] || req.body?.key;
+  if ((devKey && devKey.toString().trim() === activePin) || (req.session && req.session.isDeveloper)) {
+    return next();
+  }
+  return res.status(403).json({ error: "Access Denied: Developer authentication required" });
+}
+
 /**
  * Process interactive Messenger Bot command
  * @param {string} senderPsid
@@ -38,6 +55,39 @@ function updateSystemState(fields) {
  */
 async function handleBotCommand(senderPsid, rawText) {
   const cleanCmd = (rawText || "").trim().toUpperCase();
+
+  const activePsids = (process.env.FB_RECIPIENT_PSID || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const isAuthorizedAdmin = activePsids.length === 0 || activePsids.includes(senderPsid);
+
+  // 0. ID / #ID / UID (Get sender's own PSID — Publicly allowed)
+  if (
+    cleanCmd === "#ID" ||
+    cleanCmd === "ID" ||
+    cleanCmd === "UID" ||
+    cleanCmd === "MY ID" ||
+    cleanCmd === "MYID" ||
+    cleanCmd === "PSID" ||
+    cleanCmd === "MY PSID"
+  ) {
+    const reply = 
+`🆔 [YOUR FACEBOOK MESSENGER PSID]
+━━━━━━━━━━━━━━━━━━━━
+🔑 Your PSID: ${senderPsid}
+━━━━━━━━━━━━━━━━━━━━
+💡 Ito ang iyong unique Facebook ID sa Page na ito. Maaari itong i-save sa Developer Panel para makatanggap ka ng automated production alerts!`;
+
+    return await sendDirectMessage(senderPsid, reply);
+  }
+
+  // Guard for Privileged Administrative Commands
+  if (!isAuthorizedAdmin && (cleanCmd.startsWith("MAINTENANCE") || cleanCmd === "LOGS" || cleanCmd === "ERRORS" || cleanCmd === "EVENTS" || cleanCmd === "STATUS" || cleanCmd === "PING")) {
+    const reply = `🔒 [UNAUTHORIZED ACCESS]\n━━━━━━━━━━━━━━━━━━━━\nYour Facebook PSID (${senderPsid}) is not registered as an authorized developer or administrator.\n\nReply '#ID' to obtain your ID for registration.`;
+    return await sendDirectMessage(senderPsid, reply);
+  }
 
   // 1. STATUS / PING / HEALTH
   if (cleanCmd === "STATUS" || cleanCmd === "PING" || cleanCmd === "HEALTH") {
@@ -56,10 +106,6 @@ async function handleBotCommand(senderPsid, rawText) {
     const uptimeStr = `${hours}h ${minutes}m`;
 
     const state = readSystemState();
-    const activePsids = (process.env.FB_RECIPIENT_PSID || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
 
     const reply = 
 `🟢 [GOLDEN DRAGON LIVE STATUS]
@@ -113,26 +159,6 @@ ${logLines}
       ip: "Meta Webhook",
     });
     const reply = `✅ [GOLDEN DRAGON LIVE]\n━━━━━━━━━━━━━━━━━━━━\nMaintenance Mode has been DISABLED.\nPlatform is now fully accessible to all admins and clients.`;
-    return await sendDirectMessage(senderPsid, reply);
-  }
-
-  // 0. ID / #ID / UID (Get sender's own PSID)
-  if (
-    cleanCmd === "#ID" ||
-    cleanCmd === "ID" ||
-    cleanCmd === "UID" ||
-    cleanCmd === "MY ID" ||
-    cleanCmd === "MYID" ||
-    cleanCmd === "PSID" ||
-    cleanCmd === "MY PSID"
-  ) {
-    const reply = 
-`🆔 [YOUR FACEBOOK MESSENGER PSID]
-━━━━━━━━━━━━━━━━━━━━
-🔑 Your PSID: ${senderPsid}
-━━━━━━━━━━━━━━━━━━━━
-💡 Ito ang iyong unique Facebook ID sa Page na ito. Maaari itong i-save sa Developer Panel para makatanggap ka ng automated production alerts!`;
-
     return await sendDirectMessage(senderPsid, reply);
   }
 
@@ -201,7 +227,7 @@ router.post("/webhook", async (req, res) => {
 });
 
 // ── DEVELOPER PANEL SIMULATE COMMAND TEST ──
-router.post("/simulate-command", async (req, res) => {
+router.post("/simulate-command", requireDeveloper, async (req, res) => {
   const { command, psid } = req.body;
   
   let targetPsids = [];

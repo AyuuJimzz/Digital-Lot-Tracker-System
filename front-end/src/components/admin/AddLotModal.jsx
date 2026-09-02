@@ -40,6 +40,8 @@ export function AddLotModal({
     setError("");
 
     try {
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
       const response = await axios.post(
         `${API_BASE_URL}/api/lots`,
         {
@@ -48,7 +50,7 @@ export function AddLotModal({
           area_sqm: area,
           status,
         },
-        { withCredentials: true }
+        authConfig
       );
 
       const newLot = response.data;

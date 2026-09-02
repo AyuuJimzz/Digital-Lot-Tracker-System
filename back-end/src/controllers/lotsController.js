@@ -657,13 +657,15 @@ exports.updateLotStatus = async (req, res) => {
       }
     }
 
+    console.log(`🏡 [Lot Status Updated] Lot ID #${id} (${lot.lot_number || "Lot"}) | Transition: ${lot.status} → ${status} | Initiator: ${req.user?.email || "Staff"}`);
+
     res.json({
       message: "Lot status updated successfully",
       status,
       email: email || "unchanged",
     });
   } catch (err) {
-    console.error("Error in updateLotStatus:", err);
+    console.error(`❌ [Lot Status Update Error] Lot #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -726,12 +728,14 @@ exports.updateLotCoordinates = async (req, res) => {
       id,
     ]);
 
+    console.log(`📍 [Lot Coordinates Saved] Lot ID #${id} (${lotRows[0]?.lot_number || "Lot"}) | Vertices: ${coordinates.length}`);
+
     res.json({
       message: "Lot coordinates updated successfully",
       coordinates,
     });
   } catch (err) {
-    console.error("Error in updateLotCoordinates:", err);
+    console.error(`❌ [Update Lot Coordinates Error] Lot #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -765,7 +769,7 @@ exports.sendPendingLotReminders = async (req, res) => {
         AND l.pending_since IS NOT NULL
         AND l.pending_since < DATE_SUB(NOW(), INTERVAL 24 HOUR)
         AND l.last_reminder_sent IS NOT NULL
-        AND l.last_reminder_sent < DATE_SUB(NOW(), INTERVAL 11 HOUR)
+        AND l.last_reminder_sent < DATE_SUB(NOW(), INTERVAL 12 HOUR)
         AND c.email IS NOT NULL
     `);
 
@@ -778,7 +782,7 @@ exports.sendPendingLotReminders = async (req, res) => {
       });
 
     let emailsSent = 0;
-    let errors = [];
+    const errors = [];
 
     // Send first reminders (12 hours)
     for (const lot of firstReminderLots) {
@@ -794,7 +798,7 @@ exports.sendPendingLotReminders = async (req, res) => {
             <p><strong>Status:</strong> Pending</p>
             <p><strong>Reserved Since:</strong> ${new Date(lot.pending_since).toLocaleString()}</p>
           </div>
-          <p>Your lot reservation has been pending for over 12 hours. Please complete your purchase or contact us for assistance.</p>
+          <p>Please complete your purchase or contact us if you need more time.</p>
           <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
             If you have any questions or need assistance, please don't hesitate to contact our support team.
           </p>
@@ -808,7 +812,7 @@ exports.sendPendingLotReminders = async (req, res) => {
 
       const emailResult = await sendEmail(
         lot.email,
-        "Lot Reservation Reminder (12 Hours) - Golden Dragon Estate Corporation",
+        "Lot Reservation Reminder - Golden Dragon Estate Corporation",
         emailHtml
       );
 
@@ -870,7 +874,7 @@ exports.sendPendingLotReminders = async (req, res) => {
       }
     }
 
-    console.log(`Final results: ${emailsSent} emails sent, ${errors.length} errors`);
+    console.log(`📧 [Pending Reminder Service] Completed: ${emailsSent} sent, ${errors.length} errors`);
 
     res.json({
       message: "Pending lot reminder process completed",
@@ -880,7 +884,7 @@ exports.sendPendingLotReminders = async (req, res) => {
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (err) {
-    console.error("Error in sendPendingLotReminders:", err);
+    console.error("❌ [Pending Reminder Error]:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -899,6 +903,8 @@ exports.createLot = async (req, res) => {
       [property_id, lot_number, area_sqm, status || "Available"]
     );
 
+    console.log(`📐 [New Lot Created] ID #${result.insertId} | Lot ${lot_number} (Property #${property_id}) | Area: ${area_sqm} sqm | Status: ${status || "Available"}`);
+
     res.status(201).json({
       message: "Lot created successfully",
       lot_id: result.insertId,
@@ -909,7 +915,7 @@ exports.createLot = async (req, res) => {
       coordinates: null,
     });
   } catch (err) {
-    console.error("Error in createLot:", err);
+    console.error("❌ [Create Lot Error]:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -927,12 +933,14 @@ exports.deleteLot = async (req, res) => {
     // Delete the lot (foreign key constraints on customers/transactions have ON DELETE CASCADE)
     await db.query("DELETE FROM lots WHERE lot_id = ?", [id]);
 
+    console.log(`🗑️ [Lot Deleted] ID #${id} (${lotRows[0]?.lot_number || "Lot"})`);
+
     res.json({
       message: "Lot deleted successfully",
       lot_id: Number(id),
     });
   } catch (err) {
-    console.error("Error in deleteLot:", err);
+    console.error(`❌ [Delete Lot Error] Lot #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -970,12 +978,14 @@ exports.bulkShiftPropertyLots = async (req, res) => {
       ]);
     }
 
+    console.log(`🗺️ [Bulk Shift Lots] Property #${propertyId} | Shifted ${lots.length} lot polygons (ΔLat: ${deltaLat}, ΔLng: ${deltaLng})`);
+
     res.json({
       message: `Successfully shifted coordinates for ${lots.length} lots`,
       updatedCount: lots.length,
     });
   } catch (err) {
-    console.error("Error in bulkShiftPropertyLots:", err);
+    console.error(`❌ [Bulk Shift Lots Error] Property #${propertyId}:`, err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -1002,6 +1012,8 @@ exports.updateLotDetails = async (req, res) => {
       id,
     ]);
 
+    console.log(`📐 [Lot Details Updated] ID #${id} | Number: ${lot_number.trim()} | Area: ${area_sqm} sqm`);
+
     res.json({
       message: "Lot details updated successfully",
       lot_id: Number(id),
@@ -1009,7 +1021,7 @@ exports.updateLotDetails = async (req, res) => {
       area_sqm: parseFloat(area_sqm),
     });
   } catch (err) {
-    console.error("Error in updateLotDetails:", err);
+    console.error(`❌ [Update Lot Details Error] Lot #${id}:`, err);
     res.status(500).json({ error: err.message });
   }
 };

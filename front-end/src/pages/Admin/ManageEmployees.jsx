@@ -46,8 +46,10 @@ const ManageEmployees = () => {
 
   const fetchEmployees = useCallback(async () => {
     try {
+      const token = localStorage.getItem("authToken");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await axios.get(`${API_BASE_URL}/api/employees`, {
-        withCredentials: true,
+        withCredentials: true, headers,
       });
       setEmployees(response.data);
       try { sessionStorage.setItem("employeesCache", JSON.stringify(response.data)); } catch (e) {}
@@ -71,9 +73,11 @@ const ManageEmployees = () => {
     setLoadingActivities(true);
     setActivities([]);
     try {
+      const token = localStorage.getItem("authToken");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.get(
         `${API_BASE_URL}/api/employees/${employee.employee_id}/activities`,
-        { withCredentials: true }
+        { withCredentials: true, headers }
       );
       setActivities(res.data.activities || []);
     } catch (err) {
@@ -220,14 +224,16 @@ const ManageEmployees = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
       const url = editingEmployee
         ? `${API_BASE_URL}/api/employees/${editingEmployee.employee_id}`
         : `${API_BASE_URL}/api/employees`;
       if (editingEmployee) {
-        await axios.put(url, formData, { withCredentials: true });
+        await axios.put(url, formData, authConfig);
         alert("Employee updated successfully");
       } else {
-        const res = await axios.post(url, formData, { withCredentials: true });
+        const res = await axios.post(url, formData, authConfig);
         alert(
           res.data?.message ||
             "Employee added successfully. An email with login credentials has been sent."
@@ -254,8 +260,10 @@ const ManageEmployees = () => {
   const handleDelete = async (employeeId) => {
     if (!window.confirm("Are you sure you want to delete this employee?")) return;
     try {
+      const token = localStorage.getItem("authToken");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.delete(`${API_BASE_URL}/api/employees/${employeeId}`, {
-        withCredentials: true,
+        withCredentials: true, headers,
       });
       await fetchEmployees();
       alert("Employee deleted successfully");

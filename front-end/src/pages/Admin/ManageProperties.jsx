@@ -49,7 +49,9 @@ const ManageProperties = () => {
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/properties`, { withCredentials: true });
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+      const response = await axios.get(`${API_BASE_URL}/api/properties`, authConfig);
       setProperties(response.data);
       try { sessionStorage.setItem("propertiesCache", JSON.stringify(response.data)); } catch (e) {}
       setLoading(false);
@@ -76,13 +78,15 @@ const ManageProperties = () => {
 
     try {
       let createdPropId = null;
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
       const url = editingProperty
         ? `${API_BASE_URL}/api/properties/${editingProperty.property_id}`
         : `${API_BASE_URL}/api/properties`;
       if (editingProperty) {
-        await axios.put(url, formData, { withCredentials: true });
+        await axios.put(url, formData, authConfig);
       } else {
-        const res = await axios.post(url, formData, { withCredentials: true });
+        const res = await axios.post(url, formData, authConfig);
         createdPropId = res.data?.property_id;
       }
 
@@ -159,7 +163,9 @@ const ManageProperties = () => {
   const handleToggleStatus = async (propertyId, currentStatus) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
-      await axios.patch(`${API_BASE_URL}/api/properties/${propertyId}/status`, { status: newStatus }, { withCredentials: true });
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+      await axios.patch(`${API_BASE_URL}/api/properties/${propertyId}/status`, { status: newStatus }, authConfig);
       try {
         sessionStorage.removeItem("propertiesCache");
         sessionStorage.removeItem("mapDataCache");
@@ -176,7 +182,9 @@ const ManageProperties = () => {
   const handleDelete = async (propertyId) => {
     if (!window.confirm("Are you sure you want to delete this property?")) return;
     try {
-      await axios.delete(`${API_BASE_URL}/api/properties/${propertyId}`, { withCredentials: true });
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+      await axios.delete(`${API_BASE_URL}/api/properties/${propertyId}`, authConfig);
       try {
         sessionStorage.removeItem("propertiesCache");
         sessionStorage.removeItem("mapDataCache");
