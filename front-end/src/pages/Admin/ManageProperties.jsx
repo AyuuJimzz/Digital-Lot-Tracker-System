@@ -270,8 +270,9 @@ const ManageProperties = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Property Name *</label>
+                <label htmlFor="manage-property-name" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Property Name *</label>
                 <input
+                  id="manage-property-name"
                   type="text"
                   name="property_name"
                   value={formData.property_name}
@@ -282,8 +283,9 @@ const ManageProperties = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Location / Address *</label>
+                <label htmlFor="manage-property-location" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Location / Address *</label>
                 <input
+                  id="manage-property-location"
                   type="text"
                   name="location"
                   value={formData.location}

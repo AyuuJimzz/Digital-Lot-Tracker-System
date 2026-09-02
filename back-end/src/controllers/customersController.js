@@ -3,17 +3,52 @@ const db = require("../../config/database_connection");
 const { sanitizeText, sanitizeEmail, sanitizePhone, sanitizeNotes } = require("../utils/sanitizer");
 
 // =======================
-// GET ALL CUSTOMERS
+// GET ALL CUSTOMERS (For Map/Dashboard — unfiltered, all employees)
 // =======================
-exports.getAllCustomers = async (req, res) => {
+exports.getAllCustomersForMap = async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT c.*, l.lot_number, l.status as lot_status, l.property_id, p.property_name
+      SELECT c.*, l.lot_number, 
+        CASE 
+          WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN 'Cancelled'
+          ELSE COALESCE(c.customer_status, l.status)
+        END as lot_status, 
+        l.property_id, p.property_name
       FROM customers c
       LEFT JOIN lots l ON c.lot_id = l.lot_id
       LEFT JOIN properties p ON l.property_id = p.property_id
       ORDER BY c.created_at DESC
     `);
+    res.json(rows);
+  } catch (err) {
+    console.error("Error in getAllCustomersForMap:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// =======================
+// GET ALL CUSTOMERS (Employee-filtered for My Clients)
+// =======================
+exports.getAllCustomers = async (req, res) => {
+  try {
+    let query = `
+      SELECT c.*, l.lot_number, 
+        CASE 
+          WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN 'Cancelled'
+          ELSE COALESCE(c.customer_status, l.status)
+        END as lot_status, 
+        l.property_id, p.property_name
+      FROM customers c
+      LEFT JOIN lots l ON c.lot_id = l.lot_id
+      LEFT JOIN properties p ON l.property_id = p.property_id
+    `;
+    const params = [];
+    if (req.user && req.user.role === "employee") {
+      query += ` WHERE c.employee_id = ? `;
+      params.push(req.user.id);
+    }
+    query += ` ORDER BY c.created_at DESC`;
+    const [rows] = await db.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error("Error in getAllCustomers:", err);
@@ -106,11 +141,12 @@ exports.createCustomer = async (req, res) => {
   }
 
   try {
+    const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
     const [result] = await db.query(
       `INSERT INTO customers 
-        (full_name, contact_number, email, address)
-       VALUES (?, ?, ?, ?)`,
-      [full_name.trim(), contact_number.trim(), email.trim(), address.trim()]
+        (full_name, contact_number, email, address, employee_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [full_name.trim(), contact_number.trim(), email.trim(), address.trim(), employeeId]
     );
 
     res.status(201).json({
@@ -216,16 +252,20 @@ exports.createOrUpdateCustomer = async (req, res) => {
       [id]
     );
 
-    // If customer already exists for this lot, update them
+    // If customer exists for this lot AND lot is still Pending/Sold → update in place
+    // If lot was Available (cancelled) — fall through to INSERT a new record
     if (existingCustomerForLot.length > 0) {
-      await db.query(
-        `UPDATE customers SET 
-         full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
-         WHERE lot_id = ?`,
-        [full_name.trim(), contact_number.trim(), email.trim(), address.trim(), id]
-      );
-      res.json({ message: "Customer information updated successfully" });
-      return;
+      const lotStatus = existingCustomerForLot[0].lot_status;
+      if (lotStatus === "Pending" || lotStatus === "Sold") {
+        await db.query(
+          `UPDATE customers SET 
+           full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
+           WHERE lot_id = ? AND customer_id = ?`,
+          [full_name.trim(), contact_number.trim(), email.trim(), address.trim(), id, existingCustomerForLot[0].customer_id]
+        );
+        res.json({ message: "Customer information updated successfully" });
+        return;
+      }
     }
 
     // Check if customer with same email exists (for different lot)
@@ -242,10 +282,11 @@ exports.createOrUpdateCustomer = async (req, res) => {
 
       // If the existing customer's lot is sold, create a new customer record
       if (existingCustomer.lot_status === "Sold") {
+        const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
         await db.query(
-          `INSERT INTO customers (lot_id, full_name, contact_number, email, address, created_at, updated_at) 
-           VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-          [id, full_name.trim(), contact_number.trim(), email.trim(), address.trim()]
+          `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, created_at, updated_at) 
+           VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [id, full_name.trim(), contact_number.trim(), email.trim(), address.trim(), employeeId]
         );
         res.json({ message: "New customer record created (previous lot is sold)" });
       } else {

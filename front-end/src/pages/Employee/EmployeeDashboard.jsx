@@ -7,7 +7,6 @@ import EmployeeTransactions from "../../components/employee/EmployeeRecentTransa
 import ForcePasswordChange from "../../components/ForcePasswordChange";
 
 const EmployeeDashboard = () => {
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [error, setError] = useState("");
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [stats, setStats] = useState(() => {
@@ -47,21 +46,10 @@ const EmployeeDashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const sessionResponse = await axios.get(`${API_BASE_URL}/api/auth/check-session`, {
-          withCredentials: true,
-        });
-
-        if (sessionResponse.data.role !== "employee" && sessionResponse.data.role !== "admin") {
-          window.location.href = "/forbidden";
-          return;
-        }
-
-        setIsAuthorized(true);
-
         const [mapDataResponse, employeesResponse, customersResponse] = await Promise.all([
           axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
           axios.get(`${API_BASE_URL}/api/employees`, { withCredentials: true }),
-          axios.get(`${API_BASE_URL}/api/customers`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/customers/all-for-map`, { withCredentials: true }),
         ]);
 
         const summary = mapDataResponse?.data?.summary || {};
@@ -99,28 +87,46 @@ const EmployeeDashboard = () => {
           propNameMap.set(Number(p.property_id), p.property_name || `Property ${p.property_id}`);
         });
 
+        // Build customer lookup map for quick access by lot_id
+        const custMap = new Map();
+        customers.forEach((c) => {
+          if (c.lot_id) {
+            custMap.set(Number(c.lot_id), c);
+          }
+        });
+
+        // Build employee name lookup map by employee_id
+        const empNameMap = new Map();
+        employees.forEach((e) => {
+          empNameMap.set(Number(e.employee_id), `${e.first_name || ""} ${e.last_name || ""}`.trim());
+        });
+
         // Recent Lot Updates: Only show lots with actual status updates (Sold / Pending)
         const updates = lots
           .filter((lot) => lot.status === "Sold" || lot.status === "Pending")
           .sort((a, b) => Number(b.lot_id || 0) - Number(a.lot_id || 0))
-          .map((lot) => ({
-            id: lot.lot_id,
-            lotNumber: lot.lot_number,
-            propertyId: lot.property_id,
-            propertyName: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
-            status: lot.status || "Unknown",
-            area: lot.area_sqm,
-          }));
+          .map((lot) => {
+            const cust = custMap.get(Number(lot.lot_id));
+            const agentId = cust?.employee_id ? Number(cust.employee_id) : null;
+            return {
+              id: lot.lot_id,
+              lotNumber: lot.lot_number,
+              propertyId: lot.property_id,
+              propertyName: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
+              status: lot.status || "Unknown",
+              area: lot.area_sqm,
+              clientName: cust?.full_name || "—",
+              clientContact: cust?.contact_number || "",
+              clientEmail: cust?.email || "",
+              agentName: agentId ? (empNameMap.get(agentId) || "—") : "Admin",
+            };
+          });
 
         setRecentLotUpdates(updates);
         try {
           sessionStorage.setItem("employeeRecentCache", JSON.stringify(updates));
         } catch (e) {}
       } catch (dashboardError) {
-        if (dashboardError?.response?.status === 401) {
-          window.location.href = "/access-denied";
-          return;
-        }
         setError("Unable to load employee dashboard data. Please refresh and try again.");
       } finally {
         setLoading(false);
@@ -157,8 +163,6 @@ const EmployeeDashboard = () => {
       </div>
     );
   }
-
-  if (!isAuthorized) return null;
 
   return (
     <div className="space-y-6 p-6">

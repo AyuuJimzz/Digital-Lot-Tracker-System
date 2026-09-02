@@ -159,6 +159,10 @@ export function MapLocationSearch({ onLocationSelected }) {
         </div>
 
         <input
+          id="map-location-search-input"
+          name="map_location_search"
+          aria-label="Search location in Iloilo"
+          autoComplete="off"
           ref={inputRef}
           type="text"
           value={query}

@@ -19,6 +19,33 @@ async function ensureSessionSchema() {
       await db.query("ALTER TABLE employees ADD COLUMN active_session_id VARCHAR(128) NULL");
     }
 
+    const [custCols] = await db.query("SHOW COLUMNS FROM customers LIKE 'employee_id'");
+    if (!custCols.length) {
+      await db.query("ALTER TABLE customers ADD COLUMN employee_id INT NULL");
+    }
+
+    const [txCols] = await db.query("SHOW COLUMNS FROM transactions LIKE 'employee_id'");
+    if (!txCols.length) {
+      await db.query("ALTER TABLE transactions ADD COLUMN employee_id INT NULL");
+    }
+
+    const [custStatusCols] = await db.query("SHOW COLUMNS FROM customers LIKE 'customer_status'");
+    if (!custStatusCols.length) {
+      await db.query("ALTER TABLE customers ADD COLUMN customer_status VARCHAR(20) NULL DEFAULT 'Pending'");
+      // Backfill: for lots with multiple customers, mark older ones as Cancelled (keep newest as Pending)
+      await db.query(`
+        UPDATE customers c
+        INNER JOIN (
+          SELECT lot_id, MAX(customer_id) as latest_id
+          FROM customers
+          GROUP BY lot_id
+          HAVING COUNT(*) > 1
+        ) latest ON c.lot_id = latest.lot_id AND c.customer_id != latest.latest_id
+        SET c.customer_status = 'Cancelled'
+        WHERE c.customer_status IS NULL OR c.customer_status = 'Pending'
+      `);
+    }
+
     isSchemaEnsured = true;
   } catch (err) {
     console.warn("Session schema ensure notice:", err.message);

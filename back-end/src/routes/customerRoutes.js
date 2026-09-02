@@ -4,6 +4,7 @@ const sessionOrToken = require("../middleware/session_or_token");
 
 const {
   getAllCustomers,
+  getAllCustomersForMap,
   getCustomerById,
   getLotWithCustomer,
   createCustomer,
@@ -16,6 +17,7 @@ const {
 const requireAuth = sessionOrToken({ roles: ["employee", "admin"] });
 
 router.get("/", requireAuth, getAllCustomers);
+router.get("/all-for-map", requireAuth, getAllCustomersForMap);
 router.get("/:id", requireAuth, getCustomerById);
 router.get("/lot/:id/with-customer", requireAuth, getLotWithCustomer);
 router.post("/", requireAuth, createCustomer);

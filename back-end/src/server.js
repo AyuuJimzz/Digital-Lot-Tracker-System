@@ -47,34 +47,21 @@ const reminderJob = schedule.scheduleJob("0 * * * *", async () => {
 const { addDeveloperLog } = require("./services/loggerService");
 const { sendMessengerAlert } = require("./services/messengerAlertService");
 
-// Handle errors
-server.on("error", (error) => {
-  console.error("Server error:", error);
-  addDeveloperLog(`Server Socket Error: ${error.message || String(error)}`, {
-    type: "ERROR",
-    role: "SERVER PROCESS",
-    device: "Node.js Process",
+// =======================
+// GRACEFUL SHUTDOWN & CLEANUP (Releases Port 5000 cleanly on Nodemon restart)
+// =======================
+const shutdown = (signal) => {
+  server.close(() => {
+    if (reminderJob) reminderJob.cancel();
+    if (signal === "SIGUSR2") {
+      process.kill(process.pid, "SIGUSR2");
+    } else {
+      process.exit(0);
+    }
   });
-  sendMessengerAlert("Server Socket Error", error.message || String(error)).catch(() => {});
-});
+};
 
-process.on("uncaughtException", (error) => {
-  console.error("Uncaught Exception:", error);
-  addDeveloperLog(`🚨 Uncaught Exception: ${error.message || String(error)}`, {
-    type: "ERROR",
-    role: "RUNTIME EXCEPTION",
-    device: "Node.js Runtime",
-  });
-  sendMessengerAlert("🚨 Server Uncaught Exception Crash", error.message || String(error)).catch(() => {});
-});
+process.once("SIGUSR2", () => shutdown("SIGUSR2"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
 
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
-  const msg = reason?.message || String(reason || "Unknown Rejection");
-  addDeveloperLog(`⚠️ Unhandled Promise Rejection: ${msg}`, {
-    type: "ERROR",
-    role: "ASYNC PROMISE",
-    device: "Node.js Runtime",
-  });
-  sendMessengerAlert("⚠️ Server Unhandled Promise Rejection", msg).catch(() => {});
-});

@@ -23,17 +23,25 @@ const RecentTransactions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  // Fetch transactions from API
+  const [empNameMap, setEmpNameMap] = useState({});
+
+  // Fetch transactions + employees from API
   useEffect(() => {
-    const fetchTransactions = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("authToken");
-        const response = await axios.get(`${API_BASE_URL}/api/transactions`, {
-          withCredentials: true,
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [txnRes, empRes] = await Promise.all([
+          axios.get(`${API_BASE_URL}/api/transactions`, { withCredentials: true, headers }),
+          axios.get(`${API_BASE_URL}/api/employees`, { withCredentials: true, headers }),
+        ]);
+        setTransactions(txnRes.data || []);
+        const map = {};
+        (empRes.data || []).forEach((e) => {
+          map[e.employee_id] = `${e.first_name || ""} ${e.last_name || ""}`.trim();
         });
-        setTransactions(response.data || []);
+        setEmpNameMap(map);
         setError(null);
       } catch (err) {
         console.error("Error fetching transactions:", err);
@@ -43,7 +51,7 @@ const RecentTransactions = () => {
       }
     };
 
-    fetchTransactions();
+    fetchData();
   }, []);
 
   // Filter transactions
@@ -84,6 +92,9 @@ const RecentTransactions = () => {
           <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
             <span>Show:</span>
             <select
+              id="admin-transactions-page-size"
+              name="admin_transactions_page_size"
+              aria-label="Select transactions per page"
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
               className="bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -119,20 +130,17 @@ const RecentTransactions = () => {
         <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
           <thead className="bg-gray-50/80 dark:bg-slate-800/80">
             <tr>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
-                Txn ID
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[18%]">
+                Txn ID / Date
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
                 Client
               </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
-                Lot #
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[24%]">
+                Lot Details
               </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
-                Property
-              </th>
-              <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
-                Date
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[14%]">
+                Agent
               </th>
               <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[10%]">
                 Payment
@@ -145,13 +153,13 @@ const RecentTransactions = () => {
           <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800 text-sm">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">
+                <td colSpan={6} className="px-5 py-8 text-sm text-gray-400 text-center">
                   Loading transactions...
                 </td>
               </tr>
             ) : paginatedTransactions.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-sm text-gray-400 text-center">
+                <td colSpan={6} className="px-5 py-8 text-sm text-gray-400 text-center">
                   No transactions found.
                 </td>
               </tr>
@@ -161,20 +169,25 @@ const RecentTransactions = () => {
                   key={txn.transaction_id}
                   className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors"
                 >
-                  <td className="px-5 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                    #{txn.transaction_id}
+                  <td className="px-5 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap text-sm">
+                    {txn.transaction_id}
+                    {txn.transaction_date && (
+                      <span className="text-gray-400 dark:text-slate-500 font-normal text-xs"> &bull; {txn.transaction_date}</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-slate-200 break-words">
+                  <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-slate-200 break-words text-sm">
                     {txn.customer_name}
                   </td>
-                  <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 font-medium">
+                  <td className="px-4 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap text-sm">
                     {txn.lot_number}
+                    {txn.property_name && (
+                      <span className="text-gray-400 dark:text-slate-500 font-normal"> &bull; {txn.property_name}</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 break-words">
-                    {txn.property_name}
-                  </td>
-                  <td className="px-4 py-3.5 text-center text-gray-500 dark:text-slate-400 whitespace-nowrap">
-                    {txn.transaction_date}
+                  <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-sm">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full px-2 py-0.5">
+                      {txn.employee_id && empNameMap[txn.employee_id] ? empNameMap[txn.employee_id] : "Admin"}
+                    </span>
                   </td>
                   <td className="px-4 py-3.5 text-center whitespace-nowrap">
                     <span

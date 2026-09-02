@@ -175,7 +175,7 @@ function Login({ setRole }) {
                 <input
                   id="login-email"
                   name="email"
-                  autoComplete="email"
+                  autoComplete="username email"
                   type="email"
                   placeholder="you@company.com"
                   value={email}

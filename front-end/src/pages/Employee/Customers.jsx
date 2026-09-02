@@ -8,7 +8,6 @@ const paginBtnCls =
   "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
 const Customers = () => {
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [customers, setCustomers] = useState(() => {
     try {
       const cached = sessionStorage.getItem("customersCache");
@@ -24,29 +23,7 @@ const Customers = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const sessionRes = await axios.get(`${API_BASE_URL}/api/auth/check-session`, {
-          withCredentials: true,
-        });
-        const role = sessionRes.data.role;
-        if (role !== "employee" && role !== "admin") {
-          window.location.href = "/forbidden";
-          return;
-        }
-        setIsAuthorized(true);
-        await fetchCustomers();
-      } catch (err) {
-        if (err?.response?.status === 401) {
-          window.location.href = "/access-denied";
-          return;
-        }
-        setError("Unable to load customer data. Please refresh and try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    init();
+    fetchCustomers();
   }, []);
 
   const fetchCustomers = async () => {
@@ -58,37 +35,16 @@ const Customers = () => {
         sessionStorage.setItem("customersCache", JSON.stringify(fetched));
       } catch (e) {}
     } catch {
+      setError("Unable to load customer data. Please refresh and try again.");
       setCustomers([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Group customers by email and get the latest status for each
-  const customersByLatestStatus = useMemo(() => {
-    const emailMap = new Map();
-
-    customers.forEach((customer) => {
-      const existing = emailMap.get(customer.email);
-
-      if (!existing) {
-        emailMap.set(customer.email, { ...customer, lots: [customer] });
-      } else {
-        // Add to lots array
-        const updatedLots = [...existing.lots, customer];
-        // Update to the latest record based on created_at
-        if (new Date(customer.created_at) > new Date(existing.created_at)) {
-          emailMap.set(customer.email, { ...customer, lots: updatedLots });
-        } else {
-          emailMap.set(customer.email, { ...existing, lots: updatedLots });
-        }
-      }
-    });
-
-    return Array.from(emailMap.values());
-  }, [customers]);
-
+  // Show all customer records individually (including cancelled history per lot)
   const filteredCustomersByEmail = useMemo(() => {
-    return customersByLatestStatus.filter((c) => {
-      // Normalize lot_status: Available -> cancelled, Pending -> pending, Sold -> sold
+    return customers.filter((c) => {
       const rawStatus = String(c.lot_status || "").toLowerCase();
       const normalizedStatus = rawStatus === "available" ? "cancelled" : rawStatus;
 
@@ -97,12 +53,12 @@ const Customers = () => {
 
       const lower = searchTerm.trim().toLowerCase();
       const matchesSearch = lower
-        ? `${c.full_name} ${c.email} ${c.contact_number} ${c.address} ${c.lot_number || ""} ${c.property_name || ""}`.toLowerCase().includes(lower)
+        ? `${c.full_name} ${c.email} ${c.contact_number} ${c.lot_number || ""} ${c.property_name || ""}`.toLowerCase().includes(lower)
         : true;
 
       return matchesStatus && matchesSearch;
     });
-  }, [customersByLatestStatus, searchTerm, statusFilter]);
+  }, [customers, searchTerm, statusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -127,7 +83,6 @@ const Customers = () => {
         <p className="text-sm text-gray-500 dark:text-slate-400">Loading clients...</p>
       </div>
     );
-  if (!isAuthorized) return null;
 
   return (
     <div className="space-y-6 p-6">
@@ -148,27 +103,13 @@ const Customers = () => {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
-          <p className="text-sm text-gray-500 dark:text-slate-400">Total Clients</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-2">
-            {customersByLatestStatus.length}
-          </p>
-        </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
-          <p className="text-sm text-gray-500 dark:text-slate-400">Search Results</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-2">
-            {filteredCustomersByEmail.length}
-          </p>
-        </div>
-      </div>
-
       {/* Table */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
         <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <input
             id="customer-search"
+            name="customer_search"
+            aria-label="Search by name, email, contact"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -178,6 +119,9 @@ const Customers = () => {
 
           <div className="flex items-center gap-3">
             <select
+              id="customer-status-filter"
+              name="customer_status_filter"
+              aria-label="Filter customer status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full sm:w-40 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
@@ -229,18 +173,18 @@ const Customers = () => {
                       </td>
                       <td className="px-3 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                         {customer.lot_number ? (
-                          <div>
-                            <span>{customer.lot_number}</span>
-                            <span className="block text-xs text-gray-500 dark:text-slate-400 font-normal">
-                              {customer.property_name || `Property ${customer.property_id}`}
-                            </span>
-                          </div>
+                          <span>
+                            {customer.lot_number}
+                            {(customer.property_name || customer.property_id) && (
+                              <span className="text-gray-400 dark:text-slate-500 font-normal"> &bull; {customer.property_name || `Property ${customer.property_id}`}</span>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-gray-400 dark:text-slate-500 font-normal">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {customer.lot_status === "Available" ? (
+                        {(customer.lot_status === "Available" || customer.lot_status === "Cancelled") ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
                             Cancelled
                           </span>

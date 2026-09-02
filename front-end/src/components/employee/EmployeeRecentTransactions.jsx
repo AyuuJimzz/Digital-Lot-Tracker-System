@@ -52,7 +52,7 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
       const status = String(item.status || "").toLowerCase();
       const propText = `${item.propertyName || ""} Property ${item.propertyId || ""}`.toLowerCase();
       const searchText =
-        `${item.lotNumber} ${propText} ${item.status} ${item.area}`.toLowerCase();
+        `${item.lotNumber} ${item.clientName || ""} ${item.clientContact || ""} ${item.clientEmail || ""} ${propText} ${item.status} ${item.area}`.toLowerCase();
 
       const matchesSearch = debouncedSearchTerm.trim()
         ? searchText.includes(debouncedSearchTerm.trim().toLowerCase())
@@ -167,6 +167,9 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
       {!loading && !error && items.length > 0 && (
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <input
+            id="employee-search-lots"
+            name="employee_search_lots"
+            aria-label="Search lot number, property, client, or status"
             type="text"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
@@ -176,17 +179,22 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
 
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
             <select
+              id="employee-status-filter"
+              name="employee_status_filter"
+              aria-label="Filter lot status"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
               className="w-full sm:w-40 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
             >
               <option value="all">All Status</option>
-              <option value="available">Available</option>
               <option value="pending">Pending</option>
               <option value="sold">Sold</option>
             </select>
 
             <select
+              id="employee-rows-per-page"
+              name="employee_rows_per_page"
+              aria-label="Select rows per page"
               value={rowsPerPage}
               onChange={(event) => setRowsPerPage(Number(event.target.value))}
               className="w-full sm:w-36 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
@@ -219,22 +227,30 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
             <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
               <thead className="bg-gray-50/80 dark:bg-slate-800/80">
                 <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[35%]">
+                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     <button type="button" onClick={() => handleSort("lotNumber")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
                       Lot Number <span className="text-[10px] text-gray-400">{getSortIndicator("lotNumber")}</span>
                     </button>
                   </th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[35%]">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     <button type="button" onClick={() => handleSort("propertyName")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
                       Property <span className="text-[10px] text-gray-400">{getSortIndicator("propertyName")}</span>
                     </button>
                   </th>
-                  <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell w-[15%]">
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    <button type="button" onClick={() => handleSort("clientName")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
+                      Client Name <span className="text-[10px] text-gray-400">{getSortIndicator("clientName")}</span>
+                    </button>
+                  </th>
+                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">
+                    Agent
+                  </th>
+                  <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell">
                     <button type="button" onClick={() => handleSort("area")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
                       Area (sqm) <span className="text-[10px] text-gray-400">{getSortIndicator("area")}</span>
                     </button>
                   </th>
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[15%]">
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     <button type="button" onClick={() => handleSort("status")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
                       Status <span className="text-[10px] text-gray-400">{getSortIndicator("status")}</span>
                     </button>
@@ -250,7 +266,15 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
                     <td className="px-4 py-3.5 font-medium text-gray-800 dark:text-slate-200">
                       {item.propertyName || `Property ${item.propertyId}`}
                     </td>
-                    <td className="px-4 py-3.5 text-center text-gray-700 dark:text-slate-300 hidden sm:table-cell">
+                    <td className="px-4 py-3.5 text-gray-900 dark:text-white font-semibold">
+                      {item.clientName || "—"}
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-600 dark:text-slate-400 hidden md:table-cell whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full px-2 py-0.5">
+                        {item.agentName || "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-center text-gray-700 dark:text-slate-300 hidden sm:table-cell whitespace-nowrap">
                       {item.area ? `${item.area} sqm` : "-"}
                     </td>
                     <td className="px-5 py-3.5 text-right whitespace-nowrap">

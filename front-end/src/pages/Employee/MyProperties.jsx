@@ -18,7 +18,6 @@ const selectCls = "w-full md:w-40 rounded-md border border-gray-300 dark:border-
 const paginBtnCls = "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
 const MyProperties = () => {
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [lots, setLots] = useState(() => {
     try {
       const cached = sessionStorage.getItem("employeeLotsCache");
@@ -36,12 +35,6 @@ const MyProperties = () => {
   useEffect(() => {
     const fetchLots = async () => {
       try {
-        const sessionResponse = await axios.get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true });
-        if (sessionResponse.data.role !== "employee" && sessionResponse.data.role !== "admin") {
-          window.location.href = "/forbidden"; return;
-        }
-        setIsAuthorized(true);
-
         // Fetch properties and lots in parallel
         const [lotsResponse, propertiesResponse] = await Promise.all([
           axios.get(`${API_BASE_URL}/api/lots/all`, { withCredentials: true }),
@@ -73,7 +66,6 @@ const MyProperties = () => {
         setLots(activeLots);
         try { sessionStorage.setItem("employeeLotsCache", JSON.stringify(activeLots)); } catch (e) {}
       } catch (requestError) {
-        if (requestError?.response?.status === 401) { window.location.href = "/access-denied"; return; }
         setError("Unable to load properties. Please refresh and try again.");
       } finally { setLoading(false); }
     };
@@ -106,7 +98,6 @@ const MyProperties = () => {
       <p className="text-sm text-gray-500 dark:text-slate-400">Loading properties...</p>
     </div>
   );
-  if (!isAuthorized) return null;
 
   return (
     <div className="space-y-6 p-6">
@@ -120,8 +111,24 @@ const MyProperties = () => {
       {!error && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search lot number, property..." className={inputCls} />
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={selectCls}>
+            <input
+              id="employee-properties-search"
+              name="employee_properties_search"
+              aria-label="Search lot number or property"
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search lot number, property..."
+              className={inputCls}
+            />
+            <select
+              id="employee-properties-status-filter"
+              name="employee_properties_status_filter"
+              aria-label="Filter property status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={selectCls}
+            >
               <option value="all">All Status</option>
               <option value="available">Available</option>
               <option value="pending">Pending</option>

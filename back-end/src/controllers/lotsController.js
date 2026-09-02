@@ -379,35 +379,47 @@ exports.updateLotStatus = async (req, res) => {
       // Check if customer already exists for this lot
       const [existingCustomer] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
 
-      if (existingCustomer.length > 0) {
-        // Update existing customer
+      const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
+
+      // If lot was previously Available (cancelled) and now getting a new Pending customer,
+      // INSERT a new record to preserve the cancelled customer's history
+      const lotWasCancelled = lot.status === "Available";
+
+      if (existingCustomer.length > 0 && !lotWasCancelled) {
+        // Update existing customer (lot was Pending→Sold or same active customer editing)
         if (status === "Pending") {
           await db.query(
             `UPDATE customers SET 
-             full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
-             WHERE lot_id = ?`,
-            [fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), id]
+             full_name = ?, contact_number = ?, email = ?, address = ?, employee_id = COALESCE(employee_id, ?), customer_status = 'Pending', updated_at = NOW() 
+             WHERE lot_id = ? AND customer_id = ?`,
+            [fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), employeeId, id, existingCustomer[0].customer_id]
           );
+        } else if (status === "Sold") {
+          await db.query("UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
+            id, existingCustomer[0].customer_id,
+          ]);
         } else {
-          // For non-pending status, just update email
-          await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ?", [
-            email,
-            id,
+          await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
+            email, id, existingCustomer[0].customer_id,
           ]);
         }
       } else {
-        // Create new customer (only if all fields are provided)
+        // INSERT: either no existing customer, or lot was Available (history must be preserved)
+        if (lotWasCancelled && existingCustomer.length > 0) {
+          // Mark ALL previous customers for this lot as Cancelled
+          await db.query("UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ?", [id]);
+        }
         if (fullName?.trim() && contactNumber?.trim() && address?.trim()) {
           await db.query(
-            `INSERT INTO customers (lot_id, full_name, contact_number, email, address, created_at, updated_at) 
-             VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-            [id, fullName.trim(), contactNumber.trim(), email.trim(), address.trim()]
+            `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?, 'Pending', NOW(), NOW())`,
+            [id, fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), employeeId]
           );
         } else if (status !== "Pending") {
           // For non-pending status, create with just email
           await db.query(
-            "INSERT INTO customers (lot_id, email, created_at, updated_at) VALUES (?, ?, NOW(), NOW())",
-            [id, email]
+            "INSERT INTO customers (lot_id, email, employee_id, customer_status, created_at, updated_at) VALUES (?, ?, ?, 'Pending', NOW(), NOW())",
+            [id, email, employeeId]
           );
         }
       }
@@ -630,12 +642,18 @@ exports.updateLotStatus = async (req, res) => {
           });
         }
       }
-    } else if (lot.status === "Pending" && status !== "Pending") {
-      // Changing from Pending to something else - clear timestamps
+    } else if (status === "Available" || (lot.status === "Pending" && status !== "Pending")) {
+      // Changing from Pending to Available/another status - clear timestamps & mark customer as Cancelled if Available
       await db.query(
         "UPDATE lots SET pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
         [id]
       );
+      if (status === "Available") {
+        await db.query(
+          "UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ? AND (customer_status = 'Pending' OR customer_status IS NULL)",
+          [id]
+        );
+      }
     }
 
     res.json({

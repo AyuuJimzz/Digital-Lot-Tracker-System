@@ -322,8 +322,9 @@ const ManageEmployees = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">First Name *</label>
+                <label htmlFor="employee-first-name" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">First Name *</label>
                 <input
+                  id="employee-first-name"
                   type="text"
                   name="first_name"
                   value={formData.first_name}
@@ -335,8 +336,9 @@ const ManageEmployees = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Last Name *</label>
+                <label htmlFor="employee-last-name" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Last Name *</label>
                 <input
+                  id="employee-last-name"
                   type="text"
                   name="last_name"
                   value={formData.last_name}
@@ -348,8 +350,9 @@ const ManageEmployees = () => {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Email Address *</label>
+                <label htmlFor="employee-email" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Email Address *</label>
                 <input
+                  id="employee-email"
                   type="email"
                   name="email"
                   value={formData.email}
@@ -411,7 +414,7 @@ const ManageEmployees = () => {
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-14 hidden sm:table-cell">#</th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Employee Name</th>
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email Address</th>
-                <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Lots Handled</th>
+
                 <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Status</th>
                 <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell whitespace-nowrap">Date Joined</th>
                 <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-24">Actions</th>
@@ -421,7 +424,7 @@ const ManageEmployees = () => {
               {employees.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="6"
                     className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400"
                   >
                     No employees found
@@ -449,44 +452,7 @@ const ManageEmployees = () => {
                     <td className="px-4 py-3.5 text-sm text-gray-600 dark:text-slate-300">
                       {employee.email}
                     </td>
-                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                      <div className="inline-flex items-center justify-center gap-1.5">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-md border ${
-                            (employee.lots_sold || 0) > 0
-                              ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/25"
-                              : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50"
-                          }`}
-                          title="Total Lots Sold by Employee"
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              (employee.lots_sold || 0) > 0
-                                ? "bg-rose-500 dark:bg-rose-400"
-                                : "bg-gray-400 dark:bg-slate-500"
-                            }`}
-                          ></span>
-                          {employee.lots_sold || 0} Sold
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-md border ${
-                            (employee.lots_pending || 0) > 0
-                              ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25"
-                              : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50"
-                          }`}
-                          title="Total Lots Reserved / Pending"
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              (employee.lots_pending || 0) > 0
-                                ? "bg-amber-500 dark:bg-amber-400"
-                                : "bg-gray-400 dark:bg-slate-500"
-                            }`}
-                          ></span>
-                          {employee.lots_pending || 0} Pending
-                        </span>
-                      </div>
-                    </td>
+
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       {(() => {
                         const statusInfo = getEmployeeActivityStatus(employee);

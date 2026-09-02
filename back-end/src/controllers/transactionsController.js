@@ -3,9 +3,11 @@ const db = require("../../config/database_connection");
 // Get all transactions (sold and pending lots with customer info)
 const getTransactions = async (req, res) => {
   try {
-    const query = `
+    let query = `
       SELECT 
         CONCAT('TXN-', LPAD(t.transaction_id, 4, '0')) as transaction_id,
+        t.lot_id,
+        t.employee_id,
         COALESCE(c.full_name, 'No customer assigned') as customer_name,
         l.lot_number,
         p.property_name,
@@ -17,9 +19,14 @@ const getTransactions = async (req, res) => {
       LEFT JOIN customers c ON t.customer_id = c.customer_id
       JOIN properties p ON l.property_id = p.property_id
       WHERE l.status IN ('Sold', 'Pending')
-      ORDER BY t.transaction_date DESC
     `;
-    const [transactions] = await db.execute(query);
+    const params = [];
+    if (req.user && req.user.role === "employee") {
+      query += ` AND (t.employee_id = ? OR c.employee_id = ?) `;
+      params.push(req.user.id, req.user.id);
+    }
+    query += ` ORDER BY t.transaction_date DESC`;
+    const [transactions] = await db.execute(query, params);
     res.json(transactions);
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -34,14 +41,15 @@ const getTransactions = async (req, res) => {
 const createTransaction = async (req, res) => {
   try {
     const { lot_id, customer_id, payment_type, notes } = req.body;
+    const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
 
     // Start transaction
     await db.beginTransaction();
 
     // Create transaction record
     const insertTransactionQuery = `
-      INSERT INTO transactions (lot_id, customer_id, payment_type, notes)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id)
+      VALUES (?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.execute(insertTransactionQuery, [
@@ -49,6 +57,7 @@ const createTransaction = async (req, res) => {
       customer_id,
       payment_type || "No Downpayment",
       notes,
+      employeeId,
     ]);
 
     // Update lot status to Pending

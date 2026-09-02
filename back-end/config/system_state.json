@@ -3,98 +3,8 @@
   "developerPin": "1234",
   "logs": [
     {
-      "timestamp": "2026-09-02T06:12:22.211Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T06:12:17.047Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T06:12:04.252Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T06:04:11.861Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "macOS · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T05:45:45.115Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T05:39:56.237Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T05:39:55.057Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T05:39:50.125Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T05:39:41.023Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T04:13:01.530Z",
-      "event": "Email delivered to: dsa@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 15 Lot 15 (Lot-204 Nanga Guimbal)\"",
-      "type": "EMAIL",
-      "user": "dsa@gmail.com",
-      "role": "BREVO SMTP",
-      "device": "Mail Server",
-      "ip": null
-    },
-    {
-      "timestamp": "2026-09-02T04:12:28.885Z",
-      "event": "Email delivered to: asdasd@gmail.com | Subject: \"Lot Purchase Confirmation - Golden Dragon Estate Corporation\"",
+      "timestamp": "2026-09-02T09:09:53.919Z",
+      "event": "Email delivered to: asdasd@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 13 Lot 6 (Lot-204 Nanga Guimbal)\"",
       "type": "EMAIL",
       "user": "asdasd@gmail.com",
       "role": "BREVO SMTP",
@@ -102,1066 +12,1345 @@
       "ip": null
     },
     {
-      "timestamp": "2026-09-02T04:04:36.747Z",
-      "event": "Email delivered to: asdasd@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 10 Lot 17 (Lot-204 Nanga Guimbal)\"",
+      "timestamp": "2026-09-02T09:08:46.564Z",
+      "event": "Email delivered to: johnedwardbearasdxzccvvvnezaa@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 13 Lot 6 (Lot-204 Nanga Guimbal)\"",
       "type": "EMAIL",
-      "user": "asdasd@gmail.com",
+      "user": "johnedwardbearasdxzccvvvnezaa@gmail.com",
       "role": "BREVO SMTP",
       "device": "Mail Server",
       "ip": null
     },
     {
-      "timestamp": "2026-09-02T03:56:23.232Z",
+      "timestamp": "2026-09-02T09:05:14.966Z",
       "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
       "type": "AUTH",
       "user": "jamesdelossantos1028@gmail.com",
       "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:56:20.392Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:56:09.762Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:56:06.291Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:51:08.805Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:50:33.443Z",
-      "event": "Email delivered to: joan.bearneza.ui@phinmaed.com | Subject: \"Password Reset - Temporary Password\"",
-      "type": "EMAIL",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "BREVO SMTP",
-      "device": "Mail Server",
-      "ip": null
-    },
-    {
-      "timestamp": "2026-09-02T03:50:01.300Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:45:23.839Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:45:09.758Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:43:26.804Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:43:23.932Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:42:27.853Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:42:23.371Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:42:18.202Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:42:14.379Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "macOS · Safari",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:41:52.393Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:27:14.398Z",
-      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "employee",
       "device": "Windows PC · Edge",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-09-02T03:25:32.172Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Edge",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:25:21.413Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Edge",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:15:09.345Z",
-      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:14:55.727Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:14:35.447Z",
-      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE) [Single Device Session Active]",
-      "type": "AUTH",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "employee",
-      "device": "Windows PC · Edge",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:14:25.557Z",
-      "event": "Failed login attempt: joan.bearneza.ui@phinmaed.com",
-      "type": "SECURITY",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "Unknown",
-      "device": "Windows PC · Edge",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:01:25.466Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-02T03:01:21.267Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:51:04.047Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:51:02.684Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:39:19.623Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:39:17.888Z",
-      "event": "User Logged Out: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:38:38.119Z",
-      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:37:00.158Z",
-      "event": "Email delivered to: joan.bearneza.ui@phinmaed.com | Subject: \"Password Reset - Temporary Password\"",
-      "type": "EMAIL",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "BREVO SMTP",
-      "device": "Mail Server",
-      "ip": null
-    },
-    {
-      "timestamp": "2026-09-01T18:35:00.965Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:34:21.227Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:34:19.387Z",
-      "event": "User Logged Out: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:27:00.377Z",
-      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:26:06.241Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T18:24:50.449Z",
-      "event": "Email delivered to: joan.bearneza.ui@phinmaed.com | Subject: \"Welcome to Golden Dragon - Your Staff Credentials\"",
-      "type": "EMAIL",
-      "user": "joan.bearneza.ui@phinmaed.com",
-      "role": "BREVO SMTP",
-      "device": "Mail Server",
-      "ip": null
-    },
-    {
-      "timestamp": "2026-09-01T14:01:07.978Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T13:26:25.215Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T13:26:22.070Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T13:09:01.383Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T13:08:58.142Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T13:08:22.023Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T13:08:17.507Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T12:37:36.985Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T12:37:32.380Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T04:50:40.877Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T04:50:36.067Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T04:24:02.401Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-09-01T04:23:58.892Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T11:05:21.131Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T11:05:15.447Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T11:04:16.094Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T11:04:12.904Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:45:43.329Z",
-      "event": "Email delivered to: johnedwardbearnezaa@gmail.com | Subject: \"Welcome to Golden Dragon - Your Staff Credentials\"",
-      "type": "EMAIL",
-      "user": "johnedwardbearnezaa@gmail.com",
-      "role": "BREVO SMTP",
-      "device": "Mail Server",
-      "ip": null
-    },
-    {
-      "timestamp": "2026-08-31T10:16:17.499Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Edge",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:11:10.762Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:11:08.048Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:10:53.142Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:10:50.586Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:08:03.584Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:07:58.391Z",
-      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:07:45.250Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "jamesdelossantos1028@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:07:41.100Z",
-      "event": "Failed login attempt: Botschats12@gmail.com",
-      "type": "SECURITY",
-      "user": "Botschats12@gmail.com",
-      "role": "Unknown",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T10:07:37.570Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T09:49:03.201Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T09:48:59.934Z",
-      "event": "User Logged Out: asd@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "asd@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T09:48:48.287Z",
-      "event": "User Logged In: asd@gmail.com (EMPLOYEE)",
-      "type": "AUTH",
-      "user": "asd@gmail.com",
-      "role": "employee",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-31T09:48:43.346Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-30T16:19:56.225Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-30T14:31:49.085Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Edge",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-30T06:00:00.834Z",
-      "event": "Email delivered to: hankvedjohaan@gmail.com | Subject: \"Lot Reservation Reminder (12 Hours) - Golden Dragon Estate Corporation\"",
-      "type": "EMAIL",
-      "user": "hankvedjohaan@gmail.com",
-      "role": "BREVO SMTP",
-      "device": "Mail Server",
-      "ip": null
-    },
-    {
-      "timestamp": "2026-08-30T00:05:51.944Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
+      "timestamp": "2026-09-02T09:05:00.045Z",
+      "event": "Deleted record in table 'customers' where customer_id = 41",
+      "type": "DATABASE",
       "user": null,
       "role": null,
-      "device": "Windows PC · Chrome",
+      "device": "Windows PC · Edge",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-30T00:05:45.412Z",
-      "event": "Messenger alert recipients updated: 38238961399053075 (1 active)",
-      "type": "SYSTEM",
+      "timestamp": "2026-09-02T09:04:58.021Z",
+      "event": "Deleted record in table 'customers' where customer_id = 39",
+      "type": "DATABASE",
       "user": null,
       "role": null,
-      "device": "Windows PC · Chrome",
+      "device": "Windows PC · Edge",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-30T00:05:21.602Z",
+      "timestamp": "2026-09-02T09:04:56.317Z",
+      "event": "Deleted record in table 'customers' where customer_id = 40",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T09:04:54.759Z",
+      "event": "Deleted record in table 'customers' where customer_id = 38",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T09:04:52.890Z",
+      "event": "Deleted record in table 'customers' where customer_id = 36",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T09:04:50.792Z",
+      "event": "Deleted record in table 'customers' where customer_id = 37",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T09:04:47.587Z",
+      "event": "Deleted record in table 'customers' where customer_id = 35",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T09:04:40.993Z",
+      "event": "Deleted record in table 'customers' where customer_id = 42",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T09:03:59.903Z",
       "event": "Developer console authenticated",
       "type": "SECURITY",
       "user": "Developer (Root)",
       "role": "Developer",
-      "device": "Windows PC · Chrome",
+      "device": "Windows PC · Edge",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-30T00:05:14.338Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "timestamp": "2026-09-02T09:03:54.356Z",
+      "event": "User Logged Out: joan.bearneza.ui@phinmaed.com (EMPLOYEE)",
       "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-29T23:51:19.827Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
+      "timestamp": "2026-09-02T08:58:58.979Z",
+      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE) [Single Device Session Active]",
       "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-29T23:51:17.508Z",
+      "timestamp": "2026-09-02T08:58:46.588Z",
       "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
       "type": "AUTH",
       "user": "jamesdelossantos1028@gmail.com",
       "role": "employee",
-      "device": "Windows PC · Chrome",
+      "device": "Windows PC · Edge",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-29T23:50:44.963Z",
-      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "timestamp": "2026-09-02T08:58:26.279Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
       "type": "AUTH",
       "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T08:55:42.470Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:55:40.877Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:55:39.234Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:55:37.359Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:42.810Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:41.951Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:41.135Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:40.219Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:39.345Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:38.495Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:37.538Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:36.220Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:35.255Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:34.161Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:33.240Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:32.337Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:31.442Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:30.587Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:29.772Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:28.924Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:28.074Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:27.203Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:26.395Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:25.547Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:24.650Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:23.782Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:22.949Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:22.077Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:21.106Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:20.109Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:19.167Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:17.863Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:16.616Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:15.715Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:14.777Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:13.874Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:12.823Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:11.863Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:10.785Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:09.734Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:08.832Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:07.705Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:06.320Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:05.364Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:04.412Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:03.211Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:02.003Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:01.022Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:54:00.145Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:59.251Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:58.424Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:57.498Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:56.620Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:55.713Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:54.806Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:53.956Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:53.111Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:52.192Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:51.279Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:50.325Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:49.340Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:48.289Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:47.313Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:46.327Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:45.446Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:44.522Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:43.570Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:42.701Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:41.819Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:40.931Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:40.072Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:39.200Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:38.315Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:37.440Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:36.555Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:35.467Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:34.484Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:33.644Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:32.774Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:31.923Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:30.971Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:30.029Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:29.168Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:28.328Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:27.465Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:26.613Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:25.495Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:24.375Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:23.417Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:22.331Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:21.042Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:20.028Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:19.084Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:18.187Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:17.102Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:16.124Z",
+      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "joan.bearneza.ui@phinmaed.com",
       "role": "employee",
       "device": "Windows PC · Chrome",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-29T23:50:41.293Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:49:55.569Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:49:54.352Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:49:52.202Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:49:49.523Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:49:44.194Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:49:43.034Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:49:39.062Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:47:24.088Z",
-      "event": "User Logged Out: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:47:17.769Z",
-      "event": "User Logged In: admin@gmail.com (ADMIN)",
-      "type": "AUTH",
-      "user": "admin@gmail.com",
-      "role": "admin",
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:15:50.259Z",
-      "event": "Messenger automated dispatch set to: ENABLED (ON)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:11:20.578Z",
-      "event": "Messenger automated dispatch set to: PAUSED (OFF)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:11:19.704Z",
-      "event": "Messenger automated dispatch set to: ENABLED (ON)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:11:19.448Z",
-      "event": "Messenger automated dispatch set to: PAUSED (OFF)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:11:18.393Z",
-      "event": "Messenger automated dispatch set to: ENABLED (ON)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T23:11:17.198Z",
-      "event": "Messenger automated dispatch set to: PAUSED (OFF)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:33:18.235Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:33:14.715Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:32:54.628Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:32:53.709Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:32:51.943Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:32:45.701Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:32:10.478Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:32:09.424Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:32:08.356Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:32:06.804Z",
-      "event": "Updated Messenger Alert notification category filters",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:22:35.568Z",
-      "event": "Restored all hidden Messenger contacts in developer console",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:21:27.757Z",
-      "event": "Removed/Dismissed Messenger contact from scan list: Hackie Neaza 󱢏 (38238961399053075)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:20:43.556Z",
-      "event": "Restored all hidden Messenger contacts in developer console",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:20:34.462Z",
-      "event": "Removed/Dismissed Messenger contact from scan list: Hackie Neaza 󱢏 (38238961399053075)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:20:32.347Z",
-      "event": "Messenger alert recipients updated: 39239492235650267 (1 active)",
-      "type": "SYSTEM",
-      "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
-    },
-    {
-      "timestamp": "2026-08-29T22:06:39.645Z",
-      "event": "System Error on [POST /api/developer/simulate-crash]: Simulated 500 Crash [6:06:39 AM]: Aiven Cloud DB Deadlock & Connection Timeout!",
+      "timestamp": "2026-09-02T08:53:15.889Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
       "type": "ERROR",
       "user": null,
-      "role": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:14.818Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:13.661Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:12.751Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:11.913Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:11.053Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:10.175Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:09.349Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:08.411Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:07.374Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:06.514Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:05.708Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:04.963Z",
+      "event": "Failed login attempt: joan.bearneza.ui@bearneza.com",
+      "type": "SECURITY",
+      "user": "joan.bearneza.ui@bearneza.com",
+      "role": "Unknown",
       "device": "Windows PC · Chrome",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-29T22:05:59.662Z",
-      "event": "System Error on [POST /api/developer/simulate-crash]: Simulated 500 Crash [6:05:59 AM]: Aiven Cloud DB Deadlock & Connection Timeout!",
+      "timestamp": "2026-09-02T08:53:04.728Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
       "type": "ERROR",
       "user": null,
-      "role": null,
-      "device": "Desktop · Browser",
-      "ip": "127.0.0.1"
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
     },
     {
-      "timestamp": "2026-08-29T22:05:35.208Z",
-      "event": "System Error on [POST /api/developer/simulate-crash]: Simulated 500 Crash [6:05:35 AM]: Aiven Cloud DB Deadlock & Connection Timeout!",
+      "timestamp": "2026-09-02T08:53:03.897Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
       "type": "ERROR",
       "user": null,
-      "role": null,
-      "device": "Desktop · Browser",
-      "ip": "127.0.0.1"
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
     },
     {
-      "timestamp": "2026-08-29T22:04:53.254Z",
-      "event": "System Error on [POST /api/developer/simulate-crash]: Simulated 500 Crash [6:04:53 AM]: Aiven Cloud DB Deadlock & Connection Timeout!",
+      "timestamp": "2026-09-02T08:53:03.069Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
       "type": "ERROR",
       "user": null,
-      "role": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:02.256Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:01.408Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:53:00.571Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:59.749Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:58.945Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:58.131Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:57.287Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:56.472Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:55.702Z",
+      "event": "Failed login attempt: joan.bearneza.ui@bearneza.com",
+      "type": "SECURITY",
+      "user": "joan.bearneza.ui@bearneza.com",
+      "role": "Unknown",
       "device": "Windows PC · Chrome",
       "ip": "127.0.0.1"
     },
     {
-      "timestamp": "2026-08-29T22:04:21.280Z",
-      "event": "System Error on [POST /api/developer/simulate-crash]: Simulated 500 Crash [6:04:21 AM]: Aiven Cloud DB Deadlock & Connection Timeout!",
+      "timestamp": "2026-09-02T08:52:55.583Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
       "type": "ERROR",
       "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
     },
     {
-      "timestamp": "2026-08-29T22:02:39.941Z",
-      "event": "System Error on [POST /api/developer/simulate-crash]: Simulated Unhandled 500 Crash: Aiven Database Connection Dropped or Deadlock!",
+      "timestamp": "2026-09-02T08:52:54.766Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
       "type": "ERROR",
       "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
     },
     {
-      "timestamp": "2026-08-29T22:00:41.022Z",
-      "event": "System Error on [POST /api/developer/simulate-crash]: Simulated Unhandled 500 Crash: Aiven Database Connection Dropped or Deadlock!",
+      "timestamp": "2026-09-02T08:52:53.800Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
       "type": "ERROR",
       "user": null,
-      "role": null,
-      "device": "Windows PC · Chrome",
-      "ip": "127.0.0.1"
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:52.779Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:51.945Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:51.117Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:50.298Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:49.482Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:48.691Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:47.867Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:47.067Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:46.231Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T08:52:45.423Z",
+      "event": "Server Socket Error: listen EADDRINUSE: address already in use :::5000",
+      "type": "ERROR",
+      "user": null,
+      "role": "SERVER PROCESS",
+      "device": "Node.js Process",
+      "ip": null
     }
   ],
   "authRevocationTimestamp": "2026-08-29T18:30:20.396Z",

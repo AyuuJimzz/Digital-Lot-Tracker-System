@@ -8,7 +8,6 @@ import {
   CheckCircle,
   AlertCircle,
   Mail,
-  Phone,
   Lock,
   Eye,
   EyeOff,
@@ -240,9 +239,7 @@ const ProfileSettings = () => {
                     Personal Information
                   </h2>
                   <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
-                    {isAdmin
-                      ? "Update your name and email details"
-                      : "Update your name, email and contact details"}
+                    Update your name and email details
                   </p>
                 </div>
 
@@ -250,12 +247,14 @@ const ProfileSettings = () => {
                   {/* Name Row */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                      <label htmlFor="settings-first-name" className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
                         First Name
                       </label>
                       <input
+                        id="settings-first-name"
                         type="text"
                         name="first_name"
+                        autoComplete="given-name"
                         value={profileData.first_name}
                         onChange={handleProfileChange}
                         className={inputClass}
@@ -263,12 +262,14 @@ const ProfileSettings = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                      <label htmlFor="settings-last-name" className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
                         Last Name
                       </label>
                       <input
+                        id="settings-last-name"
                         type="text"
                         name="last_name"
+                        autoComplete="family-name"
                         value={profileData.last_name}
                         onChange={handleProfileChange}
                         className={inputClass}
@@ -279,14 +280,16 @@ const ProfileSettings = () => {
 
                   {/* Email */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                    <label htmlFor="settings-email" className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
                       Email Address
                     </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                       <input
+                        id="settings-email"
                         type="email"
                         name="email"
+                        autoComplete="email"
                         value={profileData.email}
                         onChange={handleProfileChange}
                         className={`${inputClass} pl-10`}
@@ -295,25 +298,6 @@ const ProfileSettings = () => {
                       />
                     </div>
                   </div>
-
-                  {!isAdmin && (
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
-                        Phone Number
-                      </label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
-                        <input
-                          type="text"
-                          name="phone_number"
-                          value={profileData.phone_number}
-                          onChange={handleProfileChange}
-                          className={`${inputClass} pl-10`}
-                          placeholder="09123456789"
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Card Footer */}
@@ -350,19 +334,21 @@ const ProfileSettings = () => {
 
                 <div className="p-6 space-y-4">
                   {[
-                    { label: "Current Password", name: "currentPassword", show: "current" },
-                    { label: "New Password", name: "newPassword", show: "new" },
-                    { label: "Confirm New Password", name: "confirmPassword", show: "confirm" },
-                  ].map(({ label, name, show }) => (
+                    { label: "Current Password", name: "currentPassword", show: "current", auto: "current-password" },
+                    { label: "New Password", name: "newPassword", show: "new", auto: "new-password" },
+                    { label: "Confirm New Password", name: "confirmPassword", show: "confirm", auto: "new-password" },
+                  ].map(({ label, name, show, auto }) => (
                     <div key={name}>
-                      <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
+                      <label htmlFor={`settings-${name}`} className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
                         {label}
                       </label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                         <input
+                          id={`settings-${name}`}
                           type={showPasswords[show] ? "text" : "password"}
                           name={name}
+                          autoComplete={auto}
                           value={passwords[name]}
                           onChange={handlePasswordChange}
                           className={`${inputClass} pl-10 pr-10`}
