@@ -1,320 +1,246 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { API_BASE_URL } from "../../config/api";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
-const getStatusClass = (status) => {
-  const normalizedStatus = String(status || "").toLowerCase();
-  if (normalizedStatus === "sold") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-  if (normalizedStatus === "pending") return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
-  if (normalizedStatus === "cancelled" || normalizedStatus === "available") return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
-  return "bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300";
+const STATUS_STYLES = {
+  Sold: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  Pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  Cancelled: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  Available: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
 };
 
-const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
-  const ROWS_PER_PAGE_OPTIONS = [5, 10, 20];
-  const SORTABLE_COLUMNS = ["lotNumber", "propertyName", "propertyId", "area", "status"];
-  const [searchParams, setSearchParams] = useSearchParams();
+const PAYMENT_STYLES = {
+  Cash: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  Installment: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  "No Downpayment": "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
+};
 
-  const initialSearchTerm = searchParams.get("q") || "";
-  const initialStatusFilter = ["all", "available", "pending", "sold"].includes(
-    searchParams.get("status") || "all"
-  )
-    ? searchParams.get("status") || "all"
-    : "all";
-  const parsedPerPage = Number(searchParams.get("perPage") || 5);
-  const initialRowsPerPage = ROWS_PER_PAGE_OPTIONS.includes(parsedPerPage) ? parsedPerPage : 5;
-  const parsedPage = Number(searchParams.get("page") || 1);
-  const initialPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-  const initialSortKey = SORTABLE_COLUMNS.includes(searchParams.get("sort") || "lotNumber")
-    ? searchParams.get("sort") || "lotNumber"
-    : "lotNumber";
-  const initialSortDirection = ["asc", "desc"].includes(searchParams.get("dir") || "asc")
-    ? searchParams.get("dir") || "asc"
-    : "asc";
-
-  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialSearchTerm);
-  const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
-  const [rowsPerPage, setRowsPerPage] = useState(initialRowsPerPage);
-  const [currentPage, setCurrentPage] = useState(initialPage);
-  const [sortKey, setSortKey] = useState(initialSortKey);
-  const [sortDirection, setSortDirection] = useState(initialSortDirection);
+const EmployeeRecentTransactions = () => {
+  const [filter, setFilter] = useState("All");
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const [empNameMap, setEmpNameMap] = useState({});
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 250);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      const status = String(item.status || "").toLowerCase();
-      const propText = `${item.propertyName || ""} Property ${item.propertyId || ""}`.toLowerCase();
-      const searchText =
-        `${item.lotNumber} ${item.clientName || ""} ${item.clientContact || ""} ${item.clientEmail || ""} ${propText} ${item.status} ${item.area}`.toLowerCase();
-
-      const matchesSearch = debouncedSearchTerm.trim()
-        ? searchText.includes(debouncedSearchTerm.trim().toLowerCase())
-        : true;
-      const matchesStatus = statusFilter === "all" ? true : status === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [items, debouncedSearchTerm, statusFilter]);
-
-  const sortedItems = useMemo(() => {
-    const sorted = [...filteredItems].sort((a, b) => {
-      const firstValue = a[sortKey];
-      const secondValue = b[sortKey];
-
-      const firstNumeric = Number(firstValue);
-      const secondNumeric = Number(secondValue);
-      const isNumericSort = Number.isFinite(firstNumeric) && Number.isFinite(secondNumeric);
-
-      let comparison = 0;
-
-      if (isNumericSort) {
-        comparison = firstNumeric - secondNumeric;
-      } else {
-        comparison = String(firstValue ?? "").localeCompare(String(secondValue ?? ""));
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("authToken");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [txnRes, empRes] = await Promise.all([
+          axios.get(`${API_BASE_URL}/api/transactions`, { withCredentials: true, headers }),
+          axios.get(`${API_BASE_URL}/api/employees`, { withCredentials: true, headers }).catch(() => ({ data: [] })),
+        ]);
+        setTransactions(txnRes.data || []);
+        const map = {};
+        (empRes.data || []).forEach((e) => {
+          map[e.employee_id] = `${e.first_name || ""} ${e.last_name || ""}`.trim();
+        });
+        setEmpNameMap(map);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching transactions:", err);
+        setError("Failed to load transactions");
+      } finally {
+        setLoading(false);
       }
+    };
 
-      return sortDirection === "asc" ? comparison : -comparison;
-    });
+    fetchData();
+  }, []);
 
-    return sorted;
-  }, [filteredItems, sortKey, sortDirection]);
-
-  const handleSort = (columnKey) => {
-    if (sortKey === columnKey) {
-      setSortDirection((previous) => (previous === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(columnKey);
-      setSortDirection("asc");
-    }
-    setCurrentPage(1);
-  };
-
-  const getSortIndicator = (columnKey) => {
-    if (sortKey !== columnKey) {
-      return "↕";
-    }
-    return sortDirection === "asc" ? "↑" : "↓";
-  };
+  const filtered =
+    filter === "All" ? transactions : transactions.filter((t) => t.status === filter);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchTerm, statusFilter, rowsPerPage]);
+  }, [filter, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedItems.length / rowsPerPage));
-  const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    return sortedItems.slice(startIndex, startIndex + rowsPerPage);
-  }, [sortedItems, currentPage, rowsPerPage]);
-
-  const firstResultIndex = sortedItems.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
-  const lastResultIndex = Math.min(currentPage * rowsPerPage, sortedItems.length);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  useEffect(() => {
-    const nextParams = new URLSearchParams();
-
-    if (debouncedSearchTerm.trim()) {
-      nextParams.set("q", debouncedSearchTerm.trim());
-    }
-
-    if (statusFilter !== "all") {
-      nextParams.set("status", statusFilter);
-    }
-
-    if (rowsPerPage !== 5) {
-      nextParams.set("perPage", String(rowsPerPage));
-    }
-
-    if (currentPage > 1) {
-      nextParams.set("page", String(currentPage));
-    }
-
-    if (sortKey !== "lotNumber") {
-      nextParams.set("sort", sortKey);
-    }
-
-    if (sortDirection !== "asc") {
-      nextParams.set("dir", sortDirection);
-    }
-
-    setSearchParams(nextParams, { replace: true });
-  }, [
-    debouncedSearchTerm,
-    statusFilter,
-    rowsPerPage,
-    currentPage,
-    sortKey,
-    sortDirection,
-    setSearchParams,
-  ]);
+  const totalCount = filtered.length;
+  const totalPages = Math.ceil(totalCount / pageSize) || 1;
+  const validCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
+  const paginatedTransactions = filtered.slice(startIndex, endIndex);
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Lot Updates</h3>
+    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Recent Transactions
+          </h3>
+          {totalCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-mono bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 font-medium">
+              {totalCount} total
+            </span>
+          )}
+          {error && <p className="text-xs text-red-600 dark:text-red-400">⚠️ {error}</p>}
+        </div>
 
-      {!loading && !error && items.length > 0 && (
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <input
-            id="employee-search-lots"
-            name="employee_search_lots"
-            aria-label="Search lot number, property, client, or status"
-            type="text"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search lot number, property, status..."
-            className="w-full lg:max-w-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
-          />
-
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:justify-end">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Page size selector */}
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
+            <span>Show:</span>
             <select
-              id="employee-status-filter"
-              name="employee_status_filter"
-              aria-label="Filter lot status"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="w-full sm:w-40 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
+              id="employee-transactions-page-size"
+              name="employee_transactions_page_size"
+              aria-label="Select transactions per page"
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="sold">Sold</option>
-              <option value="cancelled">Cancelled</option>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
             </select>
+          </div>
 
-            <select
-              id="employee-rows-per-page"
-              name="employee_rows_per_page"
-              aria-label="Select rows per page"
-              value={rowsPerPage}
-              onChange={(event) => setRowsPerPage(Number(event.target.value))}
-              className="w-full sm:w-36 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
-            >
-              {ROWS_PER_PAGE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option} / page
-                </option>
-              ))}
-            </select>
+          {/* Filter buttons */}
+          <div className="flex gap-1.5">
+            {["All", "Sold", "Pending", "Cancelled"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  filter === f
+                    ? "bg-gray-900 dark:bg-slate-700 text-white"
+                    : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
           </div>
         </div>
-      )}
+      </div>
 
-      {loading && <div className="text-sm text-gray-500 dark:text-slate-400">Loading recent updates...</div>}
-
-      {!loading && error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
-
-      {!loading && !error && items.length === 0 && (
-        <div className="text-sm text-gray-500 dark:text-slate-400">No recent lot updates found.</div>
-      )}
-
-      {!loading && !error && items.length > 0 && sortedItems.length === 0 && (
-        <div className="text-sm text-gray-500 dark:text-slate-400">No results match your search/filter.</div>
-      )}
-
-      {!loading && !error && sortedItems.length > 0 && (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
-              <thead className="bg-gray-50/80 dark:bg-slate-800/80">
-                <tr>
-                  <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                    <button type="button" onClick={() => handleSort("lotNumber")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
-                      Lot Number <span className="text-[10px] text-gray-400">{getSortIndicator("lotNumber")}</span>
-                    </button>
-                  </th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                    <button type="button" onClick={() => handleSort("propertyName")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
-                      Property <span className="text-[10px] text-gray-400">{getSortIndicator("propertyName")}</span>
-                    </button>
-                  </th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                    <button type="button" onClick={() => handleSort("clientName")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
-                      Client Name <span className="text-[10px] text-gray-400">{getSortIndicator("clientName")}</span>
-                    </button>
-                  </th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden md:table-cell">
-                    Agent
-                  </th>
-                  <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden sm:table-cell">
-                    <button type="button" onClick={() => handleSort("area")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
-                      Area (sqm) <span className="text-[10px] text-gray-400">{getSortIndicator("area")}</span>
-                    </button>
-                  </th>
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
-                    <button type="button" onClick={() => handleSort("status")} className="inline-flex items-center gap-1 hover:text-gray-900 dark:hover:text-white transition-colors">
-                      Status <span className="text-[10px] text-gray-400">{getSortIndicator("status")}</span>
-                    </button>
-                  </th>
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
+          <thead className="bg-gray-50/80 dark:bg-slate-800/80">
+            <tr>
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[18%]">
+                Txn ID / Date
+              </th>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
+                Client
+              </th>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[24%]">
+                Lot Details
+              </th>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[14%]">
+                Agent
+              </th>
+              <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[10%]">
+                Payment
+              </th>
+              <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[10%]">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800 text-sm">
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-sm text-gray-400 text-center">
+                  Loading transactions...
+                </td>
+              </tr>
+            ) : paginatedTransactions.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-sm text-gray-400 text-center">
+                  No transactions found.
+                </td>
+              </tr>
+            ) : (
+              paginatedTransactions.map((txn) => (
+                <tr
+                  key={txn.transaction_id}
+                  className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors"
+                >
+                  <td className="px-5 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap text-sm">
+                    {txn.transaction_id}
+                    {txn.transaction_date && (
+                      <span className="text-gray-400 dark:text-slate-500 font-normal text-xs"> &bull; {txn.transaction_date}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-slate-200 break-words text-sm">
+                    {txn.customer_name}
+                  </td>
+                  <td className="px-4 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap text-sm">
+                    {txn.lot_number}
+                    {txn.property_name && (
+                      <span className="text-gray-400 dark:text-slate-500 font-normal"> &bull; {txn.property_name}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-sm">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full px-2 py-0.5">
+                      {txn.employee_id && empNameMap[txn.employee_id] ? empNameMap[txn.employee_id] : "Admin"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                    <span
+                      className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${
+                        PAYMENT_STYLES[txn.payment_type] || "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {txn.payment_type || "No Downpayment"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                    <span
+                      className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${
+                        STATUS_STYLES[txn.status] || "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {txn.status}
+                    </span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800 text-sm">
-                {paginatedItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/60 transition-colors">
-                    <td className="px-5 py-3.5 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                      {item.lotNumber}
-                    </td>
-                    <td className="px-4 py-3.5 font-medium text-gray-800 dark:text-slate-200">
-                      {item.propertyName || `Property ${item.propertyId}`}
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-900 dark:text-white font-semibold">
-                      {item.clientName || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-600 dark:text-slate-400 hidden md:table-cell whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full px-2 py-0.5">
-                        {item.agentName || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-center text-gray-700 dark:text-slate-300 hidden sm:table-cell whitespace-nowrap">
-                      {item.area ? `${item.area} sqm` : "-"}
-                    </td>
-                    <td className="px-5 py-3.5 text-right whitespace-nowrap">
-                      <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(item.status)}`}>
-                        {item.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-600 dark:text-slate-400">
-            <span>Showing {firstResultIndex}–{lastResultIndex} of {sortedItems.length} results</span>
-            <div className="flex items-center gap-2">
-              <span>Page {currentPage} of {totalPages}</span>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((previous) => Math.max(1, previous - 1))}
-                disabled={currentPage === 1}
-                className="rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((previous) => Math.min(totalPages, previous + 1))}
-                disabled={currentPage === totalPages}
-                className="rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-              >
-                Next
-              </button>
-            </div>
+      {/* Footer & Pagination Bar */}
+      <div className="px-6 py-3.5 border-t border-gray-100 dark:border-slate-800 text-xs text-gray-500 dark:text-slate-400 flex flex-col sm:flex-row justify-between items-center gap-3">
+        <span>
+          Showing {totalCount > 0 ? startIndex + 1 : 0}–{endIndex} of {totalCount} transactions
+        </span>
+
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={validCurrentPage <= 1}
+              className="px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ‹ Previous
+            </button>
+
+            <span className="px-2.5 py-1 text-xs font-mono font-semibold text-gray-700 dark:text-slate-300">
+              Page {validCurrentPage} of {totalPages}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={validCurrentPage >= totalPages}
+              className="px-3 py-1.5 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next ›
+            </button>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 };
 
-export default EmployeeTransactions;
+export default EmployeeRecentTransactions;

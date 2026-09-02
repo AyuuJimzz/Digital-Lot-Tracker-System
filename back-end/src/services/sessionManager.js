@@ -46,6 +46,15 @@ async function ensureSessionSchema() {
       `);
     }
 
+    // Ensure every customer record has a corresponding transaction row for audit & history
+    await db.query(`
+      INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, transaction_date)
+      SELECT c.lot_id, c.customer_id, 'No Downpayment', 'Reservation record', c.employee_id, COALESCE(c.created_at, NOW())
+      FROM customers c
+      LEFT JOIN transactions t ON c.customer_id = t.customer_id
+      WHERE t.transaction_id IS NULL AND c.lot_id IS NOT NULL
+    `);
+
     isSchemaEnsured = true;
   } catch (err) {
     console.warn("Session schema ensure notice:", err.message);
