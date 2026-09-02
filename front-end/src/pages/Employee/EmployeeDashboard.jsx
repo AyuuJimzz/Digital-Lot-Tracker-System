@@ -46,10 +46,17 @@ const EmployeeDashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        setError("");
+        const token = localStorage.getItem("authToken");
+        const authConfig = {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        };
+
         const [mapDataResponse, employeesResponse, customersResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/map-data`, { withCredentials: true }),
-          axios.get(`${API_BASE_URL}/api/employees`, { withCredentials: true }),
-          axios.get(`${API_BASE_URL}/api/customers/all-for-map`, { withCredentials: true }),
+          axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig),
+          axios.get(`${API_BASE_URL}/api/employees`, authConfig).catch(() => ({ data: [] })),
+          axios.get(`${API_BASE_URL}/api/customers/all-for-map`, authConfig).catch(() => ({ data: [] })),
         ]);
 
         const summary = mapDataResponse?.data?.summary || {};
@@ -101,26 +108,53 @@ const EmployeeDashboard = () => {
           empNameMap.set(Number(e.employee_id), `${e.first_name || ""} ${e.last_name || ""}`.trim());
         });
 
-        // Recent Lot Updates: Only show lots with actual status updates (Sold / Pending)
-        const updates = lots
-          .filter((lot) => lot.status === "Sold" || lot.status === "Pending")
-          .sort((a, b) => Number(b.lot_id || 0) - Number(a.lot_id || 0))
-          .map((lot) => {
-            const cust = custMap.get(Number(lot.lot_id));
-            const agentId = cust?.employee_id ? Number(cust.employee_id) : null;
-            return {
+        // Recent Lot Updates: Include Sold, Pending, and Cancelled lot interactions
+        const processedCustLotKeys = new Set();
+        const updates = [];
+
+        customers.forEach((c) => {
+          if (!c.lot_number) return;
+          const rawStatus = String(c.lot_status || "").toLowerCase();
+          const normalizedStatus =
+            rawStatus === "available" || rawStatus === "cancelled"
+              ? "Cancelled"
+              : rawStatus === "sold"
+              ? "Sold"
+              : "Pending";
+          const agentId = c?.employee_id ? Number(c.employee_id) : null;
+          processedCustLotKeys.add(Number(c.lot_id));
+
+          updates.push({
+            id: c.customer_id,
+            lotNumber: c.lot_number,
+            propertyId: c.property_id,
+            propertyName: c.property_name || propNameMap.get(Number(c.property_id)) || `Property ${c.property_id}`,
+            status: normalizedStatus,
+            area: c.area_sqm || "—",
+            clientName: c.full_name || "—",
+            clientContact: c.contact_number || "",
+            clientEmail: c.email || "",
+            agentName: agentId ? (empNameMap.get(agentId) || "—") : "Admin",
+          });
+        });
+
+        // Add any lots that are Sold or Pending but don't have customer records
+        lots.forEach((lot) => {
+          if (["Sold", "Pending"].includes(lot.status) && !processedCustLotKeys.has(Number(lot.lot_id))) {
+            updates.push({
               id: lot.lot_id,
               lotNumber: lot.lot_number,
               propertyId: lot.property_id,
               propertyName: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
-              status: lot.status || "Unknown",
-              area: lot.area_sqm,
-              clientName: cust?.full_name || "—",
-              clientContact: cust?.contact_number || "",
-              clientEmail: cust?.email || "",
-              agentName: agentId ? (empNameMap.get(agentId) || "—") : "Admin",
-            };
-          });
+              status: lot.status,
+              area: lot.area_sqm || "—",
+              clientName: "—",
+              clientContact: "",
+              clientEmail: "",
+              agentName: "Admin",
+            });
+          }
+        });
 
         setRecentLotUpdates(updates);
         try {

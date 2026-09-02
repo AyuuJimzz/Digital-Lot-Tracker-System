@@ -10,6 +10,7 @@ import {
   History,
   Clock,
   CheckCircle2,
+  XCircle,
   Calendar,
   KeyRound,
 } from "lucide-react";
@@ -102,6 +103,9 @@ const ManageEmployees = () => {
   const getActivityIcon = (act) => {
     if (act.type === "SALE") {
       return <CheckCircle2 className="w-3.5 h-3.5 text-rose-400" />;
+    }
+    if (act.type === "CANCELLATION") {
+      return <XCircle className="w-3.5 h-3.5 text-orange-400" />;
     }
     return <Clock className="w-3.5 h-3.5 text-amber-400" />;
   };

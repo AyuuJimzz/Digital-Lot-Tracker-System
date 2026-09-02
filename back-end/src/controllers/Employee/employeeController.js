@@ -207,15 +207,15 @@ exports.getEmployeeActivities = async (req, res) => {
 
     const activities = [];
 
-    // 1. Transactions / Lot Sales (if any)
+    // 1. Transactions / Lot Sales (ONLY for lots that are actually SOLD)
     try {
       const [txRows] = await db.query(
-        `SELECT t.*, l.lot_number, p.property_name, c.full_name AS customer_name 
+        `SELECT t.*, l.lot_number, l.status as lot_status, p.property_name, c.full_name AS customer_name, c.customer_status 
          FROM transactions t
          JOIN lots l ON t.lot_id = l.lot_id
          JOIN properties p ON l.property_id = p.property_id
          LEFT JOIN customers c ON t.customer_id = c.customer_id
-         WHERE t.employee_id = ?
+         WHERE t.employee_id = ? AND (l.status = 'Sold' OR c.customer_status = 'Sold')
          ORDER BY t.transaction_date DESC LIMIT 50`,
         [id]
       );
@@ -233,28 +233,44 @@ exports.getEmployeeActivities = async (req, res) => {
       }
     } catch (_) {}
 
-    // 2. Reservations (if any)
+    // 2. Reservations & Cancellations
     try {
       const [custRows] = await db.query(
-        `SELECT c.*, l.lot_number, p.property_name 
+        `SELECT c.*, l.lot_number, l.status as lot_status, p.property_name 
          FROM customers c
          JOIN lots l ON c.lot_id = l.lot_id
          JOIN properties p ON l.property_id = p.property_id
-         WHERE c.employee_id = ? AND l.status = 'Pending'
+         WHERE c.employee_id = ?
          ORDER BY c.created_at DESC LIMIT 50`,
         [id]
       );
 
       for (const cust of custRows) {
-        activities.push({
-          id: `cust-${cust.customer_id}`,
-          type: "RESERVATION",
-          title: `Added Reservation for Lot ${cust.lot_number}`,
-          description: `Reserved for buyer ${cust.full_name} at ${cust.property_name}`,
-          timestamp: cust.created_at,
-          icon: "Clock",
-          color: "amber",
-        });
+        const rawStatus = String(cust.customer_status || cust.lot_status || "").toLowerCase();
+        const isCancelled = rawStatus === "cancelled" || cust.lot_status === "Available";
+        const isPending = (rawStatus === "pending" || cust.lot_status === "Pending") && !isCancelled;
+
+        if (isCancelled) {
+          activities.push({
+            id: `cust-cancel-${cust.customer_id}`,
+            type: "CANCELLATION",
+            title: `Cancelled Reservation for Lot ${cust.lot_number}`,
+            description: `Reservation cancelled for buyer ${cust.full_name || "Customer"} at ${cust.property_name}`,
+            timestamp: cust.updated_at || cust.created_at,
+            icon: "XCircle",
+            color: "orange",
+          });
+        } else if (isPending) {
+          activities.push({
+            id: `cust-res-${cust.customer_id}`,
+            type: "RESERVATION",
+            title: `Added Reservation for Lot ${cust.lot_number}`,
+            description: `Reserved for buyer ${cust.full_name || "Customer"} at ${cust.property_name}`,
+            timestamp: cust.created_at,
+            icon: "Clock",
+            color: "amber",
+          });
+        }
       }
     } catch (_) {}
 

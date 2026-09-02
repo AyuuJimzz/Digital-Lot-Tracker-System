@@ -897,7 +897,7 @@ const EmployeeMapView = () => {
               />
 
               <Marker
-                key={`emp-pin-${lot.lot_id}-${lot.status}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
+                key={`emp-pin-${lot.lot_id}-${lot.status}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
                 position={[centerLat, centerLng]}
                 icon={createPinIcon(lot.status)}
                 eventHandlers={{

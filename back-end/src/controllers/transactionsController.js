@@ -7,25 +7,29 @@ const getTransactions = async (req, res) => {
       SELECT 
         CONCAT('TXN-', LPAD(t.transaction_id, 4, '0')) as transaction_id,
         t.lot_id,
-        t.employee_id,
+        COALESCE(t.employee_id, c.employee_id) as employee_id,
         COALESCE(c.full_name, 'No customer assigned') as customer_name,
         l.lot_number,
         p.property_name,
         DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
         t.payment_type,
-        l.status
+        CASE 
+          WHEN c.customer_status = 'Cancelled' THEN 'Cancelled'
+          WHEN l.status = 'Sold' OR c.customer_status = 'Sold' THEN 'Sold'
+          ELSE 'Pending'
+        END as status
       FROM transactions t
       JOIN lots l ON t.lot_id = l.lot_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
       JOIN properties p ON l.property_id = p.property_id
-      WHERE l.status IN ('Sold', 'Pending')
+      WHERE (l.status IN ('Sold', 'Pending') OR c.customer_status = 'Cancelled')
     `;
     const params = [];
     if (req.user && req.user.role === "employee") {
       query += ` AND (t.employee_id = ? OR c.employee_id = ?) `;
       params.push(req.user.id, req.user.id);
     }
-    query += ` ORDER BY t.transaction_date DESC`;
+    query += ` ORDER BY t.transaction_date DESC, t.transaction_id DESC`;
     const [transactions] = await db.execute(query, params);
     res.json(transactions);
   } catch (error) {

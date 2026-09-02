@@ -157,10 +157,11 @@ const LotOffcanvas = ({
     }
 
     setIsSaving(true);
-    setSaveMessage("");
-
     const getAuthHeaders = () => {
-      const token = localStorage.getItem("authToken");
+      const token =
+        localStorage.getItem("authToken") ||
+        localStorage.getItem("token") ||
+        sessionStorage.getItem("authToken");
       return {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

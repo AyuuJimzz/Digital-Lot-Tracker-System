@@ -330,6 +330,7 @@ exports.getTimeBasedPropertySales = async (req, res) => {
 exports.updateLotStatus = async (req, res) => {
   const { id } = req.params;
   const { status, email, fullName, contactNumber, address, paymentMethod } = req.body;
+  const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
 
   try {
     // Validate status
@@ -378,8 +379,6 @@ exports.updateLotStatus = async (req, res) => {
 
       // Check if customer already exists for this lot
       const [existingCustomer] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
-
-      const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
 
       // If lot was previously Available (cancelled) and now getting a new Pending customer,
       // INSERT a new record to preserve the cancelled customer's history
@@ -438,36 +437,36 @@ exports.updateLotStatus = async (req, res) => {
       // Setting to Pending (from Available or Sold) - record timestamp
       await db.query("UPDATE lots SET pending_since = NOW() WHERE lot_id = ?", [id]);
 
-      // Create transaction record for Pending status
-      const customerResult = await db.query("SELECT customer_id FROM customers WHERE lot_id = ?", [
-        id,
-      ]);
+      // Create or update transaction record for this specific customer
+      const [latestCustRows] = await db.query(
+        "SELECT customer_id FROM customers WHERE lot_id = ? ORDER BY customer_id DESC LIMIT 1",
+        [id]
+      );
 
-      if (customerResult[0].length > 0) {
-        const customerId = customerResult[0][0].customer_id;
+      if (latestCustRows.length > 0) {
+        const customerId = latestCustRows[0].customer_id;
 
-        // Check if transaction already exists for this lot
-        const existingTransaction = await db.query(
-          "SELECT transaction_id FROM transactions WHERE lot_id = ?",
-          [id]
+        // Check if transaction already exists for this specific customer
+        const [existingTransaction] = await db.query(
+          "SELECT transaction_id FROM transactions WHERE customer_id = ?",
+          [customerId]
         );
 
-        if (existingTransaction[0].length > 0) {
-          // Update existing transaction to Pending with current timestamp
+        if (existingTransaction.length > 0) {
+          // Update existing transaction for this customer
           await db.query(
-            "UPDATE transactions SET payment_type = 'No Downpayment', notes = ?, transaction_date = NOW() WHERE lot_id = ?",
-            [`Transaction updated for lot ${lot.lot_number} - Pending status`, id]
+            "UPDATE transactions SET payment_type = 'No Downpayment', notes = ?, employee_id = COALESCE(employee_id, ?), transaction_date = NOW() WHERE transaction_id = ?",
+            [`Transaction updated for lot ${lot.lot_number} - Pending status`, employeeId, existingTransaction[0].transaction_id]
           );
-          console.log("Updated existing transaction for Pending status");
         } else {
-          // Create new transaction for Pending
+          // Create new transaction for this customer
           await db.query(
-            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes) VALUES (?, ?, ?, ?)",
+            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, transaction_date) VALUES (?, ?, 'No Downpayment', ?, ?, NOW())",
             [
               id,
               customerId,
-              "No Downpayment",
               `Transaction created for lot ${lot.lot_number} - Pending status`,
+              employeeId,
             ]
           );
         }
@@ -550,22 +549,24 @@ exports.updateLotStatus = async (req, res) => {
         if (existingTransaction[0].length > 0) {
           // Update existing transaction to Sold with current timestamp
           await db.query(
-            "UPDATE transactions SET payment_type = ?, notes = ?, transaction_date = NOW() WHERE lot_id = ?",
+            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = COALESCE(employee_id, ?), transaction_date = NOW() WHERE lot_id = ?",
             [
               paymentMethod || "Cash",
               `Transaction updated for lot ${lot.lot_number} - Sold status`,
+              employeeId,
               id,
             ]
           );
         } else {
           // Create new transaction for Sold
           await db.query(
-            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, transaction_date) VALUES (?, ?, ?, ?, NOW())",
+            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, transaction_date) VALUES (?, ?, ?, ?, ?, NOW())",
             [
               id,
               customerId,
               paymentMethod || "Cash",
               `Transaction created for lot ${lot.lot_number} - Sold status`,
+              employeeId,
             ]
           );
         }

@@ -5,7 +5,7 @@ import axios from "axios";
 const STATUS_STYLES = {
   Sold: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   Pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  Cancelled: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400",
+  Cancelled: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   Available: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
 };
 
@@ -108,7 +108,7 @@ const RecentTransactions = () => {
 
           {/* Filter buttons */}
           <div className="flex gap-1.5">
-            {["All", "Sold", "Pending"].map((f) => (
+            {["All", "Sold", "Pending", "Cancelled"].map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}

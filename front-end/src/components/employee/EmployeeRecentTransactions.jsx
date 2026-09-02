@@ -5,7 +5,7 @@ const getStatusClass = (status) => {
   const normalizedStatus = String(status || "").toLowerCase();
   if (normalizedStatus === "sold") return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
   if (normalizedStatus === "pending") return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
-  if (normalizedStatus === "available") return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+  if (normalizedStatus === "cancelled" || normalizedStatus === "available") return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
   return "bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300";
 };
 
@@ -189,6 +189,7 @@ const EmployeeTransactions = ({ items = [], loading = false, error = "" }) => {
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="sold">Sold</option>
+              <option value="cancelled">Cancelled</option>
             </select>
 
             <select

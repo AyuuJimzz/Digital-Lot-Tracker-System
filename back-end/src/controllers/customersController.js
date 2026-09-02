@@ -8,7 +8,7 @@ const { sanitizeText, sanitizeEmail, sanitizePhone, sanitizeNotes } = require(".
 exports.getAllCustomersForMap = async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT c.*, l.lot_number, 
+      SELECT c.*, l.lot_number, l.area_sqm,
         CASE 
           WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN 'Cancelled'
           ELSE COALESCE(c.customer_status, l.status)
@@ -32,7 +32,7 @@ exports.getAllCustomersForMap = async (req, res) => {
 exports.getAllCustomers = async (req, res) => {
   try {
     let query = `
-      SELECT c.*, l.lot_number, 
+      SELECT c.*, l.lot_number, l.area_sqm,
         CASE 
           WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN 'Cancelled'
           ELSE COALESCE(c.customer_status, l.status)
