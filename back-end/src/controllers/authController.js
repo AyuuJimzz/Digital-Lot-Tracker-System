@@ -2,14 +2,16 @@ const jwt = require("jsonwebtoken");
 const { loginAdmin } = require("./Admin/adminAuth");
 const { loginEmployee } = require("./Employee/employeeAuth");
 const { logAuthEvent } = require("../services/loggerService");
+const { createSession, isValidSession, invalidateSession } = require("../services/sessionManager");
 
-// Helper: Generate JWT
-const generateToken = (user) => {
+// Helper: Generate JWT with unique sessionId
+const generateToken = (user, sessionId) => {
 	return jwt.sign(
 		{
 			id: user.id,
 			email: user.email,
 			role: user.role,
+			sessionId: sessionId || user.sessionId || null,
 			isHeadAdmin: user.isHeadAdmin || false,
 			canManageEmployees: user.canManageEmployees || false,
 		},
@@ -46,6 +48,9 @@ const login = async (req, res) => {
 			return res.status(401).json({ message: errorMessage });
 		}
 
+		// Single Active Session: Generate unique session token for this new device
+		const sessionId = await createSession(role, result.user.id);
+
 		// Permissions
 		const isHeadAdmin = role === "admin" && result.user.isHeadAdmin; // from DB
 		const canManageEmployees = role === "admin" && !isHeadAdmin;
@@ -53,6 +58,7 @@ const login = async (req, res) => {
 		const user = {
 			...result.user,
 			role,
+			sessionId,
 			isHeadAdmin,
 			canManageEmployees,
 		};
@@ -60,11 +66,11 @@ const login = async (req, res) => {
 		// Store in session
 		req.session.user = user;
 
-		// JWT
-		const token = generateToken(user);
+		// JWT signed with sessionId
+		const token = generateToken(user, sessionId);
 
 		// Record successful login event in developer logs
-		logAuthEvent(req, `User Logged In: ${user.email} (${user.role.toUpperCase()})`, {
+		logAuthEvent(req, `User Logged In: ${user.email} (${user.role.toUpperCase()}) [Single Device Session Active]`, {
 			type: "AUTH",
 			user: user.email,
 			role: user.role,
@@ -98,9 +104,10 @@ const login = async (req, res) => {
 // =======================
 // LOGOUT
 // =======================
-const logout = (req, res) => {
+const logout = async (req, res) => {
 	let userEmail = req.session?.user?.email;
 	let userRole = req.session?.user?.role;
+	let userId = req.session?.user?.id;
 
 	// Fallback 1: Extract and decode JWT from Authorization header or cookies
 	if (!userEmail) {
@@ -115,6 +122,7 @@ const logout = (req, res) => {
 				if (decoded && (decoded.email || decoded.username || decoded.name)) {
 					userEmail = decoded.email || decoded.username || decoded.name;
 					userRole = decoded.role || userRole;
+					userId = decoded.id || userId;
 				}
 			} catch (e) {}
 		}
@@ -128,6 +136,11 @@ const logout = (req, res) => {
 
 	userEmail = userEmail || "User";
 	userRole = userRole || "user";
+
+	// Invalidate single-device session on logout
+	if (userRole && userId) {
+		await invalidateSession(userRole, userId).catch(() => {});
+	}
 
 	const finalizeLogout = () => {
 		res.clearCookie("connect.sid");
@@ -172,7 +185,7 @@ function getAuthRevocationTimestamp() {
 // =======================
 // CHECK SESSION OR TOKEN
 // =======================
-const checkSession = (req, res) => {
+const checkSession = async (req, res) => {
 	try {
 		const revocationMs = getAuthRevocationTimestamp();
 
@@ -183,6 +196,20 @@ const checkSession = (req, res) => {
 				req.session.destroy();
 				return res.json({ authenticated: false, message: "Session revoked by Developer Kill Switch" });
 			}
+
+			// Validate single active device session
+			if (user.role && user.id && user.sessionId) {
+				const isCurrentValid = await isValidSession(user.role, user.id, user.sessionId);
+				if (!isCurrentValid) {
+					req.session.destroy();
+					return res.status(401).json({
+						authenticated: false,
+						code: "CONCURRENT_SESSION_EXPIRED",
+						message: "Your account was logged in from another device. For security, you have been logged out.",
+					});
+				}
+			}
+
 			return res.json({
 				authenticated: true,
 				role: user.role,
@@ -201,6 +228,18 @@ const checkSession = (req, res) => {
 			const tokenIssuedMs = (decoded.iat || 0) * 1000;
 			if (revocationMs > 0 && tokenIssuedMs < revocationMs) {
 				return res.json({ authenticated: false, message: "Session revoked by Developer Kill Switch" });
+			}
+
+			// Validate single active device session
+			if (decoded.role && decoded.id && decoded.sessionId) {
+				const isCurrentValid = await isValidSession(decoded.role, decoded.id, decoded.sessionId);
+				if (!isCurrentValid) {
+					return res.status(401).json({
+						authenticated: false,
+						code: "CONCURRENT_SESSION_EXPIRED",
+						message: "Your account was logged in from another device. For security, you have been logged out.",
+					});
+				}
 			}
 
 			return res.json({

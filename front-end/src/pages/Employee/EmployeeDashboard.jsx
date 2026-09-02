@@ -99,8 +99,9 @@ const EmployeeDashboard = () => {
           propNameMap.set(Number(p.property_id), p.property_name || `Property ${p.property_id}`);
         });
 
+        // Recent Lot Updates: Only show lots with actual status updates (Sold / Pending)
         const updates = lots
-          .slice()
+          .filter((lot) => lot.status === "Sold" || lot.status === "Pending")
           .sort((a, b) => Number(b.lot_id || 0) - Number(a.lot_id || 0))
           .map((lot) => ({
             id: lot.lot_id,

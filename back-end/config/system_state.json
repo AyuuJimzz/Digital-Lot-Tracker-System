@@ -3,6 +3,231 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-09-02T03:56:23.232Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:56:20.392Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:56:09.762Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:56:06.291Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:51:08.805Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:50:33.443Z",
+      "event": "Email delivered to: joan.bearneza.ui@phinmaed.com | Subject: \"Password Reset - Temporary Password\"",
+      "type": "EMAIL",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T03:50:01.300Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:45:23.839Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:45:09.758Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:43:26.804Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:43:23.932Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:42:27.853Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:42:23.371Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:42:18.202Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:42:14.379Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "macOS · Safari",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:41:52.393Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:27:14.398Z",
+      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:25:32.172Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:25:21.413Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:15:09.345Z",
+      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:14:55.727Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:14:35.447Z",
+      "event": "User Logged In: joan.bearneza.ui@phinmaed.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:14:25.557Z",
+      "event": "Failed login attempt: joan.bearneza.ui@phinmaed.com",
+      "type": "SECURITY",
+      "user": "joan.bearneza.ui@phinmaed.com",
+      "role": "Unknown",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:01:25.466Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T03:01:21.267Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-09-01T18:51:04.047Z",
       "event": "User Logged In: admin@gmail.com (ADMIN)",
       "type": "AUTH",

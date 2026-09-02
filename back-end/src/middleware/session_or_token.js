@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const path = require("path");
 const configPath = path.join(__dirname, "../../config/system_state.json");
+const { isValidSession } = require("../services/sessionManager");
 
 // Helper to get active auth revocation timestamp
 function getAuthRevocationTimestamp() {
@@ -17,16 +18,16 @@ function getAuthRevocationTimestamp() {
 }
 
 const sessionOrToken = ({ roles = [], permission } = {}) => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     // Helper function to handle unauthorized/forbidden responses
     const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || "http://localhost:3000";
-    const handleUnauthorized = (status, message, redirectPath) => {
+    const handleUnauthorized = (status, message, redirectPath, extraData = {}) => {
       if (req.headers.accept && req.headers.accept.includes("text/html")) {
         return res.redirect(
           `${frontendUrl}/${redirectPath}?status=${status}&message=${encodeURIComponent(message)}`,
         );
       }
-      return res.status(status).json({ message });
+      return res.status(status).json({ message, ...extraData });
     };
 
     try {
@@ -69,7 +70,21 @@ const sessionOrToken = ({ roles = [], permission } = {}) => {
         );
       }
 
-      // 3. Role check
+      // 3. Single Active Device Session Validation (Kick out older device if logged in elsewhere)
+      if (req.user.role && req.user.id && req.user.sessionId) {
+        const isCurrentSessionActive = await isValidSession(req.user.role, req.user.id, req.user.sessionId);
+        if (!isCurrentSessionActive) {
+          if (req.session) req.session.destroy();
+          return handleUnauthorized(
+            401,
+            "Your account was signed into from another device. For security, this session has been ended.",
+            "access-denied",
+            { code: "CONCURRENT_SESSION_EXPIRED" }
+          );
+        }
+      }
+
+      // 4. Role check
       if (roles.length && !roles.includes(req.user.role)) {
         return handleUnauthorized(
           403,
@@ -78,7 +93,7 @@ const sessionOrToken = ({ roles = [], permission } = {}) => {
         );
       }
 
-      // 4. Permission check
+      // 5. Permission check
       if (permission && !req.user[permission]) {
         return handleUnauthorized(
           403,

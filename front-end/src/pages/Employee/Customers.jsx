@@ -4,8 +4,6 @@ import axios from "axios";
 
 const ROWS_PER_PAGE = 10;
 
-const inputCls =
-  "w-full md:max-w-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm outline-none focus:border-amber-500 transition-colors";
 const paginBtnCls =
   "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
@@ -22,6 +20,7 @@ const Customers = () => {
   const [loading, setLoading] = useState(() => !sessionStorage.getItem("customersCache"));
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -88,16 +87,26 @@ const Customers = () => {
   }, [customers]);
 
   const filteredCustomersByEmail = useMemo(() => {
-    if (!searchTerm.trim()) return customersByLatestStatus;
-    const lower = searchTerm.toLowerCase();
-    return customersByLatestStatus.filter((c) =>
-      `${c.full_name} ${c.email} ${c.contact_number} ${c.address}`.toLowerCase().includes(lower)
-    );
-  }, [customersByLatestStatus, searchTerm]);
+    return customersByLatestStatus.filter((c) => {
+      // Normalize lot_status: Available -> cancelled, Pending -> pending, Sold -> sold
+      const rawStatus = String(c.lot_status || "").toLowerCase();
+      const normalizedStatus = rawStatus === "available" ? "cancelled" : rawStatus;
+
+      const matchesStatus =
+        statusFilter === "all" ? true : normalizedStatus === statusFilter.toLowerCase();
+
+      const lower = searchTerm.trim().toLowerCase();
+      const matchesSearch = lower
+        ? `${c.full_name} ${c.email} ${c.contact_number} ${c.address}`.toLowerCase().includes(lower)
+        : true;
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [customersByLatestStatus, searchTerm, statusFilter]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCustomersByEmail.length / ROWS_PER_PAGE));
   const paginatedCustomers = useMemo(() => {
@@ -157,15 +166,28 @@ const Customers = () => {
 
       {/* Table */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
-        <div className="mb-4">
+        <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <input
             id="customer-search"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by name, email, contact..."
-            className={inputCls}
+            className="w-full sm:max-w-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
           />
+
+          <div className="flex items-center gap-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full sm:w-40 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="sold">Sold</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
         </div>
 
         {paginatedCustomers.length === 0 ? (

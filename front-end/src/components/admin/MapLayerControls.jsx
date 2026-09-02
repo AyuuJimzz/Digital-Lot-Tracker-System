@@ -74,7 +74,7 @@ export function MapLayerControls({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Close layer dropdown on outside click
+  // Close layer dropdown on outside click (with iPad/tablet touch support)
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -82,7 +82,11 @@ export function MapLayerControls({
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   // Toggle fullscreen presentation mode safely across mobile and desktop

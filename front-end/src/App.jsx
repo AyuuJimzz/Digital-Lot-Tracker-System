@@ -29,11 +29,39 @@ import axios from "axios";
 
 import { startKeepAlive, stopKeepAlive } from "./utils/keepAlive";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import ConcurrentSessionModal from "./components/ConcurrentSessionModal";
+import { API_BASE_URL } from "./config/api";
 
 const queryClient = new QueryClient();
 
 function App() {
   const [, setRole] = useState(localStorage.getItem("role") || null);
+
+  // ── Real-Time Concurrent Session Heartbeat (detects other device logins within seconds) ──
+  useEffect(() => {
+    const verifySession = async () => {
+      const activeToken = localStorage.getItem("authToken") || localStorage.getItem("token");
+      if (!activeToken) return;
+
+      try {
+        await axios.get(`${API_BASE_URL}/api/auth/check-session`, {
+          headers: { Authorization: `Bearer ${activeToken}` },
+          withCredentials: true,
+        });
+      } catch (err) {
+        // Global axios interceptor in api.js automatically dispatches concurrentSessionKickedOut
+      }
+    };
+
+    // Run check every 4 seconds and whenever user switches back to this browser window
+    const interval = setInterval(verifySession, 4000);
+    window.addEventListener("focus", verifySession);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", verifySession);
+    };
+  }, []);
 
   // ── Keep Render.com backend awake — prevents 30-60s cold start delays ──
   useEffect(() => {
@@ -130,6 +158,9 @@ function App() {
 
       {/* Automated 1-Click Install App Banner — outside guard so it shows on tablet too */}
       <PWAInstallPrompt />
+
+      {/* Concurrent Device Session Kickout Alert Modal */}
+      <ConcurrentSessionModal />
     </>
   );
 }

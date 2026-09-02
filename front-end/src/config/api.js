@@ -1,5 +1,4 @@
 // API Configuration for local dev & production deployment
-// Set REACT_APP_API_URL in your hosting provider's environment variables (e.g., Vercel)
 import axios from 'axios';
 
 const getApiUrl = () => {
@@ -16,8 +15,41 @@ const getApiUrl = () => {
 export const API_BASE_URL = getApiUrl();
 
 // Auto-restore JWT token for cross-origin deployments (Vercel frontend + Render backend).
-// Session cookies are blocked cross-domain, so we use the JWT token stored after login.
-const savedToken = localStorage.getItem('authToken');
+const savedToken = localStorage.getItem('authToken') || localStorage.getItem('token');
 if (savedToken) {
   axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
 }
+
+// Global Interceptor: Catch concurrent device session expiration
+let isHandlingKickout = false;
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const data = error.response?.data;
+    if (
+      error.response?.status === 401 &&
+      (data?.code === 'CONCURRENT_SESSION_EXPIRED' ||
+        (data?.message && data.message.toLowerCase().includes('another device')))
+    ) {
+      if (!isHandlingKickout) {
+        isHandlingKickout = true;
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('user');
+        sessionStorage.clear();
+
+        window.dispatchEvent(
+          new CustomEvent('concurrentSessionKickedOut', {
+            detail: {
+              message:
+                data?.message ||
+                'Your account was signed into from another device. For your security, this session has been ended.',
+            },
+          })
+        );
+      }
+    }
+    return Promise.reject(error);
+  }
+);

@@ -137,21 +137,24 @@ export function EmployeeHeader({ sidebarCollapsed }) {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/properties`, { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            const mapped = data
-              .filter((p) => p.status !== "inactive")
-              .map((p) => ({
-                id: p.property_id,
-                name: p.property_name || `Property ${p.property_id}`,
-                location: p.location,
-                coordinates: resolvePropertyCoords(p),
-              }));
-            setProperties(mapped);
-            try { sessionStorage.setItem("propertiesCache", JSON.stringify(data)); } catch (e) {}
-          }
+        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await axios.get(`${API_BASE_URL}/api/properties`, {
+          headers,
+          withCredentials: true,
+        });
+        const data = res.data;
+        if (Array.isArray(data)) {
+          const mapped = data
+            .filter((p) => p.status !== "inactive")
+            .map((p) => ({
+              id: p.property_id,
+              name: p.property_name || `Property ${p.property_id}`,
+              location: p.location,
+              coordinates: resolvePropertyCoords(p),
+            }));
+          setProperties(mapped);
+          try { sessionStorage.setItem("propertiesCache", JSON.stringify(data)); } catch (e) {}
         }
       } catch (err) {
         console.error("Failed to load dynamic properties in employee header:", err);
@@ -166,7 +169,7 @@ export function EmployeeHeader({ sidebarCollapsed }) {
   // Check if current page is EmployeeMapView
   const isMapViewPage = location.pathname === "/employee/map-view";
 
-  // Close dropdowns if user clicks outside of them
+  // Close dropdowns if user clicks outside of them (with Touch support for iPad)
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -177,7 +180,11 @@ export function EmployeeHeader({ sidebarCollapsed }) {
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   const [selectedProperty, setSelectedProperty] = useState(() => {

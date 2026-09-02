@@ -2,6 +2,7 @@ import { API_BASE_URL } from "../config/api";
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Mail, ArrowRight, AlertCircle } from "lucide-react";
+import axios from "axios";
 import logo from "../assets/image/golden-dragon-logo.png";
 
 function ForgotPassword() {
@@ -17,22 +18,14 @@ function ForgotPassword() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage(data.message);
-        setEmail("");
-      } else {
-        setError(data.message || "Failed to send reset email");
-      }
+      const response = await axios.post(`${API_BASE_URL}/api/auth/forgot-password`, { email });
+      setMessage(response.data?.message || "Temporary password has been sent to your email.");
+      setEmail("");
     } catch (err) {
-      setError("Unable to connect to server");
+      const errorMsg =
+        err.response?.data?.message ||
+        "Unable to connect to server or send reset email. Please try again.";
+      setError(errorMsg);
       console.error("Forgot password error:", err);
     } finally {
       setLoading(false);
