@@ -7,8 +7,8 @@ const navItems = [
   { title: "Dashboard", url: "/employee-panel", icon: LayoutDashboard },
   { title: "Map View", url: "/employee/map-view", icon: Map },
   { title: "My Properties", url: "/employee/my-properties", icon: Home },
-  { title: "My Clients", url: "/employee/my-clients", icon: Users },
   { title: "My Sales", url: "/employee/my-sales", icon: FileText },
+  { title: "My Clients", url: "/employee/my-clients", icon: Users },
   { title: "Settings", url: "/employee/settings", icon: Settings },
 ];
 

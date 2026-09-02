@@ -93,11 +93,10 @@ function Login({ setRole }) {
   };
 
   return (
-    <div className="min-h-screen flex bg-white">
+    <main className="min-h-screen flex bg-white" role="main">
 
       {/* ── Left Panel ── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col items-center justify-center px-16 bg-white">
-
 
         {/* Content */}
         <div className="relative z-10 flex flex-col items-center text-center gap-6">
@@ -105,6 +104,9 @@ function Login({ setRole }) {
             <img
               src={logo}
               alt="Golden Dragon Logo"
+              width="160"
+              height="160"
+              loading="eager"
               onClick={handleLogoClick}
               className="w-40 h-40 object-contain drop-shadow-md cursor-pointer"
             />
@@ -114,11 +116,10 @@ function Login({ setRole }) {
             <h1 className="text-5xl font-black text-gray-900 tracking-tight leading-tight">
               Golden <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">Dragon</span>
             </h1>
-            <p className="text-lg text-gray-500 font-light mt-2 tracking-[0.2em] uppercase">
+            <p className="text-lg text-gray-700 font-medium mt-2 tracking-[0.2em] uppercase">
               Estate Corporation
             </p>
           </div>
-
 
         </div>
       </div>
@@ -135,24 +136,27 @@ function Login({ setRole }) {
             <img 
               src={logo} 
               alt="Golden Dragon Logo" 
+              width="80"
+              height="80"
+              loading="eager"
               onClick={handleLogoClick}
               className="w-20 h-20 object-contain cursor-pointer" 
             />
             <div className="text-center">
-              <h1 className="text-2xl font-black text-white">Golden Dragon</h1>
-              <p className="text-amber-400/80 text-sm tracking-wider uppercase">Estate Corporation</p>
+              <h1 className="text-2xl font-black text-gray-900">Golden Dragon</h1>
+              <p className="text-amber-600 font-medium text-sm tracking-wider uppercase">Estate Corporation</p>
             </div>
           </div>
 
           {/* Form header */}
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
-            <p className="text-gray-500 mt-1.5 text-sm">Sign in to your account to continue</p>
+            <p className="text-gray-600 mt-1.5 text-sm">Sign in to your account to continue</p>
           </div>
 
           {/* Error alert */}
           {error && (
-            <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm">
+            <div className="mb-6 flex items-center gap-3 bg-red-500/10 border border-red-500/30 text-red-600 px-4 py-3 rounded-xl text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />
               {error}
             </div>
@@ -163,41 +167,48 @@ function Login({ setRole }) {
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              <label htmlFor="login-email" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                 Email Address
               </label>
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-amber-500 transition-colors" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-amber-600 transition-colors" />
                 <input
+                  id="login-email"
+                  name="email"
+                  autoComplete="email"
                   type="email"
                   placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full bg-white border border-gray-300 hover:border-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-gray-900 placeholder-gray-400 rounded-xl pl-11 pr-4 py-3.5 text-sm outline-none transition-all duration-200"
+                  className="w-full bg-white border border-gray-300 hover:border-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-gray-900 placeholder-gray-500 rounded-xl pl-11 pr-4 py-3.5 text-sm outline-none transition-all duration-200"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              <label htmlFor="login-password" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                 Password
               </label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-amber-500 transition-colors" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-amber-600 transition-colors" />
                 <input
+                  id="login-password"
+                  name="password"
+                  autoComplete="current-password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-white border border-gray-300 hover:border-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-gray-900 placeholder-gray-400 rounded-xl pl-11 pr-12 py-3.5 text-sm outline-none transition-all duration-200"
+                  className="w-full bg-white border border-gray-300 hover:border-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-gray-900 placeholder-gray-500 rounded-xl pl-11 pr-12 py-3.5 text-sm outline-none transition-all duration-200"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-500 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-amber-600 p-2 rounded-lg transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -209,7 +220,7 @@ function Login({ setRole }) {
               <button
                 type="button"
                 onClick={() => navigate("/forgot-password")}
-                className="text-xs text-amber-400/80 hover:text-amber-400 transition-colors"
+                className="text-xs text-amber-700 hover:text-amber-800 font-medium py-2 px-1 transition-colors"
               >
                 Forgot your password?
               </button>
@@ -236,7 +247,7 @@ function Login({ setRole }) {
           </form>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

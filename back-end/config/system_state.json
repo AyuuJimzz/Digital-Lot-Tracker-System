@@ -3,6 +3,114 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-09-02T06:12:22.211Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T06:12:17.047Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T06:12:04.252Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T06:04:11.861Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "macOS · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T05:45:45.115Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T05:39:56.237Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T05:39:55.057Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T05:39:50.125Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T05:39:41.023Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T04:13:01.530Z",
+      "event": "Email delivered to: dsa@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 15 Lot 15 (Lot-204 Nanga Guimbal)\"",
+      "type": "EMAIL",
+      "user": "dsa@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T04:12:28.885Z",
+      "event": "Email delivered to: asdasd@gmail.com | Subject: \"Lot Purchase Confirmation - Golden Dragon Estate Corporation\"",
+      "type": "EMAIL",
+      "user": "asdasd@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T04:04:36.747Z",
+      "event": "Email delivered to: asdasd@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 10 Lot 17 (Lot-204 Nanga Guimbal)\"",
+      "type": "EMAIL",
+      "user": "asdasd@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
       "timestamp": "2026-09-02T03:56:23.232Z",
       "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
       "type": "AUTH",

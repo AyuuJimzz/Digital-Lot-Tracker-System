@@ -148,11 +148,11 @@ export function MapLocationSearch({ onLocationSelected }) {
       {/* Modern Seamless Floating Pill Search Bar */}
       <form
         onSubmit={handleSearch}
-        className="flex items-center h-11 px-3.5 bg-slate-900/90 hover:bg-slate-900/95 backdrop-blur-md rounded-full border border-slate-700/70 shadow-lg shadow-black/20 transition-all duration-200 focus-within:border-blue-500/80 focus-within:ring-2 focus-within:ring-blue-500/20"
+        className="flex items-center h-11 px-3.5 bg-white/95 hover:bg-white dark:bg-slate-900/90 dark:hover:bg-slate-900/95 backdrop-blur-md rounded-full border border-gray-300/80 dark:border-slate-700/70 shadow-lg shadow-black/10 dark:shadow-black/20 transition-all duration-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20"
       >
-        <div className="text-slate-400 dark:text-slate-400 mr-2 shrink-0">
+        <div className="text-gray-500 dark:text-slate-400 mr-2 shrink-0">
           {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-blue-400" />
+            <Loader2 className="h-4 w-4 animate-spin text-blue-500 dark:text-blue-400" />
           ) : (
             <Search className="h-4 w-4" />
           )}
@@ -167,14 +167,14 @@ export function MapLocationSearch({ onLocationSelected }) {
             if (results.length > 0) setIsOpen(true);
           }}
           placeholder="Search location in Iloilo..."
-          className="w-full h-full bg-transparent text-xs sm:text-sm text-slate-100 placeholder-slate-400 focus:outline-none"
+          className="w-full h-full bg-transparent text-xs sm:text-sm text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none"
         />
 
         {query.trim() && (
           <button
             type="button"
             onClick={handleClear}
-            className="p-1 mr-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-full transition-colors shrink-0"
+            className="p-1 mr-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors shrink-0"
             title="Clear search"
           >
             <X className="h-3.5 w-3.5" />
@@ -195,17 +195,17 @@ export function MapLocationSearch({ onLocationSelected }) {
 
       {/* Modern Floating Results Card */}
       {isOpen && results.length > 0 && (
-        <div className="mt-2 bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-slate-700/80 shadow-2xl shadow-black/40 overflow-hidden max-h-64 overflow-y-auto">
+        <div className="mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-slate-700/80 shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden max-h-64 overflow-y-auto">
           <div className="py-1">
             {results.map((r, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSelectLocation(r)}
-                className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-slate-200 hover:bg-slate-800/90 hover:text-blue-400 flex items-center gap-3 transition-colors border-b border-slate-800/60 last:border-0"
+                className="w-full px-4 py-2.5 text-left text-xs sm:text-sm text-gray-800 dark:text-slate-200 hover:bg-gray-100/90 dark:hover:bg-slate-800/90 hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-3 transition-colors border-b border-gray-100 dark:border-slate-800/60 last:border-0"
               >
                 <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
-                  <MapPin className="h-3.5 w-3.5 text-blue-400" />
+                  <MapPin className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
                 </div>
                 <span className="line-clamp-1 leading-snug">{r.displayName}</span>
               </button>

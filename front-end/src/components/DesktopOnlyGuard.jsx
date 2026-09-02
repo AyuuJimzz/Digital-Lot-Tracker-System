@@ -58,7 +58,7 @@ const DesktopOnlyGuard = ({ children }) => {
   // ── Screen Notice 1: Phone Device (Screen too small) ─────────────────────
   if (guardState.isPhone) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
+      <main role="main" className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
         <div className="bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 max-w-md w-full text-center border border-slate-700/60">
           <div className="flex justify-center mb-6">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-amber-400/10 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/10">
@@ -92,14 +92,14 @@ const DesktopOnlyGuard = ({ children }) => {
             Golden Dragon Estate Corporation
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   // ── Screen Notice 2: PC / Laptop Window Resized Too Small (Prompt to Maximize) ──
   if (guardState.isNarrowDesktop) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
+      <main role="main" className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
         <div className="bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 sm:p-10 max-w-md w-full text-center border border-blue-500/30 ring-1 ring-blue-500/20">
           <div className="flex justify-center mb-6">
             <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-500/20 to-cyan-500/10 border border-blue-500/40 flex items-center justify-center shadow-xl shadow-blue-500/20">
@@ -134,14 +134,14 @@ const DesktopOnlyGuard = ({ children }) => {
             Golden Dragon Estate Corporation
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   // ── Screen Notice 3: Tablet in Portrait Mode (Prompt user to Rotate to Landscape) ──
   if (guardState.isPortraitTablet) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
+      <main role="main" className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
         <div className="bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 sm:p-10 max-w-md w-full text-center border border-emerald-500/30 ring-1 ring-emerald-500/20">
           {/* Animated Rotate Tablet Visual Cue */}
           <div className="flex justify-center mb-6">
@@ -203,7 +203,7 @@ const DesktopOnlyGuard = ({ children }) => {
             Golden Dragon Estate Corporation
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 

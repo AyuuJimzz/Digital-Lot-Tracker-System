@@ -159,21 +159,21 @@ export function MapLayerControls({
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className={`w-10 h-10 flex items-center justify-center rounded-xl shadow-lg border transition-all duration-200 hover:scale-105 active:scale-95 ${
+            className={`w-10 h-10 flex items-center justify-center rounded-xl shadow-lg border backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 ${
               isOpen || activeLayer !== MAP_LAYERS.SATELLITE
-                ? "bg-blue-600 border-blue-400 text-white shadow-blue-600/30"
-                : "bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
+                ? "bg-blue-600 border-blue-500 text-white shadow-blue-600/30"
+                : "bg-white/95 dark:bg-blue-600 border-gray-300/80 dark:border-blue-500 text-blue-600 dark:text-white hover:bg-gray-100 dark:hover:bg-blue-700 shadow-black/10 dark:shadow-blue-600/30"
             }`}
             title="Map Style (Satellite / Street Map / Hybrid)"
           >
-            <Layers className="w-5 h-5 text-white stroke-[2.2]" />
+            <Layers className="w-5 h-5 text-current stroke-[2.2]" />
           </button>
 
           {/* Layer Options Popover - Matching Exact UI Design */}
           {isOpen && (
-            <div className="absolute right-0 mt-2 w-52 bg-[#0f172a]/95 backdrop-blur-xl rounded-2xl border border-slate-700/80 shadow-2xl overflow-hidden py-2.5 px-2 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-52 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-xl rounded-2xl border border-gray-200 dark:border-slate-700/80 shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden py-2.5 px-2 animate-in fade-in zoom-in-95 duration-150">
               {/* Header Title */}
-              <div className="px-2 pb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider select-none">
+              <div className="px-2 pb-2 text-[11px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider select-none">
                 MAP STYLE
               </div>
 
@@ -191,21 +191,21 @@ export function MapLayerControls({
                       }}
                       className={`w-full px-2.5 py-2 rounded-xl text-left flex items-center gap-3 transition-all duration-150 ${
                         isSelected
-                          ? "border border-blue-500/90 bg-blue-950/40 text-white shadow-sm ring-1 ring-blue-500/40"
-                          : "border border-transparent text-slate-200 hover:bg-slate-800/80 hover:text-white"
+                          ? "border border-blue-500/90 bg-blue-50 dark:bg-blue-950/40 text-blue-900 dark:text-white shadow-sm ring-1 ring-blue-500/40"
+                          : "border border-transparent text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800/80 hover:text-gray-900 dark:hover:text-white"
                       }`}
                     >
                       {/* Icon Badge */}
-                      <div className="w-8 h-8 rounded-lg bg-slate-800/90 border border-slate-700 flex items-center justify-center text-base shrink-0 shadow-inner">
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-800/90 border border-gray-200 dark:border-slate-700 flex items-center justify-center text-base shrink-0 shadow-inner">
                         {opt.iconEmoji}
                       </div>
 
                       {/* Text Details */}
                       <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-semibold text-white leading-tight">
+                        <div className="text-[13px] font-semibold text-gray-900 dark:text-white leading-tight">
                           {opt.title}
                         </div>
-                        <div className="text-[10px] text-slate-400 leading-tight mt-0.5 truncate">
+                        <div className="text-[10px] text-gray-500 dark:text-slate-400 leading-tight mt-0.5 truncate">
                           {opt.desc}
                         </div>
                       </div>
@@ -224,7 +224,7 @@ export function MapLayerControls({
           className={`w-10 h-10 flex items-center justify-center rounded-xl shadow-lg border transition-all duration-200 hover:scale-105 active:scale-95 ${
             isFullscreen
               ? "bg-emerald-600 border-emerald-400 text-white shadow-emerald-600/30"
-              : "bg-[#1e293b]/95 border-slate-700/80 text-white hover:bg-slate-800 backdrop-blur-md"
+              : "bg-white/95 dark:bg-[#1e293b]/95 border-gray-300/80 dark:border-slate-700/80 text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-800 backdrop-blur-md shadow-black/10 dark:shadow-black/20"
           }`}
           title={
             isFullscreen
@@ -235,7 +235,7 @@ export function MapLayerControls({
           {isFullscreen ? (
             <Minimize className="w-5 h-5 text-white stroke-[2.2]" />
           ) : (
-            <Maximize className="w-5 h-5 text-white stroke-[2.2]" />
+            <Maximize className="w-5 h-5 text-gray-700 dark:text-white stroke-[2.2]" />
           )}
         </button>
       </div>

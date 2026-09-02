@@ -91,12 +91,15 @@ function ForgotPassword() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              <label htmlFor="forgot-email" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                 Email Address
               </label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-amber-500 transition-colors" />
                 <input
+                  id="forgot-email"
+                  name="email"
+                  autoComplete="email"
                   type="email"
                   placeholder="you@company.com"
                   value={email}

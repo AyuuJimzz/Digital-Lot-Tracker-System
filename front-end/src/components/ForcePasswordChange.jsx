@@ -91,11 +91,14 @@ function ForcePasswordChange({ onPasswordChanged }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* New Password */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+            <label htmlFor="force-new-password" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               New Password
             </label>
             <div className="relative">
               <input
+                id="force-new-password"
+                name="new-password"
+                autoComplete="new-password"
                 type={showNewPassword ? "text" : "password"}
                 placeholder="Enter new password (min. 6 chars)"
                 value={newPassword}
@@ -118,11 +121,14 @@ function ForcePasswordChange({ onPasswordChanged }) {
 
           {/* Confirm Password */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+            <label htmlFor="force-confirm-password" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Confirm Password
             </label>
             <div className="relative">
               <input
+                id="force-confirm-password"
+                name="confirm-password"
+                autoComplete="new-password"
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="Re-enter your new password"
                 value={confirmPassword}

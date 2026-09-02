@@ -97,7 +97,7 @@ const Customers = () => {
 
       const lower = searchTerm.trim().toLowerCase();
       const matchesSearch = lower
-        ? `${c.full_name} ${c.email} ${c.contact_number} ${c.address}`.toLowerCase().includes(lower)
+        ? `${c.full_name} ${c.email} ${c.contact_number} ${c.address} ${c.lot_number || ""} ${c.property_name || ""}`.toLowerCase().includes(lower)
         : true;
 
       return matchesStatus && matchesSearch;
@@ -122,9 +122,9 @@ const Customers = () => {
     return (
       <div className="space-y-4 p-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-          My Customers
+          My Clients
         </h1>
-        <p className="text-sm text-gray-500 dark:text-slate-400">Loading customers...</p>
+        <p className="text-sm text-gray-500 dark:text-slate-400">Loading clients...</p>
       </div>
     );
   if (!isAuthorized) return null;
@@ -134,10 +134,10 @@ const Customers = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-            Clients
+            My Clients
           </h1>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-            View and search your customer list.
+            View and search your client list and assigned lots.
           </p>
         </div>
       </div>
@@ -202,7 +202,7 @@ const Customers = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                 <thead className="bg-gray-50 dark:bg-slate-800">
                   <tr>
-                    {["Full Name", "Contact Number", "Email", "Address", "Status"].map((col) => (
+                    {["Full Name", "Contact Number", "Email", "Lot Details", "Status"].map((col) => (
                       <th
                         key={col}
                         className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider"
@@ -227,8 +227,17 @@ const Customers = () => {
                       <td className="px-3 py-3 text-sm text-gray-700 dark:text-slate-300 break-all">
                         {customer.email}
                       </td>
-                      <td className="px-3 py-3 text-sm text-gray-700 dark:text-slate-300">
-                        {customer.address}
+                      <td className="px-3 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                        {customer.lot_number ? (
+                          <div>
+                            <span>{customer.lot_number}</span>
+                            <span className="block text-xs text-gray-500 dark:text-slate-400 font-normal">
+                              {customer.property_name || `Property ${customer.property_id}`}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 dark:text-slate-500 font-normal">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {customer.lot_status === "Available" ? (

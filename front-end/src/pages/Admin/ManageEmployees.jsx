@@ -121,8 +121,8 @@ const ManageEmployees = () => {
     if (!lastActiveTimestamp) {
       return {
         label: "Online Now",
-        badgeCls: "bg-emerald-500/10 text-emerald-400 dark:text-emerald-300 border-emerald-500/20",
-        dotCls: "bg-emerald-400",
+        badgeCls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+        dotCls: "bg-emerald-500 dark:bg-emerald-400",
         pulse: true,
         title: "Recently active",
       };
@@ -132,8 +132,8 @@ const ManageEmployees = () => {
     if (isNaN(lastActiveDate.getTime())) {
       return {
         label: "Online Now",
-        badgeCls: "bg-emerald-500/10 text-emerald-400 dark:text-emerald-300 border-emerald-500/20",
-        dotCls: "bg-emerald-400",
+        badgeCls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+        dotCls: "bg-emerald-500 dark:bg-emerald-400",
         pulse: true,
         title: "Active now",
       };
@@ -145,8 +145,8 @@ const ManageEmployees = () => {
     if (diffMinutes <= 15) {
       return {
         label: "Online Now",
-        badgeCls: "bg-emerald-500/10 text-emerald-400 dark:text-emerald-300 border-emerald-500/20",
-        dotCls: "bg-emerald-400",
+        badgeCls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+        dotCls: "bg-emerald-500 dark:bg-emerald-400",
         pulse: true,
         title: "Active on the platform now",
       };
@@ -156,8 +156,8 @@ const ManageEmployees = () => {
     if (diffMinutes < 60) {
       return {
         label: `Active ${diffMinutes}m ago`,
-        badgeCls: "bg-slate-800/70 text-slate-300 border-slate-700/60",
-        dotCls: "bg-blue-400/80",
+        badgeCls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
+        dotCls: "bg-blue-500 dark:bg-blue-400/80",
         pulse: false,
         title: `Last active ${diffMinutes} minutes ago`,
       };
@@ -168,8 +168,8 @@ const ManageEmployees = () => {
     if (diffHours < 24) {
       return {
         label: `Active ${diffHours}h ago`,
-        badgeCls: "bg-slate-800/70 text-slate-300 border-slate-700/60",
-        dotCls: "bg-blue-400/80",
+        badgeCls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
+        dotCls: "bg-blue-500 dark:bg-blue-400/80",
         pulse: false,
         title: `Last active ${diffHours} hours ago`,
       };
@@ -180,8 +180,8 @@ const ManageEmployees = () => {
     if (diffDays === 1) {
       return {
         label: "Active Yesterday",
-        badgeCls: "bg-slate-800/70 text-slate-300 border-slate-700/60",
-        dotCls: "bg-slate-400",
+        badgeCls: "bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
+        dotCls: "bg-gray-400 dark:bg-slate-400",
         pulse: false,
         title: "Last active yesterday",
       };
@@ -191,8 +191,8 @@ const ManageEmployees = () => {
     if (diffDays <= 30) {
       return {
         label: `Active ${diffDays}d ago`,
-        badgeCls: "bg-slate-800/70 text-slate-300 border-slate-700/60",
-        dotCls: "bg-slate-400",
+        badgeCls: "bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
+        dotCls: "bg-gray-400 dark:bg-slate-400",
         pulse: false,
         title: `Last active ${diffDays} days ago`,
       };
@@ -201,8 +201,8 @@ const ManageEmployees = () => {
     // 6. Inactive (30+ days)
     return {
       label: "Inactive (30+ days)",
-      badgeCls: "bg-slate-900/40 text-slate-500 border-slate-800",
-      dotCls: "bg-slate-600",
+      badgeCls: "bg-gray-100 text-gray-400 border-gray-200 dark:bg-slate-900/40 dark:text-slate-500 dark:border-slate-800",
+      dotCls: "bg-gray-300 dark:bg-slate-600",
       pulse: false,
       title: "No activity for over 30 days",
     };
@@ -454,14 +454,16 @@ const ManageEmployees = () => {
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-md border ${
                             (employee.lots_sold || 0) > 0
-                              ? "bg-rose-500/10 text-rose-300 border-rose-500/25"
-                              : "bg-slate-800/50 text-slate-400 border-slate-700/50"
+                              ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/25"
+                              : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50"
                           }`}
                           title="Total Lots Sold by Employee"
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              (employee.lots_sold || 0) > 0 ? "bg-rose-400" : "bg-slate-500"
+                              (employee.lots_sold || 0) > 0
+                                ? "bg-rose-500 dark:bg-rose-400"
+                                : "bg-gray-400 dark:bg-slate-500"
                             }`}
                           ></span>
                           {employee.lots_sold || 0} Sold
@@ -469,14 +471,16 @@ const ManageEmployees = () => {
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-semibold rounded-md border ${
                             (employee.lots_pending || 0) > 0
-                              ? "bg-amber-500/10 text-amber-300 border-amber-500/25"
-                              : "bg-slate-800/50 text-slate-400 border-slate-700/50"
+                              ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25"
+                              : "bg-gray-100 text-gray-600 border-gray-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700/50"
                           }`}
                           title="Total Lots Reserved / Pending"
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              (employee.lots_pending || 0) > 0 ? "bg-amber-400" : "bg-slate-500"
+                              (employee.lots_pending || 0) > 0
+                                ? "bg-amber-500 dark:bg-amber-400"
+                                : "bg-gray-400 dark:bg-slate-500"
                             }`}
                           ></span>
                           {employee.lots_pending || 0} Pending
