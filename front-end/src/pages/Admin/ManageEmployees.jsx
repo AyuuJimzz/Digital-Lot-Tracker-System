@@ -118,7 +118,7 @@ const ManageEmployees = () => {
     if (employee.status === "inactive") {
       return {
         label: "Disabled",
-        badgeCls: "bg-slate-800/60 text-slate-400 border-slate-700/50",
+        textCls: "text-slate-500 dark:text-slate-400",
         dotCls: "bg-slate-500",
         pulse: false,
         title: "Account is disabled",
@@ -129,7 +129,7 @@ const ManageEmployees = () => {
     if (!lastActiveTimestamp) {
       return {
         label: "Online Now",
-        badgeCls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+        textCls: "text-emerald-600 dark:text-emerald-400",
         dotCls: "bg-emerald-500 dark:bg-emerald-400",
         pulse: true,
         title: "Recently active",
@@ -140,7 +140,7 @@ const ManageEmployees = () => {
     if (isNaN(lastActiveDate.getTime())) {
       return {
         label: "Online Now",
-        badgeCls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+        textCls: "text-emerald-600 dark:text-emerald-400",
         dotCls: "bg-emerald-500 dark:bg-emerald-400",
         pulse: true,
         title: "Active now",
@@ -153,7 +153,7 @@ const ManageEmployees = () => {
     if (diffMinutes <= 15) {
       return {
         label: "Online Now",
-        badgeCls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
+        textCls: "text-emerald-600 dark:text-emerald-400",
         dotCls: "bg-emerald-500 dark:bg-emerald-400",
         pulse: true,
         title: "Active on the platform now",
@@ -164,8 +164,8 @@ const ManageEmployees = () => {
     if (diffMinutes < 60) {
       return {
         label: `Active ${diffMinutes}m ago`,
-        badgeCls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
-        dotCls: "bg-blue-500 dark:bg-blue-400/80",
+        textCls: "text-gray-600 dark:text-slate-400",
+        dotCls: "bg-gray-400 dark:bg-slate-400",
         pulse: false,
         title: `Last active ${diffMinutes} minutes ago`,
       };
@@ -176,8 +176,8 @@ const ManageEmployees = () => {
     if (diffHours < 24) {
       return {
         label: `Active ${diffHours}h ago`,
-        badgeCls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
-        dotCls: "bg-blue-500 dark:bg-blue-400/80",
+        textCls: "text-gray-600 dark:text-slate-400",
+        dotCls: "bg-gray-400 dark:bg-slate-400",
         pulse: false,
         title: `Last active ${diffHours} hours ago`,
       };
@@ -188,7 +188,7 @@ const ManageEmployees = () => {
     if (diffDays === 1) {
       return {
         label: "Active Yesterday",
-        badgeCls: "bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
+        textCls: "text-gray-600 dark:text-slate-400",
         dotCls: "bg-gray-400 dark:bg-slate-400",
         pulse: false,
         title: "Last active yesterday",
@@ -199,7 +199,7 @@ const ManageEmployees = () => {
     if (diffDays <= 30) {
       return {
         label: `Active ${diffDays}d ago`,
-        badgeCls: "bg-gray-100 text-gray-700 border-gray-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700/60",
+        textCls: "text-gray-600 dark:text-slate-400",
         dotCls: "bg-gray-400 dark:bg-slate-400",
         pulse: false,
         title: `Last active ${diffDays} days ago`,
@@ -209,7 +209,7 @@ const ManageEmployees = () => {
     // 6. Inactive (30+ days)
     return {
       label: "Inactive (30+ days)",
-      badgeCls: "bg-gray-100 text-gray-400 border-gray-200 dark:bg-slate-900/40 dark:text-slate-500 dark:border-slate-800",
+      textCls: "text-gray-400 dark:text-slate-500",
       dotCls: "bg-gray-300 dark:bg-slate-600",
       pulse: false,
       title: "No activity for over 30 days",
@@ -453,7 +453,7 @@ const ManageEmployees = () => {
                     </td>
                     <td className="px-4 py-3.5 text-left text-sm font-bold text-gray-900 dark:text-white">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-xs font-bold shadow-sm ring-2 ring-blue-500/20 uppercase shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center text-xs font-bold shadow-sm ring-2 ring-amber-500/20 uppercase shrink-0">
                           {(employee.first_name?.[0] || "") + (employee.last_name?.[0] || "")}
                         </div>
                         <div className="font-bold text-gray-900 dark:text-white capitalize leading-snug">
@@ -470,7 +470,7 @@ const ManageEmployees = () => {
                         const statusInfo = getEmployeeActivityStatus(employee);
                         return (
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-bold rounded-full border ${statusInfo.badgeCls}`}
+                            className={`inline-flex items-center gap-1.5 text-xs font-semibold ${statusInfo.textCls}`}
                             title={statusInfo.title}
                           >
                             <span

@@ -368,10 +368,10 @@ const ManageProperties = () => {
                     <td className="px-4 py-3.5 text-left text-sm text-gray-600 dark:text-slate-300">{property.location}</td>
                     <td className="px-4 py-3.5 text-center text-sm font-semibold text-gray-700 dark:text-slate-200">{property.total_lots}</td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                      <span className={`inline-flex px-2.5 py-0.5 text-xs font-bold rounded-full ${
+                      <span className={`text-xs font-semibold ${
                         property.status === "active"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-500/30"
-                          : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-500/30"
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-rose-600 dark:text-rose-400"
                       }`}>
                         {property.status.toUpperCase()}
                       </span>

@@ -519,8 +519,7 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
     { name: "Theresa Mae Gonzaga", email: "theresa.gonzaga@gmail.com", phone: "09182223344", city: "Pavia, Iloilo" },
   ];
 
-  const paymentOptions = ["Cash", "Installment", "No Downpayment", "Bank Transfer", "Online Payment"];
-  const statusOptions = ["Sold", "Sold", "Pending", "Sold", "Pending"];
+  const statusOptions = ["Sold", "Pending", "Cancelled", "Sold", "Pending", "Sold", "Cancelled"];
 
   try {
     // 1. Fetch available lots to reserve/purchase
@@ -542,15 +541,39 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
     const createdRecords = [];
     const now = new Date();
 
-    // Fetch first available employee to assign as demo agent
-    const [empRows] = await db.query("SELECT employee_id FROM employees LIMIT 1");
-    const demoEmployeeId = empRows.length > 0 ? empRows[0].employee_id : null;
+    // Fetch all available employees to distribute as demo agents
+    let [empRows] = await db.query("SELECT employee_id FROM employees");
+
+    // If only 1 or 0 employees exist, auto-provision 2 demo sales agents so transactions show a realistic team distribution
+    if (empRows.length <= 1) {
+      const sampleAgents = [
+        { first_name: "Sarah Mae", last_name: "Santos", email: "sarah.santos@goldendragon.com" },
+        { first_name: "Mark Anthony", last_name: "Reyes", email: "mark.reyes@goldendragon.com" }
+      ];
+      for (const ag of sampleAgents) {
+        const [exists] = await db.query("SELECT employee_id FROM employees WHERE email = ?", [ag.email]);
+        if (exists.length === 0) {
+          const defaultHash = await bcrypt.hash("Password123!", 10);
+          await db.query(
+            "INSERT INTO employees (first_name, last_name, email, password, status, password_reset_required) VALUES (?, ?, ?, ?, 'active', 0)",
+            [ag.first_name, ag.last_name, ag.email, defaultHash]
+          );
+        }
+      }
+      const [refreshed] = await db.query("SELECT employee_id FROM employees");
+      empRows = refreshed;
+    }
+
+    // Diverse agent pool: All sales agents + Admin (null)
+    const agentPool = empRows.length > 0 ? [...empRows.map((e) => e.employee_id), null] : [null];
 
     for (let i = 0; i < Math.min(count, availableLots.length); i++) {
       const lot = availableLots[i];
       const buyer = sampleBuyers[i % sampleBuyers.length];
-      const paymentType = paymentOptions[i % paymentOptions.length];
       const targetStatus = statusOptions[i % statusOptions.length];
+      // Golden Dragon standard payment types: Cash & Installment for Sold/Cancelled; No Downpayment for Pending reservations
+      const paymentType = targetStatus === "Pending" ? "No Downpayment" : (i % 2 === 0 ? "Cash" : "Installment");
+      const demoEmployeeId = agentPool[i % agentPool.length];
 
       // Spread dates across recent days (e.g. 1 to 25 days ago) for realistic charts
       const daysAgo = Math.floor(Math.random() * 25) + 1;
@@ -563,17 +586,20 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
         : buyer.email;
 
       // 1. Insert into customers
+      const custStatus = targetStatus === "Sold" ? "Sold" : (targetStatus === "Cancelled" ? "Cancelled" : "Pending");
       const [custResult] = await db.query(
         `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [lot.lot_id, buyer.name, buyer.phone, buyerEmail, buyer.city, demoEmployeeId, targetStatus === "Sold" ? "Sold" : "Pending", isoTransDate, isoTransDate]
+        [lot.lot_id, buyer.name, buyer.phone, buyerEmail, buyer.city, demoEmployeeId, custStatus, isoTransDate, isoTransDate]
       );
       const customerId = custResult.insertId;
 
       // 2. Insert into transactions
       const noteText = targetStatus === "Sold"
         ? `Demo Purchase: Full reservation & payment recorded for Lot ${lot.lot_number || lot.lot_id} via ${paymentType}.`
-        : `Demo Inquiry: Active lot reservation pending client verification.`;
+        : targetStatus === "Cancelled"
+          ? `Demo Cancellation: Client requested cancellation of inquiry for Lot ${lot.lot_number || lot.lot_id}.`
+          : `Demo Inquiry: Active lot reservation pending client verification.`;
 
       await db.query(
         `INSERT INTO transactions (lot_id, customer_id, employee_id, transaction_date, payment_type, notes, created_at, updated_at)
@@ -581,10 +607,11 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
         [lot.lot_id, customerId, demoEmployeeId, isoTransDate, paymentType, noteText, isoTransDate, isoTransDate]
       );
 
-      // 3. Update lot status
+      // 3. Update lot status (if Cancelled, lot remains Available for new buyers)
+      const lotNewStatus = targetStatus === "Cancelled" ? "Available" : targetStatus;
       await db.query(
         "UPDATE lots SET status = ?, pending_since = ? WHERE lot_id = ?",
-        [targetStatus, targetStatus === "Pending" ? isoTransDate : null, lot.lot_id]
+        [lotNewStatus, targetStatus === "Pending" ? isoTransDate : null, lot.lot_id]
       );
 
       createdRecords.push({
@@ -614,6 +641,62 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
   } catch (err) {
     console.error("Generate demo data error:", err);
     res.status(500).json({ error: "Failed to generate demo data", message: err.message });
+  }
+});
+
+// ── GENERATE DEMO EMPLOYEES & RETURN READABLE CREDENTIALS ──
+router.post("/generate-demo-employees", requireDeveloper, async (req, res) => {
+  try {
+    const demoStaffList = [
+      { first_name: "Sarah Mae", last_name: "Santos", email: "sarah.santos@goldendragon.com", rawPassword: "Password123!" },
+      { first_name: "Mark Anthony", last_name: "Reyes", email: "mark.reyes@goldendragon.com", rawPassword: "Password123!" },
+      { first_name: "Eduardo", last_name: "Ramos", email: "eduardo.ramos@goldendragon.com", rawPassword: "Password123!" },
+    ];
+
+    const results = [];
+    for (const staff of demoStaffList) {
+      const [existing] = await db.query("SELECT employee_id FROM employees WHERE LOWER(email) = ?", [staff.email.toLowerCase()]);
+      const hashedPassword = await bcrypt.hash(staff.rawPassword, 10);
+
+      let empId;
+      if (existing.length > 0) {
+        empId = existing[0].employee_id;
+        await db.query("UPDATE employees SET password = ?, status = 'active', password_reset_required = 0 WHERE employee_id = ?", [
+          hashedPassword,
+          empId,
+        ]);
+      } else {
+        const [insertRes] = await db.query(
+          "INSERT INTO employees (first_name, last_name, email, password, status, password_reset_required) VALUES (?, ?, ?, ?, 'active', 0)",
+          [staff.first_name, staff.last_name, staff.email.toLowerCase(), hashedPassword]
+        );
+        empId = insertRes.insertId;
+      }
+
+      results.push({
+        employee_id: empId,
+        name: `${staff.first_name} ${staff.last_name}`,
+        email: staff.email,
+        password: staff.rawPassword,
+        role: "Staff / Employee",
+      });
+    }
+
+    addDeveloperLog(`Generated / refreshed ${results.length} demo employee testing accounts.`, {
+      type: "ADMIN",
+      role: "Developer",
+      device: parseDevice(req.headers["user-agent"]),
+      ip: getClientIp(req),
+    });
+
+    res.json({
+      success: true,
+      message: `Successfully provisioned ${results.length} demo staff accounts!`,
+      employees: results,
+    });
+  } catch (err) {
+    console.error("Generate demo employees error:", err);
+    res.status(500).json({ error: "Failed to generate demo employees", message: err.message });
   }
 });
 

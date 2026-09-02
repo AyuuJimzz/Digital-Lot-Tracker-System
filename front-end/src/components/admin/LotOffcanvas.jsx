@@ -129,7 +129,7 @@ const LotOffcanvas = ({
       case "Available":
         return "border-green-500 text-green-600 focus:border-green-500 focus:ring-green-500";
       case "Pending":
-        return "border-yellow-500 text-yellow-600 focus:border-yellow-500 focus:ring-yellow-500";
+        return "border-amber-500 text-amber-500 focus:border-amber-500 focus:ring-amber-500";
       case "Sold":
         return "border-red-500 text-red-600 focus:border-red-500 focus:ring-red-500";
       default:
@@ -479,7 +479,7 @@ const LotOffcanvas = ({
                           s === "Available"
                             ? "text-green-600"
                             : s === "Pending"
-                              ? "text-yellow-600"
+                              ? "text-amber-500"
                               : "text-red-600"
                         }
                       >

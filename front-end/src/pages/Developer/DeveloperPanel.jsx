@@ -76,7 +76,6 @@ const DeveloperPanel = () => {
   const [empFirstName, setEmpFirstName] = useState("");
   const [empLastName, setEmpLastName] = useState("");
   const [empEmail, setEmpEmail] = useState("");
-  const [empPhone, setEmpPhone] = useState("");
   const [empPassword, setEmpPassword] = useState("");
   const [showEmpPassword, setShowEmpPassword] = useState(false);
   const [empFormLoading, setEmpFormLoading] = useState(false);
@@ -88,7 +87,6 @@ const DeveloperPanel = () => {
   const [editEmpFirstName, setEditEmpFirstName] = useState("");
   const [editEmpLastName, setEditEmpLastName] = useState("");
   const [editEmpEmail, setEditEmpEmail] = useState("");
-  const [editEmpPhone, setEditEmpPhone] = useState("");
   const [empNewPassword, setEmpNewPassword] = useState("");
   const [showEmpNewPassword, setShowEmpNewPassword] = useState(false);
   const [empModalLoading, setEmpModalLoading] = useState(false);
@@ -114,6 +112,16 @@ const DeveloperPanel = () => {
   const [demoDataCount, setDemoDataCount] = useState(6);
   const [demoDataLoading, setDemoDataLoading] = useState(false);
   const [demoDataSuccessMsg, setDemoDataSuccessMsg] = useState("");
+  const [demoModalTab, setDemoModalTab] = useState("transactions"); // "transactions" | "employees"
+  const [demoEmployeesList, setDemoEmployeesList] = useState([
+    { name: "Sarah Mae Santos", email: "sarah.santos@goldendragon.com", password: "Password123!", role: "Staff / Employee" },
+    { name: "Mark Anthony Reyes", email: "mark.reyes@goldendragon.com", password: "Password123!", role: "Staff / Employee" },
+    { name: "Eduardo Ramos", email: "eduardo.ramos@goldendragon.com", password: "Password123!", role: "Staff / Employee" },
+  ]);
+  const [demoEmpLoading, setDemoEmpLoading] = useState(false);
+  const [demoEmpSuccessMsg, setDemoEmpSuccessMsg] = useState("");
+  const [copiedKey, setCopiedKey] = useState("");
+  const [showDemoPasswords, setShowDemoPasswords] = useState(true);
 
   // API Health & Routes Monitor states
   const [apiHealthData, setApiHealthData] = useState(null);
@@ -1007,6 +1015,48 @@ const DeveloperPanel = () => {
     }
   };
 
+  // Generate Demo Staff Accounts handler
+  const handleGenerateDemoEmployees = async () => {
+    setDemoEmpLoading(true);
+    setDemoEmpSuccessMsg("");
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/developer/generate-demo-employees`,
+        {},
+        {
+          headers: getDevHeaders(),
+          withCredentials: true,
+        }
+      );
+
+      if (res.data.success) {
+        setDemoEmployeesList(res.data.employees || []);
+        setDemoEmpSuccessMsg(res.data.message || "Demo employee accounts generated successfully!");
+        fetchEmployees();
+
+        // Refresh system state logs
+        const stateRes = await axios.get(`${API_BASE_URL}/api/developer/system-state`, {
+          headers: getDevHeaders(),
+          withCredentials: true,
+        });
+        setLogs(stateRes.data.logs || []);
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to generate demo employee accounts");
+    } finally {
+      setDemoEmpLoading(false);
+    }
+  };
+
+  // Quick clipboard copy helper
+  const handleCopyText = (key, text) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(""), 2000);
+    }
+  };
+
   // Change Developer Security PIN handler
   const handleChangePinSubmit = async (e) => {
     e.preventDefault();
@@ -1099,7 +1149,6 @@ const DeveloperPanel = () => {
           last_name: empLastName.trim(),
           email: empEmail.trim(),
           password: empPassword.trim(),
-          phone_number: empPhone.trim() || null,
         },
         {
           headers: getDevHeaders(),
@@ -1112,7 +1161,6 @@ const DeveloperPanel = () => {
         setEmpFirstName("");
         setEmpLastName("");
         setEmpEmail("");
-        setEmpPhone("");
         setEmpPassword("");
         fetchEmployees();
 
@@ -1136,7 +1184,6 @@ const DeveloperPanel = () => {
     setEditEmpFirstName(emp.first_name || "");
     setEditEmpLastName(emp.last_name || "");
     setEditEmpEmail(emp.email || "");
-    setEditEmpPhone(emp.phone_number || "");
     setEmpNewPassword("");
     setShowEmpNewPassword(false);
     setEmpModalMsg({ text: "", isError: false });
@@ -1227,7 +1274,6 @@ const DeveloperPanel = () => {
           first_name: editEmpFirstName.trim(),
           last_name: editEmpLastName.trim(),
           email: editEmpEmail.trim(),
-          phone_number: editEmpPhone.trim() || null,
         },
         {
           headers: getDevHeaders(),
@@ -1242,7 +1288,6 @@ const DeveloperPanel = () => {
           first_name: editEmpFirstName.trim(),
           last_name: editEmpLastName.trim(),
           email: editEmpEmail.trim(),
-          phone_number: editEmpPhone.trim() || null,
         });
         setIsEditingEmployee(false);
         fetchEmployees();
@@ -3855,18 +3900,6 @@ const DeveloperPanel = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number (Optional)</label>
-                    <input
-                      type="text"
-                      value={empPhone}
-                      onChange={(e) => setEmpPhone(e.target.value)}
-                      placeholder="09123456789"
-                      autoComplete="off"
-                      className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition text-white placeholder-slate-500"
-                    />
-                  </div>
-
-                  <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
                     <div className="relative">
                       <input
@@ -3943,8 +3976,7 @@ const DeveloperPanel = () => {
                           const q = employeeSearchQuery.toLowerCase();
                           const fullName = `${emp.first_name || ""} ${emp.last_name || ""}`.toLowerCase();
                           const email = (emp.email || "").toLowerCase();
-                          const phone = (emp.phone_number || "").toLowerCase();
-                          return fullName.includes(q) || email.includes(q) || phone.includes(q);
+                          return fullName.includes(q) || email.includes(q);
                         })
                         .map((emp) => (
                           <div
@@ -3964,11 +3996,6 @@ const DeveloperPanel = () => {
                             </div>
 
                             <div className="flex items-center gap-2 shrink-0">
-                              {emp.phone_number && (
-                                <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 border border-slate-800 font-mono">
-                                  📞 {emp.phone_number}
-                                </span>
-                              )}
                               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-slate-900 text-slate-400 border border-slate-800 font-mono">
                                 ID #{emp.employee_id}
                               </span>
@@ -4407,17 +4434,6 @@ const DeveloperPanel = () => {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
-                      <input
-                        type="text"
-                        value={editEmpPhone}
-                        onChange={(e) => setEditEmpPhone(e.target.value)}
-                        placeholder="e.g. 09123456789"
-                        className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-teal-500 outline-none transition text-white"
-                      />
-                    </div>
-
                     {empModalMsg.text && (
                       <div className={`text-xs font-medium p-2.5 rounded-xl border ${empModalMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-teal-300 bg-teal-500/10 border-teal-500/20"}`}>
                         {empModalMsg.text}
@@ -4471,11 +4487,6 @@ const DeveloperPanel = () => {
                       <div className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-xl flex justify-between items-center">
                         <span className="text-slate-400 font-medium">Email Address</span>
                         <span className="font-mono text-slate-200 font-medium">{selectedEmployee.email}</span>
-                      </div>
-
-                      <div className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-xl flex justify-between items-center">
-                        <span className="text-slate-400 font-medium">Contact Phone</span>
-                        <span className="text-slate-200 font-medium">{selectedEmployee.phone_number || "Not provided"}</span>
                       </div>
                     </div>
 
@@ -4916,77 +4927,250 @@ const DeveloperPanel = () => {
         {/* ──────── CAPSTONE DEMO SEED DATA GENERATOR MODAL ──────── */}
         {showDemoDataModal && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-slate-900 border border-emerald-500/40 max-w-lg w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 text-xl">
-                  🎲
+            <div className="bg-slate-900 border border-emerald-500/40 max-w-xl w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 space-y-4 max-h-[90vh]">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 text-xl">
+                    🎲
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">Capstone Demo Data Generator</h3>
+                    <p className="text-xs text-slate-400">Generate realistic inquiries, sales & test employee accounts</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Capstone Demo Data Generator</h3>
-                  <p className="text-xs text-slate-400">Generate realistic inquiries & sales for defense/demo</p>
-                </div>
-              </div>
 
-              <p className="text-xs text-slate-300 leading-relaxed">
-                This tool will automatically create realistic sample buyer accounts and map transactions across your subdivision lots to make your Admin Dashboard charts, sales revenue, and lot status maps look active and full during live presentations.
-              </p>
-
-              {/* Quantity Selector */}
-              <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2.5">
-                <label className="text-xs font-semibold text-slate-300 block">
-                  Number of sample transactions to generate:
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[4, 8, 12].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => setDemoDataCount(num)}
-                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                        demoDataCount === num
-                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm"
-                          : "bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700"
-                      }`}
-                    >
-                      <span>✨</span> {num} Records
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-[11px] text-slate-400 space-y-1">
-                <div className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                  <span>✓</span> Auto-generates:
-                </div>
-                <p>• Realistic Filipino buyer names, emails, contact numbers, & addresses.</p>
-                <p>• Mix of Cash, Installment, and No Downpayment transactions.</p>
-                <p>• Lots will update to <strong>Sold</strong> or <strong>Pending</strong> with past timestamps.</p>
-              </div>
-
-              {demoDataSuccessMsg && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl font-medium">
-                  🎉 {demoDataSuccessMsg}
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowDemoDataModal(false)}
-                  disabled={demoDataLoading}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition"
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
                 >
-                  Close
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex border-b border-slate-800 -mx-6 px-6 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDemoModalTab("transactions")}
+                  className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition flex items-center gap-2 ${
+                    demoModalTab === "transactions"
+                      ? "border-emerald-500 text-emerald-400"
+                      : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <span>🎲</span> Sample Transactions
                 </button>
                 <button
                   type="button"
-                  onClick={handleGenerateDemoDataConfirm}
-                  disabled={demoDataLoading}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-600/30 disabled:opacity-50"
+                  onClick={() => setDemoModalTab("employees")}
+                  className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition flex items-center gap-2 ${
+                    demoModalTab === "employees"
+                      ? "border-teal-500 text-teal-400"
+                      : "border-transparent text-slate-400 hover:text-slate-200"
+                  }`}
                 >
-                  {demoDataLoading ? "Generating Records..." : "🎲 Generate Demo Data"}
+                  <span>👥</span> Demo Staff Accounts
+                  <span className="px-1.5 py-0.2 bg-teal-500/20 text-teal-300 rounded-full text-[10px]">
+                    {demoEmployeesList.length}
+                  </span>
                 </button>
               </div>
+
+              {/* TAB 1: TRANSACTIONS GENERATOR */}
+              {demoModalTab === "transactions" ? (
+                <div className="space-y-4 overflow-y-auto pr-1">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Automatically create realistic sample buyer accounts and map transactions across your subdivision lots to make your Admin Dashboard charts, sales revenue, and lot status maps look active and full.
+                  </p>
+
+                  {/* Quantity Selector */}
+                  <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2.5">
+                    <label className="text-xs font-semibold text-slate-300 block">
+                      Number of sample transactions to generate:
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[4, 8, 12].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setDemoDataCount(num)}
+                          className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                            demoDataCount === num
+                              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm"
+                              : "bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700"
+                          }`}
+                        >
+                          <span>✨</span> {num} Records
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-[11px] text-slate-400 space-y-1">
+                    <div className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                      <span>✓</span> Auto-generates:
+                    </div>
+                    <p>• Realistic Filipino buyer names, emails, contact numbers, & addresses.</p>
+                    <p>• Mix of Cash, Installment, and No Downpayment transactions.</p>
+                    <p>• Lots will update to <strong>Sold</strong> or <strong>Pending</strong> with past timestamps.</p>
+                    <p className="pt-1 text-teal-400 font-medium flex items-center gap-1">
+                      <span>👥</span> Transactions are automatically distributed across your Staff Accounts and Admin.
+                    </p>
+                  </div>
+
+                  {demoDataSuccessMsg && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl font-medium">
+                      🎉 {demoDataSuccessMsg}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowDemoDataModal(false)}
+                      disabled={demoDataLoading}
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGenerateDemoDataConfirm}
+                      disabled={demoDataLoading}
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-600/30 disabled:opacity-50"
+                    >
+                      {demoDataLoading ? "Generating Records..." : "🎲 Generate Demo Transactions"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* TAB 2: DEMO EMPLOYEES GENERATOR & CREDENTIALS VIEWER */
+                <div className="space-y-4 overflow-y-auto pr-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Pre-configured employee accounts for pairing and thesis live testing. Passwords can be viewed and copied below.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowDemoPasswords(!showDemoPasswords)}
+                      className="text-[11px] text-teal-400 hover:text-teal-300 font-semibold px-2 py-1 rounded bg-teal-500/10 border border-teal-500/20 shrink-0 transition"
+                    >
+                      {showDemoPasswords ? "👁️ Hide Passwords" : "🔒 Reveal Passwords"}
+                    </button>
+                  </div>
+
+                  {/* List of Demo Accounts with Readable Passwords */}
+                  <div className="space-y-2.5">
+                    {demoEmployeesList.map((emp, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 bg-slate-950/80 border border-slate-800 hover:border-slate-700/80 rounded-xl space-y-2.5 transition"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-xs shrink-0">
+                              {(emp.name || "E").charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-bold text-white truncate">{emp.name}</h4>
+                              <span className="text-[10px] text-teal-400 font-medium">Role: {emp.role || "Staff / Employee"}</span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleCopyText(`all-${idx}`, `Email: ${emp.email}\nPassword: ${emp.password}`)}
+                            className="text-[10px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 font-medium"
+                          >
+                            {copiedKey === `all-${idx}` ? "✓ Copied!" : "📋 Copy Login"}
+                          </button>
+                        </div>
+
+                        {/* Email & Password Rows */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between">
+                            <div className="min-w-0">
+                              <span className="text-[10px] text-slate-500 block uppercase font-mono font-semibold">Email</span>
+                              <span className="text-slate-200 font-mono text-[11px] truncate block">{emp.email}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyText(`email-${idx}`, emp.email)}
+                              className="text-[10px] text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition"
+                              title="Copy Email"
+                            >
+                              {copiedKey === `email-${idx}` ? "✓" : "📋"}
+                            </button>
+                          </div>
+
+                          <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between">
+                            <div className="min-w-0">
+                              <span className="text-[10px] text-slate-500 block uppercase font-mono font-semibold">Password</span>
+                              <span className="text-emerald-400 font-mono text-[11px] font-bold tracking-wider block">
+                                {showDemoPasswords ? emp.password : "••••••••••••"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyText(`pass-${idx}`, emp.password)}
+                              className="text-[10px] text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition"
+                              title="Copy Password"
+                            >
+                              {copiedKey === `pass-${idx}` ? "✓" : "📋"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {demoEmpSuccessMsg && (
+                    <div className="p-3 bg-teal-500/10 border border-teal-500/20 text-teal-300 text-xs rounded-xl font-medium">
+                      🎉 {demoEmpSuccessMsg}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allCreds = demoEmployeesList
+                          .map((e) => `• ${e.name}: ${e.email} | Password: ${e.password}`)
+                          .join("\n");
+                        handleCopyText("all-bulk", allCreds);
+                      }}
+                      className="text-xs text-slate-400 hover:text-slate-200 underline transition"
+                    >
+                      {copiedKey === "all-bulk" ? "✓ All Credentials Copied to Clipboard!" : "📋 Copy All Staff Credentials"}
+                    </button>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setShowDemoDataModal(false)}
+                        disabled={demoEmpLoading}
+                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition"
+                      >
+                        Close
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGenerateDemoEmployees}
+                        disabled={demoEmpLoading}
+                        className="px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-teal-600/30 disabled:opacity-50"
+                      >
+                        {demoEmpLoading ? "Provisioning Staff..." : "⚡ Generate / Reset Demo Staff"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

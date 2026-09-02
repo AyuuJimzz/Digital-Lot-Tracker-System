@@ -3,6 +3,231 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-09-02T21:11:34.896Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:11:32.589Z",
+      "event": "User Logged Out: sarah.santos@goldendragon.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:00:00.860Z",
+      "event": "Email delivered to: angelo.reyes@gmail.com | Subject: \"Lot Reservation Reminder - Golden Dragon Estate Corporation\"",
+      "type": "EMAIL",
+      "user": "angelo.reyes@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-02T20:59:20.790Z",
+      "event": "Generated 12 Capstone demo inquiries and transactions.",
+      "type": "DATABASE",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:59:06.006Z",
+      "event": "Purged all test customers & transactions. Reset all lots to 'Available'.",
+      "type": "SECURITY",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:55:39.957Z",
+      "event": "Generated 12 Capstone demo inquiries and transactions.",
+      "type": "DATABASE",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:55:25.232Z",
+      "event": "Purged all test customers & transactions. Reset all lots to 'Available'.",
+      "type": "SECURITY",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:52:11.628Z",
+      "event": "Generated 6 Capstone demo inquiries and transactions.",
+      "type": "DATABASE",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:51:58.340Z",
+      "event": "Purged all test customers & transactions. Reset all lots to 'Available'.",
+      "type": "SECURITY",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:48:41.294Z",
+      "event": "User Logged In: sarah.santos@goldendragon.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:48:29.049Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:46:37.449Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:46:35.678Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:42:42.863Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:42:41.122Z",
+      "event": "User Logged Out: sarah.santos@goldendragon.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:42:26.826Z",
+      "event": "User Logged In: sarah.santos@goldendragon.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:42:09.534Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:39:44.653Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:39:42.581Z",
+      "event": "User Logged Out: sarah.santos@goldendragon.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:27:05.694Z",
+      "event": "User Logged In: sarah.santos@goldendragon.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:26:52.018Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:06:03.684Z",
+      "event": "Generated 8 Capstone demo inquiries and transactions.",
+      "type": "DATABASE",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:05:47.653Z",
+      "event": "Purged all test customers & transactions. Reset all lots to 'Available'.",
+      "type": "SECURITY",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T20:05:16.960Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T15:35:48.479Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Chrome",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-09-02T15:31:22.800Z",
       "event": "Developer console authenticated",
       "type": "SECURITY",

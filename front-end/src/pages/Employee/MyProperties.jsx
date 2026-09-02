@@ -6,10 +6,11 @@ const ROWS_PER_PAGE = 10;
 
 const getStatusColor = (status) => {
   switch (status) {
-    case "Available": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
-    case "Pending":   return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
-    case "Sold":      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
-    default:          return "bg-gray-100 text-gray-800 dark:bg-slate-700 dark:text-slate-300";
+    case "Available": return "text-green-600 dark:text-green-400 font-semibold";
+    case "Pending":   return "text-amber-500 dark:text-amber-400 font-semibold";
+    case "Sold":      return "text-red-600 dark:text-red-400 font-semibold";
+    case "Cancelled": return "text-purple-500 dark:text-purple-400 font-semibold";
+    default:          return "text-gray-600 dark:text-slate-400 font-semibold";
   }
 };
 
@@ -158,7 +159,7 @@ const MyProperties = () => {
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-800 dark:text-slate-200">{lot.property_name || `Property ${lot.property_id}`}</td>
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{lot.area_sqm ? `${lot.area_sqm} sqm` : "-"}</td>
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(lot.status)}`}>{lot.status ?? "Unknown"}</span>
+                          <span className={`text-xs ${getStatusColor(lot.status)}`}>{lot.status ?? "Unknown"}</span>
                         </td>
                       </tr>
                     ))}
