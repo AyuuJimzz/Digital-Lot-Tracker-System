@@ -1015,7 +1015,55 @@ const DeveloperPanel = () => {
     }
   };
 
-  // Generate Demo Staff Accounts handler
+  // Fetch live status of demo staff accounts
+  const fetchDemoStaffStatus = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/developer/demo-staff-status`, {
+        headers: getDevHeaders(),
+        withCredentials: true,
+      });
+      if (res.data.success && Array.isArray(res.data.staff)) {
+        setDemoEmployeesList(res.data.staff);
+      }
+    } catch (e) {
+      // Fallback: keep existing list
+    }
+  }, [getDevHeaders]);
+
+  // Toggle single demo employee account (Activate / Deactivate)
+  const handleToggleDemoEmployee = async (email, action) => {
+    setDemoEmpLoading(true);
+    setDemoEmpSuccessMsg("");
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/developer/toggle-demo-employee`,
+        { email, action },
+        {
+          headers: getDevHeaders(),
+          withCredentials: true,
+        }
+      );
+
+      if (res.data.success) {
+        setDemoEmpSuccessMsg(res.data.message);
+        fetchDemoStaffStatus();
+        fetchEmployees();
+
+        // Refresh system state logs
+        const stateRes = await axios.get(`${API_BASE_URL}/api/developer/system-state`, {
+          headers: getDevHeaders(),
+          withCredentials: true,
+        });
+        setLogs(stateRes.data.logs || []);
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to toggle demo employee account");
+    } finally {
+      setDemoEmpLoading(false);
+    }
+  };
+
+  // Activate all demo staff accounts
   const handleGenerateDemoEmployees = async () => {
     setDemoEmpLoading(true);
     setDemoEmpSuccessMsg("");
@@ -1031,7 +1079,7 @@ const DeveloperPanel = () => {
 
       if (res.data.success) {
         setDemoEmployeesList(res.data.employees || []);
-        setDemoEmpSuccessMsg(res.data.message || "Demo employee accounts generated successfully!");
+        setDemoEmpSuccessMsg(res.data.message || "All demo staff accounts activated successfully!");
         fetchEmployees();
 
         // Refresh system state logs
@@ -1042,7 +1090,40 @@ const DeveloperPanel = () => {
         setLogs(stateRes.data.logs || []);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to generate demo employee accounts");
+      alert(err.response?.data?.error || "Failed to activate demo employee accounts");
+    } finally {
+      setDemoEmpLoading(false);
+    }
+  };
+
+  // Deactivate all demo staff accounts
+  const handleDeactivateAllDemoEmployees = async () => {
+    setDemoEmpLoading(true);
+    setDemoEmpSuccessMsg("");
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/developer/deactivate-all-demo-employees`,
+        {},
+        {
+          headers: getDevHeaders(),
+          withCredentials: true,
+        }
+      );
+
+      if (res.data.success) {
+        setDemoEmpSuccessMsg(res.data.message || "All demo staff accounts deactivated.");
+        fetchDemoStaffStatus();
+        fetchEmployees();
+
+        // Refresh system state logs
+        const stateRes = await axios.get(`${API_BASE_URL}/api/developer/system-state`, {
+          headers: getDevHeaders(),
+          withCredentials: true,
+        });
+        setLogs(stateRes.data.logs || []);
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to deactivate demo employee accounts");
     } finally {
       setDemoEmpLoading(false);
     }
@@ -3221,6 +3302,8 @@ const DeveloperPanel = () => {
                   <button
                     onClick={() => {
                       setDemoDataSuccessMsg("");
+                      setDemoEmpSuccessMsg("");
+                      fetchDemoStaffStatus();
                       setShowDemoDataModal(true);
                     }}
                     className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
@@ -4868,31 +4951,32 @@ const DeveloperPanel = () => {
                   🧹
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Purge All Test Data</h3>
-                  <p className="text-xs text-slate-400">Prepare database for Production launch</p>
+                  <h3 className="text-base font-bold text-white">Purge Demo Test Data</h3>
+                  <p className="text-xs text-slate-400">Safely wipe generated test records without affecting real customers</p>
                 </div>
               </div>
 
               <p className="text-xs text-slate-300 leading-relaxed">
-                This action will wipe all test buyer inquiries, customers, and payment transaction histories from the database.
+                This action will delete ONLY the automatically generated demo buyer inquiries and test transactions. All your genuine customer records and real sales remain completely untouched.
               </p>
 
               <div className="p-3.5 bg-slate-950/90 border border-slate-800 rounded-xl space-y-2 text-xs">
                 <div className="text-rose-400 font-semibold flex items-center gap-2">
-                  <span>❌</span> What will be deleted:
+                  <span>❌</span> What will be DELETED:
                 </div>
                 <ul className="text-slate-400 list-disc list-inside space-y-1 text-[11px]">
-                  <li>All records in <strong className="text-slate-200">customers</strong> table</li>
-                  <li>All records in <strong className="text-slate-200">transactions</strong> table</li>
-                  <li>Reset all lot statuses back to <strong className="text-emerald-400">Available</strong></li>
+                  <li>Only generated demo transactions (<strong className="text-slate-200 font-mono">is_demo = 1</strong>)</li>
+                  <li>Only generated demo customers (<strong className="text-slate-200 font-mono">is_demo = 1</strong>)</li>
+                  <li>Subdivision lots tied to demo inquiries will reset back to <strong className="text-emerald-400">Available</strong></li>
                 </ul>
 
                 <div className="text-emerald-400 font-semibold flex items-center gap-2 pt-2 border-t border-slate-800/80">
                   <span>🛡️</span> What will be PROTECTED & KEPT:
                 </div>
                 <ul className="text-slate-400 list-disc list-inside space-y-1 text-[11px]">
-                  <li>All subdivision properties & lot coordinates / map geometries</li>
-                  <li>All administrator & employee accounts</li>
+                  <li><strong>All REAL customer inquiries & purchases</strong> entered by staff or clients</li>
+                  <li>All subdivision properties, master lot coordinates & map geometries</li>
+                  <li>All administrator & employee staff accounts</li>
                 </ul>
               </div>
 
@@ -4917,7 +5001,7 @@ const DeveloperPanel = () => {
                   disabled={purgeLoading}
                   className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-rose-600/30 disabled:opacity-50"
                 >
-                  {purgeLoading ? "Purging Test Data..." : "Yes, Purge Test Data"}
+                  {purgeLoading ? "Purging Demo Data..." : "Yes, Purge Demo Data"}
                 </button>
               </div>
             </div>
@@ -4967,7 +5051,10 @@ const DeveloperPanel = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDemoModalTab("employees")}
+                  onClick={() => {
+                    setDemoModalTab("employees");
+                    fetchDemoStaffStatus();
+                  }}
                   className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition flex items-center gap-2 ${
                     demoModalTab === "employees"
                       ? "border-teal-500 text-teal-400"
@@ -5017,9 +5104,9 @@ const DeveloperPanel = () => {
                     </div>
                     <p>• Realistic Filipino buyer names, emails, contact numbers, & addresses.</p>
                     <p>• Mix of Cash, Installment, and No Downpayment transactions.</p>
-                    <p>• Lots will update to <strong>Sold</strong> or <strong>Pending</strong> with past timestamps.</p>
+                    <p>• Lots will update to <strong>Sold</strong>, <strong>Pending</strong>, or <strong>Cancelled</strong> with past timestamps.</p>
                     <p className="pt-1 text-teal-400 font-medium flex items-center gap-1">
-                      <span>👥</span> Transactions are automatically distributed across your Staff Accounts and Admin.
+                      <span>👥</span> Transactions are distributed across currently active Staff Accounts and Admin (never creates staff accounts).
                     </p>
                   </div>
 
@@ -5053,7 +5140,7 @@ const DeveloperPanel = () => {
                 <div className="space-y-4 overflow-y-auto pr-1">
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-slate-300 leading-relaxed">
-                      Pre-configured employee accounts for pairing and thesis live testing. Passwords can be viewed and copied below.
+                      Pre-configured employee accounts. Activate or deactivate them individually or in bulk.
                     </p>
                     <button
                       type="button"
@@ -5064,31 +5151,64 @@ const DeveloperPanel = () => {
                     </button>
                   </div>
 
-                  {/* List of Demo Accounts with Readable Passwords */}
+                  {/* List of Demo Accounts with Readable Passwords & Activate/Deactivate Toggle */}
                   <div className="space-y-2.5">
                     {demoEmployeesList.map((emp, idx) => (
                       <div
                         key={idx}
                         className="p-3.5 bg-slate-950/80 border border-slate-800 hover:border-slate-700/80 rounded-xl space-y-2.5 transition"
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-xs shrink-0">
                               {(emp.name || "E").charAt(0)}
                             </div>
                             <div className="min-w-0">
-                              <h4 className="text-xs font-bold text-white truncate">{emp.name}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-xs font-bold text-white truncate">{emp.name}</h4>
+                                {emp.isActive ? (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                    Active
+                                  </span>
+                                ) : (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                                    Deactivated
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-[10px] text-teal-400 font-medium">Role: {emp.role || "Staff / Employee"}</span>
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleCopyText(`all-${idx}`, `Email: ${emp.email}\nPassword: ${emp.password}`)}
-                            className="text-[10px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 font-medium"
-                          >
-                            {copiedKey === `all-${idx}` ? "✓ Copied!" : "📋 Copy Login"}
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleCopyText(`all-${idx}`, `Email: ${emp.email}\nPassword: ${emp.password}`)}
+                              className="text-[10px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center gap-1 font-medium"
+                            >
+                              {copiedKey === `all-${idx}` ? "✓ Copied!" : "📋 Copy Login"}
+                            </button>
+
+                            {emp.isActive ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleDemoEmployee(emp.email, "deactivate")}
+                                disabled={demoEmpLoading}
+                                className="text-[10px] px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 hover:text-rose-200 border border-rose-500/30 transition font-bold disabled:opacity-50"
+                              >
+                                Deactivate
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleDemoEmployee(emp.email, "activate")}
+                                disabled={demoEmpLoading}
+                                className="text-[10px] px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white transition font-bold shadow-sm shadow-teal-600/30 disabled:opacity-50"
+                              >
+                                ⚡ Activate
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Email & Password Rows */}
@@ -5153,19 +5273,19 @@ const DeveloperPanel = () => {
                     <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                       <button
                         type="button"
-                        onClick={() => setShowDemoDataModal(false)}
+                        onClick={handleDeactivateAllDemoEmployees}
                         disabled={demoEmpLoading}
-                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition"
+                        className="px-3 py-2 bg-rose-950/30 hover:bg-rose-900/50 text-rose-300 text-xs font-semibold rounded-xl border border-rose-500/30 transition disabled:opacity-50"
                       >
-                        Close
+                        Deactivate All
                       </button>
                       <button
                         type="button"
                         onClick={handleGenerateDemoEmployees}
                         disabled={demoEmpLoading}
-                        className="px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-teal-600/30 disabled:opacity-50"
+                        className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-teal-600/30 disabled:opacity-50"
                       >
-                        {demoEmpLoading ? "Provisioning Staff..." : "⚡ Generate / Reset Demo Staff"}
+                        {demoEmpLoading ? "Updating..." : "⚡ Activate All Staff"}
                       </button>
                     </div>
                   </div>

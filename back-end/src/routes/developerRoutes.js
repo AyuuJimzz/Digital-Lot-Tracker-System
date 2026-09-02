@@ -475,17 +475,50 @@ router.delete("/table-row", requireDeveloper, async (req, res) => {
   }
 });
 
-// ── PURGE TEST DATA & RESET LOTS TO AVAILABLE (PRODUCTION CLEANUP) ──
+// ── PURGE DEMO SEED DATA ONLY (PRESERVES ALL REAL INQUIRIES & TRANSACTIONS) ──
 router.post("/purge-test-data", requireDeveloper, async (req, res) => {
   try {
-    // 1. Delete all transactions
-    await db.query("DELETE FROM transactions");
-    // 2. Delete all customers
-    await db.query("DELETE FROM customers");
-    // 3. Reset all lot statuses back to 'Available'
-    await db.query("UPDATE lots SET status = 'Available', pending_since = NULL");
+    // 1. Identify which lots are linked to generated demo transactions or customers
+    const [demoLots] = await db.query(`
+      SELECT DISTINCT lot_id FROM transactions WHERE is_demo = 1 OR notes LIKE 'Demo %' OR notes LIKE '%[DEMO]%'
+      UNION
+      SELECT DISTINCT lot_id FROM customers WHERE is_demo = 1
+    `);
 
-    addDeveloperLog("Purged all test customers & transactions. Reset all lots to 'Available'.", {
+    // 2. Delete ONLY generated demo transactions (preserves all real customer transactions)
+    const [delTxnRes] = await db.query(
+      "DELETE FROM transactions WHERE is_demo = 1 OR notes LIKE 'Demo %' OR notes LIKE '%[DEMO]%'"
+    );
+
+    // 3. Delete ONLY generated demo customers (preserves all real buyers and inquiries)
+    const [delCustRes] = await db.query(
+      "DELETE FROM customers WHERE is_demo = 1"
+    );
+
+    // 4. For lots affected by demo data, check if there are remaining REAL transactions or customers.
+    // If NO real records exist on that lot, reset status back to 'Available' and pending_since = NULL.
+    let lotsResetCount = 0;
+    for (const row of demoLots) {
+      if (!row.lot_id) continue;
+      const [realTxns] = await db.query(
+        "SELECT transaction_id FROM transactions WHERE lot_id = ? LIMIT 1",
+        [row.lot_id]
+      );
+      const [realCusts] = await db.query(
+        "SELECT customer_id FROM customers WHERE lot_id = ? LIMIT 1",
+        [row.lot_id]
+      );
+
+      if (realTxns.length === 0 && realCusts.length === 0) {
+        await db.query(
+          "UPDATE lots SET status = 'Available', pending_since = NULL WHERE lot_id = ?",
+          [row.lot_id]
+        );
+        lotsResetCount++;
+      }
+    }
+
+    addDeveloperLog(`Purged ${delTxnRes.affectedRows} demo transactions & ${delCustRes.affectedRows} demo customers. Reset ${lotsResetCount} demo lots to 'Available' (real customer data preserved).`, {
       type: "SECURITY",
       role: "Developer",
       device: parseDevice(req.headers["user-agent"]),
@@ -494,7 +527,10 @@ router.post("/purge-test-data", requireDeveloper, async (req, res) => {
 
     res.json({
       success: true,
-      message: "All test data (customers & transactions) successfully purged. All lots reset to 'Available' for production!",
+      message: `Purged ${delTxnRes.affectedRows} generated demo transactions & ${delCustRes.affectedRows} demo customers. All real inquiries and customer transactions are safely preserved!`,
+      purgedTransactions: delTxnRes.affectedRows,
+      purgedCustomers: delCustRes.affectedRows,
+      lotsReset: lotsResetCount,
     });
   } catch (err) {
     console.error("Purge test data error:", err);
@@ -541,30 +577,8 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
     const createdRecords = [];
     const now = new Date();
 
-    // Fetch all available employees to distribute as demo agents
-    let [empRows] = await db.query("SELECT employee_id FROM employees");
-
-    // If only 1 or 0 employees exist, auto-provision 2 demo sales agents so transactions show a realistic team distribution
-    if (empRows.length <= 1) {
-      const sampleAgents = [
-        { first_name: "Sarah Mae", last_name: "Santos", email: "sarah.santos@goldendragon.com" },
-        { first_name: "Mark Anthony", last_name: "Reyes", email: "mark.reyes@goldendragon.com" }
-      ];
-      for (const ag of sampleAgents) {
-        const [exists] = await db.query("SELECT employee_id FROM employees WHERE email = ?", [ag.email]);
-        if (exists.length === 0) {
-          const defaultHash = await bcrypt.hash("Password123!", 10);
-          await db.query(
-            "INSERT INTO employees (first_name, last_name, email, password, status, password_reset_required) VALUES (?, ?, ?, ?, 'active', 0)",
-            [ag.first_name, ag.last_name, ag.email, defaultHash]
-          );
-        }
-      }
-      const [refreshed] = await db.query("SELECT employee_id FROM employees");
-      empRows = refreshed;
-    }
-
-    // Diverse agent pool: All sales agents + Admin (null)
+    // Fetch only active employees to distribute as demo agents (does NOT auto-create employees)
+    const [empRows] = await db.query("SELECT employee_id FROM employees WHERE status = 'active'");
     const agentPool = empRows.length > 0 ? [...empRows.map((e) => e.employee_id), null] : [null];
 
     for (let i = 0; i < Math.min(count, availableLots.length); i++) {
@@ -585,16 +599,16 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
         ? `${buyer.email.split("@")[0]}_${i + 1}@${buyer.email.split("@")[1]}`
         : buyer.email;
 
-      // 1. Insert into customers
+      // 1. Insert into customers (flagged as is_demo = 1)
       const custStatus = targetStatus === "Sold" ? "Sold" : (targetStatus === "Cancelled" ? "Cancelled" : "Pending");
       const [custResult] = await db.query(
-        `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, is_demo, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         [lot.lot_id, buyer.name, buyer.phone, buyerEmail, buyer.city, demoEmployeeId, custStatus, isoTransDate, isoTransDate]
       );
       const customerId = custResult.insertId;
 
-      // 2. Insert into transactions
+      // 2. Insert into transactions (flagged as is_demo = 1)
       const noteText = targetStatus === "Sold"
         ? `Demo Purchase: Full reservation & payment recorded for Lot ${lot.lot_number || lot.lot_id} via ${paymentType}.`
         : targetStatus === "Cancelled"
@@ -602,8 +616,8 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
           : `Demo Inquiry: Active lot reservation pending client verification.`;
 
       await db.query(
-        `INSERT INTO transactions (lot_id, customer_id, employee_id, transaction_date, payment_type, notes, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO transactions (lot_id, customer_id, employee_id, transaction_date, payment_type, notes, is_demo, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         [lot.lot_id, customerId, demoEmployeeId, isoTransDate, paymentType, noteText, isoTransDate, isoTransDate]
       );
 
@@ -644,17 +658,97 @@ router.post("/generate-demo-data", requireDeveloper, async (req, res) => {
   }
 });
 
-// ── GENERATE DEMO EMPLOYEES & RETURN READABLE CREDENTIALS ──
+// ── DEMO STAFF CONFIGURATION CONSTANT ──
+const DEMO_STAFF_CONFIG = [
+  { first_name: "Sarah Mae", last_name: "Santos", email: "sarah.santos@goldendragon.com", rawPassword: "Password123!" },
+  { first_name: "Mark Anthony", last_name: "Reyes", email: "mark.reyes@goldendragon.com", rawPassword: "Password123!" },
+  { first_name: "Eduardo", last_name: "Ramos", email: "eduardo.ramos@goldendragon.com", rawPassword: "Password123!" },
+];
+
+// ── GET DEMO STAFF STATUS ──
+router.get("/demo-staff-status", requireDeveloper, async (req, res) => {
+  try {
+    const results = [];
+    for (const staff of DEMO_STAFF_CONFIG) {
+      const [rows] = await db.query(
+        "SELECT employee_id, status FROM employees WHERE LOWER(email) = ?",
+        [staff.email.toLowerCase()]
+      );
+      const isProvisioned = rows.length > 0;
+      const isActive = isProvisioned && String(rows[0].status || "").toLowerCase() === "active";
+      results.push({
+        name: `${staff.first_name} ${staff.last_name}`,
+        email: staff.email,
+        password: staff.rawPassword,
+        role: "Staff / Employee",
+        employee_id: isProvisioned ? rows[0].employee_id : null,
+        status: isProvisioned ? rows[0].status : "unprovisioned",
+        isActive,
+      });
+    }
+    res.json({ success: true, staff: results });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch demo staff status", message: err.message });
+  }
+});
+
+// ── TOGGLE INDIVIDUAL DEMO EMPLOYEE (ACTIVATE / DEACTIVATE) ──
+router.post("/toggle-demo-employee", requireDeveloper, async (req, res) => {
+  try {
+    const { email, action } = req.body;
+    const target = DEMO_STAFF_CONFIG.find((s) => s.email.toLowerCase() === String(email || "").toLowerCase());
+    if (!target) {
+      return res.status(400).json({ error: "Invalid demo staff account." });
+    }
+
+    const [existing] = await db.query(
+      "SELECT employee_id, status FROM employees WHERE LOWER(email) = ?",
+      [target.email.toLowerCase()]
+    );
+
+    if (action === "deactivate") {
+      if (existing.length > 0) {
+        await db.query("UPDATE employees SET status = 'inactive' WHERE employee_id = ?", [existing[0].employee_id]);
+      }
+      addDeveloperLog(`Deactivated demo staff account: ${target.first_name} ${target.last_name} (${target.email}).`, {
+        type: "ADMIN",
+        role: "Developer",
+        device: parseDevice(req.headers["user-agent"]),
+        ip: getClientIp(req),
+      });
+      return res.json({ success: true, message: `Deactivated ${target.first_name} ${target.last_name} successfully!` });
+    } else {
+      // Activate or Provision
+      const hashedPassword = await bcrypt.hash(target.rawPassword, 10);
+      if (existing.length > 0) {
+        await db.query(
+          "UPDATE employees SET password = ?, status = 'active', password_reset_required = 0 WHERE employee_id = ?",
+          [hashedPassword, existing[0].employee_id]
+        );
+      } else {
+        await db.query(
+          "INSERT INTO employees (first_name, last_name, email, password, status, password_reset_required) VALUES (?, ?, ?, ?, 'active', 0)",
+          [target.first_name, target.last_name, target.email.toLowerCase(), hashedPassword]
+        );
+      }
+      addDeveloperLog(`Activated demo staff account: ${target.first_name} ${target.last_name} (${target.email}).`, {
+        type: "ADMIN",
+        role: "Developer",
+        device: parseDevice(req.headers["user-agent"]),
+        ip: getClientIp(req),
+      });
+      return res.json({ success: true, message: `Activated ${target.first_name} ${target.last_name} successfully!` });
+    }
+  } catch (err) {
+    res.status(500).json({ error: "Failed to toggle demo employee", message: err.message });
+  }
+});
+
+// ── ACTIVATE ALL DEMO EMPLOYEES ──
 router.post("/generate-demo-employees", requireDeveloper, async (req, res) => {
   try {
-    const demoStaffList = [
-      { first_name: "Sarah Mae", last_name: "Santos", email: "sarah.santos@goldendragon.com", rawPassword: "Password123!" },
-      { first_name: "Mark Anthony", last_name: "Reyes", email: "mark.reyes@goldendragon.com", rawPassword: "Password123!" },
-      { first_name: "Eduardo", last_name: "Ramos", email: "eduardo.ramos@goldendragon.com", rawPassword: "Password123!" },
-    ];
-
     const results = [];
-    for (const staff of demoStaffList) {
+    for (const staff of DEMO_STAFF_CONFIG) {
       const [existing] = await db.query("SELECT employee_id FROM employees WHERE LOWER(email) = ?", [staff.email.toLowerCase()]);
       const hashedPassword = await bcrypt.hash(staff.rawPassword, 10);
 
@@ -679,10 +773,12 @@ router.post("/generate-demo-employees", requireDeveloper, async (req, res) => {
         email: staff.email,
         password: staff.rawPassword,
         role: "Staff / Employee",
+        isActive: true,
+        status: "active",
       });
     }
 
-    addDeveloperLog(`Generated / refreshed ${results.length} demo employee testing accounts.`, {
+    addDeveloperLog(`Activated all ${results.length} demo employee testing accounts.`, {
       type: "ADMIN",
       role: "Developer",
       device: parseDevice(req.headers["user-agent"]),
@@ -691,12 +787,31 @@ router.post("/generate-demo-employees", requireDeveloper, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Successfully provisioned ${results.length} demo staff accounts!`,
+      message: `Successfully activated all ${results.length} demo staff accounts!`,
       employees: results,
     });
   } catch (err) {
     console.error("Generate demo employees error:", err);
     res.status(500).json({ error: "Failed to generate demo employees", message: err.message });
+  }
+});
+
+// ── DEACTIVATE ALL DEMO EMPLOYEES ──
+router.post("/deactivate-all-demo-employees", requireDeveloper, async (req, res) => {
+  try {
+    const demoEmails = DEMO_STAFF_CONFIG.map((s) => s.email.toLowerCase());
+    await db.query("UPDATE employees SET status = 'inactive' WHERE LOWER(email) IN (?, ?, ?)", demoEmails);
+
+    addDeveloperLog("Deactivated all demo employee accounts.", {
+      type: "ADMIN",
+      role: "Developer",
+      device: parseDevice(req.headers["user-agent"]),
+      ip: getClientIp(req),
+    });
+
+    res.json({ success: true, message: "All demo staff accounts have been deactivated." });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to deactivate demo employees", message: err.message });
   }
 });
 

@@ -14,12 +14,22 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
-// Test initial database connection on boot
-pool.getConnection((err, connection) => {
+// Test initial database connection on boot & auto-ensure is_demo column
+pool.getConnection(async (err, connection) => {
   if (err) {
     console.error(`❌ [MySQL Database Connection Failed]: ${err.message} (Host: ${process.env.DB_HOST || "localhost"})`);
   } else {
     console.log(`🗄️  [MySQL Database Connected] Host: ${process.env.DB_HOST || "localhost"} | DB: ${process.env.DB_NAME || "goldendragon"} | SSL: ${!!process.env.DB_SSL || !!process.env.DB_HOST?.includes("aivencloud.com")}`);
+    try {
+      await connection.promise().query("ALTER TABLE customers ADD COLUMN is_demo TINYINT(1) DEFAULT 0");
+    } catch (cErr) {
+      if (cErr.code !== "ER_DUP_FIELDNAME") console.warn("customers is_demo notice:", cErr.message);
+    }
+    try {
+      await connection.promise().query("ALTER TABLE transactions ADD COLUMN is_demo TINYINT(1) DEFAULT 0");
+    } catch (tErr) {
+      if (tErr.code !== "ER_DUP_FIELDNAME") console.warn("transactions is_demo notice:", tErr.message);
+    }
     connection.release();
   }
 });

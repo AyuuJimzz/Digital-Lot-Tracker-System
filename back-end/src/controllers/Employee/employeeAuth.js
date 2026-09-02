@@ -8,6 +8,11 @@ const loginEmployee = async (email, password) => {
 
 		const employee = results[0];
 
+		// Check if employee account is deactivated
+		if (employee.status && String(employee.status).toLowerCase() === "inactive") {
+			return { success: false, error: "This employee account is currently deactivated." };
+		}
+
 		// Check if temporary password expired
 		if (employee.temp_password_expiry && new Date() > new Date(employee.temp_password_expiry)) {
 			return { success: false, error: "Temporary password expired. Please request a new one." };

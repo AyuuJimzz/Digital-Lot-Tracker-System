@@ -3,6 +3,132 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-09-02T21:43:20.419Z",
+      "event": "Deactivated demo staff account: Mark Anthony Reyes (mark.reyes@goldendragon.com).",
+      "type": "ADMIN",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:43:18.779Z",
+      "event": "Deactivated demo staff account: Sarah Mae Santos (sarah.santos@goldendragon.com).",
+      "type": "ADMIN",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:43:10.972Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:43:05.230Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:42:43.941Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:42:33.376Z",
+      "event": "Purged 0 demo transactions & 0 demo customers. Reset 0 demo lots to 'Available' (real customer data preserved).",
+      "type": "SECURITY",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:41:56.439Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:41:48.552Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:40:36.866Z",
+      "event": "Purged 12 demo transactions & 12 demo customers. Reset 11 demo lots to 'Available' (real customer data preserved).",
+      "type": "SECURITY",
+      "user": null,
+      "role": "Developer",
+      "device": "Desktop · Browser",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:37:39.502Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:37:35.318Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:36:33.327Z",
+      "event": "Activated demo staff account: Sarah Mae Santos (sarah.santos@goldendragon.com).",
+      "type": "ADMIN",
+      "user": null,
+      "role": "Developer",
+      "device": "Desktop · Browser",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:36:23.738Z",
+      "event": "Deactivated demo staff account: Sarah Mae Santos (sarah.santos@goldendragon.com).",
+      "type": "ADMIN",
+      "user": null,
+      "role": "Developer",
+      "device": "Desktop · Browser",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-02T21:32:56.708Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-09-02T21:11:34.896Z",
       "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
       "type": "AUTH",
