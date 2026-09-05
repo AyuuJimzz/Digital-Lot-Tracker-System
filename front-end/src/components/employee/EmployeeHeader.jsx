@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, Settings, UserCircle, MapPin, Moon, Sun } from "lucide-react";
+import { User, LogOut, UserCircle, MapPin, Moon, Sun } from "lucide-react";
 import axios from "axios";
 
 import {
@@ -347,22 +347,11 @@ export function EmployeeHeader({ sidebarCollapsed }) {
                 className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
                 onClick={() => {
                   setIsOpen(false);
-                  navigate("/employee/settings", { state: { tab: "profile" } });
+                  navigate("/employee/settings");
                 }}
               >
                 <UserCircle className="mr-2 h-4 w-4 text-gray-400" />
-                Profile
-              </button>
-
-              <button
-                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate("/employee/settings", { state: { tab: "security" } });
-                }}
-              >
-                <Settings className="mr-2 h-4 w-4 text-gray-400" />
-                Settings
+                Profile & Settings
               </button>
 
               <div className="border-t border-gray-100 dark:border-slate-700 my-1"></div>

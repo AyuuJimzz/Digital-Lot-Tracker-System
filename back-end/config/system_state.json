@@ -3,6 +3,114 @@
   "developerPin": "1234",
   "logs": [
     {
+      "timestamp": "2026-09-05T01:10:04.159Z",
+      "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T01:10:01.824Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:42:14.073Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:42:12.669Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:42:10.939Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:42:09.838Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:42:06.829Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:42:03.786Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:41:33.727Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:41:08.083Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:41:05.995Z",
+      "event": "Updated Messenger Alert notification category filters",
+      "type": "SYSTEM",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-05T00:39:49.388Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-09-02T21:43:20.419Z",
       "event": "Deactivated demo staff account: Mark Anthony Reyes (mark.reyes@goldendragon.com).",
       "type": "ADMIN",
@@ -738,5 +846,5 @@
     "authSecurity": false,
     "systemChanges": false
   },
-  "lastModified": "2026-09-02T14:15:19.302Z"
+  "lastModified": "2026-09-05T00:41:08.077Z"
 }
