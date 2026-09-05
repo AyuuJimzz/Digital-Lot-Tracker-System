@@ -18,13 +18,38 @@ const ProfileSettings = () => {
   const role = (localStorage.getItem("role") || "").toLowerCase();
   const isAdmin = role === "admin";
   const [activeTab, setActiveTab] = useState(location.state?.tab || "profile");
-  const [loading, setLoading] = useState(true);
-  const [profileData, setProfileData] = useState({
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone_number: "",
+
+  // Sync tab if user navigates with different state tab
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state]);
+
+  // Instant load from sessionStorage cache if available (eliminates Render cold start spinner)
+  const [profileData, setProfileData] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("userProfileCache");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        return {
+          first_name: parsed.first_name || "",
+          last_name: parsed.last_name || "",
+          email: parsed.email || "",
+          phone_number: isAdmin ? "" : parsed.phone_number || "",
+        };
+      }
+    } catch (e) {}
+    return {
+      first_name: "",
+      last_name: "",
+      email: "",
+      phone_number: "",
+    };
   });
+
+  // Only show blocking spinner if we have NO cached profile data at all
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem("userProfileCache"));
   const [passwords, setPasswords] = useState({
     currentPassword: "",
     newPassword: "",
@@ -38,32 +63,53 @@ const ProfileSettings = () => {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [saving, setSaving] = useState(false);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   useEffect(() => {
+    let isMounted = true;
     const fetchProfile = async () => {
       try {
-        // Restore JWT token for cross-origin deployments (Vercel + Render)
-        const savedToken = localStorage.getItem("authToken");
-        if (savedToken) {
-          axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
-        }
+        const headers = getAuthHeaders();
         const res = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
+          headers,
           withCredentials: true,
+          timeout: 8000,
         });
-        setProfileData({
-          first_name: res.data.first_name || "",
-          last_name: res.data.last_name || "",
-          email: res.data.email || "",
-          phone_number: isAdmin ? "" : res.data.phone_number || "",
-        });
-        setLoading(false);
+        if (isMounted && res.data) {
+          const mapped = {
+            first_name: res.data.first_name || "",
+            last_name: res.data.last_name || "",
+            email: res.data.email || "",
+            phone_number: isAdmin ? "" : res.data.phone_number || "",
+          };
+          setProfileData(mapped);
+          try {
+            sessionStorage.setItem("userProfileCache", JSON.stringify(mapped));
+          } catch (e) {}
+        }
       } catch (err) {
-        console.error(err);
-        setMessage({ type: "error", text: "Failed to load profile details." });
-        setLoading(false);
+        console.error("Failed to load profile details:", err);
+        // Only show error message if we don't even have cached profile data
+        if (isMounted && !sessionStorage.getItem("userProfileCache")) {
+          setMessage({
+            type: "error",
+            text: err.response?.data?.message || "Failed to load profile details. Please try again.",
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchProfile();
+    return () => {
+      isMounted = false;
+    };
   }, [isAdmin]);
 
   const handleProfileChange = (e) => {
@@ -79,10 +125,15 @@ const ProfileSettings = () => {
     setMessage({ type: "", text: "" });
     setSaving(true);
     try {
+      const headers = getAuthHeaders();
       await axios.put(`${API_BASE_URL}/api/auth/profile`, profileData, {
+        headers,
         withCredentials: true,
       });
       setMessage({ type: "success", text: "Profile updated successfully!" });
+      try {
+        sessionStorage.setItem("userProfileCache", JSON.stringify(profileData));
+      } catch (e) {}
     } catch (err) {
       setMessage({ type: "error", text: err.response?.data?.message || "Error updating profile." });
     } finally {
@@ -101,13 +152,14 @@ const ProfileSettings = () => {
 
     setSaving(true);
     try {
+      const headers = getAuthHeaders();
       await axios.put(
         `${API_BASE_URL}/api/auth/change-password`,
         {
           currentPassword: passwords.currentPassword,
           newPassword: passwords.newPassword,
         },
-        { withCredentials: true }
+        { headers, withCredentials: true }
       );
       setMessage({ type: "success", text: "Password changed successfully!" });
       setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });

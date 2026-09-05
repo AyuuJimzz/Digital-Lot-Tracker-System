@@ -100,11 +100,24 @@ export function EmployeeHeader({ sidebarCollapsed }) {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
+        const token = localStorage.getItem("authToken") || localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const res = await axios.get(`${API_BASE_URL}/api/auth/profile`, {
+          headers,
           withCredentials: true,
         });
         const initials = getInitials(res.data.first_name, res.data.last_name);
         setProfileInitials(initials);
+        if (res.data) {
+          try {
+            sessionStorage.setItem("userProfileCache", JSON.stringify({
+              first_name: res.data.first_name || "",
+              last_name: res.data.last_name || "",
+              email: res.data.email || "",
+              phone_number: res.data.phone_number || "",
+            }));
+          } catch (e) {}
+        }
       } catch (err) {
         console.error("Failed to load user profile in employee header:", err);
       }
