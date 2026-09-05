@@ -33,13 +33,28 @@ function updateSystemState(fields) {
 
 // Helper to verify developer access
 function requireDeveloper(req, res, next) {
-  let activePin = (process.env.DEVELOPER_PIN || "1234").toString().trim();
+  let activePin = "";
   try {
     if (fs.existsSync(configPath)) {
       const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      if (state.developerPin) activePin = state.developerPin.toString().trim();
+      if (state.runtimeDeveloperPin) activePin = state.runtimeDeveloperPin.toString().trim();
     }
   } catch (err) {}
+
+  if (!activePin) {
+    activePin = (process.env.DEVELOPER_PIN || process.env.DEV_PIN || "").toString().trim();
+  }
+
+  if (!activePin) {
+    try {
+      if (fs.existsSync(configPath)) {
+        const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
+        if (state.developerPin) activePin = state.developerPin.toString().trim();
+      }
+    } catch (err) {}
+  }
+
+  if (!activePin) activePin = "1234";
 
   const devKey = req.headers["x-developer-pin"] || req.body?.key;
   if ((devKey && devKey.toString().trim() === activePin) || (req.session && req.session.isDeveloper)) {

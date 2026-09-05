@@ -19,15 +19,36 @@ const devPinRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Helper to get active developer PIN (from system_state.json with env fallback)
+let runtimeCustomPin = null;
+
+// Helper to get active developer PIN (Supports Console UI changes + Render Env Variables)
 function getActiveDeveloperPin() {
+  // 1. If changed dynamically in the Developer Console UI at runtime
+  if (runtimeCustomPin) {
+    return runtimeCustomPin;
+  }
+  try {
+    if (fs.existsSync(configPath)) {
+      const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      if (state.runtimeDeveloperPin) return state.runtimeDeveloperPin.toString().trim();
+    }
+  } catch (err) {}
+
+  // 2. Master Environment Variable from Render Dashboard
+  const envPin = (process.env.DEVELOPER_PIN || process.env.DEV_PIN || "").toString().trim();
+  if (envPin) {
+    return envPin;
+  }
+
+  // 3. Fallback from system_state.json
   try {
     if (fs.existsSync(configPath)) {
       const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
       if (state.developerPin) return state.developerPin.toString().trim();
     }
   } catch (err) {}
-  return (process.env.DEVELOPER_PIN || "1234").toString().trim();
+
+  return "1234";
 }
 
 // Middleware to verify developer session (OWASP A01: Broken Access Control)
@@ -129,7 +150,8 @@ router.post("/change-pin", requireDeveloper, (req, res) => {
     return res.status(400).json({ error: "New PIN and confirmation PIN do not match" });
   }
 
-  const updatedState = updateSystemStateFile({ developerPin: cleanNewPin });
+  runtimeCustomPin = cleanNewPin;
+  const updatedState = updateSystemStateFile({ developerPin: cleanNewPin, runtimeDeveloperPin: cleanNewPin });
   if (updatedState) {
     logAuthEvent(req, "Developer PIN was successfully changed", {
       type: "SECURITY",
