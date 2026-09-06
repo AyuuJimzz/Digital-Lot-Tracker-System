@@ -1,58 +1,58 @@
+<div align="center">
+
+<img src="front-end/src/assets/image/golden-dragon-logo.png" alt="Golden Dragon Estate Logo" width="90" style="border-radius: 50%;" />
+
 # Golden Dragon Estate Platform
 
-> **Modern, Full-Stack Digital Lot Tracking, Subdivision GIS Mapping & Estate Sales System**  
-> Built for Golden Dragon Estate Corporation to streamline real estate lot inventory, interactive satellite mapping, customer reservations, and estate transactions.
+**Modern GIS Subdivision Mapping, Digital Lot Tracking & Real Estate Sales Management System**
 
----
+An enterprise full-stack web platform built for Golden Dragon Estate Corporation to manage subdivision lot inventories, interactive CAD & satellite mapping, agent sales pipelines, and customer reservations.
 
-## Key System Capabilities
+[![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-v20-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-5.x-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
+[![Leaflet](https://img.shields.io/badge/GIS-Leaflet-199900?style=flat-square&logo=leaflet&logoColor=white)](https://leafletjs.com/)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![MySQL](https://img.shields.io/badge/Database-MySQL_8-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![Aiven Cloud](https://img.shields.io/badge/Cloud_DB-Aiven_MySQL-FF3E00?style=flat-square&logo=aiven&logoColor=white)](https://aiven.io/)
+[![Render](https://img.shields.io/badge/Deployment-Render-46E3B7?style=flat-square&logo=render&logoColor=black)](https://render.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-### 1. Interactive GIS & Satellite Estate Mapping
-- **596+ GPS-Georeferenced Lots:** High-precision interactive subdivision polygons across Oton, Guimbal, and surrounding estates.
-- **CAD & Blueprint Tracing (Admin):** Overlay official CAD subdivision blueprints onto live satellite imagery with adjustable opacity, scale, and rotation.
-- **Smart Road Label Annotations:** Transparent, geo-anchored road width and street name text labels with deep-zoom auto-filtering.
-- **Dynamic Property Switching:** Instant flyTo navigation between subdivisions with real-time LGU coordinates.
-- **Hardware-Accelerated Zoom:** 60 FPS smooth rendering with zero DOM node churn and debounced camera state tracking.
+<br />
 
-### 2. Real Estate CRM & Transaction Pipeline
-- **Scoped Sales Pipeline (My Sales):** Employees track their personal active reservations (`Pending`) and completed deals (`Sold`) with live area and payment terms.
-- **Complete Client History (My Clients):** Full CRM contact directory recording customer details, lot assignments, and past cancellation history.
-- **Unified Color-Coded Status System:**
-  - **Available:** Green (`#16a34a` / `#4ade80`) — ready for client inquiries and reservation.
-  - **Pending:** Warm Amber / Gold (`#f59e0b` / `#fbbf24`) — active client reservation pending verification.
-  - **Sold:** Crimson Red (`#dc2626` / `#f87171`) — completed purchase with payment recorded.
-  - **Cancelled:** Purple Violet (`#a855f7` / `#c084fc`) — voided or cancelled inquiries.
-- **Clean Typography Design:** Modern, unboxed data columns for smooth scannability and symmetric table alignment.
+[**Explore Live Deployment — goldendragonestate.onrender.com**](https://goldendragonestate.onrender.com)
 
-### 3. Developer Diagnostics & Storage Inspector
-- **Live Database Table Inspector:** Real-time breakdown of managed tables, row counts, and relative storage disk footprint.
-- **Transactional Email Integration:** Native Brevo HTTPS REST API integration for automated email delivery and client notifications (300 free daily sends).
-- **Demo Data Engine:** Realistic presentation generator for demo buyers, payment methods (Cash, Installment, No Downpayment), and status distributions.
-- **Audit Logging & Activity Tracking:** Real-time logging of logins, lot status updates, maintenance triggers, and system events.
+</div>
 
-### 4. OWASP Hardened Security Architecture
-- **Strict Brute-Force Shield:** Maximum 5 failed login attempts per 15-minute window with smart `skipSuccessfulRequests`.
-- **Global XSS & Script Sanitizer:** Automated DOMPurify and OWASP script stripping on all customer inputs, addresses, and transaction notes.
-- **Multi-Auth Architecture:** `bcryptjs` password hashing, secure `httpOnly` session cookies, and bearer JWT token support.
-- **Emergency Maintenance Mode:** One-click global maintenance toggle and database protection kill switch.
+<br />
 
-### 5. PWA (Progressive Web App) & Offline Resilience
-- **Site-Tripping Tablet Ready:** Standalone landscape fullscreen mode optimized for real estate agents presenting in the field.
-- **Offline 43-LGU Geocoding Engine:** In-memory fallback coordinates covering all municipalities across Iloilo, Guimaras, and Panay.
-- **Service Worker (`sw.js`):** Optimized asset caching with sub-second repeat load times.
+## Features
+
+| Feature | Details |
+| :--- | :--- |
+| **Interactive GIS Engine** | 596+ georeferenced subdivision lots with high-precision polygon boundaries across Oton, Guimbal, and surrounding estates. Hardware-accelerated 60 FPS zoom with zero DOM churn. |
+| **CAD Blueprint Tracing** | Official subdivision CAD overlays on live satellite imagery with real-time opacity, scale, and rotation controls for administrators. |
+| **Road & Street Annotations** | Transparent, geo-anchored road width and street name text labels with deep-zoom level auto-filtering. |
+| **Sales CRM Pipeline** | Scoped agent transaction management (`My Sales`, `My Clients`) tracking reservation status, lot dimensions, client history, and payment terms. |
+| **Lot Status Architecture** | Synchronized status engine categorized into `Available` (Green), `Pending` (Amber/Gold), `Sold` (Red), and `Cancelled` (Purple). |
+| **Dual Authentication** | Persistent 30-day session cookies paired with Bearer JWT tokens, single active device session enforcement, and role-based route guards. |
+| **OWASP Top 10 Security** | 100% parameterized SQL queries, automated DOMPurify script sanitization on inputs, and brute-force rate limiters (5 attempts/15 min). |
+| **Bi-Directional Cloud Sync** | 1-command database backup scripts synchronizing local Laragon environments with production Aiven Cloud MySQL over SSL. |
+| **PWA & Field Tablet Ready** | Progressive Web App with custom service worker asset caching, landscape viewport optimization, and an in-memory 43-LGU geocoding engine for Panay Island. |
+| **Developer Console** | Protected administrative diagnostics suite featuring table storage inspection, system state audits, and configurable master PIN security. |
 
 ---
 
 ## Technology Stack
 
-| Layer | Technologies |
-| :--- | :--- |
-| **Frontend** | React 18, React Leaflet, Lucide Icons, Axios, Tailwind CSS, PWA Service Worker |
-| **Backend** | Node.js, Express 5, MySQL2 (Connection Pooling), Helmet.js, Express-Rate-Limit, Express-Session |
-| **Database** | MySQL 8 (Local Laragon / Docker) & **Aiven Cloud MySQL** (Production) |
-| **Email Service** | **Brevo HTTPS REST API** (Transactional Emails) |
-| **Styling** | Vanilla CSS Design System with Tailwind Utilities & CSS Hardware Acceleration |
-| **Deployment** | Render (Web Service Backend & Static Site Frontend) |
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend UI** | React 18, React Router v7, Tailwind CSS 3.4 | Responsive Single Page Application with dynamic role views |
+| **GIS & Visualization** | Leaflet, React-Leaflet, Recharts, Lucide React | Interactive satellite mapping, polygon tracing, and analytics |
+| **Backend API** | Node.js, Express 5, Express-Session, Helmet.js | RESTful API server with security middlewares and rate limiting |
+| **Database** | MySQL2 (Connection Pooling), MySQL 8 | Relational database with full transaction isolation |
+| **Cloud Infrastructure** | Aiven Cloud MySQL (SSL), Render (Static & Web) | Production cloud database and automated web deployment |
+| **Security & Auth** | JWT (`jsonwebtoken`), `bcryptjs`, DOMPurify | Cryptographic token signing, password hashing, XSS sanitization |
 
 ---
 
@@ -87,20 +87,20 @@
 ## Quick Start (Local Development)
 
 ### 1. Prerequisites
-- **Node.js:** v20+
+- **Node.js:** v20+ LTS
 - **npm:** v9+
-- **MySQL:** Laragon or MySQL 8
+- **MySQL:** Laragon or MySQL 8.0+
 
 ### 2. Installation
-Clone the repository and install all root and workspace dependencies:
+Clone the repository and install all monorepo dependencies:
 
 ```bash
-git clone https://github.com/AyuuJimzz/Digital-Lot-Tracker-System.git
+git clone https://github.com/goldendragonestate/Digital-Lot-Tracker-System.git
 cd Digital-Lot-Tracker-System
 npm install
 ```
 
-### 3. Environment Setup
+### 3. Environment Configuration
 Create a `.env` file in the root directory:
 
 ```env
@@ -108,7 +108,7 @@ PORT=5000
 SESSION_SECRET=golden_dragon_secure_session_key_2026
 JWT_SECRET=golden_dragon_jwt_secret_key_2026
 
-# Local Database (Laragon)
+# Local Database Configuration
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
@@ -122,28 +122,28 @@ BREVO_API_KEY=your_brevo_api_key_here
 AIVEN_SERVICE_URI=mysql://avnadmin:YOUR_PASSWORD@YOUR_AIVEN_HOST:PORT/defaultdb?ssl-mode=REQUIRED
 ```
 
-### 4. Run Locally
-Start both Frontend and Backend concurrently with 1 command:
+### 4. Run Development Servers
+Start both the Frontend and Backend concurrently with a single command:
 
 ```bash
 npm run dev
 ```
 
-- **Frontend:** [http://localhost:3000](http://localhost:3000)
-- **Backend API:** [http://localhost:5000](http://localhost:5000)
-- **Health Check:** [http://localhost:5000/api/health](http://localhost:5000/api/health)
+- **Frontend Client:** `http://localhost:3000`
+- **Backend API:** `http://localhost:5000`
+- **Health Check:** `http://localhost:5000/api/health`
 
 ---
 
 ## Database Synchronization (Laragon / Aiven Cloud)
 
-1-command database export and cloud synchronization scripts in `back-end`:
+Automated database migration and cloud synchronization scripts located in `back-end`:
 
 ```bash
-# 1. Export local Laragon DB to database_Backup/
+# 1. Export local database to database_Backup/
 npm --prefix back-end run db:export
 
-# 2. Upload & sync to live Aiven Cloud MySQL
+# 2. Upload and sync backup directly to Aiven Cloud MySQL
 npm --prefix back-end run db:sync-cloud
 ```
 
@@ -151,36 +151,33 @@ npm --prefix back-end run db:sync-cloud
 
 ## Available NPM Scripts
 
-### Monorepo Root
-- `npm run dev` — Concurrently run frontend (`:3000`) and backend (`:5000`)
-- `npm run build:front` — Build optimized React production bundle
-- `npm run format` — Format code using Prettier
-
-### Backend (`back-end/`)
-- `npm run dev` — Run Express server with Nodemon auto-restart
-- `npm run db:export` — Dump clean SQL backups of all 596 lots and tables
-- `npm run db:sync-cloud` — Synchronize database backups directly to Aiven Cloud
-
-### Frontend (`front-end/`)
-- `npm start` — Run React development server
-- `npm run build` — Create compressed production build (~330 KB gzipped)
+| Command | Working Directory | Description |
+| :--- | :--- | :--- |
+| `npm run dev` | Root | Concurrently runs frontend (`:3000`) and backend (`:5000`) |
+| `npm run build:front` | Root | Builds optimized production bundle in `front-end/build` |
+| `npm run format` | Root | Formats repository source code with Prettier |
+| `npm run dev` | `back-end/` | Runs Express server with Nodemon auto-reload |
+| `npm run db:export` | `back-end/` | Dumps SQL backup of all 596 lots and associated tables |
+| `npm run db:sync-cloud` | `back-end/` | Pushes local SQL snapshots to Aiven Cloud MySQL |
+| `npm start` | `front-end/` | Launches React development server |
+| `npm run build` | `front-end/` | Produces production-ready React client bundle |
 
 ---
 
 ## Docker Deployment (Optional)
 
-Run the full platform with MySQL and phpMyAdmin:
+Run the containerized platform stack with MySQL and phpMyAdmin:
 
 ```bash
 docker compose up --build
 ```
 
-- **Frontend:** `http://localhost:3000`
-- **Backend:** `http://localhost:5000`
-- **phpMyAdmin:** `http://localhost:8080`
+- **Frontend Application:** `http://localhost:3000`
+- **Backend Service:** `http://localhost:5000`
+- **Database Administration (phpMyAdmin):** `http://localhost:8080`
 
 ---
 
 ## License
 
-Distributed under the **MIT License**. Created for Golden Dragon Estate Corporation.
+Distributed under the **MIT License**. Engineered for Golden Dragon Estate Corporation.
