@@ -49,6 +49,16 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 
 ---
 
+## System Architecture
+
+<p align="center">
+  <img src="docs/architecture-overview.png" alt="Golden Dragon Estate Platform - High Availability Cloud Architecture" width="100%" />
+  <br />
+  <sub>High-Availability 24/7 Cloud Architecture & Inactivity Keep-Alive Engine — <a href="https://goldendragonestate.onrender.com/architecture.html" target="_blank">Open Interactive Map ↗</a></sub>
+</p>
+
+---
+
 ## Technology Stack
 
 | Layer | Technology | Purpose |
