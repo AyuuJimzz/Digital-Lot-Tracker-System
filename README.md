@@ -15,7 +15,10 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![MySQL](https://img.shields.io/badge/Database-MySQL_8-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Aiven Cloud](https://img.shields.io/badge/Cloud_DB-Aiven_MySQL-FF3E00?style=flat-square&logo=aiven&logoColor=white)](https://aiven.io/)
-[![Render](https://img.shields.io/badge/Deployment-Render-46E3B7?style=flat-square&logo=render&logoColor=black)](https://render.com/)
+[![Render](https://img.shields.io/badge/Hosting-Render-46E3B7?style=flat-square&logo=render&logoColor=black)](https://render.com/)
+[![Brevo](https://img.shields.io/badge/Email_API-Brevo-0B996F?style=flat-square&logo=brevo&logoColor=white)](https://www.brevo.com/)
+[![Meta Messenger](https://img.shields.io/badge/Alerts-Meta_Messenger-00B2FF?style=flat-square&logo=messenger&logoColor=white)](https://developers.facebook.com/docs/messenger-platform/)
+[![Docker](https://img.shields.io/badge/Containers-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 <br />
@@ -38,6 +41,7 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 | **Dual Authentication** | Persistent 30-day session cookies paired with Bearer JWT tokens, single active device session enforcement, and role-based route guards. |
 | **OWASP Top 10 Security** | 100% parameterized SQL queries, automated DOMPurify script sanitization on inputs, and brute-force rate limiters (5 attempts/15 min). |
 | **Bi-Directional Cloud Sync** | 1-command database backup scripts synchronizing local Laragon environments with production Aiven Cloud MySQL over SSL. |
+| **Automated Alerts & Brevo Email** | Transactional customer reservation receipts & OTP dispatches via Brevo HTTPS REST API, alongside real-time system health and customer lead alert push notifications routed directly to Meta Facebook Messenger via Graph API. |
 | **PWA & Field Tablet Ready** | Progressive Web App with custom service worker asset caching, landscape viewport optimization, and an in-memory 43-LGU geocoding engine for Panay Island. |
 | **Developer Console** | Protected administrative diagnostics suite featuring table storage inspection, system state audits, and configurable master PIN security. |
 
@@ -51,7 +55,12 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 | **GIS & Visualization** | Leaflet, React-Leaflet, Recharts, Lucide React | Interactive satellite mapping, polygon tracing, and analytics |
 | **Backend API** | Node.js, Express 5, Express-Session, Helmet.js | RESTful API server with security middlewares and rate limiting |
 | **Database** | MySQL2 (Connection Pooling), MySQL 8 | Relational database with full transaction isolation |
-| **Cloud Infrastructure** | Aiven Cloud MySQL (SSL), Render (Static & Web) | Production cloud database and automated web deployment |
+| **Cloud Hosting** | Render (Frontend SPA & Backend Web Service) | Continuous deployment, automated TLS/SSL, and cloud host runtime |
+| **Cloud Database** | Aiven Cloud MySQL (SSL Mode Required) | Managed high-availability cloud database with SSL encryption |
+| **Communications** | Brevo HTTPS REST API (Transactional Email) | Automated customer inquiry confirmations, receipts, and OTPs |
+| **Real-Time Alerts** | Meta Graph API (Facebook Messenger) | Direct push notifications to broker/developer for instant lead alerts |
+| **State & Caching** | TanStack React Query v5 | Automatic background refetching and client cache management |
+| **DevOps & Containers** | Docker, Docker Compose, phpMyAdmin | Containerized development environment with local DB administration |
 | **Security & Auth** | JWT (`jsonwebtoken`), `bcryptjs`, DOMPurify | Cryptographic token signing, password hashing, XSS sanitization |
 
 ---
@@ -115,11 +124,23 @@ DB_USER=root
 DB_PASSWORD=
 DB_NAME=golden_dragon_corp
 
-# Optional: Brevo Email API
+# Frontend Client Origin
+FRONTEND_URL=http://localhost:3000
+
+# Transactional Email Engine (Brevo HTTPS REST API)
+EMAIL_USER=goldendragonestate@gmail.com
 BREVO_API_KEY=your_brevo_api_key_here
 
-# Optional: Aiven Cloud Sync URI
+# Real-Time Broker Alerts (Meta Facebook Messenger Graph API)
+FB_PAGE_ACCESS_TOKEN=your_facebook_page_access_token
+FB_RECIPIENT_PSID=your_recipient_page_scoped_id
+FB_VERIFY_TOKEN=golden_dragon_bot_2026
+
+# Production Cloud Database (Aiven Cloud MySQL over SSL)
 AIVEN_SERVICE_URI=mysql://avnadmin:YOUR_PASSWORD@YOUR_AIVEN_HOST:PORT/defaultdb?ssl-mode=REQUIRED
+
+# Developer Diagnostics Gate
+DEVELOPER_PIN=5551
 ```
 
 ### 4. Run Development Servers
