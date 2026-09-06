@@ -14,6 +14,7 @@ const transactionRoutes = require("./routes/transactionRoutes");
 const developerRoutes = require("./routes/developerRoutes");
 const messengerRoutes = require("./routes/messengerRoutes");
 const { checkMaintenance } = require("./middleware/maintenanceCheck");
+const db = require("../config/database_connection");
 
 const app = express();
 
@@ -95,8 +96,27 @@ app.use(
 app.use(checkMaintenance);
 
 // ── Health Check & Keep-Alive Endpoints (Used by UptimeRobot & Render Keep-Awake) ──
-const handleHealthCheck = (req, res) => {
-  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+const handleHealthCheck = async (req, res) => {
+  let dbStatus = "connected";
+  let dbLatencyMs = null;
+  const start = Date.now();
+
+  try {
+    // 1ms ping to keep Aiven Cloud MySQL active & prevent inactivity sleep
+    await db.query("SELECT 1");
+    dbLatencyMs = Date.now() - start;
+  } catch (err) {
+    dbStatus = "disconnected";
+    console.error("[HealthCheck] Database ping failed:", err.message);
+  }
+
+  res.status(200).json({
+    status: dbStatus === "connected" ? "ok" : "degraded",
+    server: "running",
+    database: dbStatus,
+    dbLatencyMs,
+    timestamp: new Date().toISOString(),
+  });
 };
 app.get("/api/health", handleHealthCheck);
 app.get("/health", handleHealthCheck);

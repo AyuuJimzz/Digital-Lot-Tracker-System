@@ -16,6 +16,7 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 [![MySQL](https://img.shields.io/badge/Database-MySQL_8-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Aiven Cloud](https://img.shields.io/badge/Cloud_DB-Aiven_MySQL-FF3E00?style=flat-square&logo=aiven&logoColor=white)](https://aiven.io/)
 [![Render](https://img.shields.io/badge/Hosting-Render-46E3B7?style=flat-square&logo=render&logoColor=black)](https://render.com/)
+[![UptimeRobot](https://img.shields.io/badge/Uptime-100%25_UptimeRobot-3BD671?style=flat-square&logo=uptimerobot&logoColor=white)](https://uptimerobot.com)
 [![Brevo](https://img.shields.io/badge/Email_API-Brevo-0B996F?style=flat-square&logo=brevo&logoColor=white)](https://www.brevo.com/)
 [![Meta Messenger](https://img.shields.io/badge/Alerts-Meta_Messenger-00B2FF?style=flat-square&logo=messenger&logoColor=white)](https://developers.facebook.com/docs/messenger-platform/)
 [![Docker](https://img.shields.io/badge/Containers-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
@@ -41,6 +42,7 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 | **Dual Authentication** | Persistent 30-day session cookies paired with Bearer JWT tokens, single active device session enforcement, and role-based route guards. |
 | **OWASP Top 10 Security** | 100% parameterized SQL queries, automated DOMPurify script sanitization on inputs, and brute-force rate limiters (5 attempts/15 min). |
 | **Bi-Directional Cloud Sync** | 1-command database backup scripts synchronizing local Laragon environments with production Aiven Cloud MySQL over SSL. |
+| **24/7 Continuous Uptime** | Automated 5-minute heartbeat via UptimeRobot preventing Render backend sleep and executing active SQL handshakes with Aiven Cloud MySQL for guaranteed zero-downtime availability. |
 | **Automated Alerts & Brevo Email** | Transactional customer reservation receipts & OTP dispatches via Brevo HTTPS REST API, alongside real-time system health and customer lead alert push notifications routed directly to Meta Facebook Messenger via Graph API. |
 | **PWA & Field Tablet Ready** | Progressive Web App with custom service worker asset caching, landscape viewport optimization, and an in-memory 43-LGU geocoding engine for Panay Island. |
 | **Developer Console** | Protected administrative diagnostics suite featuring table storage inspection, system state audits, and configurable master PIN security. |
@@ -57,6 +59,7 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 | **Database** | MySQL2 (Connection Pooling), MySQL 8 | Relational database with full transaction isolation |
 | **Cloud Hosting** | Render (Frontend SPA & Backend Web Service) | Continuous deployment, automated TLS/SSL, and cloud host runtime |
 | **Cloud Database** | Aiven Cloud MySQL (SSL Mode Required) | Managed high-availability cloud database with SSL encryption |
+| **High Availability** | UptimeRobot (24/7 Synthetic Heartbeat) | Automated 5-minute health check keeping Render awake and pinging Aiven MySQL |
 | **Communications** | Brevo HTTPS REST API (Transactional Email) | Automated customer inquiry confirmations, receipts, and OTPs |
 | **Real-Time Alerts** | Meta Graph API (Facebook Messenger) | Direct push notifications to broker/developer for instant lead alerts |
 | **State & Caching** | TanStack React Query v5 | Automatic background refetching and client cache management |

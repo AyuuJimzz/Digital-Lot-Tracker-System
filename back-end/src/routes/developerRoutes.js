@@ -930,13 +930,14 @@ router.get("/api-health", requireDeveloper, async (req, res) => {
       },
     },
     {
-      name: "UptimeRobot / Render Keep-Alive Ping",
+      name: "UptimeRobot / Dual Keep-Alive Ping",
       path: "/api/health",
       method: "GET",
       domain: "Infrastructure",
-      description: "Public health ping used by UptimeRobot to keep Render backend awake 24/7",
+      description: "Dual 24/7 keep-alive ping for Render backend & Aiven Cloud MySQL (SELECT 1)",
       check: async () => {
-        return { status: "ok" };
+        const [res] = await db.query("SELECT 1 as ping");
+        return { status: "ok", db: res[0].ping };
       },
     },
     {
