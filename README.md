@@ -1,49 +1,49 @@
-# 🐉 Golden Dragon Estate Platform
+# Golden Dragon Estate Platform
 
 > **Modern, Full-Stack Digital Lot Tracking, Subdivision GIS Mapping & Estate Sales System**  
 > Built for Golden Dragon Estate Corporation to streamline real estate lot inventory, interactive satellite mapping, customer reservations, and estate transactions.
 
 ---
 
-## 🌟 Key System Capabilities
+## Key System Capabilities
 
-### 🗺️ 1. Interactive GIS & Satellite Estate Mapping
+### 1. Interactive GIS & Satellite Estate Mapping
 - **596+ GPS-Georeferenced Lots:** High-precision interactive subdivision polygons across Oton, Guimbal, and surrounding estates.
 - **CAD & Blueprint Tracing (Admin):** Overlay official CAD subdivision blueprints onto live satellite imagery with adjustable opacity, scale, and rotation.
 - **Smart Road Label Annotations:** Transparent, geo-anchored road width and street name text labels with deep-zoom auto-filtering.
 - **Dynamic Property Switching:** Instant flyTo navigation between subdivisions with real-time LGU coordinates.
 - **Hardware-Accelerated Zoom:** 60 FPS smooth rendering with zero DOM node churn and debounced camera state tracking.
 
-### 💼 2. Real Estate CRM & Transaction Pipeline
+### 2. Real Estate CRM & Transaction Pipeline
 - **Scoped Sales Pipeline (My Sales):** Employees track their personal active reservations (`Pending`) and completed deals (`Sold`) with live area and payment terms.
 - **Complete Client History (My Clients):** Full CRM contact directory recording customer details, lot assignments, and past cancellation history.
 - **Unified Color-Coded Status System:**
-  - 🟢 **Available:** Green (`#16a34a` / `#4ade80`) — ready for client inquiries and reservation.
-  - 🟡 **Pending:** Warm Amber / Gold (`#f59e0b` / `#fbbf24`) — active client reservation pending verification.
-  - 🔴 **Sold:** Crimson Red (`#dc2626` / `#f87171`) — completed purchase with payment recorded.
-  - 🟣 **Cancelled:** Purple Violet (`#a855f7` / `#c084fc`) — voided or cancelled inquiries.
+  - **Available:** Green (`#16a34a` / `#4ade80`) — ready for client inquiries and reservation.
+  - **Pending:** Warm Amber / Gold (`#f59e0b` / `#fbbf24`) — active client reservation pending verification.
+  - **Sold:** Crimson Red (`#dc2626` / `#f87171`) — completed purchase with payment recorded.
+  - **Cancelled:** Purple Violet (`#a855f7` / `#c084fc`) — voided or cancelled inquiries.
 - **Clean Typography Design:** Modern, unboxed data columns for smooth scannability and symmetric table alignment.
 
-### 🛠️ 3. Developer Diagnostics & Storage Inspector
+### 3. Developer Diagnostics & Storage Inspector
 - **Live Database Table Inspector:** Real-time breakdown of managed tables, row counts, and relative storage disk footprint.
 - **Transactional Email Integration:** Native Brevo HTTPS REST API integration for automated email delivery and client notifications (300 free daily sends).
 - **Demo Data Engine:** Realistic presentation generator for demo buyers, payment methods (Cash, Installment, No Downpayment), and status distributions.
 - **Audit Logging & Activity Tracking:** Real-time logging of logins, lot status updates, maintenance triggers, and system events.
 
-### 🛡️ 4. OWASP Hardened Security Architecture
+### 4. OWASP Hardened Security Architecture
 - **Strict Brute-Force Shield:** Maximum 5 failed login attempts per 15-minute window with smart `skipSuccessfulRequests`.
 - **Global XSS & Script Sanitizer:** Automated DOMPurify and OWASP script stripping on all customer inputs, addresses, and transaction notes.
 - **Multi-Auth Architecture:** `bcryptjs` password hashing, secure `httpOnly` session cookies, and bearer JWT token support.
 - **Emergency Maintenance Mode:** One-click global maintenance toggle and database protection kill switch.
 
-### 📱 5. PWA (Progressive Web App) & Offline Resilience
+### 5. PWA (Progressive Web App) & Offline Resilience
 - **Site-Tripping Tablet Ready:** Standalone landscape fullscreen mode optimized for real estate agents presenting in the field.
 - **Offline 43-LGU Geocoding Engine:** In-memory fallback coordinates covering all municipalities across Iloilo, Guimaras, and Panay.
 - **Service Worker (`sw.js`):** Optimized asset caching with sub-second repeat load times.
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Layer | Technologies |
 | :--- | :--- |
@@ -56,7 +56,7 @@
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 .
@@ -84,7 +84,7 @@
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## Quick Start (Local Development)
 
 ### 1. Prerequisites
 - **Node.js:** v20+
@@ -135,7 +135,7 @@ npm run dev
 
 ---
 
-## ☁️ Database Synchronization (Laragon ⇄ Aiven Cloud)
+## Database Synchronization (Laragon / Aiven Cloud)
 
 1-command database export and cloud synchronization scripts in `back-end`:
 
@@ -149,7 +149,7 @@ npm --prefix back-end run db:sync-cloud
 
 ---
 
-## 📜 Available NPM Scripts
+## Available NPM Scripts
 
 ### Monorepo Root
 - `npm run dev` — Concurrently run frontend (`:3000`) and backend (`:5000`)
@@ -167,7 +167,7 @@ npm --prefix back-end run db:sync-cloud
 
 ---
 
-## 🐳 Docker Deployment (Optional)
+## Docker Deployment (Optional)
 
 Run the full platform with MySQL and phpMyAdmin:
 
@@ -181,6 +181,6 @@ docker compose up --build
 
 ---
 
-## ⚖️ License
+## License
 
 Distributed under the **MIT License**. Created for Golden Dragon Estate Corporation.
