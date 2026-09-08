@@ -3,6 +3,258 @@
   "developerPin": "5551",
   "logs": [
     {
+      "timestamp": "2026-09-08T18:05:36.790Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:46.901Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:44.731Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:36.294Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:34.197Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:32.682Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:30.238Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:24.659Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:19.683Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:12.916Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:08.423Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:02:00.949Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:01:52.874Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T15:01:14.973Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:58:53.468Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:58:46.082Z",
+      "event": "Deleted record in table 'employees' where employee_id = 1",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:58:39.167Z",
+      "event": "Deleted record in table 'employees' where employee_id = 10",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:58:36.691Z",
+      "event": "Deleted record in table 'employees' where employee_id = 11",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:57:46.348Z",
+      "event": "Deactivated all demo employee accounts.",
+      "type": "ADMIN",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:57:36.949Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:57:32.389Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:57:22.213Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:57:02.644Z",
+      "event": "Purged 0 demo transactions & 0 demo customers. Reset 0 demo lots to 'Available' (real customer data preserved).",
+      "type": "SECURITY",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:56:43.804Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:48:47.245Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:48:29.698Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:47:48.882Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T14:47:37.571Z",
+      "event": "User Logged Out: jamesdelossantos1028@gmail.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "jamesdelossantos1028@gmail.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-09-05T01:10:04.159Z",
       "event": "User Logged In: jamesdelossantos1028@gmail.com (EMPLOYEE) [Single Device Session Active]",
       "type": "AUTH",

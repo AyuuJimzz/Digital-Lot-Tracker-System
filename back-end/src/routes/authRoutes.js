@@ -9,10 +9,10 @@ const sessionOrToken = require("../middleware/session_or_token");
 
 const requireAuth = sessionOrToken({ roles: ["admin", "employee"] });
 
-// ── OWASP Hardened Rate Limiter: Strict Brute-Force & Credential Stuffing Shield ──
+// ── OWASP Hardened Rate Limiter: Brute-Force & Credential Stuffing Shield ──
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes lockout window
-  max: 5, // Strictly allow maximum 5 failed attempts per IP
+  max: 15, // Allow up to 15 attempts per IP to prevent accidental client lockouts from glitches
   skipSuccessfulRequests: true, // Do NOT count successful logins against the user
   standardHeaders: true,
   legacyHeaders: false,

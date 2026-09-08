@@ -20,14 +20,32 @@ if (savedToken) {
   axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
 }
 
-// Global Interceptor: Catch concurrent device session expiration & log API failures
+// Global Interceptor: Silent auto-retry on transient network drops + session handling
 let isHandlingKickout = false;
 axios.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config;
+
+    // 1. Silent Auto-Retry: If a transient network drop occurs (stale socket, extension hiccup, ERR_CONNECTION_CLOSED)
+    // Automatically retry once after 800ms with a fresh connection before surfacing an error
+    if (
+      !error.response &&
+      config &&
+      !config._retry &&
+      (error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNABORTED' ||
+        error.message?.includes('Network Error') ||
+        error.message?.includes('ERR_CONNECTION_CLOSED'))
+    ) {
+      config._retry = true;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return axios(config);
+    }
+
     const status = error.response?.status;
-    const url = error.config?.url || 'unknown url';
-    const method = (error.config?.method || 'get').toUpperCase();
+    const url = config?.url || 'unknown url';
+    const method = (config?.method || 'get').toUpperCase();
     const data = error.response?.data;
 
     // Structured diagnostic log for easy debugging
