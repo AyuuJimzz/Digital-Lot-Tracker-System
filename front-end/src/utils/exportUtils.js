@@ -285,6 +285,12 @@ export async function exportSingleLotWordDoc(lot, propertyName = "", propertyLoc
         <td class="value-col"><strong>${status}</strong></td>
       </tr>
       ${paymentRowHtml}
+      ${(status === "Pending" || status === "Sold") ? `
+      <tr>
+        <td class="label-col">Assigned Agent / Sold By:</td>
+        <td class="value-col"><strong>${lot.agent_name || "Admin"}</strong></td>
+      </tr>
+      ` : ""}
     </table>
 
     <!-- 2. CLIENT INFORMATION -->

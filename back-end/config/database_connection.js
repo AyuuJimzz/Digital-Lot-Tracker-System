@@ -30,6 +30,19 @@ pool.getConnection(async (err, connection) => {
     } catch (tErr) {
       if (tErr.code !== "ER_DUP_FIELDNAME") console.warn("transactions is_demo notice:", tErr.message);
     }
+    try {
+      await connection.promise().query("ALTER TABLE transactions ADD COLUMN agent_name VARCHAR(255) DEFAULT NULL");
+    } catch (aErr) {
+      if (aErr.code !== "ER_DUP_FIELDNAME") console.warn("transactions agent_name notice:", aErr.message);
+    }
+    try {
+      await connection.promise().query(`
+        UPDATE transactions t
+        JOIN employees e ON t.employee_id = e.employee_id
+        SET t.agent_name = TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, '')))
+        WHERE (t.agent_name IS NULL OR t.agent_name = '') AND t.employee_id IS NOT NULL
+      `);
+    } catch (_) {}
     connection.release();
   }
 });

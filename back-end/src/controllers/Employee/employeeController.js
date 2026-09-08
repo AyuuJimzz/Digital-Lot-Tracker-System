@@ -181,6 +181,27 @@ exports.deleteEmployee = async (req, res) => {
   const { id } = req.params;
 
   try {
+    // 1. Snapshot agent_name for all transactions belonging to this employee before deletion
+    const [empRows] = await db.query(
+      "SELECT first_name, last_name FROM employees WHERE employee_id = ?",
+      [id]
+    );
+
+    if (empRows.length > 0) {
+      const fullName = `${empRows[0].first_name} ${empRows[0].last_name || ""}`.trim() || "Agent";
+      await db.query(
+        "UPDATE transactions SET agent_name = ? WHERE employee_id = ? AND (agent_name IS NULL OR agent_name = '')",
+        [fullName, id]
+      );
+
+      // Gracefully set employee_id = NULL in transactions to avoid foreign key errors or cascading deletes
+      try {
+        await db.query("UPDATE transactions SET employee_id = NULL WHERE employee_id = ?", [id]);
+      } catch (fkErr) {
+        console.warn("Disassociate employee_id in transactions warning:", fkErr.message);
+      }
+    }
+
     const [result] = await db.query(
       "DELETE FROM employees WHERE employee_id = ?",
       [id],

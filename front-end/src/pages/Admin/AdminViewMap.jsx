@@ -1738,7 +1738,13 @@ function AdminViewMap() {
             if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
               try {
                 const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, authConfig);
-                return { ...lot, customer: lotDetails.data.customer };
+                return {
+                  ...lot,
+                  customer: lotDetails.data.customer,
+                  agent_name: lotDetails.data.agent_name,
+                  employee_id: lotDetails.data.employee_id,
+                  payment_method: lotDetails.data.payment_method,
+                };
               } catch (error) {
                 console.error(`Error fetching customer data for lot ${lot.lot_id}:`, error);
                 return lot;
@@ -1771,7 +1777,13 @@ function AdminViewMap() {
           if ((lot.status === "Pending" || lot.status === "Sold") && !lot.customer) {
             try {
               const lotDetails = await axios.get(`${API_BASE_URL}/api/lots/${lot.lot_id}`, authConfig);
-              return { ...lot, customer: lotDetails.data.customer };
+              return {
+                ...lot,
+                customer: lotDetails.data.customer,
+                agent_name: lotDetails.data.agent_name,
+                employee_id: lotDetails.data.employee_id,
+                payment_method: lotDetails.data.payment_method,
+              };
             } catch (error) {
               return lot;
             }

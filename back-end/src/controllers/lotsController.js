@@ -46,16 +46,23 @@ exports.getLotById = async (req, res) => {
       lot.customer = customerRows[0];
     }
 
-    // Get payment method from transactions if lot is sold
-    if (lot.status === "Sold") {
-      const [transactionRows] = await db.query(
-        "SELECT payment_type FROM transactions WHERE lot_id = ? ORDER BY transaction_date DESC LIMIT 1",
-        [id]
-      );
+    // Get transaction information (payment method & agent) if exists
+    const [transactionRows] = await db.query(
+      `SELECT t.payment_type, t.employee_id, 
+              COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') AS agent_name
+       FROM transactions t
+       LEFT JOIN employees e ON t.employee_id = e.employee_id
+       WHERE t.lot_id = ? 
+       ORDER BY t.transaction_date DESC, t.transaction_id DESC LIMIT 1`,
+      [id]
+    );
 
-      if (transactionRows.length > 0) {
+    if (transactionRows.length > 0) {
+      if (lot.status === "Sold") {
         lot.payment_method = transactionRows[0].payment_type;
       }
+      lot.agent_name = transactionRows[0].agent_name;
+      lot.employee_id = transactionRows[0].employee_id;
     }
 
     res.json(lot);
@@ -330,7 +337,31 @@ exports.getTimeBasedPropertySales = async (req, res) => {
 exports.updateLotStatus = async (req, res) => {
   const { id } = req.params;
   const { status, email, fullName, contactNumber, address, paymentMethod } = req.body;
-  const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
+
+  // Determine acting agent/admin automatically from authenticated user
+  let employeeId = null;
+  let agentName = "Admin";
+
+  if (req.user && req.user.role === "employee") {
+    employeeId = req.user.id;
+    try {
+      const [empRows] = await db.query(
+        "SELECT first_name, last_name FROM employees WHERE employee_id = ?",
+        [employeeId]
+      );
+      if (empRows.length > 0) {
+        agentName = `${empRows[0].first_name} ${empRows[0].last_name || ""}`.trim() || "Agent";
+      } else {
+        agentName = "Agent";
+      }
+    } catch (_) {
+      agentName = "Agent";
+    }
+  } else {
+    // Admin is performing the action!
+    employeeId = null;
+    agentName = "Admin";
+  }
 
   try {
     // Validate status
@@ -453,20 +484,21 @@ exports.updateLotStatus = async (req, res) => {
         );
 
         if (existingTransaction.length > 0) {
-          // Update existing transaction for this customer
+          // Update existing transaction for this customer with current reserver
           await db.query(
-            "UPDATE transactions SET payment_type = 'No Downpayment', notes = ?, employee_id = COALESCE(employee_id, ?), transaction_date = NOW() WHERE transaction_id = ?",
-            [`Transaction updated for lot ${lot.lot_number} - Pending status`, employeeId, existingTransaction[0].transaction_id]
+            "UPDATE transactions SET payment_type = 'No Downpayment', notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW() WHERE transaction_id = ?",
+            [`Transaction updated for lot ${lot.lot_number} - Pending status`, employeeId, agentName, existingTransaction[0].transaction_id]
           );
         } else {
-          // Create new transaction for this customer
+          // Create new transaction for this customer with persistent agent_name
           await db.query(
-            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, transaction_date) VALUES (?, ?, 'No Downpayment', ?, ?, NOW())",
+            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date) VALUES (?, ?, 'No Downpayment', ?, ?, ?, NOW())",
             [
               id,
               customerId,
               `Transaction created for lot ${lot.lot_number} - Pending status`,
               employeeId,
+              agentName,
             ]
           );
         }
@@ -547,26 +579,28 @@ exports.updateLotStatus = async (req, res) => {
         );
 
         if (existingTransaction[0].length > 0) {
-          // Update existing transaction to Sold with current timestamp
+          // Update existing transaction to Sold with whoever is currently finalizing the sale
           await db.query(
-            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = COALESCE(employee_id, ?), transaction_date = NOW() WHERE lot_id = ?",
+            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW() WHERE lot_id = ?",
             [
               paymentMethod || "Cash",
               `Transaction updated for lot ${lot.lot_number} - Sold status`,
               employeeId,
+              agentName,
               id,
             ]
           );
         } else {
-          // Create new transaction for Sold
+          // Create new transaction for Sold with persistent agent_name
           await db.query(
-            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, transaction_date) VALUES (?, ?, ?, ?, ?, NOW())",
+            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date) VALUES (?, ?, ?, ?, ?, ?, NOW())",
             [
               id,
               customerId,
               paymentMethod || "Cash",
               `Transaction created for lot ${lot.lot_number} - Sold status`,
               employeeId,
+              agentName,
             ]
           );
         }

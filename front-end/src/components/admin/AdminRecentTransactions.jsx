@@ -68,7 +68,7 @@ const RecentTransactions = () => {
       const clientStr = (t.customer_name || "").toLowerCase();
       const lotStr = (t.lot_number || "").toLowerCase();
       const propStr = (t.property_name || "").toLowerCase();
-      const agentStr = (t.employee_id && empNameMap[t.employee_id] ? empNameMap[t.employee_id] : "admin").toLowerCase();
+      const agentStr = (t.agent_name || (t.employee_id && empNameMap[t.employee_id]) || "admin").toLowerCase();
       const payStr = (t.payment_type || "").toLowerCase();
 
       const matches =
@@ -306,7 +306,7 @@ const RecentTransactions = () => {
                     )}
                   </td>
                   <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                    {txn.employee_id && empNameMap[txn.employee_id] ? empNameMap[txn.employee_id] : "Admin"}
+                    {txn.agent_name || (txn.employee_id && empNameMap[txn.employee_id]) || "Admin"}
                   </td>
                   <td className="px-4 py-3.5 text-center whitespace-nowrap text-xs font-medium text-slate-700 dark:text-slate-300">
                     {txn.payment_type || "No Downpayment"}

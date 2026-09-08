@@ -25,6 +25,7 @@ const LotOffcanvas = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [agentName, setAgentName] = useState("Admin");
 
   // Editable Lot Metadata details
   const [lotNumber, setLotNumber] = useState("");
@@ -98,6 +99,40 @@ const LotOffcanvas = ({
         setPaymentMethod(selectedLot.payment_method);
       } else {
         setPaymentMethod("Cash"); // Default to Cash for non-sold lots or lots without payment method
+      }
+
+      // Initialize assigned agent name
+      setAgentName(selectedLot.agent_name || (selectedLot.employee_id ? "Agent" : "Admin"));
+
+      // Fetch latest lot details (including persistent agent_name & payment_method)
+      if (selectedLot?.lot_id && (selectedLot.status === "Pending" || selectedLot.status === "Sold")) {
+        const token =
+          localStorage.getItem("authToken") ||
+          localStorage.getItem("token") ||
+          sessionStorage.getItem("authToken");
+        fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: "include",
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((details) => {
+            if (!details) return;
+            if (details.agent_name) {
+              setAgentName(details.agent_name);
+            }
+            if (details.payment_method) {
+              setPaymentMethod(details.payment_method);
+            }
+            if (details.customer) {
+              setEmail(details.customer.email || "");
+              setFullName(details.customer.full_name || "");
+              setContactNumber(details.customer.contact_number || "");
+              setAddress(details.customer.address || "");
+            }
+          })
+          .catch((err) => console.warn("Failed to fetch fresh lot details in LotOffcanvas:", err));
       }
 
       setSaveMessage("");
@@ -678,7 +713,7 @@ const LotOffcanvas = ({
                         type="button"
                         onClick={() =>
                           exportSingleLotWordDoc(
-                            selectedLot,
+                            { ...selectedLot, agent_name: agentName },
                             propertyName || selectedLot?.property_name,
                             propertyLocation || selectedLot?.location
                           )

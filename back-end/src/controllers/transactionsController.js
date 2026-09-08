@@ -8,6 +8,7 @@ const getTransactions = async (req, res) => {
         CONCAT('TXN-', LPAD(t.transaction_id, 4, '0')) as transaction_id,
         t.lot_id,
         COALESCE(t.employee_id, c.employee_id) as employee_id,
+        COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') as agent_name,
         COALESCE(c.full_name, 'No customer assigned') as customer_name,
         l.lot_number,
         p.property_name,
@@ -21,6 +22,7 @@ const getTransactions = async (req, res) => {
       FROM transactions t
       JOIN lots l ON t.lot_id = l.lot_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
+      LEFT JOIN employees e ON COALESCE(t.employee_id, c.employee_id) = e.employee_id
       JOIN properties p ON l.property_id = p.property_id
       WHERE (l.status IN ('Sold', 'Pending') OR c.customer_status = 'Cancelled')
     `;
@@ -44,16 +46,17 @@ const getTransactions = async (req, res) => {
 // Create new transaction
 const createTransaction = async (req, res) => {
   try {
-    const { lot_id, customer_id, payment_type, notes } = req.body;
-    const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
+    const { lot_id, customer_id, payment_type, notes, agent_name: customAgentName, agent_id: customAgentId } = req.body;
+    let employeeId = (req.user && req.user.role === "employee") ? req.user.id : (customAgentId || null);
+    let agentName = customAgentName || (req.user && req.user.role === "employee" ? (req.user.name || "Employee") : "Admin");
 
     // Start transaction
     await db.beginTransaction();
 
-    // Create transaction record
+    // Create transaction record with persistent agent_name snapshot
     const insertTransactionQuery = `
-      INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.execute(insertTransactionQuery, [
@@ -62,6 +65,7 @@ const createTransaction = async (req, res) => {
       payment_type || "No Downpayment",
       notes,
       employeeId,
+      agentName,
     ]);
 
     // Update lot status to Pending

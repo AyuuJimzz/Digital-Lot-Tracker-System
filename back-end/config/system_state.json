@@ -3,6 +3,159 @@
   "developerPin": "5551",
   "logs": [
     {
+      "timestamp": "2026-09-08T19:39:43.081Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:39:10.369Z",
+      "event": "Deleted record in table 'employees' where employee_id = 12",
+      "type": "DATABASE",
+      "user": null,
+      "role": null,
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:38:54.973Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:38:49.178Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:38:32.614Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:38:29.892Z",
+      "event": "User Logged Out: sarah.santos@goldendragon.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:38:18.260Z",
+      "event": "Email delivered to: hankvedjnasdasd@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 5 Lot 11 (Lot-204 Nanga Guimbal)\"",
+      "type": "EMAIL",
+      "user": "hankvedjnasdasd@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-08T19:37:52.544Z",
+      "event": "Email delivered to: johnedwardbearasdasdasdasdnezaa@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 13 Lot 6 (Lot-204 Nanga Guimbal)\"",
+      "type": "EMAIL",
+      "user": "johnedwardbearasdasdasdasdnezaa@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-08T19:37:28.838Z",
+      "event": "User Logged In: sarah.santos@goldendragon.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:36:48.920Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:36:43.634Z",
+      "event": "Email delivered to: hankvedaasjn@gmail.com | Subject: \"Lot Reservation Confirmation - BLOCK 15 Lot 15 (Lot-204 Nanga Guimbal)\"",
+      "type": "EMAIL",
+      "user": "hankvedaasjn@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-08T19:30:23.424Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:30:21.268Z",
+      "event": "User Logged Out: sarah.santos@goldendragon.com (EMPLOYEE)",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:25:46.156Z",
+      "event": "User Logged In: sarah.santos@goldendragon.com (EMPLOYEE) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "sarah.santos@goldendragon.com",
+      "role": "employee",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:25:22.547Z",
+      "event": "Activated demo staff account: Sarah Mae Santos (sarah.santos@goldendragon.com).",
+      "type": "ADMIN",
+      "user": null,
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:25:11.851Z",
+      "event": "Developer console authenticated",
+      "type": "SECURITY",
+      "user": "Developer (Root)",
+      "role": "Developer",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-08T19:25:06.907Z",
+      "event": "User Logged Out: admin@gmail.com (ADMIN)",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
       "timestamp": "2026-09-08T18:05:36.790Z",
       "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
       "type": "AUTH",
