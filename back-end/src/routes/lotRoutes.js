@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const sessionOrToken = require("../middleware/session_or_token");
+const { importLots } = require("../controllers/lotImportController");
 const {
   getAllLots,
   getLotsByProperty,
@@ -33,6 +34,7 @@ router.get("/property/:propertyId", requireAuth, getLotsByProperty);
 router.get("/:id", requireAuth, getLotById);
 
 // Write / Mutation routes (Protected)
+router.post("/import", requireAdmin, importLots);
 router.post("/", requireAdmin, createLot);
 router.put("/:id/status", requireAuth, updateLotStatus);
 router.put("/:id/coordinates", requireAdmin, updateLotCoordinates);

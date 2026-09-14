@@ -566,10 +566,52 @@ const EmployeeMapView = () => {
   }, [properties, selectedProperty]);
 
   // ── Optimization: O(1) status → color lookup ──────────────────────────────
-  const STATUS_COLORS = { Available: "#22c55e", Pending: "#eab308", Sold: "#ef4444" };
-  const getStatusColor = (status) => STATUS_COLORS[status] || "#94a3b8";
+  const STATUS_COLORS = {
+    Available: "#22c55e",
+    Pending: "#eab308",
+    Sold: "#ef4444",
+    NonSaleable: "#a855f7",
+  };
 
-  // ── Optimization: Pre-built icon cache — only 4 icons total, never per-render ──
+  const isNonSaleableLot = (lotNumber = "", areaSqm = 0) => {
+    const num = String(lotNumber || "").toLowerCase().trim();
+    if (
+      num.includes("park") ||
+      num.includes("playground") ||
+      num.includes("facility") ||
+      num.includes("clubhouse") ||
+      num.includes("excluded") ||
+      num.includes("open space") ||
+      num.includes("easement") ||
+      num.includes("community") ||
+      num.includes("p & pg") ||
+      num.includes("amenity")
+    ) {
+      return true;
+    }
+    const normalized = num.replace(/\s+/g, " ").trim();
+    const knownNonSaleables = [
+      "block 6 lot 3",
+      "block 6 lot 2",
+      "block 6 lot 1",
+      "block 5 lot 10",
+      "block 5 lot 11",
+      "block 8 lot 1",
+      "block 3 lot 18",
+      "block 13 lot 6",
+      "block 13 lot 10",
+    ];
+    return knownNonSaleables.includes(normalized);
+  };
+
+  const getStatusColor = (status, lotNumber = "", areaSqm = 0) => {
+    if (isNonSaleableLot(lotNumber, areaSqm)) {
+      return STATUS_COLORS.NonSaleable;
+    }
+    return STATUS_COLORS[status] || "#94a3b8";
+  };
+
+  // ── Optimization: Pre-built icon cache — only 5 icons total, never per-render ──
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const pinIconCache = useMemo(() => {
     const makeIcon = (color) =>
@@ -583,12 +625,18 @@ const EmployeeMapView = () => {
       Available: makeIcon("#22c55e"),
       Pending: makeIcon("#eab308"),
       Sold: makeIcon("#ef4444"),
+      NonSaleable: makeIcon("#a855f7"),
       default: makeIcon("#94a3b8"),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const createPinIcon = (status) => pinIconCache[status] || pinIconCache.default;
+  const createPinIcon = (status, lotNumber = "", areaSqm = 0) => {
+    if (isNonSaleableLot(lotNumber, areaSqm)) {
+      return pinIconCache.NonSaleable;
+    }
+    return pinIconCache[status] || pinIconCache.default;
+  };
 
   const handleCloseOffcanvas = () => {
     setIsOffcanvasOpen(false);
@@ -840,7 +888,7 @@ const EmployeeMapView = () => {
           const maxLng = Math.max(...lngs);
           const centerLat = (minLat + maxLat) / 2;
           const centerLng = (minLng + maxLng) / 2;
-          const statusColor = getStatusColor(lot.status);
+          const statusColor = getStatusColor(lot.status, lot.lot_number, lot.area_sqm);
 
           const isTouchDevice =
             typeof window !== "undefined" &&
@@ -914,7 +962,7 @@ const EmployeeMapView = () => {
               <Marker
                 key={`emp-pin-${lot.lot_id}-${lot.status}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
                 position={[centerLat, centerLng]}
-                icon={createPinIcon(lot.status)}
+                icon={createPinIcon(lot.status, lot.lot_number, lot.area_sqm)}
                 eventHandlers={{
                   click: handleLotClick,
                 }}
@@ -932,7 +980,7 @@ const EmployeeMapView = () => {
                       <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
                       <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
                       <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
-                        {lot.status}
+                        {isNonSaleableLot(lot.lot_number, lot.area_sqm) ? "Non-Saleable" : lot.status}
                       </div>
                       {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
                         <>

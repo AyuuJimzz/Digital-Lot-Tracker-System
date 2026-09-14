@@ -231,6 +231,7 @@ export function BlueprintCropModal({ isOpen, imageUrl, onApplyCrop, onClose }) {
             maxY,
             width: maxX - minX,
             height: maxY - minY,
+            polygon: polygonPoints.map((point) => [point.x / 100, point.y / 100]),
           });
           onClose();
         }, "image/png");

@@ -27,7 +27,11 @@ export async function saveBlueprintOverlay(propertyId, overlayData) {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
-      store.put({
+      // Alignment and import review are saved independently; preserve their fields
+      // within the same transaction so either update cannot discard the other.
+      const previous = store.get(String(propertyId));
+      previous.onsuccess = () => store.put({
+        ...(previous.result || {}),
         propertyId: String(propertyId),
         ...overlayData,
         updatedAt: Date.now(),

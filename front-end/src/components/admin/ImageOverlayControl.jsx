@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { useBlueprintUpload } from "../../hooks/useBlueprintUpload";
 import {
   Upload,
   Eye,
@@ -14,6 +15,15 @@ import {
 
 export function ImageOverlayControl({
   overlayImage,
+  importCount = 0,
+  importWarnings = [],
+  hasImportSource = false,
+  importMessage = "",
+  importError = "",
+  isPreparingOverlay = false,
+  onReviewImport,
+  previewImport = false,
+  onToggleImportPreview,
   overlayOpacity,
   overlayVisible,
   isEditingOverlay,
@@ -42,87 +52,8 @@ export function ImageOverlayControl({
   onClose,
 }) {
   const fileInputRef = useRef(null);
-  const [isConvertingPdf, setIsConvertingPdf] = React.useState(false);
-
-  const loadPdfJs = () => {
-    return new Promise((resolve, reject) => {
-      if (window.pdfjsLib) {
-        resolve(window.pdfjsLib);
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
-      script.onload = () => {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-        resolve(window.pdfjsLib);
-      };
-      script.onerror = () => reject(new Error("Failed to load PDF converter library"));
-      document.head.appendChild(script);
-    });
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.type === "application/pdf") {
-      setIsConvertingPdf(true);
-      loadPdfJs()
-        .then(async (pdfjs) => {
-          const reader = new FileReader();
-          reader.onload = async function () {
-            try {
-              const arrayBuffer = this.result;
-              const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-              const page = await pdf.getPage(1);
-
-              const unscaled = page.getViewport({ scale: 1.0 });
-              const maxDim = 4096;
-              const scale = Math.min(5.0, Math.max(3.5, maxDim / Math.max(unscaled.width, unscaled.height)));
-              const viewport = page.getViewport({ scale });
-              const canvas = document.createElement("canvas");
-              const context = canvas.getContext("2d", { alpha: true });
-              canvas.height = viewport.height;
-              canvas.width = viewport.width;
-
-              await page.render({
-                canvasContext: context,
-                viewport: viewport,
-              }).promise;
-
-              canvas.toBlob((blob) => {
-                const url = URL.createObjectURL(blob);
-                onImageUpload(url);
-                setIsConvertingPdf(false);
-              }, "image/png");
-            } catch (err) {
-              console.error("PDF conversion error:", err);
-              alert("Failed to convert PDF. Please make sure it's a valid PDF file.");
-              setIsConvertingPdf(false);
-            }
-          };
-          reader.readAsArrayBuffer(file);
-        })
-        .catch((err) => {
-          console.error("PDF.js loading error:", err);
-          alert("Failed to load PDF converter library. Please check your internet connection.");
-          setIsConvertingPdf(false);
-        });
-
-      e.target.value = "";
-      return;
-    }
-
-    if (!file.type.match(/^image\/(png|jpeg|jpg|webp)$/)) {
-      alert("Please upload a PNG, JPG, WebP image, or a PDF file.");
-      return;
-    }
-
-    const url = URL.createObjectURL(file);
-    onImageUpload(url);
-    e.target.value = "";
-  };
+  const { uploadStage, uploadError, pdfPage, setPdfPage, handleFileChange } = useBlueprintUpload(onImageUpload);
+  const isConvertingPdf = Boolean(uploadStage);
 
   return (
     <div
@@ -146,6 +77,15 @@ export function ImageOverlayControl({
         </button>
       </div>
 
+      <label className="mt-3 flex items-center justify-between text-xs text-slate-400">
+        PDF page to upload
+        <input aria-label="PDF page to upload" type="number" min="1" step="1" value={pdfPage}
+          disabled={isConvertingPdf} onChange={(event) => setPdfPage(event.target.value)}
+          className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-white" />
+      </label>
+      {uploadError && <p role="alert" className="mt-3 text-xs text-rose-300">{uploadError}</p>}
+      {importError && <p role="alert" className="mt-3 text-xs text-rose-300">{importError}</p>}
+      {importMessage && <p role="status" className="mt-3 text-xs text-emerald-300">{importMessage}</p>}
       {/* No image uploaded yet */}
       {!overlayImage ? (
         <div className="pt-3">
@@ -156,7 +96,7 @@ export function ImageOverlayControl({
           {isConvertingPdf ? (
             <div className="w-full flex flex-col items-center justify-center gap-2 py-6 border border-dashed border-indigo-500/40 bg-indigo-500/10 rounded-xl text-indigo-300">
               <div className="animate-spin rounded-full h-7 w-7 border-t-2 border-b-2 border-indigo-400"></div>
-              <span className="text-xs font-semibold">Converting PDF to Map Layer...</span>
+              <span className="text-xs font-semibold">{uploadStage}</span>
             </div>
           ) : (
             <button
@@ -179,7 +119,7 @@ export function ImageOverlayControl({
         </div>
       ) : (
         /* Image loaded - Sleek Executive Controls */
-        <div className="pt-3 space-y-3">
+        <fieldset disabled={isPreparingOverlay || isConvertingPdf} className="pt-3 space-y-3 disabled:opacity-70">
           {/* 1. Primary Action: Crop / Frame Blueprint */}
           {onOpenCrop && (
             <button
@@ -193,6 +133,26 @@ export function ImageOverlayControl({
             </button>
           )}
 
+          {hasImportSource && (
+            <div className="space-y-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-3">
+              <p className="text-xs font-semibold text-cyan-200">{importCount} candidate lots in frame</p>
+              <p className="text-xs leading-relaxed text-slate-300">
+                {importCount ? "Align and lock the blueprint, then review the detected boundaries and lot details." : "No remaining lots detected in this frame. Try the full plan or use manual tracing."}
+              </p>
+              {importWarnings.map((warning, index) => <p key={index} className="text-xs text-amber-200">{warning}</p>)}
+              {importCount > 0 && <>
+                <button type="button" onClick={onToggleImportPreview}
+                  className="w-full rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-200">
+                  {previewImport ? "Hide detected boundaries" : "Show detected boundaries on map"}
+                </button>
+                <button type="button" onClick={onReviewImport} disabled={isEditingOverlay || isConvertingPdf || isPreparingOverlay}
+                  className="w-full rounded-lg bg-cyan-400 px-3 py-2.5 text-xs font-bold text-slate-950 disabled:opacity-40">
+                  {isEditingOverlay ? "Lock blueprint to review lots" : "Review & Create Lots"}
+                </button>
+              </>}
+            </div>
+          )}
+          {!hasImportSource && <p className="text-xs text-slate-400">Upload a PDF to detect lot boundaries automatically. Images remain available for manual tracing.</p>}
           {/* 2. Visual Style & Color Card */}
           <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-2.5">
             <div className="space-y-1.5">
@@ -473,6 +433,7 @@ export function ImageOverlayControl({
             <button
               type="button"
               onClick={onToggleEdit}
+              disabled={isPreparingOverlay || isConvertingPdf}
               className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer ${
                 isEditingOverlay
                   ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/25 ring-2 ring-emerald-400/40"
@@ -503,7 +464,7 @@ export function ImageOverlayControl({
           {/* 6. Footer Utilities */}
           <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
             {isConvertingPdf ? (
-              <span className="text-white animate-pulse">Converting...</span>
+              <span className="text-white animate-pulse">{uploadStage}</span>
             ) : (
               <button
                 type="button"
@@ -531,7 +492,7 @@ export function ImageOverlayControl({
             className="hidden"
             onChange={handleFileChange}
           />
-        </div>
+        </fieldset>
       )}
     </div>
   );

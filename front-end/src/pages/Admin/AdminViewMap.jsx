@@ -16,6 +16,8 @@ import L from "leaflet";
 import LotOffcanvas from "../../components/admin/LotOffcanvas";
 import { ImageOverlayControl } from "../../components/admin/ImageOverlayControl";
 import { BlueprintCropModal } from "../../components/admin/BlueprintCropModal";
+import { LotImportReviewModal } from "../../components/admin/LotImportReviewModal";
+import { useBlueprintLotImport } from "../../hooks/useBlueprintLotImport";
 import { MapAnnotationControl } from "../../components/admin/MapAnnotationControl";
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
 import { MapLayerControls, ActiveMapTileLayer, MAP_LAYERS } from "../../components/admin/MapLayerControls";
@@ -399,6 +401,15 @@ function AdminViewMap() {
   const overlayMoveStartRef = React.useRef(null);
   const overlayCornerDragRef = React.useRef(null); // stores {initBounds, currentBounds} during corner drag
   const unrotatedSpanRef = React.useRef(null);
+  const overlayOperationRef = useRef(0);
+  const activeOverlayPropertyRef = useRef(selectedProperty);
+  activeOverlayPropertyRef.current = selectedProperty;
+  const [isPreparingOverlay, setIsPreparingOverlay] = useState(false);
+  const lotImport = useBlueprintLotImport({
+    propertyId: selectedProperty, map, bounds: overlayBounds, rotation: overlayRotation,
+    isAligning: isEditingOverlay || isPreparingOverlay,
+  });
+  const { restore: restoreLotImport, applyCrop: applyLotImportCrop } = lotImport;
 
   // ── Road & Map Text Labels (Annotations) States ───────────────────────────
   const [showAnnotationPanel, setShowAnnotationPanel] = useState(false);
@@ -1038,7 +1049,7 @@ function AdminViewMap() {
   };
 
   // Helper: converts paper/transparent background into alpha transparency & CAD lines into chosen high-contrast color, rotated on Canvas
-  const createTransparentPaperImage = (imageUrl, lineColor = "cyan", rotationDeg = 0, lineBoldness = "fine") => {
+  const createTransparentPaperImage = (imageUrl, lineColor = "cyan", rotationDeg = 0, lineBoldness = "fine", transparentPaper = true) => {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -1066,6 +1077,7 @@ function AdminViewMap() {
         ctx.drawImage(img, -w / 2, -h / 2);
 
         try {
+          if (transparentPaper) {
           const imgData = ctx.getImageData(0, 0, newW, newH);
           const data = imgData.data;
 
@@ -1151,6 +1163,7 @@ function AdminViewMap() {
           }
 
           ctx.putImageData(imgData, 0, 0);
+          }
         } catch (e) {}
 
         canvas.toBlob((blob) => {
@@ -1169,11 +1182,21 @@ function AdminViewMap() {
   // ── Load Persistent Blueprint Overlay from IndexedDB on Mount or Property Switch ───
   useEffect(() => {
     let isCancelled = false;
+    const operation = ++overlayOperationRef.current;
+    setOverlayImage(null);
+    setOverlayBounds(null);
+    setIsEditingOverlay(false);
+    setIsCropModalOpen(false);
+    setIsPreparingOverlay(false);
+    rawOverlayRef.current = null;
+    originalUploadedImageRef.current = null;
+    unrotatedSpanRef.current = null;
+    restoreLotImport(null);
     const fetchSavedOverlay = async () => {
       if (!selectedProperty) return;
       try {
         const data = await loadBlueprintOverlay(selectedProperty);
-        if (isCancelled) return;
+        if (isCancelled || operation !== overlayOperationRef.current) return;
 
         if (data && data.rawImage && data.bounds) {
           rawOverlayRef.current = data.rawImage;
@@ -1188,11 +1211,12 @@ function AdminViewMap() {
           setOverlayMultiply(data.multiply ?? true);
           setOverlayBounds(data.bounds);
 
-          const transUrl = await createTransparentPaperImage(data.rawImage, lineColor, data.rotation || 0, lineBoldness);
-          if (isCancelled) return;
+          const transUrl = await createTransparentPaperImage(data.rawImage, lineColor, data.rotation || 0, lineBoldness, data.multiply ?? true);
+          if (isCancelled || operation !== overlayOperationRef.current) return;
           transparentOverlayRef.current = transUrl;
           setOverlayImage(transUrl);
           setOverlayVisible(true);
+          restoreLotImport(data.lotImport);
         }
       } catch (err) {
         console.error("Error loading saved blueprint overlay:", err);
@@ -1203,7 +1227,7 @@ function AdminViewMap() {
     return () => {
       isCancelled = true;
     };
-  }, [selectedProperty]);
+  }, [selectedProperty, restoreLotImport]);
 
   const handleOverlayCornerDragEnd = useCallback(() => {
     if (map) map.dragging.enable();
@@ -1230,20 +1254,25 @@ function AdminViewMap() {
   // Handle Rotation with Canvas rendering — centered and 100% synchronized with map coordinates
   const handleRotationChange = useCallback(
     async (deg) => {
+      if (!Number.isFinite(deg)) return;
       setOverlayRotation(deg);
+      const operation = ++overlayOperationRef.current;
       const baseImg = rawOverlayRef.current || originalUploadedImageRef.current;
       if (!baseImg) return;
 
-      const transUrl = await createTransparentPaperImage(baseImg, overlayLineColor, deg, overlayLineBoldness);
+      setIsPreparingOverlay(true);
+      const transUrl = await createTransparentPaperImage(baseImg, overlayLineColor, deg, overlayLineBoldness, overlayMultiply);
+      if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) { URL.revokeObjectURL(transUrl); return; }
+      setIsPreparingOverlay(false);
       if (transparentOverlayRef.current && transparentOverlayRef.current !== transUrl) {
         try { URL.revokeObjectURL(transparentOverlayRef.current); } catch (e) {}
       }
       transparentOverlayRef.current = transUrl;
       setOverlayImage(transUrl);
 
-      let finalBounds = null;
-      setOverlayBounds((prev) => {
-        if (!prev) return prev;
+      let finalBounds = overlayBounds;
+      if (overlayBounds) {
+        const prev = overlayBounds;
         const cLat = (prev[0][0] + prev[1][0]) / 2;
         const cLng = (prev[0][1] + prev[1][1]) / 2;
 
@@ -1267,8 +1296,8 @@ function AdminViewMap() {
         ];
         if (overlayRef.current) overlayRef.current.setBounds(newBounds);
         finalBounds = newBounds;
-        return newBounds;
-      });
+        setOverlayBounds(newBounds);
+      }
 
       if (selectedProperty && baseImg) {
         saveBlueprintOverlay(selectedProperty, {
@@ -1293,7 +1322,11 @@ function AdminViewMap() {
       setOverlayLineColor(color);
       const src = rawOverlayRef.current;
       if (!src) return;
-      const transUrl = await createTransparentPaperImage(src, color, overlayRotation, overlayLineBoldness);
+      const operation = ++overlayOperationRef.current;
+      setIsPreparingOverlay(true);
+      const transUrl = await createTransparentPaperImage(src, color, overlayRotation, overlayLineBoldness, overlayMultiply);
+      if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) { URL.revokeObjectURL(transUrl); return; }
+      setIsPreparingOverlay(false);
       transparentOverlayRef.current = transUrl;
       setOverlayImage(transUrl);
 
@@ -1320,7 +1353,11 @@ function AdminViewMap() {
       setOverlayLineBoldness(boldness);
       const src = rawOverlayRef.current;
       if (!src) return;
-      const transUrl = await createTransparentPaperImage(src, overlayLineColor, overlayRotation, boldness);
+      const operation = ++overlayOperationRef.current;
+      setIsPreparingOverlay(true);
+      const transUrl = await createTransparentPaperImage(src, overlayLineColor, overlayRotation, boldness, overlayMultiply);
+      if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) { URL.revokeObjectURL(transUrl); return; }
+      setIsPreparingOverlay(false);
       transparentOverlayRef.current = transUrl;
       setOverlayImage(transUrl);
 
@@ -1344,12 +1381,19 @@ function AdminViewMap() {
   // Crop overlay on canvas to keep only the subdivision lots
   const handleApplyCrop = useCallback(
     async (croppedUrl, cropBounds) => {
+      const operation = ++overlayOperationRef.current;
+      setIsPreparingOverlay(true);
       const dataUrl = await toDataURL(croppedUrl);
+      if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) return;
+      applyLotImportCrop(cropBounds);
+      setIsEditingOverlay(true);
       rawOverlayRef.current = dataUrl;
       setOverlayRotation(0);
-      const transUrl = await createTransparentPaperImage(dataUrl, overlayLineColor, 0);
+      const transUrl = await createTransparentPaperImage(dataUrl, overlayLineColor, 0, overlayLineBoldness, overlayMultiply);
+      if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) { URL.revokeObjectURL(transUrl); return; }
       transparentOverlayRef.current = transUrl;
       setOverlayImage(transUrl);
+      setIsPreparingOverlay(false);
 
       let finalBounds = overlayBounds;
       let finalSpan = unrotatedSpanRef.current;
@@ -1397,7 +1441,7 @@ function AdminViewMap() {
         });
       }
     },
-    [overlayBounds, overlayLineColor, selectedProperty, overlayOpacity, overlayMultiply]
+    [overlayBounds, overlayLineColor, overlayLineBoldness, selectedProperty, overlayOpacity, overlayMultiply, applyLotImportCrop]
   );
 
   // Reset overlay rotation back to 0° (preserving the cropped blueprint image and scale)
@@ -1407,8 +1451,11 @@ function AdminViewMap() {
 
   // Handle image upload — place overlay centered on current map view
   const handleImageUpload = useCallback(
-    async (imageUrl) => {
+    async (imageUrl, importSource = null) => {
+      const operation = ++overlayOperationRef.current;
+      setIsPreparingOverlay(true);
       const dataUrl = await toDataURL(imageUrl);
+      if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) return;
       if (rawOverlayRef.current && rawOverlayRef.current.startsWith("blob:")) {
         URL.revokeObjectURL(rawOverlayRef.current);
       }
@@ -1420,9 +1467,11 @@ function AdminViewMap() {
       rawOverlayRef.current = dataUrl;
       setOverlayRotation(0);
 
-      const transUrl = await createTransparentPaperImage(dataUrl, overlayLineColor, 0);
+      const transUrl = await createTransparentPaperImage(dataUrl, overlayLineColor, 0, overlayLineBoldness, overlayMultiply);
+      if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) { URL.revokeObjectURL(transUrl); return; }
       transparentOverlayRef.current = transUrl;
-
+      restoreLotImport(importSource);
+      setIsPreparingOverlay(false);
       setOverlayImage(transUrl);
       setOverlayVisible(true);
       setIsEditingOverlay(true);
@@ -1447,6 +1496,7 @@ function AdminViewMap() {
         saveBlueprintOverlay(selectedProperty, {
           rawImage: dataUrl,
           originalImage: dataUrl,
+          lotImport: importSource,
           bounds: initBounds,
           rotation: 0,
           opacity: overlayOpacity,
@@ -1456,7 +1506,7 @@ function AdminViewMap() {
         });
       }
     },
-    [map, overlayLineColor, selectedProperty, overlayOpacity, overlayMultiply]
+    [map, overlayLineColor, overlayLineBoldness, selectedProperty, overlayOpacity, overlayMultiply, restoreLotImport]
   );
 
   // Scale overlay size proportionally (keeping exact aspect ratio)
@@ -1699,10 +1749,48 @@ function AdminViewMap() {
     Available: "#22c55e",
     Pending: "#eab308",
     Sold: "#ef4444",
+    NonSaleable: "#a855f7",
   };
-  const getStatusColor = (status) => STATUS_COLORS[status] || "#94a3b8";
 
-  // ── Optimization: Pre-built icon cache — only 4 icons total, never per-render ──
+  const isNonSaleableLot = (lotNumber = "", areaSqm = 0) => {
+    const num = String(lotNumber || "").toLowerCase().trim();
+    if (
+      num.includes("park") ||
+      num.includes("playground") ||
+      num.includes("facility") ||
+      num.includes("clubhouse") ||
+      num.includes("excluded") ||
+      num.includes("open space") ||
+      num.includes("easement") ||
+      num.includes("community") ||
+      num.includes("p & pg") ||
+      num.includes("amenity")
+    ) {
+      return true;
+    }
+    const normalized = num.replace(/\s+/g, " ").trim();
+    const knownNonSaleables = [
+      "block 6 lot 3",
+      "block 6 lot 2",
+      "block 6 lot 1",
+      "block 5 lot 10",
+      "block 5 lot 11",
+      "block 8 lot 1",
+      "block 3 lot 18",
+      "block 13 lot 6",
+      "block 13 lot 10",
+    ];
+    return knownNonSaleables.includes(normalized);
+  };
+
+  const getStatusColor = (status, lotNumber = "", areaSqm = 0) => {
+    if (isNonSaleableLot(lotNumber, areaSqm)) {
+      return STATUS_COLORS.NonSaleable;
+    }
+    return STATUS_COLORS[status] || "#94a3b8";
+  };
+
+  // ── Optimization: Pre-built icon cache — only 5 icons total, never per-render ──
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const pinIconCache = useMemo(() => {
     const makeIcon = (color) =>
@@ -1716,12 +1804,18 @@ function AdminViewMap() {
       Available: makeIcon("#22c55e"),
       Pending: makeIcon("#eab308"),
       Sold: makeIcon("#ef4444"),
+      NonSaleable: makeIcon("#a855f7"),
       default: makeIcon("#94a3b8"),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // created once, never recreated
 
-  const createPinIcon = (status) => pinIconCache[status] || pinIconCache.default;
+  const createPinIcon = (status, lotNumber = "", areaSqm = 0) => {
+    if (isNonSaleableLot(lotNumber, areaSqm)) {
+      return pinIconCache.NonSaleable;
+    }
+    return pinIconCache[status] || pinIconCache.default;
+  };
 
   // Fetch map data
   useEffect(() => {
@@ -2423,6 +2517,10 @@ function AdminViewMap() {
           );
         })}
 
+        {lotImport.preview && !isEditingOverlay && !isPreparingOverlay && lotImport.projected.map((candidate) => (
+          <Polygon key={candidate.id} positions={candidate.coordinates} interactive={false}
+            pathOptions={{ color: candidate.selected ? "#34d399" : "#fbbf24", weight: 1, fillOpacity: candidate.selected ? 0.2 : 0.04 }} />
+        ))}
         {/* ── Site Plan Image Overlay ───────────────────────────── */}
         {overlayImage && overlayBounds && overlayVisible && (
           <ImageOverlay
@@ -2618,7 +2716,7 @@ function AdminViewMap() {
           const maxLng = Math.max(...lngs);
           const centerLat = (minLat + maxLat) / 2;
           const centerLng = (minLng + maxLng) / 2;
-          const statusColor = getStatusColor(lot.status);
+          const statusColor = getStatusColor(lot.status, lot.lot_number, lot.area_sqm);
 
           const isTouchDevice =
             typeof window !== "undefined" &&
@@ -2727,7 +2825,7 @@ function AdminViewMap() {
                 <Marker
                   key={`pin-${lot.lot_id}-${lot.status}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
                   position={[centerLat, centerLng]}
-                  icon={createPinIcon(lot.status)}
+                  icon={createPinIcon(lot.status, lot.lot_number, lot.area_sqm)}
                   eventHandlers={{
                     click: handleLotClick,
                   }}
@@ -2745,7 +2843,7 @@ function AdminViewMap() {
                         <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
                         <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
                         <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
-                          {lot.status}
+                          {isNonSaleableLot(lot.lot_number, lot.area_sqm) ? "Non-Saleable" : lot.status}
                         </div>
                         {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
                           <>
@@ -3267,6 +3365,16 @@ function AdminViewMap() {
       {/* ── Site Plan Overlay Control Panel ──────────────────────────── */}
       {showOverlayPanel && (
         <ImageOverlayControl
+          key={selectedProperty}
+          importCount={lotImport.candidates.length}
+          hasImportSource={Boolean(lotImport.draft)}
+          importWarnings={lotImport.draft?.warnings || []}
+          importMessage={lotImport.message}
+          importError={lotImport.error}
+          onReviewImport={lotImport.openReview}
+          previewImport={lotImport.preview}
+          onToggleImportPreview={lotImport.togglePreview}
+          isPreparingOverlay={isPreparingOverlay}
           overlayImage={overlayImage}
           overlayOpacity={overlayOpacity}
           overlayVisible={overlayVisible}
@@ -3282,19 +3390,15 @@ function AdminViewMap() {
           onOpacityChange={setOverlayOpacity}
           onToggleMultiply={async () => {
             const next = !overlayMultiply;
+            const operation = ++overlayOperationRef.current;
+            setIsPreparingOverlay(true);
+            const image = await createTransparentPaperImage(rawOverlayRef.current, overlayLineColor, overlayRotation, overlayLineBoldness, next);
+            if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) { URL.revokeObjectURL(image); return; }
             setOverlayMultiply(next);
-            if (next) {
-              if (!transparentOverlayRef.current && rawOverlayRef.current) {
-                transparentOverlayRef.current = await createTransparentPaperImage(rawOverlayRef.current, overlayLineColor, overlayRotation, overlayLineBoldness);
-              }
-              if (transparentOverlayRef.current) {
-                setOverlayImage(transparentOverlayRef.current);
-              }
-            } else {
-              if (rawOverlayRef.current) {
-                setOverlayImage(rawOverlayRef.current);
-              }
-            }
+            setOverlayImage(image);
+            transparentOverlayRef.current = image;
+            setIsPreparingOverlay(false);
+            await saveBlueprintOverlay(selectedProperty, { multiply: next });
           }}
           onRotationChange={handleRotationChange}
           onRotate90={(delta) => handleRotationChange((overlayRotation + delta) % 360)}
@@ -3308,6 +3412,9 @@ function AdminViewMap() {
             setBulkShiftOffset({ lat: 0, lng: 0 });
           }}
           onRemove={async () => {
+            ++overlayOperationRef.current;
+            restoreLotImport(null);
+            setIsPreparingOverlay(false);
             if (overlayImage && overlayImage.startsWith("blob:")) {
               try { URL.revokeObjectURL(overlayImage); } catch (e) {}
             }
@@ -3327,6 +3434,22 @@ function AdminViewMap() {
         />
       )}
 
+      {lotImport.isReviewOpen && (
+        <LotImportReviewModal
+          candidates={lotImport.candidates}
+          onCandidatesChange={lotImport.changeCandidates}
+          onClose={lotImport.closeReview}
+          onImport={() => lotImport.importLots(handleLotUpdated)}
+          isImporting={lotImport.isImporting}
+          error={lotImport.error}
+          sourceName={`${lotImport.draft.sourceName} · Page ${lotImport.draft.pageNumber}`}
+          existingLotNumbers={(mapData?.lots || []).filter((lot) => Number(lot.property_id) === Number(selectedProperty)).map((lot) => lot.lot_number)}
+          imageUrl={originalUploadedImageRef.current}
+          pageWidth={lotImport.draft.pageWidth}
+          pageHeight={lotImport.draft.pageHeight}
+          warnings={lotImport.warnings}
+        />
+      )}
       {/* ── Visual Blueprint Cropping Modal ──────────────────────────── */}
       <BlueprintCropModal
         isOpen={isCropModalOpen}

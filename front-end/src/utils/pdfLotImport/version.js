@@ -1,0 +1,1 @@
+export const PDF_LOT_DETECTOR_VERSION = 2;

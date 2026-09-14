@@ -3,6 +3,42 @@
   "developerPin": "5551",
   "logs": [
     {
+      "timestamp": "2026-09-14T17:00:00.819Z",
+      "event": "Email delivered to: hankvedaasjn@gmail.com | Subject: \"FINAL Lot Reservation Reminder (24 Hours) - Golden Dragon Estate Corporation\"",
+      "type": "EMAIL",
+      "user": "hankvedaasjn@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-09T13:44:38.076Z",
+      "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
+      "type": "AUTH",
+      "user": "admin@gmail.com",
+      "role": "admin",
+      "device": "Windows PC · Edge",
+      "ip": "127.0.0.1"
+    },
+    {
+      "timestamp": "2026-09-09T13:00:08.259Z",
+      "event": "Email delivered to: hankvedaasjn@gmail.com | Subject: \"Lot Reservation Reminder - Golden Dragon Estate Corporation\"",
+      "type": "EMAIL",
+      "user": "hankvedaasjn@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
+      "timestamp": "2026-09-08T19:47:16.310Z",
+      "event": "Email delivered to: hankvedjnasdasd@gmail.com | Subject: \"Lot Purchase Confirmation - Golden Dragon Estate Corporation\"",
+      "type": "EMAIL",
+      "user": "hankvedjnasdasd@gmail.com",
+      "role": "BREVO SMTP",
+      "device": "Mail Server",
+      "ip": null
+    },
+    {
       "timestamp": "2026-09-08T19:39:43.081Z",
       "event": "User Logged In: admin@gmail.com (ADMIN) [Single Device Session Active]",
       "type": "AUTH",
