@@ -35,6 +35,7 @@ mapsPDF
 # Data files and lotData
 back-end/src/data/
 back-end/src/data/lotData.js
+back-end/config/system_state.json
 
 already implement.txt
 save-progress.md
