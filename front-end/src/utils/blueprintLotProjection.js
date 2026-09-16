@@ -29,6 +29,34 @@ export function projectLotCandidate(candidate, source, bounds, rotation, map) {
   });
 }
 
+export function projectBlueprintRoadLabel(label, source, bounds, rotation, map) {
+  if (!label?.point || !source || !bounds || !map) return null;
+  const [originalU, originalV] = sourcePointToOverlay(label.point, source, 0);
+  if (originalU < 0 || originalU > 1 || originalV < 0 || originalV > 1) return null;
+  if (source.cropBounds?.polygon && !inPolygon(label.point, source.cropBounds.polygon)) return null;
+  const [u, v] = sourcePointToOverlay(label.point, source, rotation);
+  if (!Number.isFinite(u) || !Number.isFinite(v) || u < 0 || u > 1 || v < 0 || v > 1) return null;
+  const northwest = map.project([bounds[1][0], bounds[0][1]], 20);
+  const southeast = map.project([bounds[0][0], bounds[1][1]], 20);
+  const location = map.unproject([
+    northwest.x + u * (southeast.x - northwest.x),
+    northwest.y + v * (southeast.y - northwest.y),
+  ], 20);
+  const angle = Number(label.rotation || 0) * Math.PI / 180;
+  const aspect = label.pageAspect || (source.renderWidth || source.imageWidth) / (source.renderHeight || source.imageHeight);
+  const delta = label.textHeight || 0.001;
+  const [endU, endV] = sourcePointToOverlay([
+    label.point[0] + Math.cos(angle) * delta / aspect,
+    label.point[1] + Math.sin(angle) * delta,
+  ], source, rotation);
+  const dx = (endU - u) * (southeast.x - northwest.x);
+  const dy = (endV - v) * (southeast.y - northwest.y);
+  const visualRotation = Math.atan2(dy, dx) * 180 / Math.PI;
+  return { ...label, lat: location.lat, lng: location.lng, rotation: visualRotation,
+    fontSize: label.textHeight ? Math.max(1, Math.hypot(dx, dy) * 0.85) : (label.fontSize || 12),
+    scaleWithMap: true };
+}
+
 function inPolygon([x, y], polygon) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -73,4 +101,32 @@ export function importedLotIdentifier(candidate) {
   }
 
   return base;
+}
+
+// Reframe an already aligned PDF after choosing a different cutout from the
+// original page. Work in map pixels so repeated crops and rotation do not drift.
+export function reframeBlueprintCrop(source, nextCrop, bounds, rotation, map) {
+  const dimensions = (crop) => {
+    const width = crop ? Math.max(10, Math.round(source.imageWidth * crop.width / 100)) : source.imageWidth;
+    const height = crop ? Math.max(10, Math.round(source.imageHeight * crop.height / 100)) : source.imageHeight;
+    const angle = rotation * Math.PI / 180, cos = Math.abs(Math.cos(angle)), sin = Math.abs(Math.sin(angle));
+    return { width, height, rotatedWidth: Math.max(10, Math.floor(width * cos + height * sin)),
+      rotatedHeight: Math.max(10, Math.floor(width * sin + height * cos)) };
+  };
+  const oldSize = dimensions(source.cropBounds), nextSize = dimensions(nextCrop);
+  const center = [(nextCrop.minX / 100 * source.imageWidth + nextSize.width / 2) / (source.renderWidth || source.imageWidth),
+    (nextCrop.minY / 100 * source.imageHeight + nextSize.height / 2) / (source.renderHeight || source.imageHeight)];
+  const [u, v] = sourcePointToOverlay(center, source, rotation);
+  const nw = map.project([bounds[1][0], bounds[0][1]], 20);
+  const se = map.project([bounds[0][0], bounds[1][1]], 20);
+  const xScale = (se.x - nw.x) / oldSize.rotatedWidth, yScale = (se.y - nw.y) / oldSize.rotatedHeight;
+  const cx = nw.x + u * (se.x - nw.x), cy = nw.y + v * (se.y - nw.y);
+  const frame = (width, height) => {
+    const topLeft = map.unproject([cx - width * xScale / 2, cy - height * yScale / 2], 20);
+    const bottomRight = map.unproject([cx + width * xScale / 2, cy + height * yScale / 2], 20);
+    return [[bottomRight.lat, topLeft.lng], [topLeft.lat, bottomRight.lng]];
+  };
+  const unrotated = frame(nextSize.width, nextSize.height);
+  return { bounds: frame(nextSize.rotatedWidth, nextSize.rotatedHeight),
+    unrotatedSpan: { latSpan: unrotated[1][0] - unrotated[0][0], lngSpan: unrotated[1][1] - unrotated[0][1] } };
 }

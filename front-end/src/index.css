@@ -70,6 +70,17 @@ body {
   transition: transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* Skip text layout/painting during property flights; restore on arrival. */
+.map-is-flying .map-road-label-icon,
+.map-is-flying .leaflet-tooltip {
+  visibility: hidden !important;
+}
+
+.map-is-flying .leaflet-tile,
+.map-is-flying .leaflet-image-layer {
+  image-rendering: auto;
+}
+
 /* High-quality rendering for Blueprint Overlay */
 .leaflet-image-layer {
   image-rendering: -webkit-optimize-contrast;

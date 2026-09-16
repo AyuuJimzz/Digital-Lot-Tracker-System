@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../../config/api";
+import { usePropertyMapNavigation } from "../../hooks/usePropertyMapNavigation";
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
 import {
@@ -59,16 +60,13 @@ const createOverviewPropertyIcon = (name, lotCount) => {
 function MapController({
   selectedProperty,
   setSelectedProperty,
-  setMap,
   setCurrentZoom,
   triggerArrivalPulse,
   properties,
 }) {
   const map = useMap();
-  const prevPropertyIdRef = useRef(selectedProperty);
 
   useEffect(() => {
-    if (setMap) setMap(map);
     if (setCurrentZoom) setCurrentZoom(map.getZoom());
 
     // Real-time geo-scale & street-level class tracking on DOM container
@@ -76,6 +74,7 @@ function MapController({
     const updateZoomClasses = (z) => {
       const scale = Math.max(0.45, Math.pow(1.4, z - 19));
       container.style.setProperty("--road-label-scale", scale);
+      container.style.setProperty("--pdf-road-label-scale", Math.pow(2, z - 20));
 
       // Show road text labels at comfortable subdivision view (zoom >= 18.2)
       if (z >= 18.2) {
@@ -91,6 +90,7 @@ function MapController({
     };
 
     const handleZoom = () => {
+      if (container.classList.contains("map-is-flying")) return;
       updateZoomClasses(map.getZoom());
     };
 
@@ -126,7 +126,7 @@ function MapController({
       map.off("zoomstart", handleDismissTooltips);
       clearTimeout(debounceTimer);
     };
-  }, [map, setMap, setCurrentZoom]);
+  }, [map, setCurrentZoom]);
 
   // Ensure map recalculates its exact full-screen dimensions and supports deep zooming
   useEffect(() => {
@@ -155,127 +155,7 @@ function MapController({
     };
   }, [map]);
 
-  useEffect(() => {
-    // Smooth cinematic navigation with dynamic distance-based duration and lot zoom-in
-    const smoothNavigate = (coordinates) => {
-      if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) return;
-      map.invalidateSize({ animate: false });
-      map.stop();
-
-      // Calculate real distance to target for smooth, unhurried flight & zoom-in
-      let flightDuration = 2.0;
-      try {
-        const curCenter = map.getCenter();
-        const distKm = curCenter.distanceTo(L.latLng(coordinates[0], coordinates[1])) / 1000;
-        if (distKm > 15) {
-          flightDuration = 3.0; // Far locations (e.g. Barotac, Guimbal from Oton)
-        } else if (distKm > 5) {
-          flightDuration = 2.5; // Medium distance
-        } else if (distKm > 0.8) {
-          flightDuration = 2.0; // Close distance
-        } else {
-          flightDuration = 1.6; // Same area
-        }
-      } catch (e) {}
-
-      map.flyTo(coordinates, 19, {
-        duration: flightDuration,
-        easeLinearity: 0.18,
-      });
-    };
-
-    // Listen for property navigation events
-    const handleNavigateToProperty = (event) => {
-      const { coordinates } = event.detail || {};
-      smoothNavigate(coordinates);
-      if (triggerArrivalPulse) triggerArrivalPulse(coordinates);
-    };
-
-    // Listen for property selection events (from header dropdown or overview beacon)
-    const handleSelectProperty = (event) => {
-      const { propertyId, coordinates: detailCoords, autoSwiped } = event.detail || {};
-      if (setSelectedProperty) setSelectedProperty(propertyId);
-      prevPropertyIdRef.current = propertyId;
-
-      // If triggered by automatic map pan / swipe, do NOT flyTo (user is already looking at it)
-      if (autoSwiped) return;
-
-      let targetCoords = null;
-      if (properties) {
-        const found = properties.find((p) => Number(p.id) === Number(propertyId));
-        if (found?.coordinates) {
-          targetCoords = found.coordinates;
-        }
-      }
-      if (!targetCoords) {
-        targetCoords = detailCoords;
-      }
-
-      if (targetCoords) {
-        smoothNavigate(targetCoords);
-        if (triggerArrivalPulse) triggerArrivalPulse(targetCoords);
-      }
-    };
-
-    window.addEventListener("navigateToProperty", handleNavigateToProperty);
-    window.addEventListener("selectProperty", handleSelectProperty);
-
-    return () => {
-      window.removeEventListener("navigateToProperty", handleNavigateToProperty);
-      window.removeEventListener("selectProperty", handleSelectProperty);
-    };
-  }, [map, setSelectedProperty, triggerArrivalPulse, properties]);
-
-  // Auto-detect closest property when user pans / swipes the map
-  useEffect(() => {
-    if (!map || !properties || properties.length === 0) return;
-
-    let debounceMoveTimer;
-    const handleMoveEnd = () => {
-      clearTimeout(debounceMoveTimer);
-      debounceMoveTimer = setTimeout(() => {
-        const curCenter = map.getCenter();
-        let closestProp = null;
-        let minDistanceMeters = Infinity;
-
-        properties.forEach((p) => {
-          const coords = p.coordinates;
-          if (!coords || !Array.isArray(coords) || coords.length < 2) return;
-          try {
-            const dist = curCenter.distanceTo(L.latLng(coords[0], coords[1]));
-            if (dist < minDistanceMeters) {
-              minDistanceMeters = dist;
-              closestProp = p;
-            }
-          } catch (e) {}
-        });
-
-        // If user is within 3.5km of this property and it is different from current selection
-        if (closestProp && minDistanceMeters < 3500) {
-          const closestId = Number(closestProp.id || closestProp.property_id);
-          if (closestId && closestId !== Number(prevPropertyIdRef.current)) {
-            prevPropertyIdRef.current = closestId;
-            if (setSelectedProperty) setSelectedProperty(closestId);
-            try {
-              localStorage.setItem("selectedProperty", closestId.toString());
-            } catch (e) {}
-            // Dispatch event to update Header dropdown name immediately
-            window.dispatchEvent(
-              new CustomEvent("selectProperty", {
-                detail: { propertyId: closestId, autoSwiped: true },
-              })
-            );
-          }
-        }
-      }, 120);
-    };
-
-    map.on("moveend", handleMoveEnd);
-    return () => {
-      map.off("moveend", handleMoveEnd);
-      clearTimeout(debounceMoveTimer);
-    };
-  }, [map, properties, setSelectedProperty]);
+  usePropertyMapNavigation(map, { selectedProperty, setSelectedProperty, properties, triggerArrivalPulse });
 
   // Set view to selected property directly on initial mount (no delayed flyTo jump)
   const initialFlyDoneRef = useRef(false);
@@ -308,7 +188,6 @@ const EmployeeMapView = () => {
   });
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
-  const [map, setMap] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(19);
   const mapWrapperRef = useRef(null);
   const [mapLayer, setMapLayer] = useState(() => {
@@ -508,7 +387,7 @@ const EmployeeMapView = () => {
         const parsed =
           typeof p.annotations === "string" ? JSON.parse(p.annotations) : p.annotations;
         if (Array.isArray(parsed)) {
-          result.push(...parsed);
+          result.push(...parsed.filter((item) => !item.deleted));
         }
       } catch (e) {}
     });
@@ -523,19 +402,19 @@ const EmployeeMapView = () => {
           position: absolute;
           left: 0;
           top: 0;
-          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(--road-label-scale, 1));
+          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(${item.scaleWithMap ? '--pdf-road-label-scale' : '--road-label-scale'}, 1));
           transform-origin: center center;
-          color: ${item.color || '#ffffff'};
+          color: ${item.color || '#e2e8f0'};
           font-size: ${item.fontSize || 12}px;
           font-weight: 800;
           font-family: system-ui, -apple-system, sans-serif;
-          letter-spacing: 0.6px;
+          letter-spacing: ${item.scaleWithMap ? '0' : '0.6px'};
           text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,1);
           white-space: nowrap;
           user-select: none;
           pointer-events: none;
         ">
-          <span>${item.text || ''}</span>
+          <span>${String(item.text || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))}</span>
         </div>
       `,
       iconSize: [0, 0],
@@ -570,12 +449,12 @@ const EmployeeMapView = () => {
     Available: "#22c55e",
     Pending: "#eab308",
     Sold: "#ef4444",
-    NonSaleable: "#a855f7",
+    NonSaleable: "#64748b",
   };
 
   const isNonSaleableLot = (lotNumber = "", areaSqm = 0) => {
     const num = String(lotNumber || "").toLowerCase().trim();
-    if (
+    return (
       num.includes("park") ||
       num.includes("playground") ||
       num.includes("facility") ||
@@ -585,23 +464,11 @@ const EmployeeMapView = () => {
       num.includes("easement") ||
       num.includes("community") ||
       num.includes("p & pg") ||
-      num.includes("amenity")
-    ) {
-      return true;
-    }
-    const normalized = num.replace(/\s+/g, " ").trim();
-    const knownNonSaleables = [
-      "block 6 lot 3",
-      "block 6 lot 2",
-      "block 6 lot 1",
-      "block 5 lot 10",
-      "block 5 lot 11",
-      "block 8 lot 1",
-      "block 3 lot 18",
-      "block 13 lot 6",
-      "block 13 lot 10",
-    ];
-    return knownNonSaleables.includes(normalized);
+      num.includes("amenity") ||
+      num.includes("common") ||
+      num.includes("non-saleable") ||
+      num.includes("non saleable")
+    );
   };
 
   const getStatusColor = (status, lotNumber = "", areaSqm = 0) => {
@@ -625,7 +492,7 @@ const EmployeeMapView = () => {
       Available: makeIcon("#22c55e"),
       Pending: makeIcon("#eab308"),
       Sold: makeIcon("#ef4444"),
-      NonSaleable: makeIcon("#a855f7"),
+      NonSaleable: makeIcon("#64748b"),
       default: makeIcon("#94a3b8"),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -720,25 +587,14 @@ const EmployeeMapView = () => {
         <MapLayerControls
           activeLayer={mapLayer}
           onLayerChange={(newLayer) => {
-            // Save current map position before layer switch
-            const currentCenter = map ? map.getCenter() : null;
-            const currentZoomVal = map ? map.getZoom() : null;
             setMapLayer(newLayer);
             localStorage.setItem("preferredMapLayer", newLayer);
-            // Restore position after React re-renders the new TileLayer
-            if (map && currentCenter && currentZoomVal) {
-              setTimeout(() => {
-                map.setView([currentCenter.lat, currentCenter.lng], currentZoomVal, { animate: false });
-                map.invalidateSize();
-              }, 50);
-            }
           }}
           mapContainerRef={mapWrapperRef}
         />
         <MapController
           selectedProperty={selectedProperty}
           setSelectedProperty={setSelectedProperty}
-          setMap={setMap}
           setCurrentZoom={setCurrentZoom}
           triggerArrivalPulse={triggerArrivalPulse}
           properties={properties}
@@ -944,9 +800,9 @@ const EmployeeMapView = () => {
           };
 
           return (
-            <React.Fragment key={`emp-lot-node-${lot.lot_id}-${lot.status}`}>
+            <React.Fragment key={`emp-lot-node-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}>
               <Polygon
-                key={`emp-poly-${lot.lot_id}-${lot.status}`}
+                key={`emp-poly-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}
                 positions={lot.coordinates}
                 pathOptions={{
                   color: statusColor,
@@ -960,7 +816,7 @@ const EmployeeMapView = () => {
               />
 
               <Marker
-                key={`emp-pin-${lot.lot_id}-${lot.status}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
+                key={`emp-pin-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
                 position={[centerLat, centerLng]}
                 icon={createPinIcon(lot.status, lot.lot_number, lot.area_sqm)}
                 eventHandlers={{
@@ -1004,9 +860,8 @@ const EmployeeMapView = () => {
           );
         })}
 
-        {/* ── Road & Map Text Annotations (Only rendered when zoomed in super close at 19.5+) ── */}
-        {currentZoom >= 19.5 &&
-          allPropertyAnnotations.map((item) => (
+        {/* PDF labels follow the plan at subdivision zoom. */}
+        {allPropertyAnnotations.filter((item) => currentZoom >= (item.scaleWithMap ? 18.2 : 19.5)).map((item) => (
             <Marker
               key={item.id}
               position={[item.lat, item.lng]}

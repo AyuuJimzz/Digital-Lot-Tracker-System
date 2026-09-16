@@ -37,3 +37,13 @@ The September 10, 2026 local regression check used page 1 of four client PDFs wi
 These are detected shapes, not approved inventory totals. Some block/lot identifiers are duplicated or inferred, and surrounding cadastral labels are deliberately not treated as lots. All 728 candidate polygons passed the existing backend polygon and overlap checks after a sample coordinate projection. The client PDFs are local ignored files, so they are not dependencies of the automated test suite.
 
 Scanned image PDFs, missing boundaries, unusual text layouts and unsupported clipping can still require manual tracing or corrections. Geometry remains a suggestion to check against the visible plan after alignment.
+
+## Automatic map cutout
+
+PDF upload now builds a transparent, non-rectangular cutout from detected parcel boundaries, including non-saleable areas. A bounded mask joins narrow internal road gaps and retains enclosed site areas while removing remote tables, title blocks and vicinity maps. The crop follows detected parcels; missing detections and roads outside their footprint can require adjustment.
+
+The full original page and original PDF coordinates remain in the saved draft. Only the displayed satellite overlay is cropped, while the review screen uses the original page so its lot boxes remain aligned. Existing saved uploads are preserved; use **Replace file** to run automatic cutout on them.
+
+When there are too few usable boundaries (including image-only scans), upload retains the full page. No lots are created automatically by cropping.
+
+Local browser verification on September 15, 2026 covered the four sample plans above: automatic cutout retained all 728 detected candidates inside the crop bounds, produced transparent backgrounds and preserved the original images.

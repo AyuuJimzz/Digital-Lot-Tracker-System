@@ -65,6 +65,14 @@ exports.getLotById = async (req, res) => {
       lot.employee_id = transactionRows[0].employee_id;
     }
 
+    if (lot.coordinates && typeof lot.coordinates === "string") {
+      try {
+        lot.coordinates = JSON.parse(lot.coordinates);
+      } catch (e) {
+        console.error("Error parsing lot coordinates in getLotById:", e);
+      }
+    }
+
     res.json(lot);
   } catch (err) {
     console.error("Error in getLotById:", err);
@@ -1012,10 +1020,41 @@ exports.bulkShiftPropertyLots = async (req, res) => {
       ]);
     }
 
+    // Also shift any road labels / map annotations stored in the property
+    const [propRows] = await db.query(
+      "SELECT annotations FROM properties WHERE property_id = ?",
+      [propertyId]
+    );
+    if (propRows.length > 0 && propRows[0].annotations) {
+      try {
+        let annots =
+          typeof propRows[0].annotations === "string"
+            ? JSON.parse(propRows[0].annotations)
+            : propRows[0].annotations;
+        if (Array.isArray(annots) && annots.length > 0) {
+          const shiftedAnnots = annots.map((a) => {
+            if (typeof a.lat === "number" && typeof a.lng === "number") {
+              return { ...a, lat: a.lat + deltaLat, lng: a.lng + deltaLng };
+            }
+            return a;
+          });
+          await db.query(
+            "UPDATE properties SET annotations = ? WHERE property_id = ?",
+            [JSON.stringify(shiftedAnnots), propertyId]
+          );
+          console.log(
+            `🗺️ [Bulk Shift Annotations] Property #${propertyId} | Shifted ${shiftedAnnots.length} road labels`
+          );
+        }
+      } catch (e) {
+        console.error(`⚠️ [Bulk Shift Annotations Warning] Property #${propertyId}:`, e);
+      }
+    }
+
     console.log(`🗺️ [Bulk Shift Lots] Property #${propertyId} | Shifted ${lots.length} lot polygons (ΔLat: ${deltaLat}, ΔLng: ${deltaLng})`);
 
     res.json({
-      message: `Successfully shifted coordinates for ${lots.length} lots`,
+      message: `Successfully shifted coordinates for ${lots.length} lots and road labels`,
       updatedCount: lots.length,
     });
   } catch (err) {

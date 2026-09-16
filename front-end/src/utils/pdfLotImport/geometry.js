@@ -60,7 +60,7 @@ export function bridgeDashedSegments(input, maxGap = 1.4) {
     endpoints.push({ p: s.a, idx });
     endpoints.push({ p: s.b, idx });
   });
-  const cs = 10;
+  const cs = Math.max(10, Math.ceil(maxGap * 3));
   const grid = new Map();
   endpoints.forEach((ep) => {
     const k = `${Math.floor(ep.p[0] / cs)},${Math.floor(ep.p[1] / cs)}`;
@@ -86,6 +86,7 @@ export function bridgeDashedSegments(input, maxGap = 1.4) {
   });
   const bridges = [];
   const added = new Set();
+  const minAlignment = maxGap > 2 ? 0.95 : 0.995;
   dangling.forEach((ep1) => {
     const gx = Math.floor(ep1.p[0] / cs); const gy = Math.floor(ep1.p[1] / cs);
     for (let dx = -1; dx <= 1; dx += 1) for (let dy = -1; dy <= 1; dy += 1) {
@@ -93,17 +94,16 @@ export function bridgeDashedSegments(input, maxGap = 1.4) {
         if (ep1.idx === ep2.idx) continue;
         const d = dist(ep1.p, ep2.p);
         if (d > 0.25 && d <= maxGap) {
-          // Repair only a short break along the same straight boundary. Proximity
-          // alone connects unrelated corners and creates invented diagonal edges.
+          // Repair short breaks along straight or gently curved boundary segments
           const first = input[ep1.idx], second = input[ep2.idx];
-          if (first.curved || second.curved) continue;
+          if (first.curved && second.curved && maxGap <= 2) continue;
           const other1 = first.a === ep1.p ? first.b : first.a;
           const other2 = second.a === ep2.p ? second.b : second.a;
           const direction1 = subtract(ep1.p, other1), direction2 = subtract(ep2.p, other2);
           const gap = subtract(ep2.p, ep1.p);
           const length1 = Math.hypot(...direction1), length2 = Math.hypot(...direction2);
-          if ((direction1[0] * gap[0] + direction1[1] * gap[1]) / (length1 * d) < 0.995 ||
-              (direction2[0] * -gap[0] + direction2[1] * -gap[1]) / (length2 * d) < 0.995) continue;
+          if ((direction1[0] * gap[0] + direction1[1] * gap[1]) / (length1 * d) < minAlignment ||
+              (direction2[0] * -gap[0] + direction2[1] * -gap[1]) / (length2 * d) < minAlignment) continue;
           const key = [ep1.p, ep2.p].map((p) => p.map((v) => Math.round(v * 10)).join(",")).sort().join("|");
           if (!added.has(key)) {
             added.add(key);
@@ -116,8 +116,10 @@ export function bridgeDashedSegments(input, maxGap = 1.4) {
   return bridges.length ? [...input, ...bridges] : input;
 }
 
-export async function reconstructFaces(input, tolerance = 0.22) {
-  const bridged = bridgeDashedSegments(input);
+export async function reconstructFaces(input, tolerance = 0.22, options = {}) {
+  const maxGap = options?.maxGap || (options?.deepScan ? 4.0 : 1.4);
+  const effectiveTol = options?.deepScan ? Math.max(tolerance, 0.32) : tolerance;
+  const bridged = bridgeDashedSegments(input, maxGap);
   const segments = bridged.map((segment) => ({ ...segment, cuts: [0, 1] }));
   const grid = new Map();
   const cellSize = 24;
@@ -142,7 +144,7 @@ export async function reconstructFaces(input, tolerance = 0.22) {
       comparisons += 1;
       if (comparisons > 3000000) throw new Error("The PDF linework is too dense for automatic lot detection. Use a simpler site-plan page.");
       const previousCuts = line.cuts.length + segments[index].cuts.length;
-      splitPair(line, segments[index], tolerance);
+      splitPair(line, segments[index], effectiveTol);
       cutCount += line.cuts.length + segments[index].cuts.length - previousCuts;
       if (cutCount > 200000) throw new Error("Too many intersecting lines to reconstruct safely. Use a simpler site-plan page.");
     }
@@ -154,10 +156,10 @@ export async function reconstructFaces(input, tolerance = 0.22) {
   const vertices = [];
   const vertexGrid = new Map();
   const vertexFor = (point) => {
-    const x = Math.floor(point[0] / tolerance); const y = Math.floor(point[1] / tolerance);
+    const x = Math.floor(point[0] / effectiveTol); const y = Math.floor(point[1] / effectiveTol);
     for (let dx = -1; dx <= 1; dx += 1) for (let dy = -1; dy <= 1; dy += 1) {
       for (const index of vertexGrid.get(`${x + dx},${y + dy}`) || []) {
-        if (Math.hypot(...subtract(point, vertices[index].point)) <= tolerance) return index;
+        if (Math.hypot(...subtract(point, vertices[index].point)) <= effectiveTol) return index;
       }
     }
     const index = vertices.length;

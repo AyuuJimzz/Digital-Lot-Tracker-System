@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, UserCircle, MapPin, Edit, Moon, Sun, Plus, Type } from "lucide-react";
+import { User, LogOut, UserCircle, MapPin, Edit, Moon, Sun, Plus, Type, Move, Layers } from "lucide-react";
 import axios from "axios";
 import {
   geocodeAddress,
@@ -303,8 +303,8 @@ export function AdminHeader({ sidebarCollapsed }) {
                     setLotsDropdownOpen(false);
                   }}
                 >
-                  <span className="mr-2 text-purple-600 dark:text-purple-400">📎</span>
-                  Site Plan Overlay
+                  <Layers className="mr-2 h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  Subdivision Blueprint
                 </button>
                 <button
                   className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700 cursor-pointer"
@@ -325,6 +325,16 @@ export function AdminHeader({ sidebarCollapsed }) {
                 >
                   <Type className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
                   Road & Map Labels
+                </button>
+                <button
+                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700 cursor-pointer"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("openMoveAllLots"));
+                    setLotsDropdownOpen(false);
+                  }}
+                >
+                  <Move className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  Move All Lots Together
                 </button>
               </div>
             )}

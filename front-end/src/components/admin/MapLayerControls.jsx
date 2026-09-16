@@ -17,15 +17,15 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
   if (activeLayer === MAP_LAYERS.STREETS) {
     return (
       <TileLayer
-        url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        subdomains={["mt0", "mt1", "mt2", "mt3"]}
+        key="tile-layer-streets"
+        url="https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+        subdomains={["0", "1", "2", "3"]}
         maxZoom={28}
         maxNativeZoom={20}
         crossOrigin={false}
         keepBuffer={16}
         updateWhenZooming={true}
         updateWhenIdle={false}
-        errorTileUrl="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
     );
   }
@@ -33,15 +33,15 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
   if (activeLayer === MAP_LAYERS.HYBRID) {
     return (
       <TileLayer
-        url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-        subdomains={["mt0", "mt1", "mt2", "mt3"]}
+        key="tile-layer-hybrid"
+        url="https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+        subdomains={["0", "1", "2", "3"]}
         maxZoom={28}
         maxNativeZoom={20}
         crossOrigin={false}
         keepBuffer={16}
         updateWhenZooming={true}
         updateWhenIdle={false}
-        errorTileUrl="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
       />
     );
   }
@@ -49,15 +49,15 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
   // Default: Google Satellite — best coverage in Philippines
   return (
     <TileLayer
-      url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-      subdomains={["mt0", "mt1", "mt2", "mt3"]}
+      key="tile-layer-satellite"
+      url="https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+      subdomains={["0", "1", "2", "3"]}
       maxZoom={28}
       maxNativeZoom={20}
       crossOrigin={false}
       keepBuffer={16}
       updateWhenZooming={true}
       updateWhenIdle={false}
-      errorTileUrl="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     />
   );
 }

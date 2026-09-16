@@ -35,7 +35,10 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 | Feature | Details |
 | :--- | :--- |
 | **Interactive GIS Engine** | 596+ georeferenced subdivision lots with high-precision polygon boundaries across Oton, Guimbal, and surrounding estates. Hardware-accelerated 60 FPS zoom with zero DOM churn. |
-| **CAD Blueprint Tracing** | Official subdivision CAD overlays on live satellite imagery with real-time opacity, scale, and rotation controls for administrators. |
+| **AI/Vector PDF Blueprint Import** | Automated in-browser PDF vector parsing extracting 700+ lot parcel boundaries, road alignments, and lot numbers directly from subdivision engineering blueprints. |
+| **Automatic Map Cutout (Auto-Crop)** | Non-rectangular transparent boundary masking that isolates subdivision lots while automatically stripping out title blocks, legends, and distant vicinity maps. |
+| **Interactive Vector Geometry Editor** | Dedicated Edit Mode with smooth 60–120 FPS vertex dragging, dynamic corner point insertion, fast double-click / right-click corner deletion, and candidate shape transformation. |
+| **CAD Blueprint Tracing** | Official subdivision CAD overlays on live satellite imagery with real-time opacity, scale, and rotation controls for administrators with unified high-visibility lime styling. |
 | **Road & Street Annotations** | Transparent, geo-anchored road width and street name text labels with deep-zoom level auto-filtering. |
 | **Sales CRM Pipeline** | Scoped agent transaction management (`My Sales`, `My Clients`) tracking reservation status, lot dimensions, client history, and payment terms. |
 | **Lot Status Architecture** | Synchronized status engine categorized into `Available` (Green), `Pending` (Amber/Gold), `Sold` (Red), and `Cancelled` (Purple). |

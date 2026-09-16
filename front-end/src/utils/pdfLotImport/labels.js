@@ -62,6 +62,9 @@ export function extractLabels(textContent, viewport) {
     if (!text) continue;
     const [a, b, c, d, x, y] = item.transform;
     const length = Math.hypot(a, b) || 1;
+    const baselineStart = transformPoint(viewport.transform, [x, y]);
+    const baselineEnd = transformPoint(viewport.transform, [x + a / length, y + b / length]);
+    const rotation = Math.atan2(baselineEnd[1] - baselineStart[1], baselineEnd[0] - baselineStart[0]) * 180 / Math.PI;
     const point = transformPoint(viewport.transform, [x + a / length * item.width / 2 + c * 0.35,
       y + b / length * item.width / 2 + d * 0.35]);
     const explicitBlock = text.match(BLOCK)?.[1] || "";
@@ -76,7 +79,7 @@ export function extractLabels(textContent, viewport) {
       nonSaleableCategory: nonSaleable?.category || null,
       nonSaleableLabel: nonSaleable?.label || null,
       bareValue: bareMatch ? Number(bareMatch[1].replace(/,/g, "")) : null,
-      height: item.height, splitNumericRun: Boolean(item.splitNumericRun),
+      height: item.height, rotation, splitNumericRun: Boolean(item.splitNumericRun),
       // Text-down direction after the PDF page rotation, for stacked lot/area labels.
       down: (() => { const origin = transformPoint(viewport.transform, [x, y]);
         const up = transformPoint(viewport.transform, [x + c, y + d]);

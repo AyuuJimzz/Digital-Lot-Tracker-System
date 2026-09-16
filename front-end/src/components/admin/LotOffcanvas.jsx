@@ -1,13 +1,46 @@
-import React, { useState, useEffect } from "react";
-import { FileText, Copy } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { FileText, Copy, Edit3, ChevronDown, MapPin, Check } from "lucide-react";
 import { API_BASE_URL } from "../../config/api";
 import { exportSingleLotWordDoc } from "../../utils/exportUtils";
+
+const checkIsNonSaleable = (num = "", area = 0) => {
+  const text = String(num || "").toLowerCase().trim();
+  return (
+    text.includes("park") ||
+    text.includes("playground") ||
+    text.includes("facility") ||
+    text.includes("clubhouse") ||
+    text.includes("excluded") ||
+    text.includes("open space") ||
+    text.includes("easement") ||
+    text.includes("community") ||
+    text.includes("p & pg") ||
+    text.includes("amenity") ||
+    text.includes("common") ||
+    text.includes("non-saleable") ||
+    text.includes("non saleable")
+  );
+};
+
+const stripNonSaleableTags = (numStr) => {
+  return String(numStr || "")
+    .replace(
+      /\s*\([^)]*(?:park|playground|facility|clubhouse|excluded|open\s*space|easement|community|p\s*&\s*pg|amenity|common|non-saleable|non\s*saleable)[^)]*\)/gi,
+      ""
+    )
+    .replace(
+      /\s+(?:park|playground|facility|clubhouse|excluded\s*area|open\s*space|easement|community|p\s*&\s*pg|amenity|common|non-saleable|non\s*saleable)\b/gi,
+      ""
+    )
+    .trim();
+};
 
 const LotOffcanvas = ({
   selectedLot,
   isOpen,
   onClose,
   onLotUpdated,
+  onLiveLotUpdate,
   allowedStatuses = ["Available", "Pending", "Sold"],
   showCoordinateEdit = false,
   onStartCoordinateEdit,
@@ -17,6 +50,10 @@ const LotOffcanvas = ({
   propertyLocation,
 }) => {
   const [status, setStatus] = useState(selectedLot?.status || "Available");
+  const [isNonSaleable, setIsNonSaleable] = useState(false);
+  const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
+  const [copiedCoords, setCopiedCoords] = useState(false);
+  const editMenuRef = useRef(null);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
@@ -45,7 +82,37 @@ const LotOffcanvas = ({
   );
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (editMenuRef.current && !editMenuRef.current.contains(event.target)) {
+        setIsEditMenuOpen(false);
+      }
+    };
+    if (isEditMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isEditMenuOpen]);
+
+  const handleCopyCoords = () => {
+    if (!latitude || !longitude) return;
+    const coordStr = `${latitude}, ${longitude}`;
+    navigator.clipboard?.writeText(coordStr);
+    setCopiedCoords(true);
+    setTimeout(() => setCopiedCoords(false), 2000);
+  };
+
+  useEffect(() => {
     if (selectedLot) {
+      setIsEditMenuOpen(false);
+      setCopiedCoords(false);
+      const nonSaleableInitial =
+        checkIsNonSaleable(selectedLot.lot_number, selectedLot.area_sqm) ||
+        selectedLot.is_non_saleable === 1 ||
+        selectedLot.is_non_saleable === true ||
+        selectedLot.status === "NonSaleable";
+      setIsNonSaleable(Boolean(nonSaleableInitial));
       setStatus(selectedLot.status);
       setLotNumber(selectedLot.lot_number || "");
       setAreaSqm(selectedLot.area_sqm || "");
@@ -172,6 +239,39 @@ const LotOffcanvas = ({
     }
   };
 
+  const handleSetSaleable = () => {
+    setIsNonSaleable(false);
+    const cleaned = stripNonSaleableTags(lotNumber);
+    setLotNumber(cleaned);
+    const nextStatus = status === "NonSaleable" ? "Available" : (status || "Available");
+    setStatus(nextStatus);
+    if (onLiveLotUpdate && selectedLot) {
+      onLiveLotUpdate({
+        lot_id: selectedLot.lot_id,
+        lot_number: cleaned,
+        status: nextStatus,
+        is_non_saleable: false,
+      });
+    }
+  };
+
+  const handleSetNonSaleable = () => {
+    setIsNonSaleable(true);
+    let newName = lotNumber.trim();
+    if (!checkIsNonSaleable(newName)) {
+      newName = `${stripNonSaleableTags(newName)} (Non-Saleable)`.trim();
+      setLotNumber(newName);
+    }
+    if (onLiveLotUpdate && selectedLot) {
+      onLiveLotUpdate({
+        lot_id: selectedLot.lot_id,
+        lot_number: newName,
+        status: "Available",
+        is_non_saleable: true,
+      });
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedLot) return;
 
@@ -181,8 +281,8 @@ const LotOffcanvas = ({
       return;
     }
 
-    // Validate customer information if status is being set to Pending
-    if (status === "Pending") {
+    // Validate customer information if status is being set to Pending (only if saleable)
+    if (!isNonSaleable && status === "Pending") {
       if (!email || !fullName || !contactNumber || !address) {
         setSaveMessage(
           "All customer fields (email, full name, contact number, address) are required when setting status to Pending"
@@ -204,52 +304,56 @@ const LotOffcanvas = ({
     };
 
     try {
-      // 1. Update lot details (lot_number, area_sqm) if changed
-      const lotNumberChanged = lotNumber.trim() !== selectedLot.lot_number;
-      const areaSqmChanged = parseFloat(areaSqm) !== parseFloat(selectedLot.area_sqm);
+      // 1. Ensure lot number cleanly reflects classification
+      let finalLotNumber = lotNumber.trim();
+      if (!isNonSaleable) {
+        finalLotNumber = stripNonSaleableTags(finalLotNumber);
+      } else if (!checkIsNonSaleable(finalLotNumber)) {
+        finalLotNumber = `${stripNonSaleableTags(finalLotNumber)} (Non-Saleable)`.trim();
+      }
 
-      if (lotNumberChanged || areaSqmChanged) {
-        console.log("Updating lot details:", { lotNumber, areaSqm });
-        const detailsResponse = await fetch(
-          `${API_BASE_URL}/api/lots/${selectedLot.lot_id}/details`,
-          {
-            method: "PUT",
-            headers: getAuthHeaders(),
-            credentials: "include",
-            body: JSON.stringify({
-              lot_number: lotNumber,
-              area_sqm: areaSqm,
-            }),
-          }
-        );
-
-        if (!detailsResponse.ok) {
-          const errorText = await detailsResponse.json().catch(() => ({}));
-          throw new Error(errorText.error || errorText.message || "Failed to update lot details");
+      // Always persist lot details (lot_number, area_sqm) on save to ensure MySQL is in sync
+      console.log("Updating lot details:", { lotNumber: finalLotNumber, areaSqm });
+      const detailsResponse = await fetch(
+        `${API_BASE_URL}/api/lots/${selectedLot.lot_id}/details`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          credentials: "include",
+          body: JSON.stringify({
+            lot_number: finalLotNumber,
+            area_sqm: areaSqm,
+          }),
         }
+      );
+
+      if (!detailsResponse.ok) {
+        const errorText = await detailsResponse.json().catch(() => ({}));
+        throw new Error(errorText.error || errorText.message || "Failed to update lot details");
       }
 
       // 2. Update lot status with customer information
       console.log("Updating lot status:", {
         lotId: selectedLot.lot_id,
-        status,
-        email,
-        fullName,
-        contactNumber,
-        address,
+        status: isNonSaleable ? "Available" : status,
+        email: isNonSaleable ? null : email,
+        fullName: isNonSaleable ? null : fullName,
+        contactNumber: isNonSaleable ? null : contactNumber,
+        address: isNonSaleable ? null : address,
       });
 
+      const finalStatus = isNonSaleable ? "Available" : status;
       const response = await fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/status`, {
         method: "PUT",
         headers: getAuthHeaders(),
         credentials: "include",
         body: JSON.stringify({
-          status,
-          email,
-          fullName,
-          contactNumber,
-          address,
-          paymentMethod: status === "Sold" ? paymentMethod : null,
+          status: finalStatus,
+          email: isNonSaleable ? null : email,
+          fullName: isNonSaleable ? null : fullName,
+          contactNumber: isNonSaleable ? null : contactNumber,
+          address: isNonSaleable ? null : address,
+          paymentMethod: !isNonSaleable && status === "Sold" ? paymentMethod : null,
         }),
       });
 
@@ -265,6 +369,13 @@ const LotOffcanvas = ({
       }
 
       await response.json();
+
+      // Synchronize in-memory selectedLot object
+      if (selectedLot) {
+        selectedLot.lot_number = finalLotNumber;
+        selectedLot.status = finalStatus;
+        selectedLot.area_sqm = areaSqm;
+      }
 
       setSaveMessage("Lot saved successfully!");
 
@@ -392,6 +503,26 @@ const LotOffcanvas = ({
                   }`}
                   placeholder="e.g. BLOCK 7 Lot 1"
                 />
+                {!isNonSaleable && checkIsNonSaleable(lotNumber) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleaned = stripNonSaleableTags(lotNumber);
+                      setLotNumber(cleaned);
+                      if (onLiveLotUpdate && selectedLot) {
+                        onLiveLotUpdate({
+                          lot_id: selectedLot.lot_id,
+                          lot_number: cleaned,
+                          status: status || "Available",
+                          is_non_saleable: false,
+                        });
+                      }
+                    }}
+                    className="mt-1 text-left text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                  >
+                    ✨ Click to remove non-saleable tag from name
+                  </button>
+                )}
               </div>
 
               {/* Area */}
@@ -420,45 +551,101 @@ const LotOffcanvas = ({
                   <span className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Coordinates
                   </span>
-                  <div className="flex items-center gap-3">
-                    {isAdmin && onDuplicateLot && (
-                      <button
-                        type="button"
-                        onClick={() => onDuplicateLot(selectedLot)}
-                        className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                        title="Clone this lot & auto-increment next lot number"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Duplicate Next</span>
-                      </button>
-                    )}
-                    {showCoordinateEdit && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (onStartCoordinateEdit) {
-                            onStartCoordinateEdit(selectedLot);
-                          }
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                        title="Adjust lot shape & pins directly on map"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                        </svg>
-                        <span>Edit Shape</span>
-                      </button>
+                  <div className="relative" ref={editMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditMenuOpen((prev) => !prev)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 transition-all cursor-pointer shadow-xs"
+                      aria-haspopup="true"
+                      aria-expanded={isEditMenuOpen}
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${isEditMenuOpen ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {isEditMenuOpen && (
+                      <div className="absolute right-0 mt-1.5 w-60 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-xl p-2 z-50 text-xs text-gray-700 dark:text-slate-200">
+                        {/* Lot Classification inside Edit menu */}
+                        <div className="mb-2">
+                          <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5 px-1">
+                            Lot Classification
+                          </span>
+                          <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
+                            <button
+                              type="button"
+                              disabled={!isAdmin}
+                              onClick={handleSetSaleable}
+                              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                                !isNonSaleable
+                                  ? "bg-emerald-600 text-white shadow-sm"
+                                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                              } ${!isAdmin ? "opacity-60 cursor-not-allowed" : ""}`}
+                            >
+                              <span className="w-2 h-2 rounded-full bg-emerald-300 inline-block" />
+                              Saleable
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!isAdmin}
+                              onClick={handleSetNonSaleable}
+                              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                                isNonSaleable
+                                  ? "bg-slate-700 text-white shadow-sm ring-1 ring-slate-500/50"
+                                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                              } ${!isAdmin ? "opacity-60 cursor-not-allowed" : ""}`}
+                            >
+                              <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
+                              Non-Saleable
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="my-1.5 border-t border-gray-100 dark:border-slate-700/80" />
+
+                        {showCoordinateEdit && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditMenuOpen(false);
+                              if (onStartCoordinateEdit) {
+                                onStartCoordinateEdit(selectedLot);
+                              }
+                            }}
+                            className="w-full px-2.5 py-2 rounded-lg text-left flex items-center gap-2.5 hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-medium transition-colors cursor-pointer"
+                          >
+                            <MapPin className="w-4 h-4 shrink-0 text-blue-500" />
+                            <div>
+                              <div className="font-semibold">Edit Shape on Map</div>
+                              <div className="text-[10px] text-gray-500 dark:text-slate-400 font-normal">Adjust corners & vertices</div>
+                            </div>
+                          </button>
+                        )}
+
+                        <div className="my-1.5 border-t border-gray-100 dark:border-slate-700/80" />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCopyCoords();
+                          }}
+                          className="w-full px-2.5 py-2 rounded-lg text-left flex items-center gap-2.5 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 transition-colors cursor-pointer"
+                        >
+                          {copiedCoords ? (
+                            <Check className="w-4 h-4 shrink-0 text-emerald-500" />
+                          ) : (
+                            <Copy className="w-4 h-4 shrink-0 text-gray-400" />
+                          )}
+                          <div>
+                            <div className="font-medium">
+                              {copiedCoords ? "Coordinates Copied!" : "Copy Lat / Lng"}
+                            </div>
+                            <div className="text-[10px] text-gray-500 dark:text-slate-400 font-normal">
+                              Copy pin center to clipboard
+                            </div>
+                          </div>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -491,41 +678,63 @@ const LotOffcanvas = ({
               </div>
 
               {/* Status */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Status
-                </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  disabled={isLockedForUser}
-                  title={isLockedForUser ? "Only Admins can change status of sold lots" : ""}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${getStatusColorClasses(
-                    status
-                  )} ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
-                >
-                  {["Available", "Pending", "Sold"]
-                    .filter((s) => allowedStatuses.includes(s))
-                    .map((s) => (
-                      <option
-                        key={s}
-                        value={s}
-                        className={
-                          s === "Available"
-                            ? "text-green-600"
-                            : s === "Pending"
-                              ? "text-amber-500"
-                              : "text-red-600"
-                        }
-                      >
-                        {s}
-                      </option>
-                    ))}
-                </select>
-              </div>
+              {isNonSaleable ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Status
+                  </label>
+                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-slate-500 inline-block" />
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                        Non-Saleable (Common / Amenity Area)
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-300 bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded flex items-center gap-1">
+                      🔒 Locked
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                    Common ground / facility. Cannot be reserved or sold to prevent accidental bookings. Switch to "Saleable Lot" above to unlock selling.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    disabled={isLockedForUser}
+                    title={isLockedForUser ? "Only Admins can change status of sold lots" : ""}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${getStatusColorClasses(
+                      status
+                    )} ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
+                  >
+                    {["Available", "Pending", "Sold"]
+                      .filter((s) => allowedStatuses.includes(s))
+                      .map((s) => (
+                        <option
+                          key={s}
+                          value={s}
+                          className={
+                            s === "Available"
+                              ? "text-green-600"
+                              : s === "Pending"
+                                ? "text-amber-500"
+                                : "text-red-600"
+                          }
+                        >
+                          {s}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
 
-              {/* Customer Information — only show for Pending or Sold */}
-              {(status === "Pending" || status === "Sold") && (
+              {/* Customer Information — only show for Saleable lots when Pending or Sold */}
+              {!isNonSaleable && (status === "Pending" || status === "Sold") && (
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

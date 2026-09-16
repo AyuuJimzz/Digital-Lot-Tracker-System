@@ -25,7 +25,7 @@ export function useBlueprintUpload(onImageUpload) {
         const result = await prepareBlueprintPdf(file, Number(pdfPage), (stage) => {
           if (mounted.current) setUploadStage(stage);
         });
-        if (mounted.current) await onImageUpload(result.imageUrl, result.lotImport);
+        if (mounted.current) await onImageUpload(result.imageUrl, result.lotImport, result.originalImageUrl);
       } else {
         if (!/^image\/(png|jpeg|jpg|webp)$/.test(file.type)) throw new Error("Choose a PDF, PNG, JPG, or WebP file.");
         if (file.size > 20 * 1024 * 1024) throw new Error("Choose an image smaller than 20 MB.");

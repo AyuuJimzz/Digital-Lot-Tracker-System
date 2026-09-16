@@ -18,6 +18,9 @@ import { ImageOverlayControl } from "../../components/admin/ImageOverlayControl"
 import { BlueprintCropModal } from "../../components/admin/BlueprintCropModal";
 import { LotImportReviewModal } from "../../components/admin/LotImportReviewModal";
 import { useBlueprintLotImport } from "../../hooks/useBlueprintLotImport";
+import { usePropertyMapNavigation, waitForPropertyFlight } from "../../hooks/usePropertyMapNavigation";
+import { projectBlueprintRoadLabel, reframeBlueprintCrop } from "../../utils/blueprintLotProjection";
+import { mergeGeneratedRoadAnnotations } from "../../utils/pdfLotImport/roadLabels";
 import { MapAnnotationControl } from "../../components/admin/MapAnnotationControl";
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
 import { MapLayerControls, ActiveMapTileLayer, MAP_LAYERS } from "../../components/admin/MapLayerControls";
@@ -86,7 +89,6 @@ function MapController({
   properties,
 }) {
   const map = useMap();
-  const prevPropertyIdRef = useRef(selectedProperty);
 
   useEffect(() => {
     if (setMap) setMap(map);
@@ -97,6 +99,7 @@ function MapController({
     const updateZoomClasses = (z) => {
       const scale = Math.max(0.45, Math.pow(1.4, z - 19));
       container.style.setProperty("--road-label-scale", scale);
+      container.style.setProperty("--pdf-road-label-scale", Math.pow(2, z - 20));
 
       // Show road text labels at comfortable subdivision view (zoom >= 18.2)
       if (z >= 18.2) {
@@ -112,6 +115,7 @@ function MapController({
     };
 
     const handleZoom = () => {
+      if (container.classList.contains("map-is-flying")) return;
       updateZoomClasses(map.getZoom());
     };
 
@@ -177,127 +181,7 @@ function MapController({
     };
   }, [map]);
 
-  useEffect(() => {
-    // Smooth cinematic navigation with dynamic distance-based duration and lot zoom-in
-    const smoothNavigate = (coordinates) => {
-      if (!coordinates || !Array.isArray(coordinates) || coordinates.length < 2) return;
-      map.invalidateSize({ animate: false });
-      map.stop();
-
-      // Calculate real distance to target for smooth, unhurried flight & zoom-in
-      let flightDuration = 2.0;
-      try {
-        const curCenter = map.getCenter();
-        const distKm = curCenter.distanceTo(L.latLng(coordinates[0], coordinates[1])) / 1000;
-        if (distKm > 15) {
-          flightDuration = 3.0; // Far locations (e.g. Barotac, Guimbal from Oton)
-        } else if (distKm > 5) {
-          flightDuration = 2.5; // Medium distance
-        } else if (distKm > 0.8) {
-          flightDuration = 2.0; // Close distance
-        } else {
-          flightDuration = 1.6; // Same area
-        }
-      } catch (e) {}
-
-      map.flyTo(coordinates, 19, {
-        duration: flightDuration,
-        easeLinearity: 0.18,
-      });
-    };
-
-    // Listen for property navigation events
-    const handleNavigateToProperty = (event) => {
-      const { coordinates } = event.detail || {};
-      smoothNavigate(coordinates);
-      if (triggerArrivalPulse) triggerArrivalPulse(coordinates);
-    };
-
-    // Listen for property selection events (from header dropdown or overview beacon)
-    const handleSelectProperty = (event) => {
-      const { propertyId, coordinates: detailCoords, autoSwiped } = event.detail || {};
-      if (setSelectedProperty) setSelectedProperty(propertyId);
-      prevPropertyIdRef.current = propertyId;
-
-      // If triggered by automatic map pan / swipe, do NOT flyTo (user is already looking at it)
-      if (autoSwiped) return;
-
-      let targetCoords = null;
-      if (properties) {
-        const found = properties.find((p) => Number(p.id) === Number(propertyId));
-        if (found?.coordinates) {
-          targetCoords = found.coordinates;
-        }
-      }
-      if (!targetCoords) {
-        targetCoords = detailCoords;
-      }
-
-      if (targetCoords) {
-        smoothNavigate(targetCoords);
-        if (triggerArrivalPulse) triggerArrivalPulse(targetCoords);
-      }
-    };
-
-    window.addEventListener("navigateToProperty", handleNavigateToProperty);
-    window.addEventListener("selectProperty", handleSelectProperty);
-
-    return () => {
-      window.removeEventListener("navigateToProperty", handleNavigateToProperty);
-      window.removeEventListener("selectProperty", handleSelectProperty);
-    };
-  }, [map, setSelectedProperty, triggerArrivalPulse, properties]);
-
-  // Auto-detect closest property when user pans / swipes the map
-  useEffect(() => {
-    if (!map || !properties || properties.length === 0) return;
-
-    let debounceMoveTimer;
-    const handleMoveEnd = () => {
-      clearTimeout(debounceMoveTimer);
-      debounceMoveTimer = setTimeout(() => {
-        const curCenter = map.getCenter();
-        let closestProp = null;
-        let minDistanceMeters = Infinity;
-
-        properties.forEach((p) => {
-          const coords = p.coordinates || DEFAULT_COORDINATES_MAP[p.id];
-          if (!coords || !Array.isArray(coords) || coords.length < 2) return;
-          try {
-            const dist = curCenter.distanceTo(L.latLng(coords[0], coords[1]));
-            if (dist < minDistanceMeters) {
-              minDistanceMeters = dist;
-              closestProp = p;
-            }
-          } catch (e) {}
-        });
-
-        // If user is within 3km of this property and it is different from current selection
-        if (closestProp && minDistanceMeters < 3500) {
-          const closestId = Number(closestProp.id || closestProp.property_id);
-          if (closestId && closestId !== Number(prevPropertyIdRef.current)) {
-            prevPropertyIdRef.current = closestId;
-            if (setSelectedProperty) setSelectedProperty(closestId);
-            try {
-              localStorage.setItem("selectedProperty", closestId.toString());
-            } catch (e) {}
-            // Dispatch event to update Header dropdown name immediately
-            window.dispatchEvent(
-              new CustomEvent("selectProperty", {
-                detail: { propertyId: closestId, autoSwiped: true },
-              })
-            );
-          }
-        }
-      }, 120);
-    };
-
-    map.on("moveend", handleMoveEnd);
-    return () => {
-      map.off("moveend", handleMoveEnd);
-      clearTimeout(debounceMoveTimer);
-    };
-  }, [map, properties, setSelectedProperty]);
+  usePropertyMapNavigation(map, { selectedProperty, setSelectedProperty, properties, triggerArrivalPulse });
 
   // Set view to selected property directly on initial mount (no delayed flyTo jump)
   const initialFlyDoneRef = useRef(false);
@@ -389,7 +273,7 @@ function AdminViewMap() {
   const [showOverlayPanel, setShowOverlayPanel] = useState(false);
   const [overlayRotation, setOverlayRotation] = useState(0); // degrees
   const [overlayMultiply, setOverlayMultiply] = useState(true); // Transparent white paper mode
-  const [overlayLineColor, setOverlayLineColor] = useState("cyan"); // High-contrast CAD color (cyan/amber/lime/white/black)
+  const [overlayLineColor, setOverlayLineColor] = useState("lime"); // High-contrast CAD color (default to lime)
   const [overlayLineBoldness, setOverlayLineBoldness] = useState("super_fine"); // super_fine (hairline), fine, normal, bold
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const originalUploadedImageRef = React.useRef(null);
@@ -417,6 +301,14 @@ function AdminViewMap() {
   const [activeAnnotationId, setActiveAnnotationId] = useState(null);
   const [annotations, setAnnotations] = useState([]);
   const [isSavingAnnotations, setIsSavingAnnotations] = useState(false);
+
+  const automaticRoadAnnotations = useMemo(() => {
+    if (!map || !overlayBounds || !lotImport.draft?.roadLabels?.length) return [];
+    return lotImport.draft.roadLabels.map((label) => projectBlueprintRoadLabel(
+      { ...label, sourceName: lotImport.draft.sourceName }, lotImport.draft,
+      overlayBounds, overlayRotation, map,
+    )).filter(Boolean);
+  }, [map, overlayBounds, overlayRotation, lotImport.draft]);
 
   // ── Draggable Floating Quick Add Lot States ────────────────────────────────
   const [showQuickAddLot, setShowQuickAddLot] = useState(false);
@@ -499,10 +391,14 @@ function AdminViewMap() {
     if (!mapData?.properties) return [];
     const result = [];
     mapData.properties.forEach((p) => {
-      if (showAnnotationPanel && Number(p.property_id) === Number(selectedProperty)) {
-        result.push(
-          ...annotations.map((a) => ({ ...a, property_id: p.property_id }))
-        );
+      const isSelected = Number(p.property_id) === Number(selectedProperty);
+      if (isSelected && isEditingOverlay && !showAnnotationPanel && automaticRoadAnnotations.length) {
+        result.push(...mergeGeneratedRoadAnnotations(annotations, automaticRoadAnnotations)
+          .map((a) => ({ ...a, property_id: p.property_id })));
+        return;
+      }
+      if (isSelected) {
+        result.push(...annotations.map((a) => ({ ...a, property_id: p.property_id })));
         return;
       }
       if (!p.annotations) return;
@@ -516,8 +412,8 @@ function AdminViewMap() {
         }
       } catch (e) {}
     });
-    return result;
-  }, [mapData, showAnnotationPanel, selectedProperty, annotations]);
+    return result.filter((item) => !item.deleted);
+  }, [mapData, showAnnotationPanel, selectedProperty, annotations, automaticRoadAnnotations, isEditingOverlay]);
 
   // Listen for openAnnotationPanel event from AdminHeader
   useEffect(() => {
@@ -528,6 +424,17 @@ function AdminViewMap() {
     window.addEventListener("openAnnotationPanel", handleOpenAnnotationEvent);
     return () =>
       window.removeEventListener("openAnnotationPanel", handleOpenAnnotationEvent);
+  }, []);
+
+  // Listen for openMoveAllLots event from AdminHeader Manage Lots
+  useEffect(() => {
+    const handleOpenMoveAllLotsEvent = () => {
+      setIsBulkShifting((prev) => !prev);
+      setBulkShiftOffset({ lat: 0, lng: 0 });
+    };
+    window.addEventListener("openMoveAllLots", handleOpenMoveAllLotsEvent);
+    return () =>
+      window.removeEventListener("openMoveAllLots", handleOpenMoveAllLotsEvent);
   }, []);
 
   const handleAddAnnotation = useCallback(() => {
@@ -545,7 +452,7 @@ function AdminViewMap() {
       lng: center.lng,
       rotation: 0,
       fontSize: 12,
-      color: "#ffffff",
+      color: "#e2e8f0",
     };
     setAnnotations((prev) => [...prev, newLabel]);
     setActiveAnnotationId(newId);
@@ -555,19 +462,37 @@ function AdminViewMap() {
 
   const handleUpdateAnnotation = useCallback((id, updates) => {
     setAnnotations((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
+      prev.map((a) => (a.id === id ? { ...a, ...updates,
+        ...(a.autoGenerated === "pdf-road" ? { pdfOverrides: { ...a.pdfOverrides, ...updates } } : {}) } : a))
+    );
+  }, []);
+
+  const handleUpdateAllAnnotations = useCallback((updates) => {
+    setAnnotations((prev) =>
+      prev.map((a) => (!a.deleted ? {
+        ...a,
+        ...updates,
+        ...(a.autoGenerated === "pdf-road" ? { pdfOverrides: { ...a.pdfOverrides, ...updates } } : {})
+      } : a))
     );
   }, []);
 
   const handleDeleteAnnotation = useCallback(
     (id) => {
-      setAnnotations((prev) => prev.filter((a) => a.id !== id));
+      setAnnotations((prev) => prev.flatMap((a) => a.id !== id ? [a] : a.autoGenerated === "pdf-road" ? [{ ...a, deleted: true }] : []));
       if (activeAnnotationId === id) {
         setActiveAnnotationId(null);
       }
     },
     [activeAnnotationId]
   );
+
+  const handleDeleteAllAnnotations = useCallback(() => {
+    setAnnotations((prev) =>
+      prev.flatMap((a) => (a.autoGenerated === "pdf-road" ? [{ ...a, deleted: true }] : []))
+    );
+    setActiveAnnotationId(null);
+  }, []);
 
   const createRoadLabelIcon = useCallback((item, isEditing, isSelected) => {
     // Scaling is handled by CSS variable --road-label-scale (set on map container)
@@ -578,13 +503,13 @@ function AdminViewMap() {
           position: absolute;
           left: 0;
           top: 0;
-          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(--road-label-scale, 1));
+          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(${item.scaleWithMap ? '--pdf-road-label-scale' : '--road-label-scale'}, 1));
           transform-origin: center center;
-          color: ${item.color || '#ffffff'};
+          color: ${item.color || '#e2e8f0'};
           font-size: ${item.fontSize || 12}px;
           font-weight: 700;
           font-family: system-ui, -apple-system, sans-serif;
-          letter-spacing: 0.8px;
+          letter-spacing: ${item.scaleWithMap ? '0' : '0.8px'};
           text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9);
           white-space: nowrap;
           user-select: none;
@@ -595,7 +520,7 @@ function AdminViewMap() {
           border-radius: 4px;
           background: transparent;
         ">
-          <span>${item.text || ''}</span>
+          <span>${String(item.text || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))}</span>
         </div>
       `,
       iconSize: [0, 0],
@@ -1049,7 +974,7 @@ function AdminViewMap() {
   };
 
   // Helper: converts paper/transparent background into alpha transparency & CAD lines into chosen high-contrast color, rotated on Canvas
-  const createTransparentPaperImage = (imageUrl, lineColor = "cyan", rotationDeg = 0, lineBoldness = "fine", transparentPaper = true) => {
+  const createTransparentPaperImage = (imageUrl, lineColor = "lime", rotationDeg = 0, lineBoldness = "fine", transparentPaper = true) => {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -1081,10 +1006,12 @@ function AdminViewMap() {
           const imgData = ctx.getImageData(0, 0, newW, newH);
           const data = imgData.data;
 
-          // Color selection
-          let targetR = 0, targetG = 240, targetB = 255; // Cyan default
+          // Color selection (default to Lime)
+          let targetR = 52, targetG = 211, targetB = 153;
           if (lineColor === "amber" || lineColor === "gold" || lineColor === "yellow") {
             targetR = 251; targetG = 191; targetB = 36;
+          } else if (lineColor === "cyan" || lineColor === "blue") {
+            targetR = 6; targetG = 182; targetB = 212;
           } else if (lineColor === "lime" || lineColor === "green") {
             targetR = 52; targetG = 211; targetB = 153;
           } else if (lineColor === "white") {
@@ -1196,6 +1123,7 @@ function AdminViewMap() {
       if (!selectedProperty) return;
       try {
         const data = await loadBlueprintOverlay(selectedProperty);
+        await waitForPropertyFlight(map);
         if (isCancelled || operation !== overlayOperationRef.current) return;
 
         if (data && data.rawImage && data.bounds) {
@@ -1204,7 +1132,7 @@ function AdminViewMap() {
           unrotatedSpanRef.current = data.unrotatedSpan || null;
           setOverlayRotation(data.rotation || 0);
           setOverlayOpacity(data.opacity ?? 1);
-          const lineColor = data.lineColor || "cyan";
+          const lineColor = data.lineColor || "lime";
           const lineBoldness = data.lineBoldness || "super_fine";
           setOverlayLineColor(lineColor);
           setOverlayLineBoldness(lineBoldness);
@@ -1227,7 +1155,7 @@ function AdminViewMap() {
     return () => {
       isCancelled = true;
     };
-  }, [selectedProperty, restoreLotImport]);
+  }, [selectedProperty, restoreLotImport, map]);
 
   const handleOverlayCornerDragEnd = useCallback(() => {
     if (map) map.dragging.enable();
@@ -1388,8 +1316,9 @@ function AdminViewMap() {
       applyLotImportCrop(cropBounds);
       setIsEditingOverlay(true);
       rawOverlayRef.current = dataUrl;
-      setOverlayRotation(0);
-      const transUrl = await createTransparentPaperImage(dataUrl, overlayLineColor, 0, overlayLineBoldness, overlayMultiply);
+      const cropRotation = lotImport.draft ? overlayRotation : 0;
+      setOverlayRotation(cropRotation);
+      const transUrl = await createTransparentPaperImage(dataUrl, overlayLineColor, cropRotation, overlayLineBoldness, overlayMultiply);
       if (operation !== overlayOperationRef.current || activeOverlayPropertyRef.current !== selectedProperty) { URL.revokeObjectURL(transUrl); return; }
       transparentOverlayRef.current = transUrl;
       setOverlayImage(transUrl);
@@ -1398,7 +1327,14 @@ function AdminViewMap() {
       let finalBounds = overlayBounds;
       let finalSpan = unrotatedSpanRef.current;
 
-      if (overlayBounds) {
+      if (overlayBounds && lotImport.draft && map && cropBounds) {
+        const reframed = reframeBlueprintCrop(lotImport.draft, cropBounds, overlayBounds, cropRotation, map);
+        finalBounds = reframed.bounds;
+        finalSpan = reframed.unrotatedSpan;
+        unrotatedSpanRef.current = finalSpan;
+        if (overlayRef.current) overlayRef.current.setBounds(finalBounds);
+        setOverlayBounds(finalBounds);
+      } else if (overlayBounds) {
         const origLatSpan = Math.abs(overlayBounds[1][0] - overlayBounds[0][0]);
         const origLngSpan = Math.abs(overlayBounds[1][1] - overlayBounds[0][1]);
         const cLat = (overlayBounds[0][0] + overlayBounds[1][0]) / 2;
@@ -1433,7 +1369,7 @@ function AdminViewMap() {
           rawImage: dataUrl,
           originalImage: originalUploadedImageRef.current || dataUrl,
           bounds: finalBounds,
-          rotation: 0,
+          rotation: cropRotation,
           opacity: overlayOpacity,
           lineColor: overlayLineColor,
           multiply: overlayMultiply,
@@ -1441,7 +1377,7 @@ function AdminViewMap() {
         });
       }
     },
-    [overlayBounds, overlayLineColor, overlayLineBoldness, selectedProperty, overlayOpacity, overlayMultiply, applyLotImportCrop]
+    [overlayBounds, overlayLineColor, overlayLineBoldness, selectedProperty, overlayOpacity, overlayMultiply, applyLotImportCrop, lotImport.draft, overlayRotation, map]
   );
 
   // Reset overlay rotation back to 0° (preserving the cropped blueprint image and scale)
@@ -1451,7 +1387,7 @@ function AdminViewMap() {
 
   // Handle image upload — place overlay centered on current map view
   const handleImageUpload = useCallback(
-    async (imageUrl, importSource = null) => {
+    async (imageUrl, importSource = null, originalImageUrl = imageUrl) => {
       const operation = ++overlayOperationRef.current;
       setIsPreparingOverlay(true);
       const dataUrl = await toDataURL(imageUrl);
@@ -1463,7 +1399,7 @@ function AdminViewMap() {
         URL.revokeObjectURL(transparentOverlayRef.current);
       }
 
-      originalUploadedImageRef.current = dataUrl;
+      originalUploadedImageRef.current = originalImageUrl || dataUrl;
       rawOverlayRef.current = dataUrl;
       setOverlayRotation(0);
 
@@ -1495,7 +1431,7 @@ function AdminViewMap() {
       if (selectedProperty && initBounds) {
         saveBlueprintOverlay(selectedProperty, {
           rawImage: dataUrl,
-          originalImage: dataUrl,
+          originalImage: originalUploadedImageRef.current,
           lotImport: importSource,
           bounds: initBounds,
           rotation: 0,
@@ -1547,7 +1483,7 @@ function AdminViewMap() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to save the new position for all lots in this property?`)) {
+    if (!window.confirm(`Are you sure you want to save the new position for all lots and labels in this property?`)) {
       return;
     }
 
@@ -1557,13 +1493,24 @@ function AdminViewMap() {
         deltaLng: bulkShiftOffset.lng,
       });
 
-      alert("✅ All lots have been moved and saved successfully!");
+      // Shift local annotations state as well so UI updates immediately
+      if (annotations && annotations.length > 0) {
+        setAnnotations((prev) =>
+          prev.map((a) =>
+            typeof a.lat === "number" && typeof a.lng === "number"
+              ? { ...a, lat: a.lat + bulkShiftOffset.lat, lng: a.lng + bulkShiftOffset.lng }
+              : a
+          )
+        );
+      }
+
+      alert("✅ All lots and road labels have been moved and saved successfully!");
       // Reload map data to get fresh coordinates from database
-      handleLotUpdated();
+      await handleLotUpdated();
       setIsBulkShifting(false);
       setBulkShiftOffset({ lat: 0, lng: 0 });
     } catch (err) {
-      console.error("Error bulk shifting lots:", err);
+      console.error("Error bulk shifting lots and road labels:", err);
       alert(err.response?.data?.error || "Failed to bulk shift lots");
     }
   };
@@ -1749,12 +1696,12 @@ function AdminViewMap() {
     Available: "#22c55e",
     Pending: "#eab308",
     Sold: "#ef4444",
-    NonSaleable: "#a855f7",
+    NonSaleable: "#64748b",
   };
 
   const isNonSaleableLot = (lotNumber = "", areaSqm = 0) => {
     const num = String(lotNumber || "").toLowerCase().trim();
-    if (
+    return (
       num.includes("park") ||
       num.includes("playground") ||
       num.includes("facility") ||
@@ -1764,23 +1711,11 @@ function AdminViewMap() {
       num.includes("easement") ||
       num.includes("community") ||
       num.includes("p & pg") ||
-      num.includes("amenity")
-    ) {
-      return true;
-    }
-    const normalized = num.replace(/\s+/g, " ").trim();
-    const knownNonSaleables = [
-      "block 6 lot 3",
-      "block 6 lot 2",
-      "block 6 lot 1",
-      "block 5 lot 10",
-      "block 5 lot 11",
-      "block 8 lot 1",
-      "block 3 lot 18",
-      "block 13 lot 6",
-      "block 13 lot 10",
-    ];
-    return knownNonSaleables.includes(normalized);
+      num.includes("amenity") ||
+      num.includes("common") ||
+      num.includes("non-saleable") ||
+      num.includes("non saleable")
+    );
   };
 
   const getStatusColor = (status, lotNumber = "", areaSqm = 0) => {
@@ -1804,7 +1739,7 @@ function AdminViewMap() {
       Available: makeIcon("#22c55e"),
       Pending: makeIcon("#eab308"),
       Sold: makeIcon("#ef4444"),
-      NonSaleable: makeIcon("#a855f7"),
+      NonSaleable: makeIcon("#64748b"),
       default: makeIcon("#94a3b8"),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1898,24 +1833,58 @@ function AdminViewMap() {
     }
   }, []);
 
-  const handleSaveAnnotations = useCallback(async () => {
+  // Handle immediate visual lot update when toggling classification in LotOffcanvas
+  const handleLiveLotUpdate = useCallback((updatedFields) => {
+    if (!selectedLot) return;
+    const updated = { ...selectedLot, ...updatedFields };
+    setSelectedLot(updated);
+    setMapData((prev) => {
+      if (!prev || !Array.isArray(prev.lots)) return prev;
+      return {
+        ...prev,
+        lots: prev.lots.map((l) =>
+          Number(l.lot_id) === Number(updated.lot_id)
+            ? { ...l, ...updatedFields }
+            : l
+        ),
+      };
+    });
+  }, [selectedLot]);
+
+  const persistAnnotations = useCallback(async (nextAnnotations, notify = false) => {
     if (!selectedProperty) return;
     setIsSavingAnnotations(true);
     try {
       await axios.put(
         `${API_BASE_URL}/api/properties/${selectedProperty}/annotations`,
-        { annotations },
+        { annotations: nextAnnotations },
         getAuthConfig()
       );
-      alert("✅ Road & map labels saved successfully to database!");
+      if (notify) alert("✅ Road & map labels saved successfully to database!");
       await handleLotUpdated();
+      return true;
     } catch (err) {
       console.error("Error saving map annotations:", err);
-      alert(err.response?.data?.error || "Failed to save road labels");
+      alert(err.response?.data?.error || "Blueprint aligned, but the road labels could not be saved. Open Road Labels and try Save again.");
+      return false;
     } finally {
       setIsSavingAnnotations(false);
     }
-  }, [selectedProperty, annotations, handleLotUpdated]);
+  }, [selectedProperty, handleLotUpdated]);
+
+  const handleSaveAnnotations = useCallback(async () => {
+    await persistAnnotations(annotations, true);
+  }, [annotations, persistAnnotations]);
+
+  const handleToggleOverlayEdit = useCallback(async () => {
+    if (isSavingAnnotations) return;
+    const isLocking = isEditingOverlay;
+    setIsEditingOverlay((previous) => !previous);
+    if (!isLocking || !automaticRoadAnnotations.length) return;
+    const merged = mergeGeneratedRoadAnnotations(annotations, automaticRoadAnnotations);
+    setAnnotations(merged);
+    await persistAnnotations(merged);
+  }, [isEditingOverlay, annotations, automaticRoadAnnotations, persistAnnotations, isSavingAnnotations]);
 
   // Listen for coordinate updates from AdminHeader
   useEffect(() => {
@@ -1953,9 +1922,29 @@ function AdminViewMap() {
       const { lot_id, lot_number, property_id, coordinates, area_sqm } = event.detail;
       setEditingLot({ lot_id, lot_number, property_id, area_sqm });
 
+      let parsedCoords = coordinates;
+      if (typeof parsedCoords === "string") {
+        try {
+          parsedCoords = JSON.parse(parsedCoords);
+        } catch (e) {
+          parsedCoords = null;
+        }
+      }
+
+      // Check mapData as defensive fallback if coordinates wasn't provided or was empty
+      if (!parsedCoords || !Array.isArray(parsedCoords) || parsedCoords.length === 0) {
+        const found = mapData?.lots?.find((l) => Number(l.lot_id) === Number(lot_id));
+        if (found?.coordinates) {
+          parsedCoords =
+            typeof found.coordinates === "string"
+              ? JSON.parse(found.coordinates)
+              : found.coordinates;
+        }
+      }
+
       let initCoords = [];
-      if (coordinates && Array.isArray(coordinates) && coordinates.length > 0) {
-        initCoords = coordinates.map((c) => [...c]);
+      if (parsedCoords && Array.isArray(parsedCoords) && parsedCoords.length > 0) {
+        initCoords = parsedCoords.map((c) => [...c]);
       } else {
         // Use current active map center if available so coordinates appear exactly where user is focused
         const currentCenter = map ? map.getCenter() : null;
@@ -1998,7 +1987,7 @@ function AdminViewMap() {
     return () => {
       window.removeEventListener("startVisualEdit", handleStartVisualEdit);
     };
-  }, [map, properties, selectedPropertyCoords, overlayRotation]);
+  }, [map, properties, selectedPropertyCoords, overlayRotation, mapData]);
 
   // Handle dragging the entire polygon shape with global pointer tracking & magnetic snapping
   useEffect(() => {
@@ -2367,19 +2356,8 @@ function AdminViewMap() {
         <MapLayerControls
           activeLayer={mapLayer}
           onLayerChange={(newLayer) => {
-            // Save current map position before layer switch
-            // to prevent Leaflet from resetting to world view on TileLayer remount
-            const currentCenter = map ? map.getCenter() : null;
-            const currentZoomVal = map ? map.getZoom() : null;
             setMapLayer(newLayer);
             localStorage.setItem("preferredMapLayer", newLayer);
-            // Restore position after React re-renders the new TileLayer
-            if (map && currentCenter && currentZoomVal) {
-              setTimeout(() => {
-                map.setView([currentCenter.lat, currentCenter.lng], currentZoomVal, { animate: false });
-                map.invalidateSize();
-              }, 50);
-            }
           }}
           mapContainerRef={mapWrapperRef}
         />
@@ -2517,10 +2495,29 @@ function AdminViewMap() {
           );
         })}
 
-        {lotImport.preview && !isEditingOverlay && !isPreparingOverlay && lotImport.projected.map((candidate) => (
-          <Polygon key={candidate.id} positions={candidate.coordinates} interactive={false}
-            pathOptions={{ color: candidate.selected ? "#34d399" : "#fbbf24", weight: 1, fillOpacity: candidate.selected ? 0.2 : 0.04 }} />
-        ))}
+        {lotImport.preview && !isEditingOverlay && !isPreparingOverlay && (() => {
+          const candidateColor =
+            overlayLineColor === "cyan" ? "#06b6d4"
+            : overlayLineColor === "white" ? "#ffffff"
+            : overlayLineColor === "lime" ? "#34d399"
+            : overlayLineColor === "amber" || overlayLineColor === "yellow" ? "#fbbf24"
+            : overlayLineColor === "black" ? "#0f172a"
+            : "#06b6d4";
+
+          return lotImport.projected.map((candidate) => (
+            <Polygon
+              key={candidate.id}
+              positions={candidate.coordinates}
+              interactive={false}
+              pathOptions={{
+                color: candidate.selected ? "#10b981" : candidateColor,
+                weight: 1.5,
+                fillColor: candidate.selected ? "#10b981" : candidateColor,
+                fillOpacity: candidate.selected ? 0.2 : 0.05,
+              }}
+            />
+          ));
+        })()}
         {/* ── Site Plan Image Overlay ───────────────────────────── */}
         {overlayImage && overlayBounds && overlayVisible && (
           <ImageOverlay
@@ -2687,7 +2684,7 @@ function AdminViewMap() {
 
         {filteredLots.map((lot) => {
           // Skip rendering original polygon if it's currently being edited visually
-          if (editingLot && lot.lot_id === editingLot.lot_id) {
+          if (editingLot && Number(lot.lot_id) === Number(editingLot.lot_id)) {
             return null;
           }
 
@@ -2701,7 +2698,7 @@ function AdminViewMap() {
 
           // Apply bulk shift offset if active for this property's lots
           const coords =
-            isBulkShifting && lot.property_id === selectedProperty
+            isBulkShifting && Number(lot.property_id) === Number(selectedProperty)
               ? lot.coordinates.map(([lat, lng]) => [
                   lat + bulkShiftOffset.lat,
                   lng + bulkShiftOffset.lng,
@@ -2772,9 +2769,9 @@ function AdminViewMap() {
           };
 
           return (
-            <React.Fragment key={`lot-node-${lot.lot_id}-${lot.status}`}>
+            <React.Fragment key={`lot-node-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}>
               <Polygon
-                key={`poly-${lot.lot_id}-${lot.status}`}
+                key={`poly-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}
                 positions={coords}
                 pathOptions={{
                   color: isBulkShifting ? "#3b82f6" : statusColor,
@@ -2823,7 +2820,7 @@ function AdminViewMap() {
 
               {!isBulkShifting && (
                 <Marker
-                  key={`pin-${lot.lot_id}-${lot.status}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
+                  key={`pin-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
                   position={[centerLat, centerLng]}
                   icon={createPinIcon(lot.status, lot.lot_number, lot.area_sqm)}
                   eventHandlers={{
@@ -2949,17 +2946,25 @@ function AdminViewMap() {
           </>
         )}
 
-        {/* ── Road & Map Text Annotations (Visible on Super Close 19.5+ OR always when Editing Panel is Open) ── */}
-        {(showAnnotationPanel || currentZoom >= 19.5) &&
-          allPropertiesAnnotations.map((item) => {
+        {/* PDF labels remain visible at subdivision zoom after locking alignment. */}
+        {allPropertiesAnnotations.filter((item) => showAnnotationPanel || isEditingOverlay ||
+          currentZoom >= (item.scaleWithMap ? 18.2 : 19.5)).map((item) => {
             const isThisPropActive =
               Number(item.property_id) === Number(selectedProperty);
             const isInteractive =
-              isEditingAnnotations && showAnnotationPanel && isThisPropActive;
+              isEditingAnnotations && showAnnotationPanel && isThisPropActive && !isBulkShifting;
+            const itemLat =
+              isBulkShifting && isThisPropActive
+                ? item.lat + bulkShiftOffset.lat
+                : item.lat;
+            const itemLng =
+              isBulkShifting && isThisPropActive
+                ? item.lng + bulkShiftOffset.lng
+                : item.lng;
             return (
               <Marker
                 key={`${item.property_id || "p"}-${item.id}`}
-                position={[item.lat, item.lng]}
+                position={[itemLat, itemLng]}
                 draggable={isInteractive}
                 icon={createRoadLabelIcon(
                   item,
@@ -2968,6 +2973,7 @@ function AdminViewMap() {
                 )}
                 eventHandlers={{
                   click: () => {
+                    if (isBulkShifting) return;
                     if (
                       item.property_id &&
                       Number(item.property_id) !== Number(selectedProperty)
@@ -3341,6 +3347,7 @@ function AdminViewMap() {
         isOpen={isOffcanvasOpen}
         onClose={() => setIsOffcanvasOpen(false)}
         onLotUpdated={handleLotUpdated}
+        onLiveLotUpdate={handleLiveLotUpdate}
         allowedStatuses={["Available", "Pending", "Sold"]}
         showCoordinateEdit={true}
         onDuplicateLot={(lot) => {
@@ -3349,13 +3356,31 @@ function AdminViewMap() {
         }}
         onStartCoordinateEdit={(lot) => {
           setIsOffcanvasOpen(false);
+          let rawCoords = lot.coordinates;
+          if (typeof rawCoords === "string") {
+            try {
+              rawCoords = JSON.parse(rawCoords);
+            } catch (e) {
+              rawCoords = null;
+            }
+          }
+          if (!rawCoords || !Array.isArray(rawCoords) || rawCoords.length === 0) {
+            const found = mapData?.lots?.find((l) => Number(l.lot_id) === Number(lot.lot_id));
+            if (found?.coordinates) {
+              rawCoords =
+                typeof found.coordinates === "string"
+                  ? JSON.parse(found.coordinates)
+                  : found.coordinates;
+            }
+          }
           window.dispatchEvent(
             new CustomEvent("startVisualEdit", {
               detail: {
                 lot_id: lot.lot_id,
                 lot_number: lot.lot_number,
                 property_id: lot.property_id,
-                coordinates: lot.coordinates,
+                coordinates: rawCoords,
+                area_sqm: lot.area_sqm,
               },
             })
           );
@@ -3367,6 +3392,7 @@ function AdminViewMap() {
         <ImageOverlayControl
           key={selectedProperty}
           importCount={lotImport.candidates.length}
+          roadLabelCount={lotImport.draft?.roadLabels?.length || 0}
           hasImportSource={Boolean(lotImport.draft)}
           importWarnings={lotImport.draft?.warnings || []}
           importMessage={lotImport.message}
@@ -3406,7 +3432,7 @@ function AdminViewMap() {
           onScaleOverlay={handleScaleOverlay}
           onOpenCrop={() => setIsCropModalOpen(true)}
           onToggleVisible={() => setOverlayVisible((prev) => !prev)}
-          onToggleEdit={() => setIsEditingOverlay((prev) => !prev)}
+          onToggleEdit={handleToggleOverlayEdit}
           onToggleBulkShift={() => {
             setIsBulkShifting((prev) => !prev);
             setBulkShiftOffset({ lat: 0, lng: 0 });
@@ -3448,6 +3474,8 @@ function AdminViewMap() {
           pageWidth={lotImport.draft.pageWidth}
           pageHeight={lotImport.draft.pageHeight}
           warnings={lotImport.warnings}
+          autoFixDuplicates={true}
+          autoSelectAll={true}
         />
       )}
       {/* ── Visual Blueprint Cropping Modal ──────────────────────────── */}
@@ -3461,12 +3489,14 @@ function AdminViewMap() {
       {/* ── Road & Map Labels Floating Control ───────────────────────── */}
       {showAnnotationPanel && (
         <MapAnnotationControl
-          annotations={annotations}
+          annotations={annotations.filter((item) => !item.deleted)}
           activeAnnotationId={activeAnnotationId}
           onSelectAnnotation={(id) => setActiveAnnotationId(id)}
           onAddAnnotation={handleAddAnnotation}
           onUpdateAnnotation={handleUpdateAnnotation}
+          onUpdateAllAnnotations={handleUpdateAllAnnotations}
           onDeleteAnnotation={handleDeleteAnnotation}
+          onDeleteAllAnnotations={handleDeleteAllAnnotations}
           onSaveAnnotations={handleSaveAnnotations}
           isSaving={isSavingAnnotations}
           isEditing={isEditingAnnotations}

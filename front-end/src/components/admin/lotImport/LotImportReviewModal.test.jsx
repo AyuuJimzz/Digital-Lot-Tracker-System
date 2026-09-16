@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { LotImportReviewModal } from "../LotImportReviewModal";
+import { LotImportReviewModal, resolveDuplicateCandidates } from "../LotImportReviewModal";
 import { getCandidateIssues, getImportLotNumber, hasValidBoundary } from "./reviewValidation";
 
 const square = [[0.1, 0.1], [0.2, 0.1], [0.2, 0.2], [0.1, 0.2]];
@@ -33,7 +33,6 @@ test("requires explicit review and resets approval after lot details change", as
   await waitFor(() => expect(onImport).toHaveBeenCalledTimes(1));
   expect(onImport.mock.calls[0][0][0].areaSqm).toBe(145);
 });
-
 test("only included lots block saving and selection changes require renewed approval", () => {
   render(<ReviewHarness initialCandidates={[candidate(), candidate({ id: "b", lotNumber: "", areaSqm: null, selected: false })]} />);
   fireEvent.click(screen.getByLabelText(approvalLabel));
@@ -59,6 +58,7 @@ test("duplicate block and lot identifiers must be corrected before bulk creation
 test("boundary corners can be corrected with the keyboard and reset to detection", () => {
   const onImport = jest.fn().mockResolvedValue(undefined);
   render(<ReviewHarness onImport={onImport} />);
+  fireEvent.click(screen.getAllByRole("button", { name: /Edit shape/i })[0]);
   fireEvent.click(screen.getByLabelText(approvalLabel));
   const corner = screen.getByRole("button", { name: "Move corner 1 of active boundary with arrow keys" });
   fireEvent.keyDown(corner, { key: "ArrowRight" });
@@ -121,7 +121,7 @@ test("changing the last filtered violet candidate to green keeps it visible and 
   fireEvent.change(screen.getByLabelText("Saleability for candidate 1"), { target: { value: "saleable" } });
   expect(screen.getByLabelText("Saleability for candidate 1")).toHaveValue("saleable");
   expect(screen.getByLabelText("Include candidate 1")).not.toBeChecked();
-  fireEvent.click(screen.getByRole("button", { name: "Select valid only (1)" }));
+  fireEvent.click(screen.getByRole("button", { name: "Select all" }));
   expect(screen.getByLabelText("Include candidate 1")).toBeChecked();
 });
 
@@ -211,4 +211,132 @@ test("duplicate links retain actual candidate numbers with unselected rows betwe
   render(<ReviewHarness initialCandidates={lots} />);
   fireEvent.click(screen.getByRole("button", { name: /View Candidate 4/ }));
   expect(screen.getByRole("article", { name: "Candidate 4" })).toHaveFocus();
+});
+
+test("autoFixDuplicates automatically disambiguates duplicate lot identifiers on mount", () => {
+  render(<ReviewHarness initialCandidates={[candidate(), candidate({ id: "b", block: "A", lotNumber: "1" })]} autoFixDuplicates />);
+  expect(screen.queryByText("Duplicate lot identifiers detected in selection")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText(approvalLabel));
+  expect(screen.getByRole("button", { name: "Create 2 approved lots" })).toBeEnabled();
+});
+
+test("resolveDuplicateCandidates disambiguates duplicates with sequential suffixes and category labels", () => {
+  const result = resolveDuplicateCandidates([
+    { id: "1", block: "3", lotNumber: "1" },
+    { id: "2", block: "3", lotNumber: "1" },
+    { id: "3", block: "3", lotNumber: "1", nonSaleable: true, category: "park" },
+  ]);
+  expect(result[0].lotNumber).toBe("1");
+  expect(result[1].lotNumber).toBe("1 (2)");
+  expect(result[2].lotNumber).toBe("1 (Park 2)");
+});
+
+test("allows adding a new manual lot and increments lot number intelligently", () => {
+  render(<ReviewHarness initialCandidates={[candidate({ id: "a", block: "5", lotNumber: "12", areaSqm: 150 })]} />);
+  expect(screen.getByText("1 / 1 included")).toBeInTheDocument();
+
+  // Click Add lot button
+  const addLotBtn = screen.getByRole("button", { name: "Add lot" });
+  fireEvent.click(addLotBtn);
+
+  // Should have 2 candidates now
+  expect(screen.getByText("2 / 2 included")).toBeInTheDocument();
+  expect(screen.getByDisplayValue("13")).toBeInTheDocument();
+  expect(screen.getAllByDisplayValue("5").length).toBeGreaterThanOrEqual(2);
+});
+
+test("allows deleting a candidate lot from review", () => {
+  render(<ReviewHarness initialCandidates={[
+    candidate({ id: "a", lotNumber: "1" }),
+    candidate({ id: "b", lotNumber: "2" }),
+  ]} />);
+  expect(screen.getByText("2 / 2 included")).toBeInTheDocument();
+
+  // Delete candidate 2
+  const deleteBtn = screen.getByRole("button", { name: "Delete candidate 2" });
+  fireEvent.click(deleteBtn);
+
+  expect(screen.getByText("1 / 1 included")).toBeInTheDocument();
+  expect(screen.queryByRole("article", { name: "Candidate 2" })).not.toBeInTheDocument();
+});
+
+test("shows empty state with Add First Lot button when 0 candidates exist", () => {
+  render(<ReviewHarness initialCandidates={[]} />);
+  expect(screen.getByText("No candidate boundaries were detected in this plan.")).toBeInTheDocument();
+  const addFirstBtn = screen.getByRole("button", { name: "Add First Lot" });
+  fireEvent.click(addFirstBtn);
+  expect(screen.getByText("1 / 1 included")).toBeInTheDocument();
+});
+
+test("allows adding a corner via midpoint '+' handle and removing a corner via double click", () => {
+  const onImport = jest.fn().mockResolvedValue(undefined);
+  render(<ReviewHarness onImport={onImport} initialCandidates={[candidate({ id: "a", points: [[0.1, 0.1], [0.2, 0.1], [0.2, 0.2], [0.1, 0.2]] })]} />);
+
+  // Enter edit mode
+  fireEvent.click(screen.getAllByRole("button", { name: /Edit shape/i })[0]);
+
+  // Should initially have 4 corner buttons
+  expect(screen.getAllByRole("button", { name: /Move corner \d of active boundary/ }).length).toBe(4);
+
+  // Click midpoint handle between corner 1 and corner 2
+  const midpointBtn = screen.getByRole("button", { name: /Add corner point between corner 1 and 2/ });
+  fireEvent.pointerDown(midpointBtn);
+
+  // Should now have 5 corner buttons
+  expect(screen.getAllByRole("button", { name: /Move corner \d of active boundary/ }).length).toBe(5);
+
+  // Double click corner 2 to remove it
+  const corner2 = screen.getByRole("button", { name: "Move corner 2 of active boundary with arrow keys" });
+  fireEvent.doubleClick(corner2);
+
+  // Should now be back to 4 corners
+  expect(screen.getAllByRole("button", { name: /Move corner \d of active boundary/ }).length).toBe(4);
+});
+
+test("toggles Edit Mode on and off, hiding draggable handles when locked", () => {
+  render(<ReviewHarness initialCandidates={[candidate({ id: "a" })]} />);
+
+  // By default, not in edit mode (safe navigation)
+  expect(screen.queryByRole("button", { name: /Move corner 1 of active boundary/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Drag to move entire lot" })).not.toBeInTheDocument();
+
+  // Click Edit shape in toolbar or card
+  const editShapeBtn = screen.getAllByRole("button", { name: /Edit shape/i })[0];
+  fireEvent.click(editShapeBtn);
+
+  // Handles should now be visible
+  expect(screen.getByRole("button", { name: /Move corner 1 of active boundary/ })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Drag to move entire lot" })).toBeInTheDocument();
+
+  // Click Done editing to lock
+  const doneBtn = screen.getAllByRole("button", { name: /Done/i })[0];
+  fireEvent.click(doneBtn);
+
+  // Handles are locked and hidden again
+  expect(screen.queryByRole("button", { name: /Move corner 1 of active boundary/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Drag to move entire lot" })).not.toBeInTheDocument();
+});
+
+test("Draw lot button adds a new editable candidate on the plan", () => {
+  render(<ReviewHarness initialCandidates={[candidate({ id: "a" })]} />);
+
+  // Should have 1 candidate card initially
+  expect(screen.getByText("Block A Lot 1")).toBeInTheDocument();
+
+  // Click Draw lot button
+  const drawLotBtns = screen.getAllByRole("button", { name: /Draw lot|Add lot/i });
+  fireEvent.click(drawLotBtns[0]);
+
+  // Should now have 2 candidate entries and be in edit mode
+  expect(screen.getAllByRole("button", { name: /Done/i }).length).toBeGreaterThan(0);
+});
+
+test("renders Deep Rescan button when onRescan is provided", () => {
+  const onRescan = jest.fn();
+  render(<ReviewHarness initialCandidates={[candidate({ id: "a" })]} onRescan={onRescan} />);
+
+  const rescanBtns = screen.getAllByRole("button", { name: /Deep Rescan/i });
+  expect(rescanBtns.length).toBeGreaterThan(0);
+  fireEvent.click(rescanBtns[0]);
+  expect(onRescan).toHaveBeenCalledTimes(1);
 });

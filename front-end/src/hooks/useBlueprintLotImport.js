@@ -9,7 +9,7 @@ import { PDF_LOT_DETECTOR_VERSION } from "../utils/pdfLotImport/version";
 export function useBlueprintLotImport({ propertyId, map, bounds, rotation, isAligning }) {
   const [state, setState] = useState(null);
   const [reviewProperty, setReviewProperty] = useState(null);
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreview] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -19,9 +19,19 @@ export function useBlueprintLotImport({ propertyId, map, bounds, rotation, isAli
   const draft = state?.propertyId === propertyId ? state.data : null;
 
   const restore = useCallback((data) => {
-    setState({ propertyId, data: data || null });
+    let normalized = data;
+    if (data?.candidates && data.candidates.length > 0 && !data.candidates.some((c) => c.selected)) {
+      normalized = {
+        ...data,
+        candidates: data.candidates.map((c) => ({
+          ...c,
+          selected: true,
+        })),
+      };
+    }
+    setState({ propertyId, data: normalized || null });
     setReviewProperty(null);
-    setPreview(false);
+    setPreview(Boolean(normalized));
     setError("");
     setMessage("");
   }, [propertyId]);
@@ -57,14 +67,22 @@ export function useBlueprintLotImport({ propertyId, map, bounds, rotation, isAli
   }, [draft, projected]);
 
   const changeCandidates = (next) => {
-    if (saving.current) return;
-    const changed = new Map(next.map((candidate) => [candidate.id, candidate]));
-    updateDraft({ ...draft, candidates: draft.candidates.map((candidate) => changed.get(candidate.id) || candidate) });
+    if (saving.current || !draft) return;
+    const nextList = Array.isArray(next) ? next : [];
+    const nextIds = new Set(nextList.map((candidate) => candidate.id));
+    const nonReviewCandidates = (draft.candidates || []).filter(
+      (candidate) => candidate.imported || !candidateInsideCrop(candidate, draft.cropBounds)
+    ).filter((candidate) => !nextIds.has(candidate.id));
+
+    updateDraft({
+      ...draft,
+      candidates: [...nextList, ...nonReviewCandidates],
+    });
     setError("");
   };
 
   const applyCrop = useCallback((cropBounds) => {
-    if (draft) updateDraft({ ...draft, cropBounds });
+    if (draft) updateDraft({ ...draft, cropBounds, autoCropApplied: false });
     setReviewProperty(null);
   }, [draft, updateDraft]);
 
@@ -122,7 +140,7 @@ export function useBlueprintLotImport({ propertyId, map, bounds, rotation, isAli
     isReviewOpen: Boolean(draft) && reviewProperty === propertyId,
     restore, applyCrop, changeCandidates, importLots,
     togglePreview: () => setPreview((value) => !value),
-    openReview: () => { if (!isAligning) { setReviewProperty(propertyId); setPreview(true); setError(""); } },
+    openReview: () => { setReviewProperty(propertyId); setPreview(true); setError(""); },
     closeReview: () => { if (!saving.current) setReviewProperty(null); },
   };
 }

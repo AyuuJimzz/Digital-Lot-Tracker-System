@@ -4,9 +4,10 @@ import { extractLabels, associateBlockLabels, classifyNonSaleable } from "./labe
 import { findTableFaces } from "./tableRegions.js";
 import { resolveBlockSymbols, pairNumericLabels } from "./planSymbols.js";
 import { PDF_LOT_DETECTOR_VERSION } from "./version.js";
+import { extractRoadLabels } from "./roadLabels.js";
 
 /** Detect reviewable lot polygons from PDF.js 2.x vector paths. Never creates records. */
-export async function detectPdfLots(page, pdfjs) {
+export async function detectPdfLots(page, pdfjs, options = {}) {
   if (!page?.getOperatorList || !pdfjs?.OPS) throw new Error("The PDF detector is unavailable. Re-upload the original PDF.");
   const viewport = page.getViewport({ scale: 1 });
   if (!Number.isFinite(viewport.width) || !Number.isFinite(viewport.height) || viewport.width <= 0 || viewport.height <= 0) {
@@ -14,6 +15,7 @@ export async function detectPdfLots(page, pdfjs) {
   }
   const [operatorList, textContent] = await Promise.all([page.getOperatorList(), page.getTextContent()]);
   const { labels, recoveredFonts } = extractLabels(textContent, viewport);
+  const roadLabels = extractRoadLabels(labels, viewport.width, viewport.height);
   if (labels.length > 15000) throw new Error("This page contains too many labels. Split the plan into smaller PDF pages.");
   const allSegments = await extractSegments(operatorList, pdfjs.OPS, viewport);
   const { segments, restored } = resolveBlockSymbols(allSegments, labels);
@@ -24,15 +26,16 @@ export async function detectPdfLots(page, pdfjs) {
   if (restored) warnings.push(`${restored} boundary endpoints were continued beneath numbered block symbols. Verify these junctions against the plan.`);
 
   if (!lotLabels.length || !segments.length) {
-    return { detectorVersion: PDF_LOT_DETECTOR_VERSION, candidates: [], pageWidth: viewport.width, pageHeight: viewport.height, warnings: [
+    return { detectorVersion: PDF_LOT_DETECTOR_VERSION, candidates: [], roadLabels, pageWidth: viewport.width, pageHeight: viewport.height, warnings: [
       "No readable lot labels with vector boundaries were found. Scanned/image PDFs need manual tracing or a clearer vector PDF.",
     ] };
   }
   if (lotLabels.length > 2000 || labels.length > 15000) throw new Error("This page contains too many labels. Split the plan into smaller PDF pages.");
-  const faces = await reconstructFaces(segments);
+  const faces = await reconstructFaces(segments, 0.22, options);
   if (faces.length * labels.length > 3000000) throw new Error("Too many boundaries and labels to match safely. Split the subdivision plan into smaller pages.");
   const tableFaces = findTableFaces(faces, labels);
   const planFaces = faces.filter((points) => !tableFaces.has(points));
+  const maxAreaFraction = options?.deepScan ? 0.35 : 0.15;
   const candidates = [];
   for (let index = 0; index < faces.length; index += 1) {
     if (index % 100 === 0) await yieldToBrowser();
@@ -40,7 +43,7 @@ export async function detectPdfLots(page, pdfjs) {
     if (tableFaces.has(points)) continue;
     const drawingArea = signedArea(points);
     if (new Set(points.map((point) => point.join(","))).size !== points.length ||
-      points.length > 200 || drawingArea > viewport.width * viewport.height * 0.08 ||
+      points.length > 200 || drawingArea > viewport.width * viewport.height * maxAreaFraction ||
       points.some(([x, y]) => x < 0 || y < 0 || x > viewport.width || y > viewport.height)) continue;
     const inside = labels.filter((label) => containsPoint(points, label.point));
     const lotMatches = inside.filter((label) => label.lotNumber);
@@ -88,19 +91,32 @@ export async function detectPdfLots(page, pdfjs) {
       selected: false, category, categoryLabel, nonSaleable: isNonSaleable, warnings: candidateWarnings });
   }
   await associateBlockLabels(candidates, labels, planFaces);
-  const identities = new Map();
+  const seenIdentities = new Map();
+  let duplicateCount = 0;
   for (const candidate of candidates) {
-    const identity = `${candidate.block}:${candidate.lotNumber}`;
-    if (!identities.has(identity)) identities.set(identity, []);
-    identities.get(identity).push(candidate);
-  }
-  for (const duplicates of identities.values()) if (duplicates.length > 1) {
-    for (const candidate of duplicates) candidate.warnings.push("Another candidate has this block and lot number; correct the duplicate before creating it.");
+    const cleanLot = String(candidate.lotNumber || "")
+      .replace(/\s*\((?:Park|Facility|Road|Excluded|Non-Saleable|\d+)\)\s*$/gi, "")
+      .trim();
+    if (!cleanLot) continue;
+    const baseKey = `${candidate.block || ""}:${cleanLot}`.trim().toLowerCase();
+    const count = seenIdentities.get(baseKey) || 0;
+    seenIdentities.set(baseKey, count + 1);
+
+    if (count > 0) {
+      duplicateCount++;
+      let nextLot = `${cleanLot} (${count + 1})`;
+      if (candidate.nonSaleable) {
+        const cat = candidate.category === "park" ? "Park"
+          : candidate.category === "facility" ? "Facility"
+          : candidate.category === "road" ? "Road" : "Excluded";
+        nextLot = count === 1 ? `${cleanLot} (${cat})` : `${cleanLot} (${cat} ${count})`;
+      }
+      candidate.lotNumber = nextLot;
+    }
   }
   const unresolvedBlocks = candidates.filter((candidate) => !candidate.block).length;
-  const duplicateLabels = [...identities.values()].filter((items) => items.length > 1).reduce((sum, items) => sum + items.length, 0);
   if (unresolvedBlocks) warnings.push(`${unresolvedBlocks} candidate${unresolvedBlocks === 1 ? " needs" : "s need"} a block number entered from the plan.`);
-  if (duplicateLabels) warnings.push(`${duplicateLabels} candidates share a suggested block and lot number. Correct those identities before bulk creation.`);
+  if (duplicateCount > 0) warnings.push(`${duplicateCount} duplicate candidate identifier(s) were automatically resolved.`);
   if (recoveredFonts) warnings.push("Some PDF text uses a custom CAD font. Recovered labels are suggestions and must be checked against the visible plan.");
   const nonSaleableCount = candidates.filter((c) => c.nonSaleable).length;
   if (nonSaleableCount > 0) {
@@ -114,5 +130,5 @@ export async function detectPdfLots(page, pdfjs) {
   warnings.push("Align the plan first, then review and select lots to create. Roads and unlabelled shapes are skipped.");
   return { detectorVersion: PDF_LOT_DETECTOR_VERSION, candidates: candidates.map(({ labelPoint, ...candidate }) => ({ ...candidate,
     points: candidate.points.map(([x, y]) => [x / viewport.width, y / viewport.height]),
-  })), warnings, pageWidth: viewport.width, pageHeight: viewport.height };
+  })), roadLabels, warnings, pageWidth: viewport.width, pageHeight: viewport.height };
 }

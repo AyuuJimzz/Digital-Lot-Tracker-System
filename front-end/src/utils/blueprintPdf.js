@@ -1,4 +1,5 @@
 import { detectPdfLots } from "./pdfLotImport";
+import { cropBlueprintCanvas } from "./blueprintAutoCrop";
 
 let pdfLibraryPromise;
 
@@ -28,7 +29,7 @@ export function loadBlueprintPdfLibrary() {
   return pdfLibraryPromise;
 }
 
-export async function prepareBlueprintPdf(file, pageNumber, onProgress) {
+export async function prepareBlueprintPdf(file, pageNumber, onProgress, options = {}) {
   if (file.size > 20 * 1024 * 1024) throw new Error("Choose a PDF smaller than 20 MB.");
   if (!Number.isInteger(pageNumber) || pageNumber < 1) throw new Error("Enter a valid PDF page number.");
   onProgress("Opening PDF...");
@@ -45,19 +46,34 @@ export async function prepareBlueprintPdf(file, pageNumber, onProgress) {
     canvas.height = Math.floor(viewport.height);
     onProgress("Preparing blueprint...");
     await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-    const imageUrl = canvas.toDataURL("image/png");
+    const originalImageUrl = canvas.toDataURL("image/png");
     onProgress("Detecting lot boundaries...");
     await new Promise((resolve) => setTimeout(resolve, 0));
     let detection;
     try {
-      detection = await detectPdfLots(page, pdfjs);
+      detection = await detectPdfLots(page, pdfjs, options);
     } catch (error) {
       detection = { candidates: [], warnings: [error.message || "Lot detection failed. You can still align this blueprint and trace lots manually."] };
     }
+    onProgress("Cutting out subdivision map...");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    let automaticCrop = null;
+    try {
+      automaticCrop = cropBlueprintCanvas(canvas, detection);
+    } catch {
+      // A crop failure must not discard the usable PDF or its detected lots.
+    }
+    if (!automaticCrop) detection.warnings = [...(detection.warnings || []),
+      "Automatic map cutout was unavailable for this page. The full page was kept so you can still align and review it."];
     return {
-      imageUrl,
+      imageUrl: automaticCrop?.imageUrl || originalImageUrl,
+      originalImageUrl,
       lotImport: {
         ...detection,
+        candidates: (detection.candidates || []).map((candidate) => ({
+          ...candidate,
+          selected: true,
+        })),
         sourceName: file.name,
         pageNumber,
         pageCount: pdf.numPages,
@@ -68,7 +84,8 @@ export async function prepareBlueprintPdf(file, pageNumber, onProgress) {
         // PDF viewport pixels are rounded when assigned to canvas dimensions.
         renderWidth: viewport.width,
         renderHeight: viewport.height,
-        cropBounds: null,
+        cropBounds: automaticCrop?.cropBounds || null,
+        autoCropApplied: Boolean(automaticCrop),
       },
     };
   } finally {
