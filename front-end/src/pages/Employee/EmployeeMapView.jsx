@@ -100,9 +100,11 @@ function MapController({
       clearTimeout(debounceTimer);
       const z = map.getZoom();
       updateZoomClasses(z);
+      // 300ms delay ensures Leaflet has fully finished its post-zoom SVG path
+      // recalculation and transform reset before React triggers any re-render
       debounceTimer = setTimeout(() => {
         if (setCurrentZoom) setCurrentZoom(z);
-      }, 80);
+      }, 300);
     };
     // Auto-close any lingering hover tooltips when map begins moving/dragging/zooming
     const handleDismissTooltips = () => {
@@ -564,10 +566,11 @@ const EmployeeMapView = () => {
         zoomDelta={0.5}
         zoomSnap={0.25}
         maxZoom={28}
+        scrollWheelZoom="center"
         zoomControl={false}
         attributionControl={false}
-        zoomAnimation={true}
-        fadeAnimation={true}
+        zoomAnimation={false}
+        fadeAnimation={false}
         markerZoomAnimation={true}
         touchZoom={true}
         tap={false}
@@ -816,7 +819,7 @@ const EmployeeMapView = () => {
               />
 
               <Marker
-                key={`emp-pin-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
+                key={`emp-pin-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}
                 position={[centerLat, centerLng]}
                 icon={createPinIcon(lot.status, lot.lot_number, lot.area_sqm)}
                 eventHandlers={{

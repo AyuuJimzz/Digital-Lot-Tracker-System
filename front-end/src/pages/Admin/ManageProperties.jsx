@@ -2,7 +2,7 @@ import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Edit, Trash2, Plus, Eye, EyeOff, X, MapPin } from "lucide-react";
+import { Edit, Trash2, Plus, Eye, EyeOff, X, MapPin, AlertTriangle } from "lucide-react";
 import { geocodeAddress } from "../../utils/geocoding";
 
 const MUNICIPALITY_COORDINATES = {
@@ -43,6 +43,10 @@ const ManageProperties = () => {
   const [formData, setFormData] = useState({ property_name: "", location: "", total_lots: 0, status: "active" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState("");
+  const [propertyPendingDelete, setPropertyPendingDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState("");
 
   const navigate = useNavigate();
 
@@ -179,8 +183,25 @@ const ManageProperties = () => {
     } catch (err) { alert(err.message || "Failed to update property status"); }
   };
 
-  const handleDelete = async (propertyId) => {
-    if (!window.confirm("Are you sure you want to delete this property?")) return;
+  const openDeleteModal = (property) => {
+    setDeleteError("");
+    setPropertyPendingDelete(property);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setPropertyPendingDelete(null);
+    setDeleteError("");
+  };
+
+  const confirmDeleteProperty = async () => {
+    if (!propertyPendingDelete || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError("");
+
+    const propertyId = propertyPendingDelete.property_id;
+    const propertyName = propertyPendingDelete.property_name;
+
     try {
       const token = localStorage.getItem("authToken");
       const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
@@ -195,8 +216,18 @@ const ManageProperties = () => {
       } catch (err) {}
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
-      alert("Property deleted successfully");
-    } catch (err) { alert(err.message || "Failed to delete property"); }
+      setPropertyPendingDelete(null);
+      setDeleteSuccessMessage(`Property "${propertyName}" deleted successfully`);
+    } catch (err) {
+      const errorMsg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to delete property";
+      setDeleteError(errorMsg);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const resetForm = () => {
@@ -237,6 +268,120 @@ const ManageProperties = () => {
             <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
               Please wait while we initialize property GPS location and sync the map...
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── In-App Delete Confirmation Modal ── */}
+      {propertyPendingDelete && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-property-modal-title"
+            className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 max-w-md w-full animate-in zoom-in-95 duration-150"
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3 mb-4 border-b border-gray-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id="delete-property-modal-title" className="text-lg font-bold text-gray-900 dark:text-white">
+                    Delete Property?
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Permanent deletion confirmation
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40 cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Property Details */}
+            <div className="bg-gray-50 dark:bg-slate-800/60 rounded-xl p-3.5 mb-4 border border-gray-100 dark:border-slate-700/60 space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  Property:
+                </span>
+                <span className="font-bold text-gray-900 dark:text-white text-right truncate max-w-[240px]">
+                  {propertyPendingDelete.property_name}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  Total Lots:
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-200">
+                  {propertyPendingDelete.total_lots ?? 0} lots
+                </span>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3.5 mb-4 text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+              <p className="font-semibold mb-1 flex items-center gap-1.5 text-rose-800 dark:text-rose-200">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                Warning
+              </p>
+              <p>
+                Deleting this property is permanent and may also delete its related lots and dependent records because of the current database cascade relationships.
+              </p>
+              <p className="mt-1 font-semibold text-rose-800 dark:text-rose-200">
+                This action cannot be undone.
+              </p>
+            </div>
+
+            {/* Error Message inside Modal */}
+            {deleteError && (
+              <div className="bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg p-3 text-xs mb-4">
+                <span className="font-bold">Error: </span>
+                {deleteError}
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteProperty}
+                disabled={isDeleting}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-md transition-all cursor-pointer ${
+                  isDeleting
+                    ? "bg-rose-400 dark:bg-rose-600/70 cursor-not-allowed"
+                    : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/25 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                }`}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Property</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -339,6 +484,23 @@ const ManageProperties = () => {
         </div>
       )}
 
+      {/* Success Notification Banner */}
+      {deleteSuccessMessage && (
+        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 rounded-xl px-4 py-3 text-sm animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{deleteSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeleteSuccessMessage("")}
+            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 p-1 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white dark:bg-slate-900 shadow rounded-lg border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors duration-300">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-800">
@@ -398,7 +560,7 @@ const ManageProperties = () => {
                           {property.status === "active" ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                         </button>
                         <button
-                          onClick={() => handleDelete(property.property_id)}
+                          onClick={() => openDeleteModal(property)}
                           className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
                           title="Delete Property"
                         >

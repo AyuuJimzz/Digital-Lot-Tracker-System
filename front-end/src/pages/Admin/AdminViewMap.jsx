@@ -36,7 +36,7 @@ import {
   findSnapVertex,
   offsetPolygonAdjacent,
 } from "../../utils/geoUtils";
-import { Magnet, Copy, Ruler, Plus, X, GripHorizontal } from "lucide-react";
+import { Magnet, Copy, Ruler, Plus, X, GripHorizontal, AlertTriangle, CheckCircle2 } from "lucide-react";
 import {
   saveBlueprintOverlay,
   loadBlueprintOverlay,
@@ -125,9 +125,11 @@ function MapController({
       clearTimeout(debounceTimer);
       const z = map.getZoom();
       updateZoomClasses(z);
+      // 300ms delay ensures Leaflet has fully finished its post-zoom SVG path
+      // recalculation and transform reset before React triggers any re-render
       debounceTimer = setTimeout(() => {
         if (setCurrentZoom) setCurrentZoom(z);
-      }, 80);
+      }, 300);
     };
 
     // Auto-close any lingering hover tooltips when map begins moving/dragging/zooming
@@ -202,6 +204,173 @@ function MapController({
 
   return null;
 }
+
+// Helper: converts Blob/URL to permanent base64 Data URL for persistent IndexedDB storage
+const toDataURL = (urlOrBlob) => {
+  return new Promise((resolve) => {
+    if (!urlOrBlob) return resolve(urlOrBlob);
+    if (typeof urlOrBlob === "string" && urlOrBlob.startsWith("data:")) {
+      return resolve(urlOrBlob);
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      try {
+        resolve(c.toDataURL("image/png"));
+      } catch (e) {
+        resolve(urlOrBlob);
+      }
+    };
+    img.onerror = () => resolve(urlOrBlob);
+    img.src = urlOrBlob;
+  });
+};
+
+const generateSourceRevision = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? `rev_${crypto.randomUUID()}`
+    : `rev_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+// Helper: converts paper/transparent background into alpha transparency & CAD lines into chosen high-contrast color, rotated on Canvas, returning a Blob
+const createTransparentPaperBlob = (imageUrl, lineColor = "lime", rotationDeg = 0, lineBoldness = "fine", multiply = true) => {
+  return new Promise((resolve) => {
+    if (!imageUrl) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const rad = ((rotationDeg || 0) * Math.PI) / 180;
+      const sin = Math.abs(Math.sin(rad));
+      const cos = Math.abs(Math.cos(rad));
+
+      const w = img.width;
+      const h = img.height;
+      const newW = Math.max(10, Math.floor(w * cos + h * sin));
+      const newH = Math.max(10, Math.floor(w * sin + h * cos));
+
+      canvas.width = newW;
+      canvas.height = newH;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      ctx.translate(newW / 2, newH / 2);
+      ctx.rotate(rad);
+      ctx.drawImage(img, -w / 2, -h / 2);
+
+      try {
+        if (multiply) {
+          const imgData = ctx.getImageData(0, 0, newW, newH);
+          const data = imgData.data;
+
+          // Color selection (default to Lime)
+          let targetR = 52, targetG = 211, targetB = 153;
+          if (lineColor === "amber" || lineColor === "gold" || lineColor === "yellow") {
+            targetR = 251; targetG = 191; targetB = 36;
+          } else if (lineColor === "cyan" || lineColor === "blue") {
+            targetR = 6; targetG = 182; targetB = 212;
+          } else if (lineColor === "lime" || lineColor === "green") {
+            targetR = 52; targetG = 211; targetB = 153;
+          } else if (lineColor === "white") {
+            targetR = 255; targetG = 255; targetB = 255;
+          } else if (lineColor === "black") {
+            targetR = 15; targetG = 23; targetB = 42;
+          }
+
+          const isDarkInk = lineColor === "black";
+
+          // Smooth paper cutoff and curve exponent
+          let paperThreshold = 225;
+          let exponent = 2.0;
+          if (lineBoldness === "super_fine") {
+            paperThreshold = 210;
+            exponent = 2.4;
+          } else if (lineBoldness === "fine") {
+            paperThreshold = 225;
+            exponent = 1.7;
+          } else if (lineBoldness === "normal") {
+            paperThreshold = 235;
+            exponent = 1.2;
+          } else {
+            paperThreshold = 245;
+            exponent = 0.8;
+          }
+
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const a = data[i + 3];
+
+            if (a < 20) {
+              data[i + 3] = 0;
+              continue;
+            }
+
+            const lum = (r + g + b) / 3;
+
+            if (lum >= paperThreshold) {
+              data[i + 3] = 0; // 100% transparent background
+            } else if (!isDarkInk) {
+              const norm = (paperThreshold - lum) / paperThreshold; // 0 to 1
+              // Cubic Hermite smoothstep for anti-aliasing without blur or stair-steps
+              const smoothStep = norm * norm * (3 - 2 * norm);
+              const alpha = Math.min(255, Math.max(0, Math.pow(smoothStep, exponent) * 255));
+
+              data[i] = targetR;
+              data[i + 1] = targetG;
+              data[i + 2] = targetB;
+              data[i + 3] = Math.round(alpha);
+            }
+          }
+
+          // Dilation / Stroke Thickening Pass: only active when user explicitly chooses "bold"
+          if (!isDarkInk && lineBoldness === "bold") {
+            const copy = new Uint8ClampedArray(data);
+            for (let y = 1; y < newH - 1; y++) {
+              for (let x = 1; x < newW - 1; x++) {
+                const idx = (y * newW + x) * 4;
+                if (copy[idx + 3] < 50) {
+                  const topA = copy[((y - 1) * newW + x) * 4 + 3];
+                  const btmA = copy[((y + 1) * newW + x) * 4 + 3];
+                  const lftA = copy[(y * newW + (x - 1)) * 4 + 3];
+                  const rgtA = copy[(y * newW + (x + 1)) * 4 + 3];
+                  if (topA > 200 || btmA > 200 || lftA > 200 || rgtA > 200) {
+                    data[idx] = targetR;
+                    data[idx + 1] = targetG;
+                    data[idx + 2] = targetB;
+                    data[idx + 3] = 200;
+                  }
+                }
+              }
+            }
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+        }
+      } catch (e) {}
+
+      canvas.toBlob((blob) => {
+        resolve(blob || null);
+      }, "image/png");
+    };
+    img.onerror = () => resolve(null);
+    img.src = imageUrl;
+  });
+};
+
+// Compatibility wrapper preserving the existing string URL return contract for all callers
+const createTransparentPaperImage = async (imageUrl, lineColor = "lime", rotationDeg = 0, lineBoldness = "fine", multiply = true) => {
+  const blob = await createTransparentPaperBlob(imageUrl, lineColor, rotationDeg, lineBoldness, multiply);
+  return blob ? URL.createObjectURL(blob) : imageUrl;
+};
 
 function AdminViewMap() {
   const [mapData, setMapData] = useState(() => {
@@ -288,6 +457,8 @@ function AdminViewMap() {
   const overlayOperationRef = useRef(0);
   const activeOverlayPropertyRef = useRef(selectedProperty);
   activeOverlayPropertyRef.current = selectedProperty;
+  const overlayBlobCacheRef = useRef(new Map());
+  const activeOverlayUrlRef = useRef(null);
   const [isPreparingOverlay, setIsPreparingOverlay] = useState(false);
   const lotImport = useBlueprintLotImport({
     propertyId: selectedProperty, map, bounds: overlayBounds, rotation: overlayRotation,
@@ -601,6 +772,10 @@ function AdminViewMap() {
   // ── Bulk Shift States ──────────────────────────────────────────────────────
   const [isBulkShifting, setIsBulkShifting] = useState(false);
   const [bulkShiftOffset, setBulkShiftOffset] = useState({ lat: 0, lng: 0 });
+  const [pendingBulkShift, setPendingBulkShift] = useState(false);
+  const [isBulkShiftSubmitting, setIsBulkShiftSubmitting] = useState(false);
+  const [bulkShiftError, setBulkShiftError] = useState("");
+  const [bulkShiftSuccessMessage, setBulkShiftSuccessMessage] = useState("");
 
   // Handle moving a vertex on drag (updates Leaflet instance directly for performance/smoothness)
   const handleVertexDrag = (index, event) => {
@@ -947,169 +1122,14 @@ function AdminViewMap() {
     [overlayRotation]
   );
 
-  // Helper: converts Blob/URL to permanent base64 Data URL for persistent IndexedDB storage
-  const toDataURL = (urlOrBlob) => {
-    return new Promise((resolve) => {
-      if (!urlOrBlob) return resolve(urlOrBlob);
-      if (typeof urlOrBlob === "string" && urlOrBlob.startsWith("data:")) {
-        return resolve(urlOrBlob);
-      }
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const c = document.createElement("canvas");
-        c.width = img.width;
-        c.height = img.height;
-        const ctx = c.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        try {
-          resolve(c.toDataURL("image/png"));
-        } catch (e) {
-          resolve(urlOrBlob);
-        }
-      };
-      img.onerror = () => resolve(urlOrBlob);
-      img.src = urlOrBlob;
-    });
-  };
-
-  // Helper: converts paper/transparent background into alpha transparency & CAD lines into chosen high-contrast color, rotated on Canvas
-  const createTransparentPaperImage = (imageUrl, lineColor = "lime", rotationDeg = 0, lineBoldness = "fine", transparentPaper = true) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        const rad = ((rotationDeg || 0) * Math.PI) / 180;
-        const sin = Math.abs(Math.sin(rad));
-        const cos = Math.abs(Math.cos(rad));
-
-        const w = img.width;
-        const h = img.height;
-        const newW = Math.max(10, Math.floor(w * cos + h * sin));
-        const newH = Math.max(10, Math.floor(w * sin + h * cos));
-
-        canvas.width = newW;
-        canvas.height = newH;
-
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-
-        ctx.translate(newW / 2, newH / 2);
-        ctx.rotate(rad);
-        ctx.drawImage(img, -w / 2, -h / 2);
-
-        try {
-          if (transparentPaper) {
-          const imgData = ctx.getImageData(0, 0, newW, newH);
-          const data = imgData.data;
-
-          // Color selection (default to Lime)
-          let targetR = 52, targetG = 211, targetB = 153;
-          if (lineColor === "amber" || lineColor === "gold" || lineColor === "yellow") {
-            targetR = 251; targetG = 191; targetB = 36;
-          } else if (lineColor === "cyan" || lineColor === "blue") {
-            targetR = 6; targetG = 182; targetB = 212;
-          } else if (lineColor === "lime" || lineColor === "green") {
-            targetR = 52; targetG = 211; targetB = 153;
-          } else if (lineColor === "white") {
-            targetR = 255; targetG = 255; targetB = 255;
-          } else if (lineColor === "black") {
-            targetR = 15; targetG = 23; targetB = 42;
-          }
-
-          const isDarkInk = lineColor === "black";
-
-          // Smooth paper cutoff and curve exponent
-          let paperThreshold = 225;
-          let exponent = 2.0;
-          if (lineBoldness === "super_fine") {
-            paperThreshold = 210;
-            exponent = 2.4;
-          } else if (lineBoldness === "fine") {
-            paperThreshold = 225;
-            exponent = 1.7;
-          } else if (lineBoldness === "normal") {
-            paperThreshold = 235;
-            exponent = 1.2;
-          } else {
-            paperThreshold = 245;
-            exponent = 0.8;
-          }
-
-          for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const a = data[i + 3];
-
-            if (a < 20) {
-              data[i + 3] = 0;
-              continue;
-            }
-
-            const lum = (r + g + b) / 3;
-
-            if (lum >= paperThreshold) {
-              data[i + 3] = 0; // 100% transparent background
-            } else if (!isDarkInk) {
-              const norm = (paperThreshold - lum) / paperThreshold; // 0 to 1
-              // Cubic Hermite smoothstep for anti-aliasing without blur or stair-steps
-              const smoothStep = norm * norm * (3 - 2 * norm);
-              const alpha = Math.min(255, Math.max(0, Math.pow(smoothStep, exponent) * 255));
-
-              data[i] = targetR;
-              data[i + 1] = targetG;
-              data[i + 2] = targetB;
-              data[i + 3] = Math.round(alpha);
-            }
-          }
-
-          // Dilation / Stroke Thickening Pass: only active when user explicitly chooses "bold"
-          if (!isDarkInk && lineBoldness === "bold") {
-            const copy = new Uint8ClampedArray(data);
-            for (let y = 1; y < newH - 1; y++) {
-              for (let x = 1; x < newW - 1; x++) {
-                const idx = (y * newW + x) * 4;
-                if (copy[idx + 3] < 50) {
-                  const topA = copy[((y - 1) * newW + x) * 4 + 3];
-                  const btmA = copy[((y + 1) * newW + x) * 4 + 3];
-                  const lftA = copy[(y * newW + (x - 1)) * 4 + 3];
-                  const rgtA = copy[(y * newW + (x + 1)) * 4 + 3];
-                  if (topA > 200 || btmA > 200 || lftA > 200 || rgtA > 200) {
-                    data[idx] = targetR;
-                    data[idx + 1] = targetG;
-                    data[idx + 2] = targetB;
-                    data[idx + 3] = 200;
-                  }
-                }
-              }
-            }
-          }
-
-          ctx.putImageData(imgData, 0, 0);
-          }
-        } catch (e) {}
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(URL.createObjectURL(blob));
-          } else {
-            resolve(imageUrl);
-          }
-        }, "image/png");
-      };
-      img.onerror = () => resolve(imageUrl);
-      img.src = imageUrl;
-    });
-  };
-
   // ── Load Persistent Blueprint Overlay from IndexedDB on Mount or Property Switch ───
   useEffect(() => {
     let isCancelled = false;
     const operation = ++overlayOperationRef.current;
+    if (activeOverlayUrlRef.current && activeOverlayUrlRef.current.startsWith("blob:")) {
+      try { URL.revokeObjectURL(activeOverlayUrlRef.current); } catch (e) {}
+      activeOverlayUrlRef.current = null;
+    }
     setOverlayImage(null);
     setOverlayBounds(null);
     setIsEditingOverlay(false);
@@ -1130,19 +1150,81 @@ function AdminViewMap() {
           rawOverlayRef.current = data.rawImage;
           originalUploadedImageRef.current = data.originalImage || data.rawImage;
           unrotatedSpanRef.current = data.unrotatedSpan || null;
-          setOverlayRotation(data.rotation || 0);
-          setOverlayOpacity(data.opacity ?? 1);
+          const rotation = data.rotation || 0;
+          const opacity = data.opacity ?? 1;
           const lineColor = data.lineColor || "lime";
           const lineBoldness = data.lineBoldness || "super_fine";
+          const multiply = data.multiply ?? true;
+
+          setOverlayRotation(rotation);
+          setOverlayOpacity(opacity);
           setOverlayLineColor(lineColor);
           setOverlayLineBoldness(lineBoldness);
-          setOverlayMultiply(data.multiply ?? true);
+          setOverlayMultiply(multiply);
           setOverlayBounds(data.bounds);
 
-          const transUrl = await createTransparentPaperImage(data.rawImage, lineColor, data.rotation || 0, lineBoldness, data.multiply ?? true);
-          if (isCancelled || operation !== overlayOperationRef.current) return;
-          transparentOverlayRef.current = transUrl;
-          setOverlayImage(transUrl);
+          // Stable sourceRevision: reuse existing or generate stable token for legacy records
+          let sourceRevision = data.sourceRevision;
+          if (!sourceRevision) {
+            sourceRevision = generateSourceRevision();
+          }
+
+          const processedCacheKey = `${selectedProperty}:${sourceRevision}:${rotation}:${lineColor}:${lineBoldness}:${multiply ? 1 : 0}`;
+
+          let displayUrl = null;
+
+          // A. In-memory cache hit: matching cacheKey + Blob
+          const memCached = overlayBlobCacheRef.current.get(selectedProperty);
+          if (memCached && memCached.cacheKey === processedCacheKey && memCached.blob instanceof Blob) {
+            displayUrl = URL.createObjectURL(memCached.blob);
+          }
+
+          // B. IndexedDB processedBlob hit: matching processedCacheKey
+          if (!displayUrl && data.processedCacheKey === processedCacheKey && data.processedBlob instanceof Blob) {
+            overlayBlobCacheRef.current.set(selectedProperty, {
+              cacheKey: processedCacheKey,
+              blob: data.processedBlob,
+            });
+            displayUrl = URL.createObjectURL(data.processedBlob);
+          }
+
+          // C. Cache miss: generate via canvas processing & persist
+          if (!displayUrl) {
+            const blob = await createTransparentPaperBlob(data.rawImage, lineColor, rotation, lineBoldness, multiply);
+            if (isCancelled || operation !== overlayOperationRef.current) return;
+
+            if (blob) {
+              overlayBlobCacheRef.current.set(selectedProperty, {
+                cacheKey: processedCacheKey,
+                blob,
+              });
+              displayUrl = URL.createObjectURL(blob);
+
+              // Persist sourceRevision, processedBlob, processedCacheKey without duplicating rawImage
+              saveBlueprintOverlay(selectedProperty, {
+                sourceRevision,
+                processedBlob: blob,
+                processedCacheKey,
+              });
+            } else {
+              displayUrl = data.rawImage;
+            }
+          }
+
+          if (isCancelled || operation !== overlayOperationRef.current) {
+            if (displayUrl && displayUrl.startsWith("blob:")) {
+              try { URL.revokeObjectURL(displayUrl); } catch (e) {}
+            }
+            return;
+          }
+
+          if (activeOverlayUrlRef.current && activeOverlayUrlRef.current !== displayUrl && activeOverlayUrlRef.current.startsWith("blob:")) {
+            try { URL.revokeObjectURL(activeOverlayUrlRef.current); } catch (e) {}
+          }
+          activeOverlayUrlRef.current = displayUrl;
+
+          transparentOverlayRef.current = displayUrl;
+          setOverlayImage(displayUrl);
           setOverlayVisible(true);
           restoreLotImport(data.lotImport);
         }
@@ -1154,8 +1236,26 @@ function AdminViewMap() {
     fetchSavedOverlay();
     return () => {
       isCancelled = true;
+      if (activeOverlayUrlRef.current && activeOverlayUrlRef.current.startsWith("blob:")) {
+        try { URL.revokeObjectURL(activeOverlayUrlRef.current); } catch (e) {}
+        activeOverlayUrlRef.current = null;
+      }
     };
   }, [selectedProperty, restoreLotImport, map]);
+
+  // Clean up component-scoped overlay blob cache and active blob URL when AdminViewMap unmounts
+  useEffect(() => {
+    const overlayBlobCache = overlayBlobCacheRef.current;
+    return () => {
+      if (activeOverlayUrlRef.current && activeOverlayUrlRef.current.startsWith("blob:")) {
+        try { URL.revokeObjectURL(activeOverlayUrlRef.current); } catch (e) {}
+        activeOverlayUrlRef.current = null;
+      }
+      if (overlayBlobCache) {
+        overlayBlobCache.clear();
+      }
+    };
+  }, []);
 
   const handleOverlayCornerDragEnd = useCallback(() => {
     if (map) map.dragging.enable();
@@ -1365,6 +1465,8 @@ function AdminViewMap() {
       }
 
       if (selectedProperty && finalBounds) {
+        const newRevision = generateSourceRevision();
+        overlayBlobCacheRef.current.delete(selectedProperty);
         saveBlueprintOverlay(selectedProperty, {
           rawImage: dataUrl,
           originalImage: originalUploadedImageRef.current || dataUrl,
@@ -1374,6 +1476,7 @@ function AdminViewMap() {
           lineColor: overlayLineColor,
           multiply: overlayMultiply,
           unrotatedSpan: finalSpan,
+          sourceRevision: newRevision,
         });
       }
     },
@@ -1429,6 +1532,8 @@ function AdminViewMap() {
       }
 
       if (selectedProperty && initBounds) {
+        const newRevision = generateSourceRevision();
+        overlayBlobCacheRef.current.delete(selectedProperty);
         saveBlueprintOverlay(selectedProperty, {
           rawImage: dataUrl,
           originalImage: originalUploadedImageRef.current,
@@ -1439,6 +1544,7 @@ function AdminViewMap() {
           lineColor: overlayLineColor,
           multiply: overlayMultiply,
           unrotatedSpan: initSpan,
+          sourceRevision: newRevision,
         });
       }
     },
@@ -1476,16 +1582,31 @@ function AdminViewMap() {
     });
   }, [selectedProperty, overlayRotation, overlayOpacity, overlayLineColor, overlayMultiply]);
 
-  // Save bulk shifted coordinates to database
-  const handleSaveBulkShift = async () => {
+  // Save bulk shifted coordinates to database (opens in-app confirmation modal)
+  const handleOpenBulkShiftConfirm = () => {
     if (bulkShiftOffset.lat === 0 && bulkShiftOffset.lng === 0) {
       setIsBulkShifting(false);
       return;
     }
+    setBulkShiftError("");
+    setPendingBulkShift(true);
+  };
 
-    if (!window.confirm(`Are you sure you want to save the new position for all lots and labels in this property?`)) {
+  const handleCloseBulkShiftConfirm = () => {
+    if (isBulkShiftSubmitting) return;
+    setPendingBulkShift(false);
+    setBulkShiftError("");
+  };
+
+  const confirmBulkShift = async () => {
+    if (bulkShiftOffset.lat === 0 && bulkShiftOffset.lng === 0) {
+      setPendingBulkShift(false);
+      setIsBulkShifting(false);
       return;
     }
+
+    setIsBulkShiftSubmitting(true);
+    setBulkShiftError("");
 
     try {
       await axios.put(`${API_BASE_URL}/api/lots/property/${selectedProperty}/bulk-shift`, {
@@ -1504,16 +1625,28 @@ function AdminViewMap() {
         );
       }
 
-      alert("✅ All lots and road labels have been moved and saved successfully!");
+      setPendingBulkShift(false);
+      setBulkShiftSuccessMessage("All lots and road labels have been moved and saved successfully!");
+      setTimeout(() => setBulkShiftSuccessMessage(""), 4000);
+
       // Reload map data to get fresh coordinates from database
       await handleLotUpdated();
       setIsBulkShifting(false);
       setBulkShiftOffset({ lat: 0, lng: 0 });
     } catch (err) {
       console.error("Error bulk shifting lots and road labels:", err);
-      alert(err.response?.data?.error || "Failed to bulk shift lots");
+      const errorMsg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to bulk shift lots";
+      setBulkShiftError(errorMsg);
+    } finally {
+      setIsBulkShiftSubmitting(false);
     }
   };
+
+  const handleSaveBulkShift = handleOpenBulkShiftConfirm;
 
   // Create purple center-move icon
   const createOverlayCenterIcon = useCallback(() => {
@@ -2333,10 +2466,11 @@ function AdminViewMap() {
         zoomDelta={0.5}
         zoomSnap={0.25}
         maxZoom={28}
+        scrollWheelZoom="center"
         zoomControl={false}
         attributionControl={false}
-        zoomAnimation={true}
-        fadeAnimation={true}
+        zoomAnimation={false}
+        fadeAnimation={false}
         markerZoomAnimation={true}
         touchZoom={true}
         tap={false}
@@ -2820,7 +2954,7 @@ function AdminViewMap() {
 
               {!isBulkShifting && (
                 <Marker
-                  key={`pin-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}-${currentZoom >= 19 ? "zoom-in" : "zoom-out"}-${centerLat.toFixed(6)}-${centerLng.toFixed(6)}`}
+                  key={`pin-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}
                   position={[centerLat, centerLng]}
                   icon={createPinIcon(lot.status, lot.lot_number, lot.area_sqm)}
                   eventHandlers={{
@@ -3320,6 +3454,8 @@ function AdminViewMap() {
               onClick={() => {
                 setIsBulkShifting(false);
                 setBulkShiftOffset({ lat: 0, lng: 0 });
+                setPendingBulkShift(false);
+                setBulkShiftError("");
               }}
               className="flex-1 sm:flex-none px-4 py-2 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 text-xs font-semibold rounded-xl transition-all active:scale-95 cursor-pointer text-center"
             >
@@ -3327,6 +3463,135 @@ function AdminViewMap() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* ── In-App Bulk Shift Confirmation Modal ── */}
+      {pendingBulkShift && typeof document !== "undefined" && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bulk-shift-modal-title"
+            className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 max-w-md w-full animate-in zoom-in-95 duration-150"
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3 mb-4 border-b border-gray-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id="bulk-shift-modal-title" className="text-lg font-bold text-gray-900 dark:text-white">
+                    Confirm Bulk Lot Shift?
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Bulk coordinate movement confirmation
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseBulkShiftConfirm}
+                disabled={isBulkShiftSubmitting}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40 cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Shift Operation Details */}
+            <div className="bg-gray-50 dark:bg-slate-800/60 rounded-xl p-3.5 mb-4 border border-gray-100 dark:border-slate-700/60 space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  Property:
+                </span>
+                <span className="font-bold text-gray-900 dark:text-white text-right truncate max-w-[240px]">
+                  {properties.find((p) => Number(p.id) === Number(selectedProperty))?.name || "Selected Property"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  Affected Lots:
+                </span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                  {mapData?.lots ? mapData.lots.filter((l) => Number(l.property_id) === Number(selectedProperty)).length : 0} lots
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  Coordinate Offset:
+                </span>
+                <span className="font-mono text-xs text-gray-600 dark:text-slate-300">
+                  ΔLat: {bulkShiftOffset.lat.toFixed(6)}, ΔLng: {bulkShiftOffset.lng.toFixed(6)}
+                </span>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3.5 mb-4 text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+              <p className="font-semibold mb-1 flex items-center gap-1.5 text-amber-900 dark:text-amber-100">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                Warning
+              </p>
+              <p>
+                This operation will update multiple lot coordinates/positions at once.
+              </p>
+              <p className="mt-1 font-semibold text-amber-900 dark:text-amber-100">
+                This action should only continue if the admin confirms the changes.
+              </p>
+            </div>
+
+            {/* Error Message inside Modal */}
+            {bulkShiftError && (
+              <div className="bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg p-3 text-xs mb-4">
+                <span className="font-bold">Error: </span>
+                {bulkShiftError}
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCloseBulkShiftConfirm}
+                disabled={isBulkShiftSubmitting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmBulkShift}
+                disabled={isBulkShiftSubmitting}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-md transition-all cursor-pointer ${
+                  isBulkShiftSubmitting
+                    ? "bg-emerald-400 dark:bg-emerald-600/70 cursor-not-allowed"
+                    : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                }`}
+              >
+                {isBulkShiftSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Applying...</span>
+                  </>
+                ) : (
+                  <span>Confirm Shift</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Floating Success Banner */}
+      {bulkShiftSuccessMessage && typeof document !== "undefined" && ReactDOM.createPortal(
+        <div className="fixed top-6 right-6 z-[99999] flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-xl animate-in fade-in duration-150 text-sm font-semibold">
+          <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
+          <span>{bulkShiftSuccessMessage}</span>
+        </div>,
+        document.body
       )}
 
       {/* LotOffcanvas Component */}
@@ -3441,8 +3706,14 @@ function AdminViewMap() {
             ++overlayOperationRef.current;
             restoreLotImport(null);
             setIsPreparingOverlay(false);
-            if (overlayImage && overlayImage.startsWith("blob:")) {
+            if (activeOverlayUrlRef.current && activeOverlayUrlRef.current.startsWith("blob:")) {
+              try { URL.revokeObjectURL(activeOverlayUrlRef.current); } catch (e) {}
+              activeOverlayUrlRef.current = null;
+            } else if (overlayImage && overlayImage.startsWith("blob:")) {
               try { URL.revokeObjectURL(overlayImage); } catch (e) {}
+            }
+            if (selectedProperty) {
+              overlayBlobCacheRef.current.delete(selectedProperty);
             }
             setOverlayImage(null);
             setOverlayBounds(null);

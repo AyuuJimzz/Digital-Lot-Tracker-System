@@ -13,6 +13,7 @@ import {
   XCircle,
   Calendar,
   KeyRound,
+  AlertTriangle,
 } from "lucide-react";
 
 const inputCls =
@@ -41,6 +42,11 @@ const ManageEmployees = () => {
   const [activityEmployee, setActivityEmployee] = useState(null);
   const [activities, setActivities] = useState([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
+
+  const [employeePendingDelete, setEmployeePendingDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState("");
 
   const navigate = useNavigate();
 
@@ -257,18 +263,49 @@ const ManageEmployees = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (employeeId) => {
-    if (!window.confirm("Are you sure you want to delete this employee?")) return;
+  const openDeleteModal = (employee) => {
+    setDeleteError("");
+    setEmployeePendingDelete(employee);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setEmployeePendingDelete(null);
+    setDeleteError("");
+  };
+
+  const confirmDeleteEmployee = async () => {
+    if (!employeePendingDelete || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError("");
+
+    const employeeId = employeePendingDelete.employee_id;
+    const employeeName = `${employeePendingDelete.first_name || ""} ${employeePendingDelete.last_name || ""}`.trim() || "Employee";
+
     try {
       const token = localStorage.getItem("authToken");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       await axios.delete(`${API_BASE_URL}/api/employees/${employeeId}`, {
-        withCredentials: true, headers,
+        withCredentials: true,
+        headers,
       });
+
+      try {
+        sessionStorage.removeItem("employeesCache");
+      } catch (err) {}
+
       await fetchEmployees();
-      alert("Employee deleted successfully");
+      setEmployeePendingDelete(null);
+      setDeleteSuccessMessage(`Employee "${employeeName}" deleted successfully`);
     } catch (err) {
-      alert(err.message || "Failed to delete employee");
+      const errorMsg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to delete employee";
+      setDeleteError(errorMsg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -293,6 +330,122 @@ const ManageEmployees = () => {
 
   return (
     <div className="space-y-6 p-6">
+      {/* ── In-App Delete Confirmation Modal ── */}
+      {employeePendingDelete && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-employee-modal-title"
+            className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 max-w-md w-full animate-in zoom-in-95 duration-150"
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-3 mb-4 border-b border-gray-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 id="delete-employee-modal-title" className="text-lg font-bold text-gray-900 dark:text-white">
+                    Delete Employee?
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Permanent deletion confirmation
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40 cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Employee Details */}
+            <div className="bg-gray-50 dark:bg-slate-800/60 rounded-xl p-3.5 mb-4 border border-gray-100 dark:border-slate-700/60 space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  Employee:
+                </span>
+                <span className="font-bold text-gray-900 dark:text-white text-right truncate max-w-[240px]">
+                  {employeePendingDelete.first_name} {employeePendingDelete.last_name}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  Email:
+                </span>
+                <span className="font-medium text-gray-600 dark:text-slate-300 text-right truncate max-w-[240px]">
+                  {employeePendingDelete.email}
+                </span>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3.5 mb-4 text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+              <p className="font-semibold mb-1 flex items-center gap-1.5 text-rose-800 dark:text-rose-200">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                Warning
+              </p>
+              <p>
+                Deleting this employee will remove their employee account/access.
+              </p>
+              <p className="mt-1">
+                Existing transaction/sales history should remain preserved according to the current backend behavior.
+              </p>
+              <p className="mt-1 font-semibold text-rose-800 dark:text-rose-200">
+                This action cannot be undone.
+              </p>
+            </div>
+
+            {/* Error Message inside Modal */}
+            {deleteError && (
+              <div className="bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg p-3 text-xs mb-4">
+                <span className="font-bold">Error: </span>
+                {deleteError}
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteEmployee}
+                disabled={isDeleting}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-md transition-all cursor-pointer ${
+                  isDeleting
+                    ? "bg-rose-400 dark:bg-rose-600/70 cursor-not-allowed"
+                    : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/25 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                }`}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Employee</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -412,6 +565,23 @@ const ManageEmployees = () => {
         </div>
       )}
 
+      {/* Success Notification Banner */}
+      {deleteSuccessMessage && (
+        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 rounded-xl px-4 py-3 text-sm animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{deleteSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeleteSuccessMessage("")}
+            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 p-1 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
+            title="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white dark:bg-slate-900 shadow rounded-lg border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors duration-300">
         <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-800">
@@ -505,7 +675,7 @@ const ManageEmployees = () => {
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(employee.employee_id)}
+                          onClick={() => openDeleteModal(employee)}
                           className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
                           title="Delete Employee"
                         >

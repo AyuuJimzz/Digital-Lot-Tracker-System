@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Layers, Maximize, Minimize } from "lucide-react";
-import { TileLayer } from "react-leaflet";
+import { TileLayer, useMap } from "react-leaflet";
 
 export const MAP_LAYERS = {
   SATELLITE: "satellite",
@@ -14,6 +14,28 @@ export const MAP_LAYERS = {
  * strict referrer policy that blocks Google tiles from localhost/production.
  */
 export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+    map.eachLayer((layer) => {
+      if (layer && typeof layer._abortLoading === "function" && !layer._flyAbortGuarded) {
+        layer._flyAbortGuarded = true;
+        const originalAbort = layer._abortLoading;
+        layer._abortLoading = function () {
+          if (
+            this._map &&
+            this._map.getContainer()?.classList.contains("map-is-flying") &&
+            this._map.getZoom() < 16
+          ) {
+            return;
+          }
+          return originalAbort.apply(this, arguments);
+        };
+      }
+    });
+  }, [map, activeLayer]);
+
   if (activeLayer === MAP_LAYERS.STREETS) {
     return (
       <TileLayer
@@ -23,9 +45,10 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
         maxZoom={28}
         maxNativeZoom={20}
         crossOrigin={false}
-        keepBuffer={16}
+        keepBuffer={3}
         updateWhenZooming={true}
         updateWhenIdle={false}
+        updateInterval={250}
       />
     );
   }
@@ -39,9 +62,10 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
         maxZoom={28}
         maxNativeZoom={20}
         crossOrigin={false}
-        keepBuffer={16}
+        keepBuffer={3}
         updateWhenZooming={true}
         updateWhenIdle={false}
+        updateInterval={250}
       />
     );
   }
@@ -55,9 +79,10 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
       maxZoom={28}
       maxNativeZoom={20}
       crossOrigin={false}
-      keepBuffer={16}
+      keepBuffer={3}
       updateWhenZooming={true}
       updateWhenIdle={false}
+      updateInterval={250}
     />
   );
 }

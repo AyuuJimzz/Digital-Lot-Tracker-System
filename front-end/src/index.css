@@ -40,7 +40,8 @@ body {
 }
 
 .map-view-zoomed-in .property-overview-beacon-marker {
-  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .property-overview-beacon-marker {
@@ -48,6 +49,8 @@ body {
   background: transparent !important;
   border: none !important;
   z-index: 1000 !important;
+  opacity: 1;
+  transition: opacity 150ms ease-out;
 }
 
 /* ── Geo-anchored Road Labels: 100% hidden unless at street close-up level (Zoom 20+) ── */
@@ -66,12 +69,16 @@ body {
 }
 
 .map-road-label-inner {
-  will-change: transform;
-  transition: transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  opacity: 1;
+  transition: opacity 150ms ease-out;
 }
 
-/* Skip text layout/painting during property flights; restore on arrival. */
-.map-is-flying .map-road-label-icon,
+.map-is-flying .map-road-label-inner {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide lingering tooltips during active property flights; restore on arrival. */
 .map-is-flying .leaflet-tooltip {
   visibility: hidden !important;
 }
@@ -79,6 +86,8 @@ body {
 .map-is-flying .leaflet-tile,
 .map-is-flying .leaflet-image-layer {
   image-rendering: auto;
+  opacity: 1 !important;
+  transition: none !important;
 }
 
 /* High-quality rendering for Blueprint Overlay */
@@ -106,10 +115,10 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75) !important;
 }
 
-/* Lot Polygons Smooth Transition */
-.leaflet-interactive {
-  transition: fill-opacity 0.3s ease, stroke-width 0.3s ease, stroke 0.3s ease;
-}
+/* NOTE: All transitions removed from .leaflet-interactive —
+   stroke-width/stroke transitions desync with Leaflet's zoom-animation CSS
+   transforms (translate3d + scale), causing visible polygon jitter on zoomend
+   when Leaflet resets the SVG and recalculates path coordinates. */
 
 .leaflet-popup-close-button {
   font-size: 16px !important;

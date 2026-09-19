@@ -94,9 +94,8 @@ body {
   /* NOTE: filter removed — it forces GPU compositing per-tile and causes lag on tablets */
 }
 
-.leaflet-container {
-  will-change: transform;
-}
+/* NOTE: will-change: transform removed from .leaflet-container —
+   it forces per-frame GPU re-compositing that causes lot polygon jitter during zoom */
 
 /* ── Fullscreen Presentation Mode ── */
 .map-presentation-fullscreen {
