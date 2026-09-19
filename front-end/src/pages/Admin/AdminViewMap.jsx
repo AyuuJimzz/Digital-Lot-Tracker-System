@@ -19,6 +19,7 @@ import { BlueprintCropModal } from "../../components/admin/BlueprintCropModal";
 import { LotImportReviewModal } from "../../components/admin/LotImportReviewModal";
 import { useBlueprintLotImport } from "../../hooks/useBlueprintLotImport";
 import { usePropertyMapNavigation, waitForPropertyFlight } from "../../hooks/usePropertyMapNavigation";
+import { useSmoothWheelZoom } from "../../hooks/useSmoothWheelZoom";
 import { projectBlueprintRoadLabel, reframeBlueprintCrop } from "../../utils/blueprintLotProjection";
 import { mergeGeneratedRoadAnnotations } from "../../utils/pdfLotImport/roadLabels";
 import { MapAnnotationControl } from "../../components/admin/MapAnnotationControl";
@@ -184,6 +185,7 @@ function MapController({
   }, [map]);
 
   usePropertyMapNavigation(map, { selectedProperty, setSelectedProperty, properties, triggerArrivalPulse });
+  useSmoothWheelZoom(map);
 
   // Set view to selected property directly on initial mount (no delayed flyTo jump)
   const initialFlyDoneRef = useRef(false);
@@ -2463,10 +2465,10 @@ function AdminViewMap() {
       <MapContainer
         center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
         zoom={properties && properties.length > 0 ? 19 : 9}
-        zoomDelta={0.5}
-        zoomSnap={0.25}
+        zoomDelta={0.25}
+        zoomSnap={0}
         maxZoom={28}
-        scrollWheelZoom="center"
+        scrollWheelZoom={false}
         zoomControl={false}
         attributionControl={false}
         zoomAnimation={false}
@@ -2475,11 +2477,9 @@ function AdminViewMap() {
         touchZoom={true}
         tap={false}
         bounceAtZoomLimits={false}
-        wheelDebounceTime={40}
-        wheelPxPerZoomLevel={140}
         inertia={true}
-        inertiaDeceleration={3000}
-        inertiaMaxSpeed={1500}
+        inertiaDeceleration={6000}
+        inertiaMaxSpeed={700}
         style={{ height: "100%", width: "100%", zIndex: 1, touchAction: "manipulation" }}
       >
         <MapLocationSearch
