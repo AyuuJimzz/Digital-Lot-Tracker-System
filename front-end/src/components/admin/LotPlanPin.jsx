@@ -1,27 +1,48 @@
-import { createElementObject, createPathComponent, extendContext } from "@react-leaflet/core";
-import { Circle } from "leaflet";
+import { createElementObject, createLayerComponent, extendContext } from "@react-leaflet/core";
+import { Marker as LeafletMarker, divIcon } from "leaflet";
 import React from "react";
 import { useStableMapProps } from "../../hooks/useStableMapProps";
 
-// Keep the path even when its property starts outside the viewport. The shared
-// SVG renderer moves it into view during flyTo without recreating marker DOM.
-class LotCircle extends Circle {
-  _empty() { return false; }
+const pinIconCache = new Map();
+
+function getPinIcon(color) {
+  let icon = pinIconCache.get(color);
+  if (!icon) {
+    icon = divIcon({
+      className: "lot-plan-pin lot-plan-pin-marker",
+      html: `<div style="background-color:${color};width:14px;height:14px;border-radius:50%;border:1.25px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.5);box-sizing:border-box;"></div>`,
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+    pinIconCache.set(color, icon);
+  }
+  return icon;
 }
 
-const Pin = createPathComponent(
-  ({ center, color, children, ...options }, context) => {
-    const instance = new LotCircle(center, {
-      ...options, radius: 2, color: "#fff", weight: 1.25,
-      fillColor: color, fillOpacity: 1, className: "lot-plan-pin",
+const Pin = createLayerComponent(
+  ({ center, color, pane, ...options }, context) => {
+    const instance = new LeafletMarker(center, {
+      ...options,
+      pane: pane || "markerPane",
+      icon: getPinIcon(color),
     });
-    return createElementObject(instance, extendContext(context, { overlayContainer: instance }));
+    return createElementObject(
+      instance,
+      extendContext(context, { overlayContainer: instance })
+    );
   },
   (layer, props, previous) => {
-    if (props.center[0] !== previous.center[0] || props.center[1] !== previous.center[1]) {
+    if (
+      props.center &&
+      previous.center &&
+      (props.center[0] !== previous.center[0] ||
+        props.center[1] !== previous.center[1])
+    ) {
       layer.setLatLng(props.center);
     }
-    if (props.color !== previous.color) layer.setStyle({ fillColor: props.color });
+    if (props.color !== previous.color) {
+      layer.setIcon(getPinIcon(props.color));
+    }
   }
 );
 
@@ -29,3 +50,4 @@ export function LotPlanPin({ eventHandlers, ...props }) {
   const stable = useStableMapProps(undefined, eventHandlers);
   return <Pin {...props} {...stable} />;
 }
+

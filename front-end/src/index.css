@@ -83,6 +83,33 @@ body {
   visibility: hidden !important;
 }
 
+/* Disable hover and pointer-events on lots and pins during flight to eliminate hit-test CPU overhead */
+.map-is-flying .lot-plan-pane,
+.map-is-flying .lot-plan-pin,
+.map-is-flying .lot-plan-pin-marker,
+.map-wheel-zooming .lot-plan-pane,
+.map-wheel-zooming .lot-plan-pin,
+.map-wheel-zooming .lot-plan-pin-marker {
+  pointer-events: none !important;
+}
+
+/* Keep markers, shadows, and popups visible during flight.
+   Leaflet's flyTo lifecycle hides marker panes via CSS transforms — override that. */
+.map-is-flying .leaflet-marker-pane,
+.map-is-flying .leaflet-shadow-pane,
+.map-is-flying .leaflet-popup-pane {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Prevent Leaflet zoom animation from hiding marker icons mid-flight. */
+.map-is-flying .leaflet-marker-icon,
+.map-is-flying .leaflet-marker-shadow {
+  visibility: visible !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
 .map-is-flying .leaflet-tile,
 .map-is-flying .leaflet-image-layer {
   image-rendering: auto;
@@ -99,8 +126,14 @@ body {
   vector-effect: non-scaling-stroke;
 }
 
-.lot-plan-pin {
+.lot-plan-pin,
+.lot-plan-pin-marker {
   cursor: pointer;
+}
+
+.lot-plan-pin-marker {
+  background: transparent !important;
+  border: none !important;
 }
 
 .map-wheel-zooming .leaflet-zoom-animated {

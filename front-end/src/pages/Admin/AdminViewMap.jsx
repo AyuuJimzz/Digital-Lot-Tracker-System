@@ -111,6 +111,15 @@ function MapController({
       } else {
         container.classList.remove("map-zoom-street-level");
       }
+
+      // Real-time overview beacon and tooltip decluttering (instant on threshold, no debounce delay)
+      if (z < 18) {
+        container.classList.add("map-view-zoomed-out");
+        container.classList.remove("map-view-zoomed-in");
+      } else {
+        container.classList.add("map-view-zoomed-in");
+        container.classList.remove("map-view-zoomed-out");
+      }
     };
     updateZoomClasses(map.getZoom());
 
@@ -1831,9 +1840,29 @@ function AdminViewMap() {
 
   // Persistent SVG geometry stays mounted across property switches. The shared
   // renderer transforms the plan as one surface while the camera moves.
+  // Pre-calculate lot center points so the render loop avoids 200+ array allocations and Math.min/max operations per frame.
   const filteredLots = useMemo(() => {
     if (!mapData || !Array.isArray(mapData.lots)) return [];
-    return mapData.lots.filter((lot) => activePropertyIds.has(Number(lot.property_id)));
+    return mapData.lots
+      .filter((lot) => activePropertyIds.has(Number(lot.property_id)))
+      .map((lot) => {
+        if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
+          return lot;
+        }
+        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+        for (let i = 0; i < lot.coordinates.length; i++) {
+          const pt = lot.coordinates[i];
+          if (pt[0] < minLat) minLat = pt[0];
+          if (pt[0] > maxLat) maxLat = pt[0];
+          if (pt[1] < minLng) minLng = pt[1];
+          if (pt[1] > maxLng) maxLng = pt[1];
+        }
+        return {
+          ...lot,
+          _centerLat: (minLat + maxLat) / 2,
+          _centerLng: (minLng + maxLng) / 2,
+        };
+      });
   }, [mapData, activePropertyIds]);
 
 
@@ -2456,12 +2485,17 @@ function AdminViewMap() {
     }
   };
 
+  const isTouchDevice =
+    typeof window !== "undefined" &&
+    (window.matchMedia("(hover: none) and (pointer: coarse)").matches ||
+      ("ontouchstart" in window && window.innerWidth < 1100));
+
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
 
   return (
     <div
       ref={mapWrapperRef}
-      className={`w-full h-full relative ${currentZoom < 18 ? "map-view-zoomed-out" : "map-view-zoomed-in"} ${showAnnotationPanel && isEditingAnnotations ? "map-editing-labels-active" : ""}`}
+      className={`w-full h-full relative ${showAnnotationPanel && isEditingAnnotations ? "map-editing-labels-active" : ""}`}
       style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}
     >
       <MapContainer
@@ -2626,7 +2660,7 @@ function AdminViewMap() {
                   localStorage.setItem("selectedProperty", property.id.toString());
                   window.dispatchEvent(
                     new CustomEvent("selectProperty", {
-                      detail: { propertyId: property.id, coordinates: property.coordinates },
+                      detail: { propertyId: property.id, coordinates: property.coordinates, straight: true },
                     })
                   );
                 },
@@ -2846,20 +2880,10 @@ function AdminViewMap() {
                 ])
               : lot.coordinates;
 
-          const lats = coords.map((c) => c[0]);
-          const lngs = coords.map((c) => c[1]);
-          const minLat = Math.min(...lats);
-          const maxLat = Math.max(...lats);
-          const minLng = Math.min(...lngs);
-          const maxLng = Math.max(...lngs);
-          const centerLat = (minLat + maxLat) / 2;
-          const centerLng = (minLng + maxLng) / 2;
+          const isShifted = isBulkShifting && Number(lot.property_id) === Number(selectedProperty);
+          const centerLat = isShifted ? (lot._centerLat ?? 0) + bulkShiftOffset.lat : (lot._centerLat ?? 0);
+          const centerLng = isShifted ? (lot._centerLng ?? 0) + bulkShiftOffset.lng : (lot._centerLng ?? 0);
           const statusColor = getStatusColor(lot.status, lot.lot_number, lot.area_sqm);
-
-          const isTouchDevice =
-            typeof window !== "undefined" &&
-            (window.matchMedia("(hover: none) and (pointer: coarse)").matches ||
-              ("ontouchstart" in window && window.innerWidth < 1100));
 
           const openFullLotDetails = async () => {
             const matchingProp = properties.find(

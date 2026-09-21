@@ -100,8 +100,7 @@ export function MapLocationSearch({ onLocationSelected }) {
 
   const handleSelectLocation = (location) => {
     const coords = [location.lat, location.lng];
-    // Use the shared map navigation lifecycle. The old two-step flyTo sequence
-    // restarted the camera midway and bypassed the flight performance guards.
+    // Use the shared map navigation lifecycle.
     window.dispatchEvent(new CustomEvent("navigateToProperty", {
       detail: { coordinates: coords, zoom: 18.5 },
     }));

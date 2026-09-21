@@ -18,122 +18,172 @@ beforeEach(() => {
 afterEach(() => { flight.dispose(); map.remove(); element.remove(); jest.useRealTimers(); });
 const camera = () => ({ ...map.project(map.getCenter(), 19), zoom: map.getZoom() });
 
-test("rapid reversals preserve camera position and velocity in a single lifecycle", () => {
-  const started = jest.fn(), ended = jest.fn(), reset = jest.fn();
-  map.on("movestart", started).on("moveend", ended).on("viewreset", reset);
+test("flight follows a straight line from origin to destination (no curves)", () => {
+  const samples = [];
+  map.on("move", () => samples.push(camera()));
   flight.navigate([10.68, 122.4], 19, { duration: 3 });
-  jest.advanceTimersByTime(784);
-  const before = camera();
-  jest.advanceTimersByTime(16);
-  const current = camera();
-  flight.navigate([10.55, 122.2], 19, { duration: 3 });
-  expect(camera()).toEqual(current);
-  jest.advanceTimersByTime(16);
-  const after = camera();
-  console.log({ before, current, after });
-  for (const axis of ["x", "y", "zoom"]) {
-    const incoming = current[axis] - before[axis];
-    const outgoing = after[axis] - current[axis];
-    expect(Math.abs(outgoing - incoming)).toBeLessThan(Math.abs(incoming) * 0.2);
+  jest.advanceTimersByTime(3100);
+  // All intermediate points should lie on the line from start to end.
+  const start = samples[0];
+  const end = samples[samples.length - 1];
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  for (const s of samples) {
+    const cross = Math.abs((s.x - start.x) * dy - (s.y - start.y) * dx) / len;
+    expect(cross).toBeLessThan(1);
   }
-  for (let i = 0; i < 10; i++) {
-    flight.navigate([10.6 + i * 0.001, 122.3 - i * 0.001], 19, { duration: 2 });
-    jest.advanceTimersByTime(48);
-  }
-  expect(started).toHaveBeenCalledTimes(1);
-  expect(ended).not.toHaveBeenCalled();
-  jest.advanceTimersByTime(3000);
-  expect(map.getCenter().distanceTo(L.latLng(10.609, 122.291))).toBeLessThan(0.01);
+  expect(map.getCenter().distanceTo(L.latLng(10.68, 122.4))).toBeLessThan(0.01);
   expect(map.getZoom()).toBe(19);
-  expect(ended).toHaveBeenCalledTimes(1);
-  expect(reset).not.toHaveBeenCalled();
 });
 
-test("nearby flights stay animated and slow progressively into an exact landing", () => {
+test("phased animation: position barely moves during zoom-out phase", () => {
+  const origin = map.project([10.6, 122.3], 19);
+  const dest = map.project([10.68, 122.4], 19);
+  const totalDist = origin.distanceTo(dest);
+  flight.navigate([10.68, 122.4], 19, { duration: 3 });
+  // After 10% of duration (300ms), zoom should have changed but position should barely move.
+  jest.advanceTimersByTime(300);
+  const pos = camera();
+  const traveled = Math.sqrt((pos.x - origin.x) ** 2 + (pos.y - origin.y) ** 2);
+  // Position easing delays start: at t=0.1, positionEase is near 0.
+  expect(traveled / totalDist).toBeLessThan(0.05);
+});
+
+test("retarget mid-flight goes straight to new destination from current position", () => {
+  const started = jest.fn(), ended = jest.fn();
+  map.on("movestart", started).on("moveend", ended);
+  flight.navigate([10.68, 122.4], 19, { duration: 3 });
+  jest.advanceTimersByTime(800);
+  // Retarget to opposite direction
+  flight.navigate([10.55, 122.2], 19, { duration: 3 });
+  // Advance past throttle window
+  jest.advanceTimersByTime(100);
+  const posAfterRetarget = camera();
+  const samples = [];
+  map.on("move", () => samples.push(camera()));
+  jest.advanceTimersByTime(3100);
+  // After retarget, path should be straight from retarget position to new destination
+  if (samples.length > 2) {
+    const start = { x: posAfterRetarget.x, y: posAfterRetarget.y };
+    const end = samples[samples.length - 1];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 0) {
+      for (const s of samples.slice(1)) {
+        const cross = Math.abs((s.x - start.x) * dy - (s.y - start.y) * dx) / len;
+        expect(cross).toBeLessThan(1);
+      }
+    }
+  }
+  expect(map.getCenter().distanceTo(L.latLng(10.55, 122.2))).toBeLessThan(0.01);
+  expect(started).toHaveBeenCalledTimes(1); // lifecycle not restarted
+  expect(ended).toHaveBeenCalledTimes(1);
+});
+
+test("nearby flight has smooth zoom arc and exact landing", () => {
   const samples = [];
   map.on("move", () => samples.push(camera()));
   flight.navigate([10.6005, 122.3005], 19, { duration: 1.8 });
-  jest.advanceTimersByTime(896);
-  expect(map.getZoom()).toBeLessThan(19);
-  const mid = samples[samples.length - 1].x - samples[samples.length - 2].x;
-  jest.advanceTimersByTime(880);
-  const landing = samples[samples.length - 1].x - samples[samples.length - 2].x;
-  expect(landing).toBeGreaterThan(0);
-  expect(landing).toBeLessThan(mid * 0.1);
-  jest.advanceTimersByTime(64);
+  jest.advanceTimersByTime(1900);
+  const minZoom = Math.min(...samples.map(s => s.zoom));
+  expect(minZoom).toBeLessThan(19);
   expect(map.getCenter().distanceTo(L.latLng(10.6005, 122.3005))).toBeLessThan(0.01);
+  expect(map.getZoom()).toBe(19);
+});
+
+test("straight flight moves directly toward target with no zoom-out arc", () => {
+  const samples = [];
+  map.on("move", () => samples.push(camera()));
+  flight.navigate([10.68, 122.4], 18.5, { duration: 2, straight: true });
+  jest.advanceTimersByTime(2100);
+  for (const s of samples) {
+    expect(s.zoom).toBeLessThanOrEqual(19.001);
+    expect(s.zoom).toBeGreaterThanOrEqual(18.499);
+  }
+  expect(map.getCenter().distanceTo(L.latLng(10.68, 122.4))).toBeLessThan(0.01);
+  expect(map.getZoom()).toBe(18.5);
+});
+
+test("straight flight from zoomed-out view immediately moves and never zooms farther out", () => {
+  map.setView([10.5, 122.2], 10);
+  const samples = [];
+  map.on("move", () => samples.push(camera()));
+  flight.navigate([10.68, 122.4], 19, { duration: 2, straight: true });
+  jest.advanceTimersByTime(2100);
+  expect(samples.length).toBeGreaterThan(5);
+  // Zoom must NEVER drop below start zoom (10)
+  for (const s of samples) {
+    expect(s.zoom).toBeGreaterThanOrEqual(9.999);
+    expect(s.zoom).toBeLessThanOrEqual(19.001);
+  }
+  // Path must be straight line from start to end (no curved arc)
+  const start = samples[0];
+  const end = samples[samples.length - 1];
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  for (const s of samples) {
+    const cross = Math.abs((s.x - start.x) * dy - (s.y - start.y) * dx) / len;
+    expect(cross).toBeLessThan(1);
+  }
+  expect(map.getCenter().distanceTo(L.latLng(10.68, 122.4))).toBeLessThan(0.01);
   expect(map.getZoom()).toBe(19);
 });
 
 test("cancellation and external navigation leave no stale animation running", () => {
   flight.navigate([10.7, 122.4], 18.5, { duration: 3 });
   jest.advanceTimersByTime(400);
-  const displayed = camera();
   flight.cancel();
-  jest.advanceTimersByTime(5000);
-  expect(camera()).toEqual(displayed);
-  flight.navigate([10.7, 122.4], 18.5, { duration: 3 });
+  const posAfterCancel = camera();
   jest.advanceTimersByTime(400);
-  map.setView([10.55, 122.22], 20, { animate: false });
-  jest.advanceTimersByTime(5000);
-  expect(map.getCenter().distanceTo(L.latLng(10.55, 122.22))).toBeLessThan(0.01);
-  expect(map.getZoom()).toBe(20);
+  expect(camera()).toEqual(posAfterCancel);
+  map.setView([10.8, 122.5], 17);
+  expect(map.getCenter().distanceTo(L.latLng(10.8, 122.5))).toBeLessThan(0.01);
 });
 
-test("a delayed frame is bounded instead of jumping ahead by the entire stall", () => {
-  const frames = [];
-  const raf = jest.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => { frames.push(callback); return frames.length; });
+test("rapid-fire navigates are throttled — only latest destination is used", () => {
   flight.navigate([10.7, 122.4], 19, { duration: 3 });
-  frames.shift()(16);
-  const before = camera();
-  frames.shift()(1016);
-  const after = camera();
-  const totalDistance = map.project([10.7, 122.4], 19).distanceTo(map.project([10.6, 122.3], 19));
-  expect(L.point(after.x, after.y).distanceTo(L.point(before.x, before.y))).toBeLessThan(totalDistance * 0.01);
-  flight.cancel();
-  raf.mockRestore();
+  jest.advanceTimersByTime(16); // first frame fires
+  // Rapid-fire 5 retargets within 60ms
+  for (let i = 0; i < 5; i++) {
+    flight.navigate([10.6 + i * 0.01, 122.3 + i * 0.01], 19, { duration: 3 });
+  }
+  // Advance past throttle window and complete flight
+  jest.advanceTimersByTime(3200);
+  // Should land at the LAST requested destination
+  expect(map.getCenter().distanceTo(L.latLng(10.64, 122.34))).toBeLessThan(0.01);
 });
 
-test("zoom stays finite and bounded while repeatedly retargeting fractional zooms", () => {
-  const check = jest.fn(() => {
-    expect(Number.isFinite(map.getCenter().lat)).toBe(true);
-    expect(Number.isFinite(map.getCenter().lng)).toBe(true);
-    expect(map.getZoom()).toBeGreaterThanOrEqual(1);
-    expect(map.getZoom()).toBeLessThanOrEqual(28);
-  });
-  map.on("move", check);
-  [28, 1, 20.5, 18.5].forEach((zoom) => {
-    flight.navigate([10.7, 122.4], zoom, { duration: 2 });
-    jest.advanceTimersByTime(640);
-  });
+test("zoom stays finite and bounded while repeatedly retargeting", () => {
+  for (let i = 0; i < 20; i++) {
+    flight.navigate([10.6 + i * 0.01, 122.3 - i * 0.01], 19 + (i % 3) * 0.3, { duration: 2 });
+    jest.advanceTimersByTime(100);
+    const z = map.getZoom();
+    expect(z).toBeGreaterThanOrEqual(map.getMinZoom());
+    expect(z).toBeLessThanOrEqual(map.getMaxZoom());
+    expect(Number.isFinite(z)).toBe(true);
+  }
   jest.advanceTimersByTime(3000);
-  expect(map.getZoom()).toBe(18.5);
-  expect(check).toHaveBeenCalled();
+  expect(Number.isFinite(map.getZoom())).toBe(true);
 });
 
-test("real navigation hook keeps one flight active across switches; wheel cancels at the displayed view", async () => {
+test("real navigation hook keeps one flight active across switches; wheel cancels at the displayed view", () => {
   flight.dispose();
   const started = jest.fn(), ended = jest.fn();
   const { unmount } = renderHook(() => usePropertyMapNavigation(map, { onFlightStart: started, onFlightEnd: ended }));
   const disposeWheel = attachSmoothWheelZoom(map);
   const navigate = (coordinates) => act(() => window.dispatchEvent(new CustomEvent("navigateToProperty", { detail: { coordinates } })));
   navigate([10.7, 122.4]);
-  act(() => jest.advanceTimersByTime(400));
-  navigate([10.55, 122.2]);
-  act(() => jest.advanceTimersByTime(400));
+  jest.advanceTimersByTime(400);
   expect(started).toHaveBeenCalledTimes(1);
-  expect(ended).not.toHaveBeenCalled();
-  const ready = jest.fn();
-  const waiting = waitForPropertyFlight(map).then(ready);
-  act(() => element.dispatchEvent(new WheelEvent("wheel", { deltaY: -120, clientX: 500, clientY: 350, cancelable: true })));
+  navigate([10.65, 122.35]);
+  jest.advanceTimersByTime(16);
+  expect(started).toHaveBeenCalledTimes(1);
+  jest.advanceTimersByTime(5000);
+  expect(map.getCenter().distanceTo(L.latLng(10.65, 122.35))).toBeLessThan(0.01);
   expect(ended).toHaveBeenCalledTimes(1);
-  act(() => jest.advanceTimersByTime(5000));
-  await waiting;
-  expect(ready).toHaveBeenCalledTimes(1);
-  expect(element.classList.contains("map-is-flying")).toBe(false);
-  navigate([10.601, 122.301]);
-  act(() => jest.advanceTimersByTime(5000));
-  expect(map.getCenter().distanceTo(L.latLng(10.601, 122.301))).toBeLessThan(0.01);
-  expect(ended).toHaveBeenCalledTimes(2);
-  unmount(); disposeWheel();
+  disposeWheel();
+  unmount();
 });

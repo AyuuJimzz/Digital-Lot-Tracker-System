@@ -29,7 +29,7 @@ let activeRequests = 0;
 
 function pumpPreloads() {
   for (const [url, request] of requests) {
-    if (activeRequests >= 2) break;
+    if (activeRequests >= 4) break;
     if (request.active) continue;
     startPreload(url, request);
   }
@@ -108,18 +108,25 @@ export function preloadLocationTiles(lat, lng, zooms = [16, 17, 18, 19], layer =
 }
 
 /**
- * Eagerly preload all properties in fast succession on load
+ * Preload regional overview tiles (Zoom 12-13) covering the estate region.
+ * This guarantees satellite imagery is cached in the browser when the camera
+ * zooms out to cruise altitude during long-distance flights.
  */
-export function preloadAllProperties(properties = [], layer = "satellite") {
-  if (!properties || properties.length === 0) return;
-
-  const queue = properties.filter(
-    (p) => p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length >= 2
-  );
-
-  queue.forEach((prop, idx) => {
-    setTimeout(() => {
-      preloadLocationTiles(prop.coordinates[0], prop.coordinates[1], [16, 17, 18, 19], layer);
-    }, idx * 150);
-  });
+export function preloadRegionalOverviewTiles(properties = [], layer = "satellite") {
+  let centerLat = 10.7;
+  let centerLng = 122.45;
+  if (Array.isArray(properties) && properties.length > 0) {
+    const valid = properties.filter(
+      (p) => p && p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length >= 2 &&
+        Number.isFinite(p.coordinates[0]) && Number.isFinite(p.coordinates[1])
+    );
+    if (valid.length > 0) {
+      const lats = valid.map((p) => p.coordinates[0]);
+      const lngs = valid.map((p) => p.coordinates[1]);
+      centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+      centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    }
+  }
+  return preloadLocationTiles(centerLat, centerLng, [12, 13], layer, 1);
 }
+

@@ -2,7 +2,10 @@ import { act, renderHook } from "@testing-library/react";
 import { usePropertyMapNavigation, waitForPropertyFlight } from "./usePropertyMapNavigation";
 import { preloadLocationTiles } from "../utils/tilePreloader";
 
-jest.mock("../utils/tilePreloader", () => ({ preloadLocationTiles: jest.fn(() => jest.fn()) }));
+jest.mock("../utils/tilePreloader", () => ({
+  preloadLocationTiles: jest.fn(() => jest.fn()),
+  preloadRegionalOverviewTiles: jest.fn(() => jest.fn()),
+}));
 jest.mock("../utils/propertyFlight", () => ({
   createPropertyFlight: (map) => ({ navigate: map.flyTo, cancel: jest.fn(), dispose: jest.fn() }),
 }));
@@ -136,7 +139,7 @@ test("an old moveend does not resume details or release blueprint work before th
   act(() => { navigate([12, 124]); map.arrive([11, 123]); });
   expect(resumed).not.toHaveBeenCalled();
   expect(ready).not.toHaveBeenCalled();
-  expect(preloadLocationTiles).toHaveBeenLastCalledWith(12, 124, [18, 19], "hybrid", 1);
+  expect(preloadLocationTiles).toHaveBeenLastCalledWith(12, 124, [17, 18, 19], "hybrid", 2);
   act(() => map.arrive([12, 124]));
   await waiting;
   expect(resumed).toHaveBeenCalledTimes(1);
@@ -155,3 +158,44 @@ test("manual wheel input cancels the flight and restores detail layers", async (
   expect(resumed).toHaveBeenCalledTimes(1);
   expect(map.getContainer().classList.contains("map-is-flying")).toBe(false);
 });
+
+test("dropdown selection uses straight flight when in overview mode (zoom < 18) and normal flight when already zoomed in", () => {
+  const map = createMap();
+  // Overview mode (zoom 14 < 18)
+  map.getZoom = () => 14;
+  renderHook(() => usePropertyMapNavigation(map, {
+    properties: [
+      { id: 5, coordinates: [10.5, 122.5] },
+      { id: 6, coordinates: [11.0, 123.0] },
+    ],
+  }));
+
+  act(() => {
+    window.dispatchEvent(new CustomEvent("selectProperty", {
+      detail: { propertyId: 5 },
+    }));
+  });
+
+  expect(map.flyTo).toHaveBeenLastCalledWith(
+    [10.5, 122.5],
+    19,
+    expect.objectContaining({ straight: true })
+  );
+
+  act(() => map.arrive([10.5, 122.5], 19));
+
+  // Zoomed-in mode (zoom 19 >= 18)
+  map.getZoom = () => 19;
+  act(() => {
+    window.dispatchEvent(new CustomEvent("selectProperty", {
+      detail: { propertyId: 6 },
+    }));
+  });
+
+  expect(map.flyTo).toHaveBeenLastCalledWith(
+    [11.0, 123.0],
+    19,
+    expect.not.objectContaining({ straight: true })
+  );
+});
+

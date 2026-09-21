@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { preloadLocationTiles } from "../utils/tilePreloader";
+import { preloadLocationTiles, preloadRegionalOverviewTiles } from "../utils/tilePreloader";
 import { createPropertyFlight } from "../utils/propertyFlight";
 
 const flyingMaps = new WeakSet();
@@ -21,6 +21,14 @@ export function waitForPropertyFlight(map) {
 export function usePropertyMapNavigation(map, options) {
   const latest = useRef(options);
   latest.current = options;
+
+  // Preload regional overview tiles (Zoom 12-13) covering the estate region
+  useEffect(() => {
+    if (!map) return;
+    const cancelOverview = preloadRegionalOverviewTiles?.(latest.current?.properties, latest.current?.mapLayer || "satellite");
+    return () => cancelOverview?.();
+  }, [map, options?.mapLayer]);
+
   useEffect(() => {
     if (!map) return;
     let target = null, targetZoom = 19, userMoved = false, moveTimer, flightToken = 0;
@@ -49,7 +57,7 @@ export function usePropertyMapNavigation(map, options) {
       map.fire("propertyflightend");
       latest.current.onFlightEnd?.();
     };
-    const navigate = (coordinates, requestedZoom = 19) => {
+    const navigate = (coordinates, requestedZoom = 19, flightOptions = {}) => {
       if (!Array.isArray(coordinates) || coordinates.length !== 2 ||
         !coordinates.every(Number.isFinite) || Math.abs(coordinates[0]) > 90 || Math.abs(coordinates[1]) > 180) return;
       const minZoom = map.getMinZoom?.() ?? 1;
@@ -74,12 +82,13 @@ export function usePropertyMapNavigation(map, options) {
       container.classList.add("map-is-flying");
       if (!wasFlying) latest.current.onFlightStart?.();
       const destinationLayer = latest.current.mapLayer || "satellite";
-      const preloadZooms = [...new Set([
-        Math.max(1, Math.floor(destinationZoom) - 1),
-        Math.max(1, Math.floor(destinationZoom)),
-      ])];
-      cancelPreload = preloadLocationTiles(coordinates[0], coordinates[1], preloadZooms, destinationLayer, 1);
-      flight.navigate(coordinates, destinationZoom, { duration, animate: true });
+      // Preload more zoom levels for long flights to ensure tiles are ready on arrival.
+      const preloadZooms = distanceKm > 0.5
+        ? [...new Set([Math.max(1, Math.floor(destinationZoom) - 2), Math.max(1, Math.floor(destinationZoom) - 1), Math.max(1, Math.floor(destinationZoom))])]
+        : [...new Set([Math.max(1, Math.floor(destinationZoom) - 1), Math.max(1, Math.floor(destinationZoom))])];
+      const preloadRadius = distanceKm > 1 ? 2 : 1;
+      cancelPreload = preloadLocationTiles(coordinates[0], coordinates[1], preloadZooms, destinationLayer, preloadRadius);
+      flight.navigate(coordinates, destinationZoom, { duration, animate: true, ...flightOptions });
       latest.current.triggerArrivalPulse?.(coordinates);
     };
     const onUserInterrupt = () => {
@@ -89,12 +98,15 @@ export function usePropertyMapNavigation(map, options) {
     };
     const onNavigate = (event) => navigate(event.detail?.coordinates, event.detail?.zoom);
     const onSelect = (event) => {
-      const { propertyId, coordinates, autoSwiped } = event.detail || {};
+      const { propertyId, coordinates, autoSwiped, straight } = event.detail || {};
       if (propertyId == null) return;
       latest.current.setSelectedProperty?.(propertyId);
       if (autoSwiped) return;
       const property = latest.current.properties?.find((item) => Number(item.id) === Number(propertyId));
-      navigate(property?.coordinates || coordinates);
+      // Re-use system overview/beacon threshold (zoom < 18): fly straight when starting from overview mode
+      const isOverview = map.getZoom() < 18;
+      const useStraight = Boolean(straight || isOverview);
+      navigate(property?.coordinates || coordinates, 19, useStraight ? { straight: true } : {});
     };
     const onDragStart = () => {
       clearTimeout(moveTimer);

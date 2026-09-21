@@ -1,13 +1,18 @@
 import { latLng, point } from "leaflet";
 
-// Cubic Hermite: retain the displayed camera's velocity when retargeting, then
-// ease to zero velocity at arrival. Units are projected pixels / milliseconds.
-function sample(from, to, velocity, duration, t) {
-  const t2 = t * t, t3 = t2 * t;
-  return {
-    value: from + (to - from) * (3 * t2 - 2 * t3) + velocity * duration * (t3 - 2 * t2 + t),
-    velocity: (to - from) * (6 * t - 6 * t2) / duration + velocity * (3 * t2 - 4 * t + 1),
-  };
+// Smooth ease-in-out: acceleration then deceleration.
+function ease(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+// Phased easing: delays x/y movement so zoom leads.
+// At t=0..0.2 → position barely moves (camera rises straight up).
+// At t=0.2..0.8 → most horizontal travel happens (pan at cruise altitude).
+// At t=0.8..1.0 → position settles (camera drops straight down).
+function positionEase(t) {
+  // Remap t into [0,1] with compressed start/end plateaus.
+  const stretched = Math.max(0, Math.min(1, (t - 0.15) / 0.7));
+  return ease(stretched);
 }
 
 // Leaflet 1.9 fly/pinch lifecycle: transform existing layers during motion and
@@ -15,8 +20,10 @@ function sample(from, to, velocity, duration, t) {
 export function createPropertyFlight(map, onInterrupt) {
   const projectionZoom = 19;
   let frame = null, trajectory = null, ownMove = false;
-  let velocity = { x: 0, y: 0, zoom: 0 };
   let lastTime = 0, elapsed = 0;
+  // Throttle: skip navigate calls that arrive within 60ms of the last one.
+  let lastNavigateTime = 0;
+  let pendingNavigate = null, pendingTimer = null;
 
   const move = (center, zoom, final = false) => {
     ownMove = true;
@@ -26,65 +33,111 @@ export function createPropertyFlight(map, onInterrupt) {
   const cancel = () => {
     if (frame !== null) cancelAnimationFrame(frame);
     frame = null;
+    if (pendingTimer !== null) { clearTimeout(pendingTimer); pendingTimer = null; }
+    pendingNavigate = null;
     if (!trajectory) return;
     trajectory = null;
-    velocity = { x: 0, y: 0, zoom: 0 };
     if (!map._mapPane) return;
     move(map.getCenter(), map.getZoom(), true);
     ownMove = true;
     try { map._moveEnd(true); } finally { ownMove = false; }
   };
-  const step = (time) => {
+  const getTime = () => (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
+  const step = () => {
     frame = null;
     if (!trajectory) return;
-    // A busy frame must not teleport the camera forward by the entire stall.
-    // Normal 60/120Hz timing is unchanged; a long stall extends the flight.
-    elapsed += Math.max(0, Math.min(40, time - lastTime));
-    lastTime = time;
-    const { from, to, initialVelocity, duration, arc, destination } = trajectory;
+    const now = getTime();
+    // Cap frame delta at 40ms to prevent teleporting after stalls.
+    elapsed += Math.max(0, Math.min(40, now - lastTime));
+    lastTime = now;
+    const { from, to, duration, arc, destination, straight } = trajectory;
     const t = Math.min(1, elapsed / duration);
-    const x = sample(from.x, to.x, initialVelocity.x, duration, t);
-    const y = sample(from.y, to.y, initialVelocity.y, duration, t);
-    const zoom = sample(from.zoom, to.zoom, initialVelocity.zoom, duration, t);
-    // A smooth altitude arc with zero slope at both ends, including nearby hops.
-    zoom.value -= arc * 16 * t * t * (1 - t) * (1 - t);
-    zoom.velocity -= arc * 32 * t * (1 - t) * (1 - 2 * t) / duration;
-    const boundedZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), zoom.value));
-    velocity = { x: x.velocity, y: y.velocity, zoom: boundedZoom === zoom.value ? zoom.velocity : 0 };
+    if (straight) {
+      const e = ease(t);
+      const zoomDelta = to.zoom - from.zoom;
+      const u = zoomDelta > 0
+        ? 1 - (1 - e) * Math.pow(2, -zoomDelta * e)
+        : e;
+      const px = from.x + (to.x - from.x) * u;
+      const py = from.y + (to.y - from.y) * u;
+      const finalZoom = from.zoom + zoomDelta * e;
+      if (t === 1) {
+        move(destination, to.zoom);
+        cancel();
+      } else {
+        move(map.unproject(point(px, py), projectionZoom), finalZoom);
+        frame = requestAnimationFrame(step);
+      }
+      return;
+    }
+    // Phase the animation: zoom leads, position follows with a delay.
+    const pe = positionEase(t);
+    const ze = ease(t);
+    // Straight-line position interpolation (delayed start/end for "rise then move then land").
+    const px = from.x + (to.x - from.x) * pe;
+    const py = from.y + (to.y - from.y) * pe;
+    // Smooth zoom: ease from start→end, with an up-then-down arc in the middle.
+    const baseZoom = from.zoom + (to.zoom - from.zoom) * ze;
+    const zoomArc = arc * 4 * t * (1 - t); // peaks at t=0.5
+    const finalZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), baseZoom - zoomArc));
     if (t === 1) {
       move(destination, to.zoom);
       cancel();
     } else {
-      move(map.unproject(point(x.value, y.value), projectionZoom), boundedZoom);
+      move(map.unproject(point(px, py), projectionZoom), finalZoom);
       frame = requestAnimationFrame(step);
     }
   };
-  const navigate = (coordinates, zoom, { duration }) => {
+  const executeNavigate = (coordinates, zoom, duration, options = {}) => {
     if (!trajectory) {
       if (map._animatingZoom) map._onZoomTransitionEnd();
       map._stop();
-      velocity = { x: 0, y: 0, zoom: 0 };
     }
     const from = map.project(map.getCenter(), projectionZoom);
     const to = map.project(coordinates, projectionZoom);
     const startZoom = map.getZoom();
     const screenDistance = from.distanceTo(to) * map.getZoomScale(Math.min(startZoom, zoom), projectionZoom);
     const viewport = Math.max(1, Math.max(map.getSize().x, map.getSize().y));
-    const cruiseZoom = Math.max(map.getMinZoom(), Math.min(startZoom, zoom) - Math.log2(1 + screenDistance / viewport));
+    // Allow natural zoom out up to 5.5 levels (down to ~zoom 13.5 on long flights)
+    // so the camera provides a genuine cinematic landscape overview.
+    const maxDrop = 5.5;
+    const rawCruise = Math.min(startZoom, zoom) - Math.log2(1 + screenDistance / viewport);
+    const cruiseZoom = Math.max(map.getMinZoom(), Math.max(Math.min(startZoom, zoom) - maxDrop, rawCruise));
     const wasActive = !!trajectory;
     trajectory = {
       from: { x: from.x, y: from.y, zoom: startZoom },
-      to: { x: to.x, y: to.y, zoom }, initialVelocity: { ...velocity },
+      to: { x: to.x, y: to.y, zoom },
       duration: duration * 1000, destination: latLng(coordinates),
-      arc: Math.max(0, (startZoom + zoom) / 2 - cruiseZoom),
+      arc: options.straight ? 0 : Math.max(0, (startZoom + zoom) / 2 - cruiseZoom),
+      straight: !!options.straight,
     };
     elapsed = 0;
-    lastTime = performance.now();
+    lastTime = getTime();
+    lastNavigateTime = lastTime;
     if (!wasActive) {
       ownMove = true;
       try { map._moveStart(true); } finally { ownMove = false; }
     }
     if (frame === null) frame = requestAnimationFrame(step);
+  };
+  const navigate = (coordinates, zoom, options = {}) => {
+    const duration = options.duration ?? 2;
+    const now = getTime();
+    const sinceLast = now - lastNavigateTime;
+    // If rapid-fire calls arrive within 60ms, batch them: only execute the latest.
+    if (sinceLast < 60 && trajectory) {
+      pendingNavigate = { coordinates, zoom, duration, options };
+      if (pendingTimer === null) {
+        pendingTimer = setTimeout(() => {
+          pendingTimer = null;
+          const pending = pendingNavigate;
+          pendingNavigate = null;
+          if (pending) executeNavigate(pending.coordinates, pending.zoom, pending.duration, pending.options);
+        }, 60 - sinceLast);
+      }
+      return;
+    }
+    executeNavigate(coordinates, zoom, duration, options);
   };
   const onExternalMove = () => {
     if (!ownMove && trajectory) { cancel(); onInterrupt?.(); }
