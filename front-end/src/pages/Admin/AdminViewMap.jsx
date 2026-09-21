@@ -4,6 +4,7 @@ import ReactDOM from "react-dom";
 
 import {
   MapContainer,
+  Pane,
   Polygon,
   Popup,
   useMap,
@@ -19,13 +20,14 @@ import { BlueprintCropModal } from "../../components/admin/BlueprintCropModal";
 import { LotImportReviewModal } from "../../components/admin/LotImportReviewModal";
 import { useBlueprintLotImport } from "../../hooks/useBlueprintLotImport";
 import { usePropertyMapNavigation, waitForPropertyFlight } from "../../hooks/usePropertyMapNavigation";
+import { LotPlanPin } from "../../components/admin/LotPlanPin";
+import { LotPlanPolygon } from "../../components/admin/LotPlanPolygon";
 import { useSmoothWheelZoom } from "../../hooks/useSmoothWheelZoom";
 import { projectBlueprintRoadLabel, reframeBlueprintCrop } from "../../utils/blueprintLotProjection";
 import { mergeGeneratedRoadAnnotations } from "../../utils/pdfLotImport/roadLabels";
 import { MapAnnotationControl } from "../../components/admin/MapAnnotationControl";
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
 import { MapLayerControls, ActiveMapTileLayer, MAP_LAYERS } from "../../components/admin/MapLayerControls";
-import { preloadAllProperties } from "../../utils/tilePreloader";
 import {
   geocodeAddress,
   MUNICIPALITY_COORDINATES,
@@ -87,6 +89,7 @@ function MapController({
   triggerArrivalPulse,
   setMap,
   setCurrentZoom,
+  mapLayer,
   properties,
 }) {
   const map = useMap();
@@ -112,6 +115,9 @@ function MapController({
     updateZoomClasses(map.getZoom());
 
     const handleZoomAnim = (e) => {
+      // Property flights already hide road labels. Avoid per-frame style writes
+      // for every mapped lot while Leaflet is animating the camera.
+      if (container.classList.contains("map-is-flying")) return;
       updateZoomClasses(e.zoom);
     };
 
@@ -120,21 +126,31 @@ function MapController({
       updateZoomClasses(map.getZoom());
     };
 
-    // Only update React state on zoomend to avoid re-renders during active animations
+    // Only update React state when zoom crosses a threshold that changes rendered output.
+    // Thresholds: 18 (zoomed-out class, beacon/pin visibility), 19 (tooltip visibility, annotations).
+    // All other zoom changes are handled imperatively by updateZoomClasses — no re-render needed.
     let debounceTimer;
+    const ZOOM_THRESHOLDS = [18, 18.2, 19, 19.5];
     const handleZoomEnd = () => {
       clearTimeout(debounceTimer);
       const z = map.getZoom();
       updateZoomClasses(z);
-      // 300ms delay ensures Leaflet has fully finished its post-zoom SVG path
-      // recalculation and transform reset before React triggers any re-render
       debounceTimer = setTimeout(() => {
-        if (setCurrentZoom) setCurrentZoom(z);
+        if (!setCurrentZoom) return;
+        setCurrentZoom((prev) => {
+          // Only re-render if the new zoom crossed a threshold boundary from the previous value
+          const crossed = ZOOM_THRESHOLDS.some(
+            (t) => (prev < t) !== (z < t)
+          );
+          return crossed ? z : prev;
+        });
       }, 300);
     };
 
     // Auto-close any lingering hover tooltips when map begins moving/dragging/zooming
     const handleDismissTooltips = () => {
+      // A new gesture cancels the previous gesture's delayed React update.
+      clearTimeout(debounceTimer);
       try {
         map.closeTooltip();
       } catch (e) {}
@@ -184,7 +200,13 @@ function MapController({
     };
   }, [map]);
 
-  usePropertyMapNavigation(map, { selectedProperty, setSelectedProperty, properties, triggerArrivalPulse });
+  usePropertyMapNavigation(map, {
+    selectedProperty,
+    setSelectedProperty,
+    properties,
+    mapLayer,
+    triggerArrivalPulse,
+  });
   useSmoothWheelZoom(map);
 
   // Set view to selected property directly on initial mount (no delayed flyTo jump)
@@ -244,7 +266,8 @@ const createTransparentPaperBlob = (imageUrl, lineColor = "lime", rotationDeg = 
     if (!imageUrl) return resolve(null);
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => {
+    img.decoding = "async";
+    img.onload = async () => {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
@@ -305,7 +328,14 @@ const createTransparentPaperBlob = (imageUrl, lineColor = "lime", rotationDeg = 
             exponent = 0.8;
           }
 
+          // Large saved blueprints can contain millions of pixels. Give camera
+          // rendering and input a turn instead of processing them in one task.
+          let sliceStarted = performance.now();
           for (let i = 0; i < data.length; i += 4) {
+            if (i % 65536 === 0 && performance.now() - sliceStarted >= 4) {
+              await new Promise((resume) => setTimeout(resume, 0));
+              sliceStarted = performance.now();
+            }
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
@@ -337,6 +367,10 @@ const createTransparentPaperBlob = (imageUrl, lineColor = "lime", rotationDeg = 
           if (!isDarkInk && lineBoldness === "bold") {
             const copy = new Uint8ClampedArray(data);
             for (let y = 1; y < newH - 1; y++) {
+              if (performance.now() - sliceStarted >= 4) {
+                await new Promise((resume) => setTimeout(resume, 0));
+                sliceStarted = performance.now();
+              }
               for (let x = 1; x < newW - 1; x++) {
                 const idx = (y * newW + x) * 4;
                 if (copy[idx + 3] < 50) {
@@ -1757,13 +1791,6 @@ function AdminViewMap() {
     return [];
   }, [mapData]);
 
-  // Pre-cache satellite tiles for all properties in background
-  useEffect(() => {
-    if (properties && properties.length > 0) {
-      preloadAllProperties(properties, mapLayer);
-    }
-  }, [properties, mapLayer]);
-
   // Save selected property to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem("selectedProperty", selectedProperty.toString());
@@ -1802,10 +1829,11 @@ function AdminViewMap() {
     );
   }, [mapData]);
 
-  // Render lots only for active properties
+  // Persistent SVG geometry stays mounted across property switches. The shared
+  // renderer transforms the plan as one surface while the camera moves.
   const filteredLots = useMemo(() => {
     if (!mapData || !Array.isArray(mapData.lots)) return [];
-    return mapData.lots.filter((l) => activePropertyIds.has(Number(l.property_id)));
+    return mapData.lots.filter((lot) => activePropertyIds.has(Number(lot.property_id)));
   }, [mapData, activePropertyIds]);
 
 
@@ -1860,32 +1888,6 @@ function AdminViewMap() {
     return STATUS_COLORS[status] || "#94a3b8";
   };
 
-  // ── Optimization: Pre-built icon cache — only 5 icons total, never per-render ──
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const pinIconCache = useMemo(() => {
-    const makeIcon = (color) =>
-      L.divIcon({
-        className: "custom-pin",
-        html: `<div style="background-color:${color};width:16px;height:16px;border-radius:50%;border:1px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 24],
-      });
-    return {
-      Available: makeIcon("#22c55e"),
-      Pending: makeIcon("#eab308"),
-      Sold: makeIcon("#ef4444"),
-      NonSaleable: makeIcon("#64748b"),
-      default: makeIcon("#94a3b8"),
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // created once, never recreated
-
-  const createPinIcon = (status, lotNumber = "", areaSqm = 0) => {
-    if (isNonSaleableLot(lotNumber, areaSqm)) {
-      return pinIconCache.NonSaleable;
-    }
-    return pinIconCache[status] || pinIconCache.default;
-  };
 
   // Fetch map data
   useEffect(() => {
@@ -2465,13 +2467,16 @@ function AdminViewMap() {
       <MapContainer
         center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
         zoom={properties && properties.length > 0 ? 19 : 9}
+        preferCanvas={false}
         zoomDelta={0.25}
         zoomSnap={0}
+        wheelPxPerZoomLevel={220}
+        wheelDebounceTime={20}
         maxZoom={28}
         scrollWheelZoom={false}
         zoomControl={false}
         attributionControl={false}
-        zoomAnimation={false}
+        zoomAnimation={true}
         fadeAnimation={false}
         markerZoomAnimation={true}
         touchZoom={true}
@@ -2501,6 +2506,7 @@ function AdminViewMap() {
           triggerArrivalPulse={triggerArrivalPulse}
           setMap={setMap}
           setCurrentZoom={setCurrentZoom}
+          mapLayer={mapLayer}
           properties={properties}
         />
         <ActiveMapTileLayer activeLayer={mapLayer} />
@@ -2816,6 +2822,7 @@ function AdminViewMap() {
 
 
 
+        <Pane name="lot-plan" className="lot-plan-pane" style={{ zIndex: 410 }}>
         {filteredLots.map((lot) => {
           // Skip rendering original polygon if it's currently being edited visually
           if (editingLot && Number(lot.lot_id) === Number(editingLot.lot_id)) {
@@ -2903,9 +2910,10 @@ function AdminViewMap() {
           };
 
           return (
-            <React.Fragment key={`lot-node-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}>
-              <Polygon
-                key={`poly-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}
+            <React.Fragment key={`lot-node-${lot.lot_id}`}>
+              <LotPlanPolygon
+                key={`poly-${lot.lot_id}`}
+                noClip={true}
                 positions={coords}
                 pathOptions={{
                   color: isBulkShifting ? "#3b82f6" : statusColor,
@@ -2953,16 +2961,17 @@ function AdminViewMap() {
               />
 
               {!isBulkShifting && (
-                <Marker
-                  key={`pin-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}
-                  position={[centerLat, centerLng]}
-                  icon={createPinIcon(lot.status, lot.lot_number, lot.area_sqm)}
+                <LotPlanPin
+                  key={`pin-${lot.lot_id}`}
+                  center={[centerLat, centerLng]}
+                  color={statusColor}
                   eventHandlers={{
                     click: handleLotClick,
                   }}
                 >
                   {!isTouchDevice && currentZoom >= 19 && (
                     <Tooltip
+                      pane="tooltipPane"
                       permanent={false}
                       direction="top"
                       offset={[0, -18]}
@@ -2993,12 +3002,14 @@ function AdminViewMap() {
                       </div>
                     </Tooltip>
                   )}
-                </Marker>
+                </LotPlanPin>
               )}
             </React.Fragment>
           );
 
         })}
+
+        </Pane>
 
         {/* Render Editable Polygon & Draggable Handles when editing coordinates */}
         {editingLot && (

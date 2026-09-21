@@ -1,11 +1,13 @@
 import { API_BASE_URL } from "../../config/api";
 import { usePropertyMapNavigation } from "../../hooks/usePropertyMapNavigation";
+import { LotPlanPin } from "../../components/admin/LotPlanPin";
+import { LotPlanPolygon } from "../../components/admin/LotPlanPolygon";
 import { useSmoothWheelZoom } from "../../hooks/useSmoothWheelZoom";
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 
 import {
   MapContainer,
-  Polygon,
+  Pane,
   Popup,
   useMap,
   Marker,
@@ -23,7 +25,6 @@ import {
   ActiveMapTileLayer,
   MAP_LAYERS,
 } from "../../components/admin/MapLayerControls";
-import { preloadAllProperties } from "../../utils/tilePreloader";
 import {
   geocodeAddress,
   MUNICIPALITY_COORDINATES,
@@ -63,6 +64,7 @@ function MapController({
   setSelectedProperty,
   setCurrentZoom,
   triggerArrivalPulse,
+  mapLayer,
   properties,
 }) {
   const map = useMap();
@@ -87,6 +89,9 @@ function MapController({
     updateZoomClasses(map.getZoom());
 
     const handleZoomAnim = (e) => {
+      // Property flights already hide road labels. Avoid per-frame style writes
+      // for every mapped lot while Leaflet is animating the camera.
+      if (container.classList.contains("map-is-flying")) return;
       updateZoomClasses(e.zoom);
     };
 
@@ -104,11 +109,14 @@ function MapController({
       // 300ms delay ensures Leaflet has fully finished its post-zoom SVG path
       // recalculation and transform reset before React triggers any re-render
       debounceTimer = setTimeout(() => {
-        if (setCurrentZoom) setCurrentZoom(z);
+        if (setCurrentZoom) setCurrentZoom((previous) =>
+          [18, 18.2, 19, 19.5].some((threshold) => (previous < threshold) !== (z < threshold)) ? z : previous
+        );
       }, 300);
     };
     // Auto-close any lingering hover tooltips when map begins moving/dragging/zooming
     const handleDismissTooltips = () => {
+      clearTimeout(debounceTimer);
       try {
         map.closeTooltip();
       } catch (e) {}
@@ -158,7 +166,13 @@ function MapController({
     };
   }, [map]);
 
-  usePropertyMapNavigation(map, { selectedProperty, setSelectedProperty, properties, triggerArrivalPulse });
+  usePropertyMapNavigation(map, {
+    selectedProperty,
+    setSelectedProperty,
+    properties,
+    mapLayer,
+    triggerArrivalPulse,
+  });
   useSmoothWheelZoom(map);
 
   // Set view to selected property directly on initial mount (no delayed flyTo jump)
@@ -295,13 +309,6 @@ const EmployeeMapView = () => {
     return [];
   }, [mapData]);
 
-  // Pre-cache satellite tiles for all properties in background
-  useEffect(() => {
-    if (properties && properties.length > 0) {
-      preloadAllProperties(properties, mapLayer);
-    }
-  }, [properties, mapLayer]);
-
   useEffect(() => {
     const fetchMapData = async () => {
       try {
@@ -426,10 +433,10 @@ const EmployeeMapView = () => {
     });
   }, []);
 
-  // Render lots only for active properties
+  // Keep all active plans mounted so flying between estates never hides lots.
   const filteredLots = useMemo(() => {
     if (!mapData || !Array.isArray(mapData.lots)) return [];
-    return mapData.lots.filter((l) => activePropertyIds.has(Number(l.property_id)));
+    return mapData.lots.filter((lot) => activePropertyIds.has(Number(lot.property_id)));
   }, [mapData, activePropertyIds]);
 
   // Get selected property coordinates
@@ -482,32 +489,6 @@ const EmployeeMapView = () => {
     return STATUS_COLORS[status] || "#94a3b8";
   };
 
-  // ── Optimization: Pre-built icon cache — only 5 icons total, never per-render ──
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const pinIconCache = useMemo(() => {
-    const makeIcon = (color) =>
-      L.divIcon({
-        className: "custom-pin",
-        html: `<div style="background-color:${color};width:16px;height:16px;border-radius:50%;border:1px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);"></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 24],
-      });
-    return {
-      Available: makeIcon("#22c55e"),
-      Pending: makeIcon("#eab308"),
-      Sold: makeIcon("#ef4444"),
-      NonSaleable: makeIcon("#64748b"),
-      default: makeIcon("#94a3b8"),
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const createPinIcon = (status, lotNumber = "", areaSqm = 0) => {
-    if (isNonSaleableLot(lotNumber, areaSqm)) {
-      return pinIconCache.NonSaleable;
-    }
-    return pinIconCache[status] || pinIconCache.default;
-  };
 
   const handleCloseOffcanvas = () => {
     setIsOffcanvasOpen(false);
@@ -565,13 +546,16 @@ const EmployeeMapView = () => {
       <MapContainer
         center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
         zoom={properties && properties.length > 0 ? 19 : 9}
+        preferCanvas={false}
         zoomDelta={0.25}
         zoomSnap={0}
+        wheelPxPerZoomLevel={220}
+        wheelDebounceTime={20}
         maxZoom={28}
         scrollWheelZoom={false}
         zoomControl={false}
         attributionControl={false}
-        zoomAnimation={false}
+        zoomAnimation={true}
         fadeAnimation={false}
         markerZoomAnimation={true}
         touchZoom={true}
@@ -600,6 +584,7 @@ const EmployeeMapView = () => {
           setSelectedProperty={setSelectedProperty}
           setCurrentZoom={setCurrentZoom}
           triggerArrivalPulse={triggerArrivalPulse}
+          mapLayer={mapLayer}
           properties={properties}
         />
         <ActiveMapTileLayer activeLayer={mapLayer} />
@@ -730,6 +715,7 @@ const EmployeeMapView = () => {
 
 
 
+        <Pane name="lot-plan" className="lot-plan-pane" style={{ zIndex: 410 }}>
         {filteredLots.map((lot) => {
           // Skip lots with invalid or missing coordinates
           if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
@@ -803,9 +789,10 @@ const EmployeeMapView = () => {
           };
 
           return (
-            <React.Fragment key={`emp-lot-node-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}>
-              <Polygon
-                key={`emp-poly-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}
+            <React.Fragment key={`emp-lot-node-${lot.lot_id}`}>
+              <LotPlanPolygon
+                key={`emp-poly-${lot.lot_id}`}
+                noClip={true}
                 positions={lot.coordinates}
                 pathOptions={{
                   color: statusColor,
@@ -818,16 +805,17 @@ const EmployeeMapView = () => {
                 }}
               />
 
-              <Marker
-                key={`emp-pin-${lot.lot_id}-${lot.status}-${lot.lot_number}-${statusColor}`}
-                position={[centerLat, centerLng]}
-                icon={createPinIcon(lot.status, lot.lot_number, lot.area_sqm)}
+              <LotPlanPin
+                key={`emp-pin-${lot.lot_id}`}
+                center={[centerLat, centerLng]}
+                color={statusColor}
                 eventHandlers={{
                   click: handleLotClick,
                 }}
               >
                 {!isTouchDevice && currentZoom >= 19 && (
                   <Tooltip
+                    pane="tooltipPane"
                     permanent={false}
                     direction="top"
                     offset={[0, -18]}
@@ -858,10 +846,12 @@ const EmployeeMapView = () => {
                     </div>
                   </Tooltip>
                 )}
-              </Marker>
+              </LotPlanPin>
             </React.Fragment>
           );
         })}
+
+        </Pane>
 
         {/* PDF labels follow the plan at subdivision zoom. */}
         {allPropertyAnnotations.filter((item) => currentZoom >= (item.scaleWithMap ? 18.2 : 19.5)).map((item) => (

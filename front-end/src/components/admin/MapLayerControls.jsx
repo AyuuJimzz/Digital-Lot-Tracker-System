@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Layers, Maximize, Minimize } from "lucide-react";
-import { TileLayer, useMap } from "react-leaflet";
+import { TileLayer } from "react-leaflet";
+
 
 export const MAP_LAYERS = {
   SATELLITE: "satellite",
@@ -8,82 +9,149 @@ export const MAP_LAYERS = {
   HYBRID: "hybrid",
 };
 
+// Inject CSS once at module load — smooth hardware-accelerated cross-fade on layer container
+(function injectTileTransitionStyle() {
+  if (typeof document === "undefined") return;
+  const oldStyle = document.getElementById("gdep-tile-transition-style");
+  if (oldStyle) oldStyle.remove();
+
+  const style = document.createElement("style");
+  style.id = "gdep-tile-transition-style";
+  style.textContent = `
+    .gdep-smooth-tile-layer {
+      transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      will-change: opacity;
+      pointer-events: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+const TILE_SHARED_PROPS = {
+  subdomains: ["0", "1", "2", "3"],
+  maxZoom: 28,
+  maxNativeZoom: 20,
+  crossOrigin: false,
+  // Leaflet must refresh its grid while a long flyTo crosses the map. Deferring
+  // this until moveend leaves the old grid behind and exposes the dark map
+  // background (the blank satellite state shown in the report).
+  keepBuffer: 3,
+  updateWhenZooming: true,
+  updateWhenIdle: false,
+  updateInterval: 140,
+};
+
+const TILE_LAYER_CONFIG = {
+  [MAP_LAYERS.SATELLITE]: {
+    url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+  },
+  [MAP_LAYERS.STREETS]: {
+    url: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+  },
+  [MAP_LAYERS.HYBRID]: {
+    url: "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+  },
+};
+
+function prepareTile({ tile }) {
+  // Decode downloaded imagery off the synchronous rendering path where the
+  // browser supports it. Keep Leaflet's normal grid updates and tile retention.
+  tile.decoding = "async";
+}
+
 /**
- * Component that renders the appropriate map TileLayer based on active layer.
- * Uses {s} subdomain rotation (mt0-mt3) + crossOrigin=false to fix Chrome's
- * strict referrer policy that blocks Google tiles from localhost/production.
+ * Smooth cross-fade tile layer controller.
+ * Only mounts the current map and, during a switch, one incoming map. Keeping all
+ * three providers mounted made every pan and flight update three tile grids, which
+ * is noticeably expensive on mobile and slower laptops.
  */
 export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
-  const map = useMap();
+  const [renderedLayers, setRenderedLayers] = useState(() => ({
+    [activeLayer]: { opacity: 1, zIndex: 2 },
+  }));
+  const displayedLayerRef = useRef(activeLayer);
+  const transitionTimerRef = useRef(null);
+  const pendingTransitionRef = useRef(null);
+  const transitionIdRef = useRef(0);
 
-  useEffect(() => {
-    if (!map) return;
-    map.eachLayer((layer) => {
-      if (layer && typeof layer._abortLoading === "function" && !layer._flyAbortGuarded) {
-        layer._flyAbortGuarded = true;
-        const originalAbort = layer._abortLoading;
-        layer._abortLoading = function () {
-          if (
-            this._map &&
-            this._map.getContainer()?.classList.contains("map-is-flying") &&
-            this._map.getZoom() < 16
-          ) {
-            return;
-          }
-          return originalAbort.apply(this, arguments);
-        };
-      }
+  const clearTransitionTimers = useCallback(() => {
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    transitionTimerRef.current = null;
+  }, []);
+
+  const completeTransition = useCallback((transition) => {
+    if (!transition || pendingTransitionRef.current?.id !== transition.id) return;
+
+    pendingTransitionRef.current = null;
+    displayedLayerRef.current = transition.next;
+    setRenderedLayers({ [transition.next]: { opacity: 1, zIndex: 2 } });
+  }, []);
+
+  const beginCrossFade = useCallback((transition) => {
+    if (!transition || pendingTransitionRef.current?.id !== transition.id) return;
+    if (transition.isFading) return;
+    transition.isFading = true;
+
+    // Keep the previous layer painted beneath the incoming one. This prevents a
+    // blank map while a slow tile request is still resolving.
+    setRenderedLayers({
+      [transition.previous]: { opacity: 1, zIndex: 2 },
+      [transition.next]: { opacity: 1, zIndex: 3 },
     });
-  }, [map, activeLayer]);
 
-  if (activeLayer === MAP_LAYERS.STREETS) {
-    return (
-      <TileLayer
-        key="tile-layer-streets"
-        url="https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        subdomains={["0", "1", "2", "3"]}
-        maxZoom={28}
-        maxNativeZoom={20}
-        crossOrigin={false}
-        keepBuffer={3}
-        updateWhenZooming={true}
-        updateWhenIdle={false}
-        updateInterval={250}
-      />
-    );
-  }
+    transitionTimerRef.current = setTimeout(() => completeTransition(transition), 380);
+  }, [completeTransition]);
 
-  if (activeLayer === MAP_LAYERS.HYBRID) {
-    return (
-      <TileLayer
-        key="tile-layer-hybrid"
-        url="https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-        subdomains={["0", "1", "2", "3"]}
-        maxZoom={28}
-        maxNativeZoom={20}
-        crossOrigin={false}
-        keepBuffer={3}
-        updateWhenZooming={true}
-        updateWhenIdle={false}
-        updateInterval={250}
-      />
-    );
-  }
+  const handleLayerLoad = useCallback((layerId) => {
+    const pending = pendingTransitionRef.current;
+    if (pending?.next === layerId) beginCrossFade(pending);
+  }, [beginCrossFade]);
 
-  // Default: Google Satellite — best coverage in Philippines
+  // Smooth cross-fade transition when activeLayer changes
+  useEffect(() => {
+    clearTransitionTimers();
+    const previousLayer = displayedLayerRef.current;
+    if (previousLayer === activeLayer) {
+      pendingTransitionRef.current = null;
+      setRenderedLayers({ [activeLayer]: { opacity: 1, zIndex: 2 } });
+      return;
+    }
+
+    const transition = {
+      id: ++transitionIdRef.current,
+      previous: previousLayer,
+      next: activeLayer,
+    };
+    pendingTransitionRef.current = transition;
+
+    // Place the new layer above the active one but keep it transparent until it
+    // has tiles. The old map never disappears before the new map can be shown.
+    setRenderedLayers({
+      [previousLayer]: { opacity: 1, zIndex: 2 },
+      [activeLayer]: { opacity: 0, zIndex: 3 },
+    });
+
+    return () => {
+      clearTransitionTimers();
+    };
+  }, [activeLayer, beginCrossFade, clearTransitionTimers]);
+
+  useEffect(() => () => clearTransitionTimers(), [clearTransitionTimers]);
+
   return (
-    <TileLayer
-      key="tile-layer-satellite"
-      url="https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
-      subdomains={["0", "1", "2", "3"]}
-      maxZoom={28}
-      maxNativeZoom={20}
-      crossOrigin={false}
-      keepBuffer={3}
-      updateWhenZooming={true}
-      updateWhenIdle={false}
-      updateInterval={250}
-    />
+    <>
+      {Object.entries(renderedLayers).map(([layerId, layerState]) => (
+        <TileLayer
+          key={`gdep-tile-${layerId}`}
+          url={TILE_LAYER_CONFIG[layerId].url}
+          className="gdep-smooth-tile-layer"
+          opacity={layerState.opacity}
+          zIndex={layerState.zIndex}
+          eventHandlers={{ load: () => handleLayerLoad(layerId), tileloadstart: prepareTile }}
+          {...TILE_SHARED_PROPS}
+        />
+      ))}
+    </>
   );
 }
 

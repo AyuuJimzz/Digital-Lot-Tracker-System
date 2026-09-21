@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { preloadLocationTiles } from "../utils/tilePreloader";
+import { createPropertyFlight } from "../utils/propertyFlight";
 
 const flyingMaps = new WeakSet();
 
@@ -7,12 +9,12 @@ export function waitForPropertyFlight(map) {
   if (!map || !flyingMaps.has(map)) return Promise.resolve();
   return new Promise((resolve) => {
     const finish = () => {
-      map.off("moveend unload", finish);
+      map.off("propertyflightend unload", finish);
       requestAnimationFrame(() => {
-        requestAnimationFrame(resolve);
+        requestAnimationFrame(() => waitForPropertyFlight(map).then(resolve));
       });
     };
-    map.on("moveend unload", finish);
+    map.on("propertyflightend unload", finish);
   });
 }
 
@@ -21,41 +23,71 @@ export function usePropertyMapNavigation(map, options) {
   latest.current = options;
   useEffect(() => {
     if (!map) return;
-    let target = null, userMoved = false, moveTimer, flightToken = 0;
+    let target = null, targetZoom = 19, userMoved = false, moveTimer, flightToken = 0;
+    let cancelPreload;
+    const flight = createPropertyFlight(map, () => cancelFlight());
     const container = map.getContainer();
     const cancelFlight = () => {
+      const wasFlying = flyingMaps.has(map);
+      cancelPreload?.();
       flightToken++;
       flyingMaps.delete(map);
-      container.classList.remove("map-is-flying");
+      container.classList.remove("map-is-flying", "map-flight-near-target");
       target = null;
+      targetZoom = 19;
+      flight.cancel();
+      if (wasFlying) map.fire("propertyflightend");
+      if (wasFlying) latest.current.onFlightEnd?.();
     };
     const finishFlight = (token = null) => {
       if (token != null && token !== flightToken) return;
       flyingMaps.delete(map);
-      container.classList.remove("map-is-flying");
+      container.classList.remove("map-is-flying", "map-flight-near-target");
       target = null;
+      targetZoom = 19;
+      cancelPreload?.();
+      map.fire("propertyflightend");
+      latest.current.onFlightEnd?.();
     };
-    const navigate = (coordinates) => {
+    const navigate = (coordinates, requestedZoom = 19) => {
       if (!Array.isArray(coordinates) || coordinates.length !== 2 ||
         !coordinates.every(Number.isFinite) || Math.abs(coordinates[0]) > 90 || Math.abs(coordinates[1]) > 180) return;
-      if (target && map.distance(target, coordinates) < 1) return;
-      if (!target && map.distance(map.getCenter(), coordinates) < 1 && map.getZoom() === 19) return;
+      const minZoom = map.getMinZoom?.() ?? 1;
+      const maxZoom = map.getMaxZoom?.() ?? 28;
+      const destinationZoom = Math.max(minZoom, Math.min(maxZoom, Number.isFinite(requestedZoom) ? requestedZoom : 19));
+      if (target && map.distance(target, coordinates) < 1 && Math.abs(targetZoom - destinationZoom) < 0.05) return;
+      if (!target && map.distance(map.getCenter(), coordinates) < 1 && Math.abs(map.getZoom() - destinationZoom) < 0.05) return;
       clearTimeout(moveTimer);
       userMoved = false;
       target = coordinates;
+      targetZoom = destinationZoom;
       flightToken++;
+      cancelPreload?.();
       const distanceKm = map.distance(map.getCenter(), coordinates) / 1000;
-      const duration = Math.min(4.2, Math.max(1.4, 1.38 + Math.log2(1 + distanceKm) * 0.55));
+      // Even adjacent estates get an unhurried approach and gradual landing.
+      const duration = Math.min(3.8, 1.8 + Math.log2(1 + distanceKm) * 0.45);
+      const wasFlying = flyingMaps.has(map);
+      // Finish wheel motion before marking this flight active: its moveend must
+      // not accidentally finish a newly requested flight at the same location.
+      if (!wasFlying) map.fire("propertyflightstart");
       flyingMaps.add(map);
       container.classList.add("map-is-flying");
-      // flyTo cancels an old flight without rounding its intermediate zoom.
-      // Calling stop()/setView() first introduces a visible snap on retargeting.
-      map.flyTo(coordinates, 19, {
-        duration, easeLinearity: 0.25, animate: true,
-      });
+      if (!wasFlying) latest.current.onFlightStart?.();
+      const destinationLayer = latest.current.mapLayer || "satellite";
+      const preloadZooms = [...new Set([
+        Math.max(1, Math.floor(destinationZoom) - 1),
+        Math.max(1, Math.floor(destinationZoom)),
+      ])];
+      cancelPreload = preloadLocationTiles(coordinates[0], coordinates[1], preloadZooms, destinationLayer, 1);
+      flight.navigate(coordinates, destinationZoom, { duration, animate: true });
       latest.current.triggerArrivalPulse?.(coordinates);
     };
-    const onNavigate = (event) => navigate(event.detail?.coordinates);
+    const onUserInterrupt = () => {
+      if (!flyingMaps.has(map)) return;
+      cancelFlight();
+      map.stop();
+    };
+    const onNavigate = (event) => navigate(event.detail?.coordinates, event.detail?.zoom);
     const onSelect = (event) => {
       const { propertyId, coordinates, autoSwiped } = event.detail || {};
       if (propertyId == null) return;
@@ -64,14 +96,14 @@ export function usePropertyMapNavigation(map, options) {
       const property = latest.current.properties?.find((item) => Number(item.id) === Number(propertyId));
       navigate(property?.coordinates || coordinates);
     };
-    const onMoveStart = () => {
+    const onDragStart = () => {
       clearTimeout(moveTimer);
-      if (!flyingMaps.has(map)) userMoved = true;
+      cancelFlight();
+      userMoved = true;
     };
-    const onDragStart = () => { cancelFlight(); userMoved = true; };
     const onMoveEnd = () => {
       if (flyingMaps.has(map)) {
-        if (target && !map.flyTo?._isMockFunction && map.distance(map.getCenter(), target) > 10) return;
+        if (target && (map.distance(map.getCenter(), target) > 10 || Math.abs(map.getZoom() - targetZoom) > 0.1)) return;
         finishFlight(flightToken);
         return;
       }
@@ -94,17 +126,22 @@ export function usePropertyMapNavigation(map, options) {
         }));
       }, 120);
     };
-    map.on("movestart", onMoveStart);
     map.on("dragstart", onDragStart);
     map.on("moveend", onMoveEnd);
+    container.addEventListener("wheel", onUserInterrupt, { passive: true });
+    container.addEventListener("pointerdown", onUserInterrupt);
+    container.addEventListener("keydown", onUserInterrupt);
     window.addEventListener("navigateToProperty", onNavigate);
     window.addEventListener("selectProperty", onSelect);
     return () => {
       clearTimeout(moveTimer);
       cancelFlight();
-      map.off("movestart", onMoveStart);
+      flight.dispose();
       map.off("dragstart", onDragStart);
       map.off("moveend", onMoveEnd);
+      container.removeEventListener("wheel", onUserInterrupt);
+      container.removeEventListener("pointerdown", onUserInterrupt);
+      container.removeEventListener("keydown", onUserInterrupt);
       window.removeEventListener("navigateToProperty", onNavigate);
       window.removeEventListener("selectProperty", onSelect);
     };

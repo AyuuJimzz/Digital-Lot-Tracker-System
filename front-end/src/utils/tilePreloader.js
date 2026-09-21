@@ -1,7 +1,7 @@
 /**
  * High-performance Satellite Tile Preloader for Golden Dragon Estate Platform.
  * Converts coordinates to Spherical Mercator tile coordinates and pre-caches
- * satellite imagery into browser HTTP cache during idle moments.
+ * satellite imagery into browser HTTP cache with bounded background requests.
  */
 
 function latLngToTile(lat, lng, zoom) {
@@ -24,36 +24,87 @@ function getTileUrl(x, y, z, layer = "satellite") {
 }
 
 const preloadedUrls = new Set();
+const requests = new Map();
+let activeRequests = 0;
+
+function pumpPreloads() {
+  for (const [url, request] of requests) {
+    if (activeRequests >= 2) break;
+    if (request.active) continue;
+    startPreload(url, request);
+  }
+}
+
+function startPreload(url, request) {
+  request.active = true;
+  activeRequests++;
+  const img = new Image();
+  request.image = img;
+  let settled = false;
+  const finish = (loaded) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(request.timeout);
+    img.onload = img.onerror = null;
+    requests.delete(url);
+    activeRequests--;
+    if (loaded) {
+      preloadedUrls.add(url);
+      if (preloadedUrls.size > 512) preloadedUrls.delete(preloadedUrls.values().next().value);
+    }
+    pumpPreloads();
+  };
+  img.decoding = "async";
+  img.fetchPriority = "low";
+  img.onload = () => finish(true);
+  img.onerror = () => finish(false);
+  request.timeout = setTimeout(() => {
+    img.src = "";
+    finish(false);
+  }, 8000);
+  img.src = url;
+}
 
 /**
- * Preload 5x5 tile grid around a specific [lat, lng] at specified zoom levels
- * Covers the entire estate perimeter so every lot tile is instant
+ * Preload a tile grid around a specific [lat, lng] at specified zoom levels.
+ * Visible map requests take priority over this small background queue.
  */
-export function preloadLocationTiles(lat, lng, zooms = [16, 17, 18, 19], layer = "satellite") {
-  if (typeof window === "undefined" || !lat || !lng) return;
+export function preloadLocationTiles(lat, lng, zooms = [16, 17, 18, 19], layer = "satellite", tileRadius = 2) {
+  if (typeof window === "undefined" || !Number.isFinite(lat) || !Number.isFinite(lng) ||
+      Math.abs(lat) > 85.05112878 || Math.abs(lng) > 180) return () => {};
+  const radius = Number.isFinite(tileRadius) ? Math.max(0, Math.min(3, Math.floor(tileRadius))) : 1;
+  const owner = Symbol("preload");
+  const urls = [];
 
-  const runPreload = () => {
-    zooms.forEach((zoom) => {
-      const center = latLngToTile(lat, lng, zoom);
-      // Preload 5x5 surrounding grid to cover wide estates
-      for (let dx = -2; dx <= 2; dx++) {
-        for (let dy = -2; dy <= 2; dy++) {
-          const x = center.x + dx;
-          const y = center.y + dy;
-          const url = getTileUrl(x, y, zoom, layer);
+  [...new Set(zooms)].filter((zoom) => Number.isInteger(zoom) && zoom >= 0 && zoom <= 20).forEach((zoom) => {
+    const center = latLngToTile(lat, lng, zoom);
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        const size = 2 ** zoom;
+        const x = ((center.x + dx) % size + size) % size;
+        const y = center.y + dy;
+        if (y < 0 || y >= size) continue;
+        const url = getTileUrl(x, y, zoom, layer);
 
-          if (!preloadedUrls.has(url)) {
-            preloadedUrls.add(url);
-            const img = new Image();
-            img.decoding = "async";
-            img.src = url;
-          }
+        if (!preloadedUrls.has(url)) {
+          if (!requests.has(url)) requests.set(url, { active: false, owners: new Set() });
+          requests.get(url).owners.add(owner);
+          urls.push(url);
         }
       }
+    }
+  });
+  pumpPreloads();
+  // A new destination drops queued old tiles; at most two in-flight downloads
+  // finish in the background. Failed downloads can be retried on the next visit.
+  return () => {
+    urls.forEach((url) => {
+      const request = requests.get(url);
+      if (!request) return;
+      request.owners.delete(owner);
+      if (!request.active && !request.owners.size) requests.delete(url);
     });
   };
-
-  runPreload();
 }
 
 /**

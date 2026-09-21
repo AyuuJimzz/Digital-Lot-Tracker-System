@@ -1,11 +1,9 @@
 // front-end/src/components/admin/MapLocationSearch.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Search, MapPin, X, Loader2, ArrowRight } from "lucide-react";
-import { useMap } from "react-leaflet";
 import { geocodeAddress, searchLocationSuggestions } from "../../utils/geocoding";
 
 export function MapLocationSearch({ onLocationSelected }) {
-  const map = useMap();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
@@ -102,30 +100,11 @@ export function MapLocationSearch({ onLocationSelected }) {
 
   const handleSelectLocation = (location) => {
     const coords = [location.lat, location.lng];
-    if (map) {
-      const currentCenter = map.getCenter();
-      const currentZoom = map.getZoom();
-      const dist = Math.hypot(
-        currentCenter.lat - coords[0],
-        currentCenter.lng - coords[1]
-      );
-
-      if (dist < 0.008) {
-        map.flyTo(coords, 18.5, { duration: 1.3, easeLinearity: 0.2 });
-      } else {
-        const midZoom = Math.max(11, currentZoom - 4);
-        const midLat = (currentCenter.lat + coords[0]) / 2;
-        const midLng = (currentCenter.lng + coords[1]) / 2;
-
-        map.flyTo([midLat, midLng], midZoom, { duration: 0.85, easeLinearity: 0.35 });
-
-        map.once("moveend", () => {
-          setTimeout(() => {
-            map.flyTo(coords, 18.5, { duration: 1.5, easeLinearity: 0.18 });
-          }, 80);
-        });
-      }
-    }
+    // Use the shared map navigation lifecycle. The old two-step flyTo sequence
+    // restarted the camera midway and bypassed the flight performance guards.
+    window.dispatchEvent(new CustomEvent("navigateToProperty", {
+      detail: { coordinates: coords, zoom: 18.5 },
+    }));
 
     if (onLocationSelected) {
       onLocationSelected({

@@ -27,8 +27,7 @@ body {
   background-color: #18231d !important;
 }
 
-/* ── High-Performance Zoom Visibility (0 DOM node churn during flyTo) ── */
-.map-view-zoomed-out .custom-pin,
+/* Tooltip decluttering must not hide lot geometry or its center pins. */
 .map-view-zoomed-out .leaflet-tooltip,
 .map-view-zoomed-out .leaflet-tooltip-pane {
   display: none !important;
@@ -79,14 +78,32 @@ body {
 }
 
 /* Hide lingering tooltips during active property flights; restore on arrival. */
-.map-is-flying .leaflet-tooltip {
+.map-is-flying .leaflet-tooltip,
+.map-wheel-zooming .leaflet-tooltip {
   visibility: hidden !important;
 }
 
 .map-is-flying .leaflet-tile,
 .map-is-flying .leaflet-image-layer {
   image-rendering: auto;
-  opacity: 1 !important;
+  transition: none !important;
+}
+
+/* Paths outside the starting viewport must remain available during a flight.
+   One SVG transform moves every lot, without clearing a canvas or hiding pins. */
+.lot-plan-pane svg {
+  overflow: visible;
+}
+
+.lot-plan-pane path {
+  vector-effect: non-scaling-stroke;
+}
+
+.lot-plan-pin {
+  cursor: pointer;
+}
+
+.map-wheel-zooming .leaflet-zoom-animated {
   transition: none !important;
 }
 
