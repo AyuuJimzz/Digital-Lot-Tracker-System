@@ -143,18 +143,7 @@ export function AdminHeader({ sidebarCollapsed }) {
     return () => window.removeEventListener("selectProperty", handleSelectProperty);
   }, []);
 
-  // Listen for modal open events triggered from map popups -> direct to Quick Add Floating window
-  useEffect(() => {
-    const handleOpenAddLot = () => {
-      window.dispatchEvent(new CustomEvent("openQuickAddLot"));
-    };
 
-    window.addEventListener("openAddLotModal", handleOpenAddLot);
-
-    return () => {
-      window.removeEventListener("openAddLotModal", handleOpenAddLot);
-    };
-  }, []);
 
   // Sync selectedProperty from localStorage on route change
   useEffect(() => {

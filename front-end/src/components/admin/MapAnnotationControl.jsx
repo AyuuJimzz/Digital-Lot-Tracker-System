@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Plus, Trash2, Check, X, Lock, Unlock, Move, Copy } from "lucide-react";
 
 export function MapAnnotationControl({
