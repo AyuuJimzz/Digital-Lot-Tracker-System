@@ -1,8 +1,8 @@
 import { latLng, point } from "leaflet";
 
-// Smooth ease-in-out: acceleration then deceleration.
+// Continuous velocity and acceleration, including takeoff and landing.
 function ease(t) {
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
 // Phased easing: delays x/y movement so zoom leads.
@@ -27,10 +27,16 @@ export function createPropertyFlight(map, onInterrupt) {
 
   const move = (center, zoom, final = false) => {
     ownMove = true;
-    try { map._move(center, zoom, final ? undefined : { flyTo: true }); }
+    try {
+      const sameZoom = map.getZoom() === zoom;
+      // Leaflet otherwise skips layer transforms during a constant-zoom pan.
+      map._move(center, zoom, final ? undefined : { flyTo: true, pinch: true });
+      // Commit the exact landing once, with the normal tile/layer refresh.
+      if (final && sameZoom) map.fire("zoom");
+    }
     finally { ownMove = false; }
   };
-  const cancel = () => {
+  const cancel = (center, zoom) => {
     if (frame !== null) cancelAnimationFrame(frame);
     frame = null;
     if (pendingTimer !== null) { clearTimeout(pendingTimer); pendingTimer = null; }
@@ -38,18 +44,18 @@ export function createPropertyFlight(map, onInterrupt) {
     if (!trajectory) return;
     trajectory = null;
     if (!map._mapPane) return;
-    move(map.getCenter(), map.getZoom(), true);
+    move(center || map.getCenter(), zoom ?? map.getZoom(), true);
     ownMove = true;
     try { map._moveEnd(true); } finally { ownMove = false; }
   };
   const getTime = () => (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
-  const step = () => {
+  const step = (time) => {
     frame = null;
     if (!trajectory) return;
-    const now = getTime();
     // Cap frame delta at 40ms to prevent teleporting after stalls.
-    elapsed += Math.max(0, Math.min(40, now - lastTime));
-    lastTime = now;
+    // Use the display-frame timestamp instead of when this callback got CPU time.
+    elapsed += Math.max(0, Math.min(40, time - lastTime));
+    lastTime = Math.max(lastTime, time);
     const { from, to, duration, arc, destination, straight } = trajectory;
     const t = Math.min(1, elapsed / duration);
     if (straight) {
@@ -62,11 +68,10 @@ export function createPropertyFlight(map, onInterrupt) {
       const py = from.y + (to.y - from.y) * u;
       const finalZoom = from.zoom + zoomDelta * e;
       if (t === 1) {
-        move(destination, to.zoom);
-        cancel();
+        cancel(destination, to.zoom);
       } else {
         move(map.unproject(point(px, py), projectionZoom), finalZoom);
-        frame = requestAnimationFrame(step);
+        if (trajectory && frame === null) frame = requestAnimationFrame(step);
       }
       return;
     }
@@ -78,17 +83,21 @@ export function createPropertyFlight(map, onInterrupt) {
     const py = from.y + (to.y - from.y) * pe;
     // Smooth zoom: ease from start→end, with an up-then-down arc in the middle.
     const baseZoom = from.zoom + (to.zoom - from.zoom) * ze;
-    const zoomArc = arc * 4 * t * (1 - t); // peaks at t=0.5
+    // Same peak cruise depth, now with zero velocity/acceleration at both ends.
+    const zoomArc = arc * 64 * t * t * t * (1 - t) ** 3;
     const finalZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), baseZoom - zoomArc));
     if (t === 1) {
-      move(destination, to.zoom);
-      cancel();
+      cancel(destination, to.zoom);
     } else {
       move(map.unproject(point(px, py), projectionZoom), finalZoom);
-      frame = requestAnimationFrame(step);
+      if (trajectory && frame === null) frame = requestAnimationFrame(step);
     }
   };
   const executeNavigate = (coordinates, zoom, duration, options = {}) => {
+    // Do not let a delayed older retarget interrupt the latest destination.
+    if (pendingTimer !== null) clearTimeout(pendingTimer);
+    pendingTimer = null;
+    pendingNavigate = null;
     if (!trajectory) {
       if (map._animatingZoom) map._onZoomTransitionEnd();
       map._stop();

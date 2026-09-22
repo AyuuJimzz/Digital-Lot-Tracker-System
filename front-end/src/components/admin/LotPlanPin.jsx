@@ -24,7 +24,10 @@ const Pin = createLayerComponent(
   ({ center, color, pane, ...options }, context) => {
     const instance = new ViewportLotMarker(center, {
       ...options,
-      pane: pane || "markerPane",
+      // React-Leaflet inherits "lot-plan" from the surrounding polygon Pane.
+      // Its SVG has z-index 200, which covers pins whose screen-Y z-index is
+      // lower. Keep pins in the separate marker stacking context instead.
+      pane: !pane || pane === "lot-plan" ? "markerPane" : pane,
       icon: getPinIcon(color),
     });
     return createElementObject(

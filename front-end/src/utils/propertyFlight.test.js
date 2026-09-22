@@ -1,8 +1,9 @@
 import L from "leaflet";
 import { act, renderHook } from "@testing-library/react";
 import { createPropertyFlight } from "./propertyFlight";
-import { usePropertyMapNavigation, waitForPropertyFlight } from "../hooks/usePropertyMapNavigation";
+import { usePropertyMapNavigation } from "../hooks/usePropertyMapNavigation";
 import { attachSmoothWheelZoom } from "./smoothWheelZoom";
+import { ViewportLotMarker } from "./viewportLotMarker";
 
 jest.mock("./tilePreloader", () => ({ preloadLocationTiles: () => () => {} }));
 
@@ -15,7 +16,10 @@ beforeEach(() => {
   map = L.map(element, { zoomAnimation: false, zoomSnap: 0, minZoom: 1, maxZoom: 28 }).setView([10.6, 122.3], 19);
   flight = createPropertyFlight(map);
 });
-afterEach(() => { flight.dispose(); map.remove(); element.remove(); jest.useRealTimers(); });
+afterEach(() => {
+  flight.dispose(); map.remove(); element.remove();
+  jest.restoreAllMocks(); jest.useRealTimers();
+});
 const camera = () => ({ ...map.project(map.getCenter(), 19), zoom: map.getZoom() });
 
 test("flight follows a straight line from origin to destination (no curves)", () => {
@@ -186,4 +190,108 @@ test("real navigation hook keeps one flight active across switches; wheel cancel
   expect(ended).toHaveBeenCalledTimes(1);
   disposeWheel();
   unmount();
+});
+
+function controlFrames() {
+  let pending;
+  const now = jest.spyOn(performance, "now").mockReturnValue(0);
+  jest.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    pending = callback;
+    return 1;
+  });
+  jest.spyOn(window, "cancelAnimationFrame").mockImplementation(() => { pending = null; });
+  return {
+    now,
+    run(time) {
+      const callback = pending;
+      pending = null;
+      callback(time);
+    },
+    hasPending: () => Boolean(pending),
+  };
+}
+
+test.each([
+  [1.2, 30], [1.2, 60], [1.2, 120],
+  [1.8, 30], [1.8, 60], [1.8, 120],
+])("%s-second flight follows display time at %i Hz despite callback delays", (duration, hz) => {
+  const frames = controlFrames();
+  const destination = L.latLng(10.68, 122.4);
+  const midpoint = map.project(map.getCenter(), 19).add(map.project(destination, 19)).divideBy(2);
+  flight.navigate(destination, 18.5, { duration, straight: true });
+  // Work before this RAF callback must not change the animation's sampled time.
+  frames.now.mockReturnValue(8000);
+  const totalFrames = Math.round(duration * hz);
+  const durationMs = duration * 1000;
+  for (let index = 1; index <= totalFrames / 2; index++) frames.run(index * durationMs / totalFrames);
+  expect(map.project(map.getCenter(), 19).distanceTo(midpoint)).toBeLessThan(0.00001);
+  expect(map.getZoom()).toBeCloseTo(18.75, 8);
+  for (let index = totalFrames / 2 + 1; index <= totalFrames; index++) frames.run(index * durationMs / totalFrames);
+  expect(map.getCenter().distanceTo(destination)).toBeLessThan(0.01);
+  expect(map.getZoom()).toBe(18.5);
+  expect(frames.hasPending()).toBe(false);
+});
+
+test("long frame stalls cannot teleport the camera to its destination", () => {
+  const frames = controlFrames();
+  const origin = map.project(map.getCenter(), 19);
+  const destination = L.latLng(10.68, 122.4);
+  const distance = origin.distanceTo(map.project(destination, 19));
+  flight.navigate(destination, 18.5, { duration: 2, straight: true });
+  frames.run(5000);
+  expect(origin.distanceTo(map.project(map.getCenter(), 19)) / distance).toBeLessThan(0.001);
+  expect(map.getZoom()).toBeGreaterThan(18.99);
+  expect(frames.hasPending()).toBe(true);
+});
+
+test("zoom takeoff and landing are gentle and the destination is committed once", () => {
+  const frames = controlFrames();
+  const moves = [];
+  const ended = jest.fn();
+  map.on("move", () => moves.push(camera())).on("moveend", ended);
+  flight.navigate([10.68, 122.4], 19, { duration: 2 });
+  for (let index = 1; index <= 100; index++) frames.run(index * 20);
+  expect(Math.abs(moves[0].zoom - 19)).toBeLessThan(0.001);
+  expect(Math.abs(moves[98].zoom - 19)).toBeLessThan(0.001);
+  expect(Math.min(...moves.map(({ zoom }) => zoom))).toBeLessThan(18);
+  expect(moves).toHaveLength(100);
+  expect(ended).toHaveBeenCalledTimes(1);
+  expect(map.getZoom()).toBe(19);
+});
+
+test("constant-zoom flights move pins, SVG and tiles every frame without rebuilding geometry", () => {
+  const frames = controlFrames();
+  const destination = L.latLng(10.6003, 122.3003);
+  const renderer = new L.SVG();
+  const polygon = L.polygon([[10.6, 122.3], [10.601, 122.3], [10.6, 122.301]], { renderer }).addTo(map);
+  const pin = new ViewportLotMarker(destination, { icon: L.divIcon({ iconSize: [14, 14] }) }).addTo(map);
+  const icon = pin.getElement();
+  const tiles = L.gridLayer({ updateWhenZooming: true }).addTo(map);
+  const project = jest.spyOn(polygon, "_project");
+  const vectorTransform = jest.spyOn(renderer, "_updateTransform");
+  const tileTransform = jest.spyOn(tiles, "_setZoomTransforms");
+  flight.navigate(destination, 19, { duration: 2, straight: true });
+  for (let index = 1; index <= 50; index++) frames.run(index * 20);
+  expect(L.DomUtil.getPosition(icon)).toEqual(map.latLngToLayerPoint(destination));
+  expect(project).not.toHaveBeenCalled();
+  expect(vectorTransform).toHaveBeenCalledTimes(50);
+  expect(tileTransform).toHaveBeenCalledTimes(50);
+  for (let index = 51; index <= 100; index++) frames.run(index * 20);
+  expect(project).toHaveBeenCalledTimes(1);
+  expect(pin.getElement()).toBe(icon);
+  expect(L.DomUtil.getPosition(icon)).toEqual(map.latLngToLayerPoint(destination));
+  expect(map.getCenter().distanceTo(destination)).toBeLessThan(0.01);
+});
+
+test("a newer immediate destination cancels a delayed older retarget", () => {
+  const frames = controlFrames();
+  flight.navigate([10.7, 122.4], 19, { duration: 2, straight: true });
+  frames.now.mockReturnValue(10);
+  flight.navigate([10.8, 122.5], 19, { duration: 2, straight: true });
+  frames.now.mockReturnValue(80);
+  flight.navigate([10.9, 122.6], 19, { duration: 2, straight: true });
+  jest.advanceTimersByTime(100);
+  for (let index = 1; index <= 100; index++) frames.run(80 + index * 20);
+  expect(map.getCenter().distanceTo(L.latLng(10.9, 122.6))).toBeLessThan(0.01);
+  expect(map.getZoom()).toBe(19);
 });

@@ -69,7 +69,7 @@ test("rejects invalid coordinates, cleans up, and keeps the requested flight wit
   window.matchMedia = original;
 });
 
-test("nearby property switches retain a visible, unhurried flight instead of a short pan", () => {
+test("nearby property switches use a short, visible flight matching the reference pace", () => {
   const map = createMap();
   renderHook(() => usePropertyMapNavigation(map, {}));
 
@@ -80,8 +80,8 @@ test("nearby property switches retain a visible, unhurried flight instead of a s
     19,
     expect.objectContaining({ animate: true })
   );
-  expect(map.flyTo.mock.calls[0][2].duration).toBeGreaterThanOrEqual(1.8);
-  expect(map.flyTo.mock.calls[0][2].duration).toBeLessThan(2.5);
+  expect(map.flyTo.mock.calls[0][2].duration).toBeGreaterThanOrEqual(1.2);
+  expect(map.flyTo.mock.calls[0][2].duration).toBeLessThan(1.3);
   expect(map.panTo).not.toHaveBeenCalled();
 });
 
@@ -93,8 +93,10 @@ test("distant flights get a longer approach while retaining a bounded duration",
   act(() => navigate([10.1, 122.1]));
   const distantDuration = map.flyTo.mock.calls[1][2].duration;
   expect(distantDuration).toBeGreaterThan(nearbyDuration);
-  expect(distantDuration).toBeGreaterThan(3);
-  expect(distantDuration).toBeLessThanOrEqual(3.8);
+  expect(distantDuration).toBeGreaterThan(1.5);
+  expect(distantDuration).toBeLessThanOrEqual(1.8);
+  act(() => navigate([20, 130]));
+  expect(map.flyTo.mock.calls[2][2].duration).toBe(1.8);
   expect(map.panTo).not.toHaveBeenCalled();
 });
 
@@ -114,6 +116,22 @@ test("passes fractional zoom to the flight controller", () => {
     expect.objectContaining({ animate: true })
   );
   expect(map.panTo).not.toHaveBeenCalled();
+});
+
+test("overview-to-lot zoom has time to settle without a long wait even at the same location", () => {
+  const map = createMap();
+  map.getZoom = () => 10;
+  renderHook(() => usePropertyMapNavigation(map, {
+    properties: [{ id: 5, coordinates: [10, 122] }],
+  }));
+  act(() => window.dispatchEvent(new CustomEvent("selectProperty", {
+    detail: { propertyId: 5 },
+  })));
+  expect(map.flyTo).toHaveBeenCalledWith([10, 122], 19,
+    expect.objectContaining({ straight: true, animate: true }));
+  const { duration } = map.flyTo.mock.calls[0][2];
+  expect(duration).toBeGreaterThan(1.7);
+  expect(duration).toBeLessThanOrEqual(1.8);
 });
 
 test("reports the flight lifecycle so map views can limit marker work", () => {
@@ -198,4 +216,3 @@ test("dropdown selection uses straight flight when in overview mode (zoom < 18) 
     expect.not.objectContaining({ straight: true })
   );
 });
-

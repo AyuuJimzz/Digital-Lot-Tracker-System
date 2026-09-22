@@ -72,8 +72,11 @@ export function usePropertyMapNavigation(map, options) {
       flightToken++;
       cancelPreload?.();
       const distanceKm = map.distance(map.getCenter(), coordinates) / 1000;
-      // Even adjacent estates get an unhurried approach and gradual landing.
-      const duration = Math.min(3.8, 1.8 + Math.log2(1 + distanceKm) * 0.45);
+      // Match the reference's short, responsive flight; allow a little more
+      // time for long travel or a large overview-to-lot zoom to settle.
+      const distanceDuration = 1.2 + Math.log2(1 + distanceKm) * 0.08;
+      const zoomDuration = 1.2 + Math.abs(destinationZoom - map.getZoom()) * 0.06;
+      const duration = Math.min(1.8, Math.max(distanceDuration, zoomDuration));
       const wasFlying = flyingMaps.has(map);
       // Finish wheel motion before marking this flight active: its moveend must
       // not accidentally finish a newly requested flight at the same location.
