@@ -2,6 +2,8 @@ import { API_BASE_URL } from "../../config/api";
 import { usePropertyMapNavigation } from "../../hooks/usePropertyMapNavigation";
 import { LotPlanPin } from "../../components/admin/LotPlanPin";
 import { LotPlanPolygon } from "../../components/admin/LotPlanPolygon";
+import { ViewportLotLayer } from "../../components/admin/ViewportLotLayer";
+import { getLotBounds } from "../../utils/lotViewport";
 import { useSmoothWheelZoom } from "../../hooks/useSmoothWheelZoom";
 import React, { useEffect, useLayoutEffect, useState, useMemo, useRef, useCallback } from "react";
 
@@ -11,7 +13,6 @@ import {
   Popup,
   useMap,
   Marker,
-  Tooltip,
 } from "react-leaflet";
 
 import axios from "axios";
@@ -476,28 +477,21 @@ const EmployeeMapView = () => {
     });
   }, []);
 
-  // Keep all active plans mounted so flying between estates never hides lots.
-  // Pre-calculate lot center points so the render loop avoids 200+ array allocations and Math.min/max operations per frame.
+  // Cache each polygon's bounds once per data refresh for cheap viewport filtering.
   const filteredLots = useMemo(() => {
     if (!mapData || !Array.isArray(mapData.lots)) return [];
     return mapData.lots
       .filter((lot) => activePropertyIds.has(Number(lot.property_id)))
       .map((lot) => {
-        if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
-          return lot;
-        }
-        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-        for (let i = 0; i < lot.coordinates.length; i++) {
-          const pt = lot.coordinates[i];
-          if (pt[0] < minLat) minLat = pt[0];
-          if (pt[0] > maxLat) maxLat = pt[0];
-          if (pt[1] < minLng) minLng = pt[1];
-          if (pt[1] > maxLng) maxLng = pt[1];
-        }
+        const bounds = getLotBounds(lot.coordinates);
+        if (!bounds) return lot;
         return {
           ...lot,
-          _centerLat: (minLat + maxLat) / 2,
-          _centerLng: (minLng + maxLng) / 2,
+          _bounds: bounds,
+          _statusColor: getStatusColor(lot.status, lot.lot_number, lot.area_sqm),
+          _nonSaleable: isNonSaleableLot(lot.lot_number, lot.area_sqm),
+          _centerLat: (bounds.south + bounds.north) / 2,
+          _centerLng: (bounds.west + bounds.east) / 2,
         };
       });
   }, [mapData, activePropertyIds]);
@@ -578,7 +572,7 @@ const EmployeeMapView = () => {
     lotDetailsContext.current = { properties, selectedProperty };
   }, [properties, selectedProperty]);
   const showLotTooltips = currentZoom >= 19;
-  const renderedLots = useMemo(() => filteredLots.map((lot) => {
+  const renderLot = useCallback((lot, showHover, hideHover, renderer) => {
     // Skip lots with invalid or missing coordinates
     if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
       console.warn(
@@ -589,7 +583,7 @@ const EmployeeMapView = () => {
 
     const centerLat = lot._centerLat ?? 0;
     const centerLng = lot._centerLng ?? 0;
-    const statusColor = getStatusColor(lot.status, lot.lot_number, lot.area_sqm);
+    const statusColor = lot._statusColor;
 
     const openFullLotDetails = async () => {
       const matchingProp = lotDetailsContext.current.properties.find(
@@ -643,7 +637,7 @@ const EmployeeMapView = () => {
       <React.Fragment key={`emp-lot-node-${lot.lot_id}`}>
         <LotPlanPolygon
           key={`emp-poly-${lot.lot_id}`}
-          noClip={true}
+          renderer={renderer}
           positions={lot.coordinates}
           pathOptions={{
             color: statusColor,
@@ -653,6 +647,8 @@ const EmployeeMapView = () => {
           }}
           eventHandlers={{
             click: handleLotClick,
+            mouseover: () => showHover(lot, [centerLat, centerLng]),
+            mouseout: () => hideHover(lot),
           }}
         />
 
@@ -662,47 +658,13 @@ const EmployeeMapView = () => {
           color={statusColor}
           eventHandlers={{
             click: handleLotClick,
+            mouseover: () => showHover(lot, [centerLat, centerLng]),
+            mouseout: () => hideHover(lot),
           }}
-        >
-          {!isTouchDevice && showLotTooltips && (
-            <Tooltip
-              pane="tooltipPane"
-              permanent={false}
-              direction="top"
-              offset={[0, -18]}
-              sticky={false}
-              interactive={false}
-              opacity={0.95}
-            >
-              <div className="text-center text-xs leading-tight">
-                <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
-                <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
-                <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
-                  {isNonSaleableLot(lot.lot_number, lot.area_sqm) ? "Non-Saleable" : lot.status}
-                </div>
-                {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
-                  <>
-                    <div className="mt-2 pt-2 border-t border-gray-300">
-                      <div className="text-[11px] text-gray-700">
-                        <div className="font-semibold">Customer Info:</div>
-                        <div>{lot.customer.full_name || "N/A"}</div>
-                        <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
-                        <div className="text-gray-600">
-                          {lot.customer.contact_number || "N/A"}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </Tooltip>
-          )}
-        </LotPlanPin>
+        />
       </React.Fragment>
     );
-        }), [
-    filteredLots, isTouchDevice, showLotTooltips,
-  ]);
+  }, [isTouchDevice]);
 
   const overviewBeacons = useMemo(() => properties.map((property) => {
     if (!property.coordinates || !Array.isArray(property.coordinates) || property.coordinates.length < 2) return null;
@@ -740,7 +702,7 @@ const EmployeeMapView = () => {
       <MapContainer
         center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
         zoom={properties && properties.length > 0 ? 19 : 9}
-        preferCanvas={false}
+        preferCanvas={true}
         zoomDelta={0.25}
         zoomSnap={0}
         wheelPxPerZoomLevel={220}
@@ -887,8 +849,8 @@ const EmployeeMapView = () => {
 
 
         <Pane name="lot-plan" className="lot-plan-pane" style={{ zIndex: 410 }}>
-        {renderedLots}
-
+          <ViewportLotLayer lots={filteredLots} renderLot={renderLot}
+            showTooltips={showLotTooltips} isTouchDevice={isTouchDevice} />
         </Pane>
 
         {/* PDF labels follow the plan at subdivision zoom. */}
