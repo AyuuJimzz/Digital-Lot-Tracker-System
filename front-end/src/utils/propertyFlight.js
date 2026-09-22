@@ -32,7 +32,7 @@ export function createPropertyFlight(map, onInterrupt) {
     try {
       const sameZoom = map.getZoom() === zoom;
       // Leaflet otherwise skips layer transforms during a constant-zoom pan.
-      map._move(center, zoom, final ? undefined : { flyTo: true, pinch: true });
+      map._move(center, zoom, final ? undefined : (sameZoom ? { flyTo: true, pinch: true } : { flyTo: true }));
       // Commit the exact landing once, with the normal tile/layer refresh.
       if (final && sameZoom) map.fire("zoom");
     }

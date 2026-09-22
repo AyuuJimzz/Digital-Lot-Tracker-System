@@ -127,6 +127,6 @@ export function preloadRegionalOverviewTiles(properties = [], layer = "satellite
       centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
     }
   }
-  return preloadLocationTiles(centerLat, centerLng, [12, 13], layer, 1);
+  return preloadLocationTiles(centerLat, centerLng, [12, 13], layer, 3);
 }
 

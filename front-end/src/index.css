@@ -24,7 +24,7 @@ body {
 }
 
 .leaflet-tile {
-  background-color: #18231d !important;
+  background-color: transparent !important;
 }
 
 /* Tooltip decluttering must not hide lot geometry or its center pins. */

@@ -35,10 +35,26 @@ const TILE_SHARED_PROPS = {
   // Leaflet must refresh its grid while a long flyTo crosses the map. Deferring
   // this until moveend leaves the old grid behind and exposes the dark map
   // background (the blank satellite state shown in the report).
-  keepBuffer: 3,
+  keepBuffer: 8,
   updateWhenZooming: true,
   updateWhenIdle: false,
-  updateInterval: 350,
+  updateInterval: 100,
+};
+
+// Base regional overview layer (Zoom 1-13) mounted persistently beneath the detail layer.
+// When camera flies up to cruise altitude (z12-14) during long-distance navigation,
+// this layer paints the entire island/region seamlessly edge-to-edge with 0 CPU overhead.
+const OVERVIEW_TILE_PROPS = {
+  subdomains: ["0", "1", "2", "3"],
+  minZoom: 1,
+  maxZoom: 28,
+  maxNativeZoom: 13,
+  crossOrigin: false,
+  keepBuffer: 6,
+  updateWhenZooming: true,
+  updateWhenIdle: false,
+  updateInterval: 100,
+  zIndex: 1,
 };
 
 const TILE_LAYER_CONFIG = {
@@ -140,6 +156,14 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
 
   return (
     <>
+      <TileLayer
+        key={`gdep-overview-${activeLayer}`}
+        url={TILE_LAYER_CONFIG[activeLayer]?.url || TILE_LAYER_CONFIG[MAP_LAYERS.SATELLITE].url}
+        className="gdep-smooth-tile-layer"
+        opacity={1}
+        eventHandlers={{ tileloadstart: prepareTile }}
+        {...OVERVIEW_TILE_PROPS}
+      />
       {Object.entries(renderedLayers).map(([layerId, layerState]) => (
         <TileLayer
           key={`gdep-tile-${layerId}`}
