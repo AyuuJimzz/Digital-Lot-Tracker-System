@@ -627,10 +627,15 @@ const LotOffcanvas = ({
             <div className="space-y-4">
               {/* Lot Number */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="lot-offcanvas-lot-number"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Lot Number / Label
                 </label>
                 <input
+                  id="lot-offcanvas-lot-number"
+                  name="lot_number"
                   type="text"
                   value={lotNumber}
                   onChange={(e) => setLotNumber(e.target.value)}
@@ -666,10 +671,15 @@ const LotOffcanvas = ({
 
               {/* Area */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label
+                  htmlFor="lot-offcanvas-area"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
                   Area (SQM)
                 </label>
                 <input
+                  id="lot-offcanvas-area"
+                  name="area_sqm"
                   type="number"
                   step="0.01"
                   value={areaSqm}
@@ -790,10 +800,15 @@ const LotOffcanvas = ({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                    <label
+                      htmlFor="lot-offcanvas-latitude"
+                      className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5"
+                    >
                       Latitude
                     </label>
                     <input
+                      id="lot-offcanvas-latitude"
+                      name="latitude"
                       type="text"
                       value={latitude}
                       readOnly
@@ -802,10 +817,15 @@ const LotOffcanvas = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">
+                    <label
+                      htmlFor="lot-offcanvas-longitude"
+                      className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5"
+                    >
                       Longitude
                     </label>
                     <input
+                      id="lot-offcanvas-longitude"
+                      name="longitude"
                       type="text"
                       value={longitude}
                       readOnly
@@ -839,10 +859,15 @@ const LotOffcanvas = ({
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label
+                    htmlFor="lot-offcanvas-status"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                  >
                     Status
                   </label>
                   <select
+                    id="lot-offcanvas-status"
+                    name="lot_status"
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
                     disabled={isLockedForUser}
@@ -876,7 +901,10 @@ const LotOffcanvas = ({
               {!isNonSaleable && (status === "Pending" || status === "Sold") && (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      htmlFor="lot-offcanvas-fullname"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Full Name
                     </label>
                     {status === "Pending" &&
@@ -884,6 +912,8 @@ const LotOffcanvas = ({
                     email &&
                     !isAdmin ? (
                       <input
+                        id="lot-offcanvas-fullname"
+                        name="customer_name"
                         type="text"
                         value={fullName}
                         readOnly
@@ -892,6 +922,8 @@ const LotOffcanvas = ({
                       />
                     ) : (
                       <input
+                        id="lot-offcanvas-fullname"
+                        name="customer_name"
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
@@ -908,10 +940,15 @@ const LotOffcanvas = ({
                   {status === "Sold" ? (
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label
+                          htmlFor="lot-offcanvas-contact-sold"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                        >
                           Contact Number
                         </label>
                         <input
+                          id="lot-offcanvas-contact-sold"
+                          name="customer_contact"
                           type="tel"
                           value={contactNumber}
                           onChange={(e) => setContactNumber(e.target.value)}
@@ -926,10 +963,15 @@ const LotOffcanvas = ({
 
                       {/* Payment Method - Only show when status is Sold */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label
+                          htmlFor="lot-offcanvas-payment-method"
+                          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                        >
                           Payment Method
                         </label>
                         <select
+                          id="lot-offcanvas-payment-method"
+                          name="payment_method"
                           value={paymentMethod}
                           onChange={(e) => setPaymentMethod(e.target.value)}
                           disabled={isLockedForUser}
@@ -947,7 +989,10 @@ const LotOffcanvas = ({
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      <label
+                        htmlFor="lot-offcanvas-contact"
+                        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                      >
                         Contact Number
                       </label>
                       {status === "Pending" &&
@@ -955,6 +1000,8 @@ const LotOffcanvas = ({
                       contactNumber &&
                       !isAdmin ? (
                         <input
+                          id="lot-offcanvas-contact"
+                          name="customer_contact"
                           type="tel"
                           value={contactNumber}
                           readOnly
@@ -963,6 +1010,8 @@ const LotOffcanvas = ({
                         />
                       ) : (
                         <input
+                          id="lot-offcanvas-contact"
+                          name="customer_contact"
                           type="tel"
                           value={contactNumber}
                           onChange={(e) => setContactNumber(e.target.value)}
@@ -978,7 +1027,10 @@ const LotOffcanvas = ({
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      htmlFor="lot-offcanvas-email"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Email
                     </label>
                     {status === "Pending" &&
@@ -987,6 +1039,8 @@ const LotOffcanvas = ({
                     !isAdmin ? (
                       <div className="relative">
                         <input
+                          id="lot-offcanvas-email"
+                          name="customer_email"
                           type="email"
                           value={email}
                           readOnly
@@ -1011,6 +1065,8 @@ const LotOffcanvas = ({
                       </div>
                     ) : (
                       <input
+                        id="lot-offcanvas-email"
+                        name="customer_email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -1025,7 +1081,10 @@ const LotOffcanvas = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label
+                      htmlFor="lot-offcanvas-address"
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                    >
                       Address
                     </label>
                     {status === "Pending" &&
@@ -1033,6 +1092,8 @@ const LotOffcanvas = ({
                     email &&
                     !isAdmin ? (
                       <input
+                        id="lot-offcanvas-address"
+                        name="customer_address"
                         type="text"
                         value={address}
                         readOnly
@@ -1041,6 +1102,8 @@ const LotOffcanvas = ({
                       />
                     ) : (
                       <input
+                        id="lot-offcanvas-address"
+                        name="customer_address"
                         type="text"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}

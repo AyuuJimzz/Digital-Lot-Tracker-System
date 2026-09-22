@@ -84,10 +84,12 @@ export function UnifiedLotEditorPanel({
       <div className="space-y-3">
         {/* ── 1. Lot Identifier / Number ────────────── */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+          <label htmlFor="unified-lot-number-input" className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
             Lot Identifier / Number
           </label>
           <input
+            id="unified-lot-number-input"
+            name="lot_number"
             type="text"
             required
             value={lotNumber}
@@ -102,7 +104,7 @@ export function UnifiedLotEditorPanel({
         <div>
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1.5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <label htmlFor="unified-lot-area-input" className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                 Area (sqm)
               </label>
               {liveArea > 0 && (
@@ -129,6 +131,8 @@ export function UnifiedLotEditorPanel({
             </div>
           </div>
           <input
+            id="unified-lot-area-input"
+            name="target_area"
             type="number"
             min="1"
             step="any"

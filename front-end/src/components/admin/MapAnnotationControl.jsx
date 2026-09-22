@@ -213,10 +213,12 @@ export function MapAnnotationControl({
                   
                   {/* Label Text Input */}
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                    <label htmlFor="map-annotation-label-text" className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
                       Label Text
                     </label>
                     <input
+                      id="map-annotation-label-text"
+                      name="annotation_label_text"
                       type="text"
                       value={activeItem.text || ""}
                       onChange={(e) =>
@@ -230,11 +232,14 @@ export function MapAnnotationControl({
                   {/* Angle / Rotation Slider */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                      <label htmlFor="map-annotation-angle-number" className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider cursor-pointer">
                         Angle
-                      </span>
+                      </label>
                       <div className="flex items-center gap-1">
                         <input
+                          id="map-annotation-angle-number"
+                          name="annotation_angle_number"
+                          aria-label="Annotation angle degrees"
                           type="number"
                           min="-180"
                           max="180"
@@ -250,6 +255,9 @@ export function MapAnnotationControl({
                     </div>
 
                     <input
+                      id="map-annotation-angle-range"
+                      name="annotation_angle_range"
+                      aria-label="Annotation angle slider"
                       type="range"
                       min="-180"
                       max="180"

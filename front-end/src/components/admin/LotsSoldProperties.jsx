@@ -39,7 +39,13 @@ const LotsSoldProperties = ({ properties, selectedMonth, months, onMonthChange }
               by Subdivision
             </span>
           </div>
+          <label htmlFor="lots-sold-period-select" className="sr-only">
+            Filter lots sold by period
+          </label>
           <select
+            id="lots-sold-period-select"
+            name="lots_sold_period"
+            aria-label="Filter lots sold by period"
             value={selectedMonth}
             onChange={onMonthChange}
             className="px-3 py-1.5 text-xs font-semibold border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"

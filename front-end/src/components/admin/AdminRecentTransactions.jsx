@@ -173,6 +173,9 @@ const RecentTransactions = () => {
               </svg>
             </span>
             <input
+              id="admin-transactions-search-input"
+              name="admin_transactions_search"
+              aria-label="Search client, lot, agent, ID"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -205,8 +208,11 @@ const RecentTransactions = () => {
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
               </span>
-              <span className="hidden sm:inline text-[11px] font-medium text-gray-500 dark:text-slate-400">Date:</span>
+              <label htmlFor="admin-transactions-date-input" className="hidden sm:inline text-[11px] font-medium text-gray-500 dark:text-slate-400 cursor-pointer">Date:</label>
               <input
+                id="admin-transactions-date-input"
+                name="admin_transactions_date"
+                aria-label="Filter transactions by date"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}

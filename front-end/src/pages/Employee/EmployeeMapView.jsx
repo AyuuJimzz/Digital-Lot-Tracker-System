@@ -442,7 +442,11 @@ const EmployeeMapView = () => {
         const parsed =
           typeof p.annotations === "string" ? JSON.parse(p.annotations) : p.annotations;
         if (Array.isArray(parsed)) {
-          result.push(...parsed.filter((item) => !item.deleted));
+          result.push(
+            ...parsed
+              .filter((item) => !item.deleted)
+              .map((item) => ({ ...item, property_id: p.property_id }))
+          );
         }
       } catch (e) {}
     });
@@ -856,7 +860,7 @@ const EmployeeMapView = () => {
         {/* Road and map labels match the generated blueprint and stay visible across zoom levels */}
         {allPropertyAnnotations.map((item) => (
             <Marker
-              key={item.id}
+              key={`${item.property_id || "p"}-${item.id}`}
               position={[item.lat, item.lng]}
               icon={createRoadLabelIcon(item)}
               interactive={false}

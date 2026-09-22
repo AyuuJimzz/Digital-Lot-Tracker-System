@@ -58,7 +58,8 @@ app.use(
       if (
         !isProduction ||
         allowedOrigins.includes(origin) ||
-        origin.endsWith(".onrender.com")
+        origin.endsWith(".onrender.com") ||
+        origin.endsWith(".vercel.app")
       ) {
         return callback(null, true);
       }

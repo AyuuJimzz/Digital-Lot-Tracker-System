@@ -188,6 +188,9 @@ export function ImageOverlayControl({
               <div className="flex items-center gap-1.5">
                 <div className="relative flex items-center">
                   <input
+                    id="overlay-rotation-number"
+                    name="overlay_rotation"
+                    aria-label="Site plan rotation angle in degrees"
                     type="number"
                     min="-180"
                     max="180"

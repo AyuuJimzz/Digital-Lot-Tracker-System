@@ -36,6 +36,8 @@ export default function LotCandidateList({
         <div className="relative">
           <Search className="absolute left-2.5 top-2 h-3 w-3 text-slate-600" />
           <input
+            id="candidate-search-query-input"
+            name="candidate_search_query"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -149,6 +151,8 @@ export default function LotCandidateList({
                 {/* 1. Include Checkbox */}
                 <div className="flex items-center justify-center">
                   <input
+                    id={`candidate-select-${candidate.id}`}
+                    name={`candidate_select_${candidate.id}`}
                     type="checkbox"
                     checked={Boolean(candidate.selected)}
                     disabled={disabled}
@@ -163,6 +167,8 @@ export default function LotCandidateList({
                 {/* 2. Block Input */}
                 <div>
                   <input
+                    id={`candidate-block-${candidate.id}`}
+                    name={`candidate_block_${candidate.id}`}
                     value={candidate.block || ""}
                     maxLength={40}
                     disabled={disabled}
@@ -177,6 +183,8 @@ export default function LotCandidateList({
                 {/* 3. Lot Input */}
                 <div>
                   <input
+                    id={`candidate-lot-${candidate.id}`}
+                    name={`candidate_lot_${candidate.id}`}
                     value={candidate.lotNumber || ""}
                     maxLength={50}
                     disabled={disabled}
@@ -191,6 +199,8 @@ export default function LotCandidateList({
                 {/* 4. Area (m²) Input */}
                 <div>
                   <input
+                    id={`candidate-area-${candidate.id}`}
+                    name={`candidate_area_${candidate.id}`}
                     type="number"
                     min="0.01"
                     step="any"
