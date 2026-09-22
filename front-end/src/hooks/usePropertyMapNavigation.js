@@ -76,7 +76,11 @@ export function usePropertyMapNavigation(map, options) {
       // time for long travel or a large overview-to-lot zoom to settle.
       const distanceDuration = 1.2 + Math.log2(1 + distanceKm) * 0.08;
       const zoomDuration = 1.2 + Math.abs(destinationZoom - map.getZoom()) * 0.06;
-      const duration = Math.min(1.8, Math.max(distanceDuration, zoomDuration));
+      // Kapag malayo (>5km), bigyan ng chill & smooth duration (2.4s - 3.0s) para HINDI SOBRANG BILIS:
+      const maxDuration = distanceKm > 5 ? Math.min(3.0, 1.8 + Math.log2(distanceKm / 5) * 0.25) : 1.8;
+      const duration = distanceKm > 5 
+        ? Math.min(3.0, Math.max(2.4, distanceDuration + Math.log2(distanceKm / 5) * 0.25))
+        : Math.min(maxDuration, Math.max(distanceDuration, zoomDuration));
       const wasFlying = flyingMaps.has(map);
       // Finish wheel motion before marking this flight active: its moveend must
       // not accidentally finish a newly requested flight at the same location.
@@ -85,7 +89,7 @@ export function usePropertyMapNavigation(map, options) {
       container.classList.add("map-is-flying");
       if (!wasFlying) latest.current.onFlightStart?.();
       const destinationLayer = latest.current.mapLayer || "satellite";
-      // Preload more zoom levels for long flights to ensure tiles are ready on arrival.
+      // Preload focused zoom levels on arrival without congesting network bandwidth.
       const preloadZooms = distanceKm > 0.5
         ? [...new Set([Math.max(1, Math.floor(destinationZoom) - 2), Math.max(1, Math.floor(destinationZoom) - 1), Math.max(1, Math.floor(destinationZoom))])]
         : [...new Set([Math.max(1, Math.floor(destinationZoom) - 1), Math.max(1, Math.floor(destinationZoom))])];

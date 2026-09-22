@@ -35,10 +35,10 @@ const TILE_SHARED_PROPS = {
   // Leaflet must refresh its grid while a long flyTo crosses the map. Deferring
   // this until moveend leaves the old grid behind and exposes the dark map
   // background (the blank satellite state shown in the report).
-  keepBuffer: 1,
+  keepBuffer: 3,
   updateWhenZooming: true,
   updateWhenIdle: false,
-  updateInterval: 150,
+  updateInterval: 350,
 };
 
 const TILE_LAYER_CONFIG = {

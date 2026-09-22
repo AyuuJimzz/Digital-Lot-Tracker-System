@@ -122,13 +122,23 @@ body {
    without changing a single pixel of a pin and without keeping a single layer
    promoted once the flight ends. Positions, z-order, tooltips and clicks are
    untouched: Leaflet still writes the exact same rounded position each frame. */
-.map-is-flying .lot-plan-pin-marker {
+/* I-promote ang Tiles AT ang Lot SVG Polygons sa GPU: */
+.map-is-flying .lot-plan-pin-marker,
+.map-is-flying .leaflet-tile-pane,
+.map-is-flying .lot-plan-pane,
+.map-is-flying .leaflet-overlay-pane,
+.map-is-flying .leaflet-marker-pane {
   will-change: transform;
+  transform: translateZ(0); /* 🚀 Pinupwersa ang GPU VRAM allocation */
+  backface-visibility: hidden;
 }
 
+/* 🖼️ High Resolution at Anti-Aliasing para sa Satellite Tiles: */
 .map-is-flying .leaflet-tile,
 .map-is-flying .leaflet-image-layer {
-  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast; /* Mas malinaw at crisp habang nagzo-zoom */
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
   transition: none !important;
 }
 

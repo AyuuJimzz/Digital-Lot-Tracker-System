@@ -63,8 +63,18 @@ export async function prepareBlueprintPdf(file, pageNumber, onProgress, options 
     } catch {
       // A crop failure must not discard the usable PDF or its detected lots.
     }
-    if (!automaticCrop) detection.warnings = [...(detection.warnings || []),
-      "Automatic map cutout was unavailable for this page. The full page was kept so you can still align and review it."];
+    if (!automaticCrop) {
+      detection.warnings = [
+        ...(detection.warnings || []),
+        "Automatic map cutout was unavailable for this page. The full page was kept so you can still align and review it.",
+      ];
+    }
+    const imageWidth = canvas.width;
+    const imageHeight = canvas.height;
+    // Release the 4096px canvas GPU buffer immediately after detection and cropping
+    canvas.width = 0;
+    canvas.height = 0;
+
     return {
       imageUrl: automaticCrop?.imageUrl || originalImageUrl,
       originalImageUrl,
@@ -79,8 +89,8 @@ export async function prepareBlueprintPdf(file, pageNumber, onProgress, options 
         pageCount: pdf.numPages,
         pageWidth: unscaled.width,
         pageHeight: unscaled.height,
-        imageWidth: canvas.width,
-        imageHeight: canvas.height,
+        imageWidth,
+        imageHeight,
         // PDF viewport pixels are rounded when assigned to canvas dimensions.
         renderWidth: viewport.width,
         renderHeight: viewport.height,

@@ -74,6 +74,7 @@ export default function LotPlanPreview({
   useEffect(() => {
     if (!imageUrl) return undefined;
     const image = new Image();
+    image.decoding = "async";
     image.onload = () => {
       if (image.naturalWidth) setImageAspect(image.naturalHeight / image.naturalWidth);
     };

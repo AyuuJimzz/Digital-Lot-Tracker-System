@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
+const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const session = require("express-session");
 const sessionOrToken = require("./middleware/session_or_token");
@@ -31,6 +32,14 @@ if (isProduction) {
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
+// ── HTTP Gzip & Deflate Compression (Reduces JSON/Lot boundary transfer by 70–80%) ──
+app.use(
+  compression({
+    level: 6, // Optimal balance between compression ratio and CPU usage for Render's 0.1 vCPU
+    threshold: 1024, // Only compress responses > 1KB (skips tiny health checks to save CPU)
   })
 );
 

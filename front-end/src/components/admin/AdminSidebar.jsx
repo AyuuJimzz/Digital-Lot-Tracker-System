@@ -45,6 +45,8 @@ export function AdminSidebar() {
         <img
           src={logo}
           alt="Golden Dragon Logo"
+          loading="lazy"
+          decoding="async"
           className="h-11 w-11 rounded-full object-cover ring-2 ring-amber-500/40 flex-shrink-0"
         />
       </div>

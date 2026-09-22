@@ -93,10 +93,14 @@ test("distant flights get a longer approach while retaining a bounded duration",
   act(() => navigate([10.1, 122.1]));
   const distantDuration = map.flyTo.mock.calls[1][2].duration;
   expect(distantDuration).toBeGreaterThan(nearbyDuration);
-  expect(distantDuration).toBeGreaterThan(1.5);
-  expect(distantDuration).toBeLessThanOrEqual(1.8);
+  expect(distantDuration).toBeGreaterThanOrEqual(2.4);
+  expect(distantDuration).toBeLessThanOrEqual(3.0);
+  // Very long flights (>5km) are now allowed a longer duration (up to 3.0s)
+  // instead of the old flat 1.8s cap, so the camera doesn't rush sideways.
   act(() => navigate([20, 130]));
-  expect(map.flyTo.mock.calls[2][2].duration).toBe(1.8);
+  const veryFarDuration = map.flyTo.mock.calls[2][2].duration;
+  expect(veryFarDuration).toBeGreaterThanOrEqual(distantDuration);
+  expect(veryFarDuration).toBeLessThanOrEqual(3.0);
   expect(map.panTo).not.toHaveBeenCalled();
 });
 

@@ -32,14 +32,29 @@ const ProfileSettings = React.lazy(() => import("./pages/Shared/ProfileSettings"
 const DeveloperPanel = React.lazy(() => import("./pages/Developer/DeveloperPanel"));
 const MaintenancePage = React.lazy(() => import("./pages/MaintenancePage"));
 
-const queryClient = new QueryClient();
+// ── Optimized QueryClient (5-minute fresh cache, 15-minute garbage collection, no focus spam) ──
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,       // 5 minutes: keeps lot and property data fresh in memory
+      gcTime: 1000 * 60 * 15,          // 15 minutes: reclaims inactive query data from tablet RAM
+      refetchOnWindowFocus: false,    // Prevents redundant API spam when switching apps on tablet
+      retry: 1,                       // Safe 1-retry fallback for transient network drops
+    },
+  },
+});
 
 function App() {
   const [, setRole] = useState(localStorage.getItem("role") || null);
 
-  // ── Real-Time Concurrent Session Heartbeat (detects other device logins within seconds) ──
+  // ── Real-Time Concurrent Session Heartbeat (throttled to 15s to protect Render 0.1 vCPU & DB connections) ──
   useEffect(() => {
     const verifySession = async () => {
+      // Skip background timer ticks if tab/tablet screen is sleeping/minimized
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+
       const activeToken = localStorage.getItem("authToken") || localStorage.getItem("token");
       if (!activeToken) return;
 
@@ -53,13 +68,21 @@ function App() {
       }
     };
 
-    // Run check every 4 seconds and whenever user switches back to this browser window
-    const interval = setInterval(verifySession, 4000);
-    window.addEventListener("focus", verifySession);
+    // Run check every 15 seconds and immediately whenever user switches back/unlocks device
+    const interval = setInterval(verifySession, 15000);
+    const handleVisibilityOrFocus = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        verifySession();
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener("focus", verifySession);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
     };
   }, []);
 

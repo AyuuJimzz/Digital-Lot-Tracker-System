@@ -132,5 +132,13 @@ export function cropBlueprintCanvas(sourceCanvas, detection, createCanvas = () =
   context.globalCompositeOperation = "destination-in";
   context.drawImage(maskCanvas, -x, -y, sourceCanvas.width, sourceCanvas.height);
   context.globalCompositeOperation = "source-over";
-  return { imageUrl: canvas.toDataURL("image/png"), cropBounds };
+  const imageUrl = canvas.toDataURL("image/png");
+
+  // Immediate GPU texture release for offscreen canvases
+  maskCanvas.width = 0;
+  maskCanvas.height = 0;
+  canvas.width = 0;
+  canvas.height = 0;
+
+  return { imageUrl, cropBounds };
 }

@@ -2,16 +2,18 @@ import { latLng, point } from "leaflet";
 
 // Continuous velocity and acceleration, including takeoff and landing.
 function ease(t) {
-  return t * t * t * (t * (t * 6 - 15) + 10);
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
 // Phased easing: delays x/y movement so zoom leads.
-// At t=0..0.2 → position barely moves (camera rises straight up).
-// At t=0.2..0.8 → most horizontal travel happens (pan at cruise altitude).
-// At t=0.8..1.0 → position settles (camera drops straight down).
-function positionEase(t) {
+// `delay` controls how much position lags behind zoom (0 = no lag, 0.15 = default).
+// At t=0..delay → position barely moves (camera rises straight up).
+// At t=delay..1-delay → most horizontal travel happens (pan at cruise altitude).
+// At t=1-delay..1.0 → position settles (camera drops straight down).
+function positionEase(t, delay = 0.15) {
   // Remap t into [0,1] with compressed start/end plateaus.
-  const stretched = Math.max(0, Math.min(1, (t - 0.15) / 0.7));
+  const span = Math.max(0.4, 1 - 2 * delay);
+  const stretched = Math.max(0, Math.min(1, (t - delay) / span));
   return ease(stretched);
 }
 
@@ -56,7 +58,7 @@ export function createPropertyFlight(map, onInterrupt) {
     // Use the display-frame timestamp instead of when this callback got CPU time.
     elapsed += Math.max(0, Math.min(40, time - lastTime));
     lastTime = Math.max(lastTime, time);
-    const { from, to, duration, arc, destination, straight } = trajectory;
+    const { from, to, duration, arc, destination, straight, phaseDelay } = trajectory;
     const t = Math.min(1, elapsed / duration);
     if (straight) {
       const e = ease(t);
@@ -75,15 +77,13 @@ export function createPropertyFlight(map, onInterrupt) {
       }
       return;
     }
-    // Phase the animation: zoom leads, position follows with a delay.
-    const pe = positionEase(t);
+    // Phase the animation: zoom leads, position follows with a delay (rise then move then land).
+    const pe = positionEase(t, phaseDelay);
     const ze = ease(t);
-    // Straight-line position interpolation (delayed start/end for "rise then move then land").
     const px = from.x + (to.x - from.x) * pe;
     const py = from.y + (to.y - from.y) * pe;
-    // Smooth zoom: ease from start→end, with an up-then-down arc in the middle.
     const baseZoom = from.zoom + (to.zoom - from.zoom) * ze;
-    // Same peak cruise depth, now with zero velocity/acceleration at both ends.
+    // Same smooth rounded dome arc across all flights:
     const zoomArc = arc * 64 * t * t * t * (1 - t) ** 3;
     const finalZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), baseZoom - zoomArc));
     if (t === 1) {
@@ -107,11 +107,18 @@ export function createPropertyFlight(map, onInterrupt) {
     const startZoom = map.getZoom();
     const screenDistance = from.distanceTo(to) * map.getZoomScale(Math.min(startZoom, zoom), projectionZoom);
     const viewport = Math.max(1, Math.max(map.getSize().x, map.getSize().y));
-    // Allow natural zoom out up to 5.5 levels (down to ~zoom 13.5 on long flights)
-    // so the camera provides a genuine cinematic landscape overview.
-    const maxDrop = 5.5;
-    const rawCruise = Math.min(startZoom, zoom) - Math.log2(1 + screenDistance / viewport);
-    const cruiseZoom = Math.max(map.getMinZoom(), Math.max(Math.min(startZoom, zoom) - maxDrop, rawCruise));
+    const screensAway = screenDistance / viewport;
+
+    // Smooth continuous distance-based altitude calculation:
+    // Tataas lang ng unti batay sa calculated distance, unified rounded dome:
+    // - Nearby flights (~1-2 screens): ~1.4 - 1.5 levels drop (Zoom 19 → ~17.5)
+    // - Distant flights (up to 100 screens): smoothly reaches ~2.2 levels drop (Zoom 19 → ~16.8)
+    const rawDrop = Math.log2(1 + screensAway);
+    const calculatedDrop = rawDrop <= 1.4
+      ? rawDrop
+      : 1.4 + (6.4 - 1.4) * (1 - Math.exp(-(rawDrop - 1.4) / 0.8));
+    const cruiseZoom = Math.max(map.getMinZoom(), Math.min(startZoom, zoom) - calculatedDrop);
+    const phaseDelay = 0.30;
     const wasActive = !!trajectory;
     trajectory = {
       from: { x: from.x, y: from.y, zoom: startZoom },
@@ -119,6 +126,7 @@ export function createPropertyFlight(map, onInterrupt) {
       duration: duration * 1000, destination: latLng(coordinates),
       arc: options.straight ? 0 : Math.max(0, (startZoom + zoom) / 2 - cruiseZoom),
       straight: !!options.straight,
+      phaseDelay,
     };
     elapsed = 0;
     lastTime = getTime();

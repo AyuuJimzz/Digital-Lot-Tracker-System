@@ -174,6 +174,7 @@ export function BlueprintCropModal({ isOpen, imageUrl, onApplyCrop, onClose }) {
 
     const img = new Image();
     img.crossOrigin = "anonymous";
+    img.decoding = "async";
     img.onload = () => {
       const origW = img.naturalWidth;
       const origH = img.naturalHeight;
@@ -222,6 +223,8 @@ export function BlueprintCropModal({ isOpen, imageUrl, onApplyCrop, onClose }) {
         ctx.drawImage(img, -cropPixelX, -cropPixelY);
 
         canvas.toBlob((blob) => {
+          canvas.width = 0;
+          canvas.height = 0;
           if (!blob) return;
           const croppedUrl = URL.createObjectURL(blob);
           onApplyCrop(croppedUrl, {
@@ -380,6 +383,8 @@ export function BlueprintCropModal({ isOpen, imageUrl, onApplyCrop, onClose }) {
               ref={imgRef}
               src={imageUrl}
               alt="Blueprint trace workspace"
+              loading="lazy"
+              decoding="async"
               className="max-h-[70vh] w-auto object-contain block pointer-events-none rounded-lg border border-slate-800"
               draggable={false}
             />

@@ -11,7 +11,9 @@ const pool = mysql.createPool({
     ? { rejectUnauthorized: false }
     : undefined,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 6,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
 });
 
 // Test initial database connection on boot & auto-ensure is_demo column

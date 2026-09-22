@@ -281,6 +281,7 @@ const toDataURL = (urlOrBlob) => {
     }
     const img = new Image();
     img.crossOrigin = "anonymous";
+    img.decoding = "async";
     img.onload = () => {
       const c = document.createElement("canvas");
       c.width = img.width;
@@ -288,8 +289,13 @@ const toDataURL = (urlOrBlob) => {
       const ctx = c.getContext("2d");
       ctx.drawImage(img, 0, 0);
       try {
-        resolve(c.toDataURL("image/png"));
+        const dataUrl = c.toDataURL("image/png");
+        c.width = 0;
+        c.height = 0;
+        resolve(dataUrl);
       } catch (e) {
+        c.width = 0;
+        c.height = 0;
         resolve(urlOrBlob);
       }
     };
@@ -437,6 +443,8 @@ const createTransparentPaperBlob = (imageUrl, lineColor = "lime", rotationDeg = 
       } catch (e) {}
 
       canvas.toBlob((blob) => {
+        canvas.width = 0;
+        canvas.height = 0;
         resolve(blob || null);
       }, "image/png");
     };
@@ -1319,6 +1327,10 @@ function AdminViewMap() {
         try { URL.revokeObjectURL(activeOverlayUrlRef.current); } catch (e) {}
         activeOverlayUrlRef.current = null;
       }
+      if (transparentOverlayRef.current && transparentOverlayRef.current.startsWith("blob:")) {
+        try { URL.revokeObjectURL(transparentOverlayRef.current); } catch (e) {}
+        transparentOverlayRef.current = null;
+      }
     };
   }, [selectedProperty, restoreLotImport, map]);
 
@@ -1329,6 +1341,10 @@ function AdminViewMap() {
       if (activeOverlayUrlRef.current && activeOverlayUrlRef.current.startsWith("blob:")) {
         try { URL.revokeObjectURL(activeOverlayUrlRef.current); } catch (e) {}
         activeOverlayUrlRef.current = null;
+      }
+      if (transparentOverlayRef.current && transparentOverlayRef.current.startsWith("blob:")) {
+        try { URL.revokeObjectURL(transparentOverlayRef.current); } catch (e) {}
+        transparentOverlayRef.current = null;
       }
       if (overlayBlobCache) {
         overlayBlobCache.clear();
