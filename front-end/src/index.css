@@ -110,6 +110,22 @@ body {
   transition: none !important;
 }
 
+/* Every mounted lot pin is an individual L.Marker, and Leaflet re-positions each
+   one on the `zoom` event our flight fires on every animation frame. Leaflet's own
+   zoom animation gets compositor-driven transforms for free from the
+   `transition: transform` on .leaflet-zoom-animated; a flight driven from
+   JavaScript does not, so the marker pane (pin fill, white border and box-shadow)
+   is re-rasterized for every visible pin on every frame — the one per-frame cost
+   that grows with the number of lots.
+   Pins are only ever translated (never scaled) by Leaflet, so promoting them for
+   the duration of the flight makes those frame-by-frame moves compositor-only
+   without changing a single pixel of a pin and without keeping a single layer
+   promoted once the flight ends. Positions, z-order, tooltips and clicks are
+   untouched: Leaflet still writes the exact same rounded position each frame. */
+.map-is-flying .lot-plan-pin-marker {
+  will-change: transform;
+}
+
 .map-is-flying .leaflet-tile,
 .map-is-flying .leaflet-image-layer {
   image-rendering: auto;
