@@ -3803,7 +3803,15 @@ function AdminViewMap() {
               }
             }
           }}
-          onImport={() => lotImport.importLots(handleLotUpdated)}
+          onImport={async () => {
+            await lotImport.importLots(async () => {
+              await handleLotUpdated();
+              setShowOverlayPanel(false);
+              setIsEditingOverlay(false);
+            });
+            setShowOverlayPanel(false);
+            setIsEditingOverlay(false);
+          }}
           isImporting={lotImport.isImporting}
           error={lotImport.error}
           sourceName={`${lotImport.draft.sourceName} · Page ${lotImport.draft.pageNumber}`}

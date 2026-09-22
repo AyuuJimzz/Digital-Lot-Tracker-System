@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Type, Plus, Trash2, Check, X, Lock, Unlock, Move, CheckSquare, Square, Layers, Sparkles } from "lucide-react";
+import { Plus, Trash2, Check, X, Lock, Unlock, Move, Copy } from "lucide-react";
 
 export function MapAnnotationControl({
   annotations = [],
@@ -16,7 +16,9 @@ export function MapAnnotationControl({
   onToggleEditing,
   onClose,
 }) {
-  const [isAllSelected, setIsAllSelected] = useState(false);
+  const [appliedSuccess, setAppliedSuccess] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+
   const activeItem = annotations.find((a) => a.id === activeAnnotationId) || annotations[0];
 
   const fontSizes = [
@@ -27,27 +29,28 @@ export function MapAnnotationControl({
     { value: 12, label: "12px", tag: "Base" },
     { value: 14, label: "14px", tag: "Med" },
     { value: 16, label: "16px", tag: "Lg" },
-    { value: 20, label: "20px", tag: "XL" },
+    { value: 18, label: "18px", tag: "XL" },
+    { value: 22, label: "22px", tag: "2XL" },
     { value: 26, label: "26px", tag: "Title" },
   ];
 
   const colors = [
-    { key: "#e2e8f0", label: "Platinum", ring: "ring-slate-300/60" },
-    { key: "#ffffff", label: "White", ring: "ring-white/60" },
-    { key: "#fbbf24", label: "Gold", ring: "ring-amber-400/60" },
-    { key: "#00f0ff", label: "Cyan", ring: "ring-cyan-400/60" },
-    { key: "#34d399", label: "Emerald", ring: "ring-emerald-400/60" },
-    { key: "#f87171", label: "Red", ring: "ring-red-400/60" },
-    { key: "#0f172a", label: "Dark", ring: "ring-slate-400/60" },
+    { key: "#e2e8f0", label: "Platinum" },
+    { key: "#ffffff", label: "White" },
+    { key: "#fbbf24", label: "Gold" },
+    { key: "#00f0ff", label: "Cyan" },
+    { key: "#34d399", label: "Emerald" },
+    { key: "#f87171", label: "Red" },
+    { key: "#0f172a", label: "Dark" },
   ];
 
   const angleSteps = [
-    { label: "−5", val: -5 },
-    { label: "−1", val: -1 },
-    { label: "0", val: 0, absolute: true },
-    { label: "+1", val: 1 },
-    { label: "+5", val: 5 },
-    { label: "+90", val: 90, absolute: true },
+    { label: "−5°", val: -5 },
+    { label: "−1°", val: -1 },
+    { label: "0°", val: 0, absolute: true },
+    { label: "+1°", val: 1 },
+    { label: "+5°", val: 5 },
+    { label: "+90°", val: 90, absolute: true },
   ];
 
   const handleApplyStyleToAll = () => {
@@ -56,185 +59,146 @@ export function MapAnnotationControl({
       fontSize: activeItem.fontSize || 12,
       color: activeItem.color || "#e2e8f0",
     });
+    setAppliedSuccess(true);
+    setTimeout(() => setAppliedSuccess(false), 2500);
   };
 
-  const handleBatchAngleChange = (rotationVal, isAbsolute = false) => {
-    if (isAllSelected) {
-      if (onUpdateAllAnnotations) {
-        if (isAbsolute) {
-          onUpdateAllAnnotations({ rotation: rotationVal });
-        } else {
-          // relative adjustment for each
-          annotations.forEach((item) => {
-            let next = (item.rotation || 0) + rotationVal;
-            if (next > 180) next -= 360;
-            if (next < -180) next += 360;
-            onUpdateAnnotation(item.id, { rotation: next });
-          });
-        }
-      }
-    } else if (activeItem) {
-      let next = isAbsolute ? rotationVal : (activeItem.rotation || 0) + rotationVal;
-      if (next > 180) next -= 360;
-      if (next < -180) next += 360;
-      onUpdateAnnotation(activeItem.id, { rotation: next });
-    }
+  const handleAngleChange = (rotationVal, isAbsolute = false) => {
+    if (!activeItem || !onUpdateAnnotation) return;
+    let next = isAbsolute ? rotationVal : (activeItem.rotation || 0) + rotationVal;
+    if (next > 180) next -= 360;
+    if (next < -180) next += 360;
+    onUpdateAnnotation(activeItem.id, { rotation: next });
   };
 
   return (
-    <div
-      className="absolute top-3 right-14 z-[1000] text-slate-200 select-none"
-      style={{ width: 290, maxHeight: "calc(100vh - 5rem)" }}
-    >
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{
-          background: "linear-gradient(145deg, rgba(15,23,42,0.97), rgba(30,41,59,0.95))",
-          border: "1px solid rgba(100,116,139,0.25)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset",
-          backdropFilter: "blur(24px)",
-        }}
-      >
+    <div className="absolute top-3 right-14 z-[1000] w-72 select-none">
+      <div className="rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden text-slate-200">
+        
         {/* ── Header ─────────────────────────────── */}
-        <div
-          className="flex items-center justify-between px-4 py-3"
-          style={{ borderBottom: "1px solid rgba(100,116,139,0.18)" }}
-        >
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center"
-              style={{
-                background: "linear-gradient(135deg, #3b82f6, #6366f1)",
-                boxShadow: "0 2px 8px rgba(59,130,246,0.35)",
-              }}
-            >
-              <Type className="w-3.5 h-3.5 text-white" />
-            </div>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full ${isEditing ? "bg-emerald-400 animate-pulse" : "bg-cyan-400"}`}
+            />
             <div>
-              <h3 className="text-[13px] font-bold text-white leading-none tracking-tight">
-                Road Labels
-              </h3>
-              <p className="text-[10px] text-slate-400 mt-0.5 leading-none">
-                Text annotations on map
+              <h3 className="text-xs font-bold text-white tracking-wide">Road Labels</h3>
+              <p className="text-[10px] text-slate-400">
+                {isEditing ? "Draggable on map" : "Positions locked on map"}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-6 h-6 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 rounded-md transition-all cursor-pointer"
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            aria-label="Close road labels panel"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* ── Actions Row ────────────────────────── */}
-        <div className="px-4 py-2.5 flex items-center gap-2">
+        <div className="px-4 py-2.5 grid grid-cols-2 gap-2 border-b border-slate-800 bg-slate-900/60">
           <button
             type="button"
             onClick={onAddAnnotation}
-            className="flex-1 flex items-center justify-center gap-1.5 py-[7px] text-white rounded-lg text-[11px] font-semibold transition-all active:scale-[0.97] cursor-pointer"
-            style={{
-              background: "linear-gradient(135deg, #3b82f6, #6366f1)",
-              boxShadow: "0 2px 10px rgba(59,130,246,0.3)",
-            }}
+            className="h-8 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition active:scale-95 cursor-pointer shadow-sm border border-transparent"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Label</span>
+            <Plus className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Add Label</span>
           </button>
 
           <button
             type="button"
             onClick={onToggleEditing}
-            className="flex items-center gap-1 px-3 py-[7px] rounded-lg text-[11px] font-semibold border transition-all cursor-pointer"
-            style={{
-              background: isEditing ? "rgba(245,158,11,0.12)" : "rgba(51,65,85,0.5)",
-              borderColor: isEditing ? "rgba(245,158,11,0.35)" : "rgba(100,116,139,0.3)",
-              color: isEditing ? "#fbbf24" : "#94a3b8",
-            }}
+            className={`h-8 flex items-center justify-center gap-1.5 px-2 rounded-lg text-xs font-semibold border transition active:scale-95 cursor-pointer ${
+              isEditing
+                ? "bg-slate-800/80 border-slate-700 text-emerald-400 hover:bg-slate-750"
+                : "bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200"
+            }`}
+            title={isEditing ? "Labels are draggable on map. Click to lock." : "Labels are locked. Click to unlock and move."}
           >
-            {isEditing ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-            <span>{isEditing ? "Edit" : "Lock"}</span>
+            {isEditing ? <Unlock className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> : <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+            <span className="truncate">{isEditing ? "Lock Positions" : "Unlock to Move"}</span>
           </button>
         </div>
 
-        <div
-          className="mx-4"
-          style={{ height: 1, background: "rgba(100,116,139,0.15)" }}
-        />
-
         {/* ── Content ────────────────────────────── */}
         <div
-          className="px-4 py-3"
+          className="px-4 py-3 space-y-3"
           style={{ maxHeight: "calc(100vh - 16rem)", overflowY: "auto" }}
         >
           {annotations.length > 0 ? (
-            <div className="space-y-3">
-              {/* Label Selector Header with Select All Button */}
+            <>
+              {/* ── Labels List Section ───────────── */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                     Labels ({annotations.length})
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsAllSelected((prev) => !prev)}
-                    className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md transition-all cursor-pointer"
-                    style={{
-                      background: isAllSelected
-                        ? "rgba(59,130,246,0.22)"
-                        : "rgba(30,41,59,0.7)",
-                      border: `1px solid ${isAllSelected ? "rgba(59,130,246,0.5)" : "rgba(100,116,139,0.2)"}`,
-                      color: isAllSelected ? "#60a5fa" : "#94a3b8",
-                    }}
-                  >
-                    {isAllSelected ? (
-                      <CheckSquare className="w-3 h-3 text-blue-400" />
-                    ) : (
-                      <Square className="w-3 h-3 text-slate-400" />
-                    )}
-                    <span>{isAllSelected ? "Select All (Active)" : "Select All"}</span>
-                  </button>
+
+                  {/* Clean Clear All action (only when >1 labels) */}
+                  {annotations.length > 1 && (
+                    <div>
+                      {confirmClearAll ? (
+                        <div className="flex items-center gap-1 bg-red-950/40 border border-red-800/60 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] text-red-300 font-medium">Delete all?</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirmClearAll(false);
+                              if (onDeleteAllAnnotations) onDeleteAllAnnotations();
+                            }}
+                            className="text-[10px] px-1 bg-red-600 hover:bg-red-500 text-white rounded font-bold cursor-pointer"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmClearAll(false)}
+                            className="text-[10px] px-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded cursor-pointer"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmClearAll(true)}
+                          className="text-[10px] text-slate-500 hover:text-red-400 transition cursor-pointer"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Labels List */}
+                {/* List of items */}
                 <div className="max-h-24 overflow-y-auto space-y-1 pr-0.5">
                   {annotations.map((item, idx) => {
-                    const isActive = isAllSelected || activeItem?.id === item.id;
+                    const isActive = activeItem?.id === item.id;
                     return (
                       <div
                         key={item.id || idx}
-                        onClick={() => {
-                          setIsAllSelected(false);
-                          onSelectAnnotation(item.id);
-                        }}
-                        className="flex items-center justify-between px-2.5 py-[6px] rounded-lg text-[11px] cursor-pointer transition-all"
-                        style={{
-                          background: isAllSelected
-                            ? "rgba(59,130,246,0.12)"
-                            : isActive
-                            ? "rgba(59,130,246,0.18)"
-                            : "rgba(30,41,59,0.5)",
-                          border: `1px solid ${
-                            isAllSelected
-                              ? "rgba(59,130,246,0.35)"
-                              : isActive
-                              ? "rgba(59,130,246,0.45)"
-                              : "rgba(100,116,139,0.15)"
-                          }`,
-                          color: isActive ? "#93c5fd" : "#cbd5e1",
-                        }}
+                        onClick={() => onSelectAnnotation(item.id)}
+                        className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer border transition ${
+                          isActive
+                            ? "bg-blue-600/15 border-blue-500/50 text-white font-medium shadow-sm"
+                            : "bg-slate-800/40 border-slate-800/80 text-slate-300 hover:bg-slate-800/70"
+                        }`}
                       >
-                        <div className="flex items-center gap-1.5 truncate flex-1">
-                          <div
+                        <div className="flex items-center gap-2 truncate flex-1">
+                          <span
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ backgroundColor: item.color || "#e2e8f0" }}
                           />
-                          <span className="truncate font-medium text-[11px]">
+                          <span className="truncate text-[11px]">
                             {item.text || `Label ${idx + 1}`}
                           </span>
                         </div>
-                        <span className="text-[9px] font-mono ml-2 opacity-50">
+                        <span className="text-[10px] font-mono opacity-50 ml-2">
                           {Math.round(item.rotation || 0)}°
                         </span>
                       </div>
@@ -243,82 +207,31 @@ export function MapAnnotationControl({
                 </div>
               </div>
 
-              {/* ── Editor ───────────────────────── */}
+              {/* ── Active Label Editor ───────────── */}
               {activeItem && (
-                <div
-                  className="rounded-xl p-3 space-y-3"
-                  style={{
-                    background: isAllSelected
-                      ? "rgba(30,58,138,0.25)"
-                      : "rgba(15,23,42,0.6)",
-                    border: isAllSelected
-                      ? "1px solid rgba(59,130,246,0.35)"
-                      : "1px solid rgba(100,116,139,0.18)",
-                  }}
-                >
-                  {/* Batch Edit Banner (if all selected) */}
-                  {isAllSelected ? (
-                    <div className="flex items-center justify-between pb-2 border-b border-blue-500/20">
-                      <div className="flex items-center gap-1.5 text-blue-300 font-bold text-[11px]">
-                        <Layers className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Batch Edit ({annotations.length} Labels)</span>
-                      </div>
-                      <span className="text-[9px] font-semibold text-blue-300 bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-400/30">
-                        Applies to All
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between pb-1">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        Text
-                      </span>
-                      {annotations.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={handleApplyStyleToAll}
-                          className="flex items-center gap-1 text-[9px] font-semibold text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 transition-all cursor-pointer"
-                          title="Apply this label's size & color to all other labels"
-                        >
-                          <Sparkles className="w-2.5 h-2.5" />
-                          <span>Apply style to all</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Text Input */}
-                  {isAllSelected ? (
-                    <div>
-                      <div
-                        className="px-2.5 py-[7px] rounded-lg text-[11px] text-slate-300 bg-slate-900/60 border border-slate-700/40 italic flex items-center gap-2"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                        <span>Changing Size & Color will update all {annotations.length} road labels.</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        type="text"
-                        value={activeItem.text}
-                        onChange={(e) =>
-                          onUpdateAnnotation(activeItem.id, { text: e.target.value })
-                        }
-                        placeholder="e.g. ROAD LOT 3 (6.50 M.)"
-                        className="w-full px-2.5 py-[6px] rounded-lg text-[12px] font-bold text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/60"
-                        style={{
-                          background: "rgba(15,23,42,0.8)",
-                          border: "1px solid rgba(100,116,139,0.25)",
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Angle */}
+                <div className="rounded-xl bg-slate-800/40 border border-slate-800 p-3 space-y-3">
+                  
+                  {/* Label Text Input */}
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        Angle {isAllSelected && "(Batch)"}
+                    <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                      Label Text
+                    </label>
+                    <input
+                      type="text"
+                      value={activeItem.text || ""}
+                      onChange={(e) =>
+                        onUpdateAnnotation(activeItem.id, { text: e.target.value })
+                      }
+                      placeholder="e.g. ROAD LOT 3 (6.50 M.)"
+                      className="w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-900 border border-slate-700/80 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Angle / Rotation Slider */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                        Angle
                       </span>
                       <div className="flex items-center gap-1">
                         <input
@@ -328,13 +241,9 @@ export function MapAnnotationControl({
                           step="1"
                           value={Math.round(activeItem.rotation || 0)}
                           onChange={(e) =>
-                            handleBatchAngleChange(parseFloat(e.target.value) || 0, true)
+                            handleAngleChange(parseFloat(e.target.value) || 0, true)
                           }
-                          className="w-12 px-1 py-[2px] text-center text-[11px] font-mono font-bold text-white rounded focus:outline-none"
-                          style={{
-                            background: "rgba(15,23,42,0.8)",
-                            border: "1px solid rgba(100,116,139,0.25)",
-                          }}
+                          className="w-12 px-1 py-0.5 text-center text-xs font-mono font-bold text-white bg-slate-900 border border-slate-700/80 rounded focus:border-blue-500 focus:outline-none"
                         />
                         <span className="text-[10px] text-slate-500">°</span>
                       </div>
@@ -347,24 +256,19 @@ export function MapAnnotationControl({
                       step="1"
                       value={activeItem.rotation || 0}
                       onChange={(e) =>
-                        handleBatchAngleChange(parseFloat(e.target.value) || 0, true)
+                        handleAngleChange(parseFloat(e.target.value) || 0, true)
                       }
-                      className="w-full h-[3px] rounded-full appearance-none cursor-pointer accent-blue-500"
-                      style={{ background: "rgba(100,116,139,0.3)" }}
+                      className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     />
 
-                    {/* Nudge buttons */}
-                    <div className="grid grid-cols-6 gap-[3px] mt-1.5">
+                    {/* Quick Nudge Buttons */}
+                    <div className="grid grid-cols-6 gap-1 mt-1.5">
                       {angleSteps.map((btn, i) => (
                         <button
                           key={i}
                           type="button"
-                          onClick={() => handleBatchAngleChange(btn.val, btn.absolute)}
-                          className="py-[3px] text-[9px] font-bold text-slate-400 hover:text-white rounded transition-all active:scale-90 cursor-pointer text-center"
-                          style={{
-                            background: "rgba(30,41,59,0.6)",
-                            border: "1px solid rgba(100,116,139,0.15)",
-                          }}
+                          onClick={() => handleAngleChange(btn.val, btn.absolute)}
+                          className="py-1 text-[10px] font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/60 rounded transition active:scale-95 cursor-pointer text-center"
                         >
                           {btn.label}
                         </button>
@@ -372,148 +276,142 @@ export function MapAnnotationControl({
                     </div>
                   </div>
 
-                  {/* Size & Color Row */}
-                  <div className="flex items-start gap-3">
-                    {/* Font Size Compact */}
-                    <div className="flex-1">
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        Size {isAllSelected && "(All)"}
-                      </label>
-                      <select
-                        value={activeItem.fontSize || 12}
-                        onChange={(e) => {
-                          const newSize = parseInt(e.target.value, 10);
-                          if (isAllSelected && onUpdateAllAnnotations) {
-                            onUpdateAllAnnotations({ fontSize: newSize });
-                          } else {
-                            onUpdateAnnotation(activeItem.id, { fontSize: newSize });
-                          }
-                        }}
-                        className="mt-1 w-full px-2 py-[5px] rounded-lg text-[11px] font-bold text-white focus:outline-none cursor-pointer"
-                        style={{
-                          background: "rgba(15,23,42,0.8)",
-                          border: "1px solid rgba(100,116,139,0.25)",
-                        }}
-                      >
-                        {!fontSizes.some((size) => size.value === activeItem.fontSize) && activeItem.fontSize > 0 && (
-                          <option value={activeItem.fontSize}>{Number(activeItem.fontSize).toFixed(1)}px — Custom</option>
-                        )}
-                        {fontSizes.map((fs) => (
-                          <option key={fs.value} value={fs.value}>
-                            {fs.label} — {fs.tag}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  {/* Appearance (Size & Color) */}
+                  <div className="pt-2 border-t border-slate-700/40">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+                      Appearance
+                    </span>
 
-                    {/* Colors */}
-                    <div>
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        Color {isAllSelected && "(All)"}
-                      </label>
-                      <div className="mt-1.5 flex items-center gap-[5px]">
-                        {colors.map((c) => {
-                          const isActive =
-                            (activeItem.color || "#e2e8f0").toLowerCase() ===
-                            c.key.toLowerCase();
-                          return (
-                            <button
-                              key={c.key}
-                              type="button"
-                              title={c.label}
-                              onClick={() => {
-                                if (isAllSelected && onUpdateAllAnnotations) {
-                                  onUpdateAllAnnotations({ color: c.key });
-                                } else {
-                                  onUpdateAnnotation(activeItem.id, { color: c.key });
+                    <div className="flex items-start gap-3">
+                      {/* Font Size Select */}
+                      <div className="flex-1">
+                        <span className="text-[10px] text-slate-400 block mb-1">
+                          Font Size
+                        </span>
+                        <select
+                          value={activeItem.fontSize || 12}
+                          onChange={(e) => {
+                            const newSize = parseFloat(e.target.value) || 12;
+                            onUpdateAnnotation(activeItem.id, { fontSize: newSize });
+                          }}
+                          className="w-full px-2 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-900 border border-slate-700/80 focus:border-blue-500 focus:outline-none cursor-pointer"
+                        >
+                          {!fontSizes.some((size) => Math.abs(size.value - (activeItem.fontSize || 12)) < 0.5) && (
+                            <option value={activeItem.fontSize}>
+                              {Number(activeItem.fontSize || 12).toFixed(1)}px — Current
+                            </option>
+                          )}
+                          {fontSizes.map((fs) => (
+                            <option key={fs.value} value={fs.value}>
+                              {fs.label} — {fs.tag}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Color Palette */}
+                      <div>
+                        <span className="text-[10px] text-slate-400 block mb-1">
+                          Color
+                        </span>
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          {colors.map((c) => {
+                            const isActive =
+                              (activeItem.color || "#e2e8f0").toLowerCase() ===
+                              c.key.toLowerCase();
+                            return (
+                              <button
+                                key={c.key}
+                                type="button"
+                                title={c.label}
+                                onClick={() =>
+                                  onUpdateAnnotation(activeItem.id, { color: c.key })
                                 }
-                              }}
-                              className={`w-[18px] h-[18px] rounded-full transition-all cursor-pointer ${
-                                isActive
-                                  ? `ring-[2px] ${c.ring} scale-110`
-                                  : "opacity-70 hover:opacity-100 hover:scale-105"
-                              }`}
-                              style={{
-                                backgroundColor: c.key,
-                                border:
-                                  c.key === "#0f172a"
-                                    ? "1px solid rgba(100,116,139,0.5)"
-                                    : "none",
-                                boxShadow: isActive
-                                  ? `0 0 8px ${c.key}44`
-                                  : "none",
-                              }}
-                            />
-                          );
-                        })}
+                                className={`w-4 h-4 rounded-full transition cursor-pointer ${
+                                  isActive
+                                    ? "ring-2 ring-white scale-110"
+                                    : "opacity-70 hover:opacity-100 hover:scale-105"
+                                }`}
+                                style={{
+                                  backgroundColor: c.key,
+                                  border: c.key === "#0f172a" ? "1px solid rgba(148,163,184,0.4)" : "none",
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Unambiguous, clear "Apply size & color to all labels" button */}
+                    {annotations.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={handleApplyStyleToAll}
+                        className={`w-full mt-2.5 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-[11px] font-medium border transition cursor-pointer ${
+                          appliedSuccess
+                            ? "bg-emerald-950/60 border-emerald-500/50 text-emerald-300"
+                            : "bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-300 hover:text-white"
+                        }`}
+                      >
+                        {appliedSuccess ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Applied size & color to all {annotations.length} labels</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3 text-slate-400" />
+                            <span>Apply size & color to all labels</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
 
-                  {/* Footer: Drag hint + Delete */}
-                  <div
-                    className="flex items-center justify-between pt-2"
-                    style={{ borderTop: "1px solid rgba(100,116,139,0.12)" }}
-                  >
-                    <span className="flex items-center gap-1 text-[9px] text-slate-500">
-                      <Move className="w-2.5 h-2.5" />
-                      {isAllSelected ? "Click a label to drag" : "Drag to reposition"}
+                  {/* Card Footer: Drag hint & Delete label */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-700/60">
+                    <span className="flex items-center gap-1 text-[10px]">
+                      {isEditing ? (
+                        <span className="text-emerald-400 flex items-center gap-1 font-medium">
+                          <Move className="w-3 h-3" />
+                          Drag on map to position
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          Locked (unlock to move)
+                        </span>
+                      )}
                     </span>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (isAllSelected) {
-                          if (onDeleteAllAnnotations) {
-                            onDeleteAllAnnotations();
-                          } else {
-                            annotations.forEach((a) => onDeleteAnnotation(a.id));
-                          }
-                        } else {
-                          onDeleteAnnotation(activeItem.id);
-                        }
-                      }}
-                      className="flex items-center gap-1 text-[10px] text-red-400/80 hover:text-red-300 hover:bg-red-500/10 px-2 py-[3px] rounded-md transition-all cursor-pointer"
+                      onClick={() => onDeleteAnnotation(activeItem.id)}
+                      className="flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 hover:bg-red-950/40 px-2 py-0.5 rounded transition cursor-pointer"
                     >
-                      <Trash2 className="w-2.5 h-2.5" />
-                      <span>{isAllSelected ? `Delete All (${annotations.length})` : "Delete"}</span>
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete Label</span>
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* ── Save ─────────────────────────── */}
+              {/* ── Save Action ───────────────────────── */}
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={onSaveAnnotations}
-                className="w-full flex items-center justify-center gap-1.5 py-[9px] text-white rounded-xl text-[11px] font-semibold transition-all active:scale-[0.97] cursor-pointer disabled:opacity-40"
-                style={{
-                  background: isSaving
-                    ? "rgba(51,65,85,0.5)"
-                    : "linear-gradient(135deg, #059669, #0d9488)",
-                  boxShadow: isSaving
-                    ? "none"
-                    : "0 2px 10px rgba(5,150,105,0.3)",
-                }}
+                className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-40 cursor-pointer"
               >
-                <Check className="w-3.5 h-3.5" />
+                <Check className="w-4 h-4" />
                 <span>{isSaving ? "Saving..." : "Save Labels"}</span>
               </button>
-            </div>
+            </>
           ) : (
             <div className="py-6 text-center">
-              <div
-                className="w-10 h-10 mx-auto mb-2.5 rounded-xl flex items-center justify-center"
-                style={{
-                  background: "rgba(59,130,246,0.1)",
-                  border: "1px solid rgba(59,130,246,0.2)",
-                }}
-              >
-                <Type className="w-5 h-5 text-blue-400/60" />
-              </div>
-              <p className="text-[11px] text-slate-400 mb-0.5">No labels yet</p>
-              <p className="text-[10px] text-slate-500">
-                Add a label to annotate roads or open areas
+              <p className="text-xs text-slate-400 mb-1">No road labels yet</p>
+              <p className="text-[11px] text-slate-500">
+                Click "+ Add Label" above to add street or block names to the map.
               </p>
             </div>
           )}

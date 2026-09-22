@@ -122,12 +122,14 @@ export function useBlueprintLotImport({ propertyId, map, bounds, rotation, isAli
         setMessage(`${response.data.createdCount || selected.length} lots created with their map boundaries.`);
       }
       await onImported();
+      return response.data;
     } catch (failure) {
       if (currentProperty.current === propertyId) {
         setError(failure.response?.data?.message || failure.response?.data?.error ||
           "Could not confirm the import result. Refresh the map and check existing lots before retrying.");
       }
       if (!failure.response) await onImported();
+      throw failure;
     } finally {
       saving.current = false;
       setIsImporting(false);
