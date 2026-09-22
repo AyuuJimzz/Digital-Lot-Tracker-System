@@ -24,7 +24,7 @@ import { LotPlanPolygon } from "../../components/admin/LotPlanPolygon";
 import { ViewportLotLayer } from "../../components/admin/ViewportLotLayer";
 import { getLotBounds } from "../../utils/lotViewport";
 import { useSmoothWheelZoom } from "../../hooks/useSmoothWheelZoom";
-import { projectBlueprintRoadLabel, reframeBlueprintCrop } from "../../utils/blueprintLotProjection";
+import { projectBlueprintRoadLabel, reframeBlueprintCrop, calculateMapViewportFromReview, calculateReviewViewportFromMap } from "../../utils/blueprintLotProjection";
 import { mergeGeneratedRoadAnnotations } from "../../utils/pdfLotImport/roadLabels";
 import { MapAnnotationControl } from "../../components/admin/MapAnnotationControl";
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
@@ -548,11 +548,24 @@ function AdminViewMap() {
   const overlayBlobCacheRef = useRef(new Map());
   const activeOverlayUrlRef = useRef(null);
   const [isPreparingOverlay, setIsPreparingOverlay] = useState(false);
+  const reviewViewportRef = useRef(null);
   const lotImport = useBlueprintLotImport({
     propertyId: selectedProperty, map, bounds: overlayBounds, rotation: overlayRotation,
     isAligning: isEditingOverlay || isPreparingOverlay,
   });
   const { restore: restoreLotImport, applyCrop: applyLotImportCrop } = lotImport;
+
+  const handleOpenReview = useCallback(() => {
+    if (!reviewViewportRef.current && map && overlayBounds && lotImport.draft) {
+      reviewViewportRef.current = calculateReviewViewportFromMap(
+        map,
+        lotImport.draft,
+        overlayBounds,
+        overlayRotation
+      );
+    }
+    lotImport.openReview();
+  }, [map, overlayBounds, overlayRotation, lotImport]);
 
   // ── Road & Map Text Labels (Annotations) States ───────────────────────────
   const [showAnnotationPanel, setShowAnnotationPanel] = useState(false);
@@ -1226,6 +1239,7 @@ function AdminViewMap() {
     rawOverlayRef.current = null;
     originalUploadedImageRef.current = null;
     unrotatedSpanRef.current = null;
+    reviewViewportRef.current = null;
     restoreLotImport(null);
     const fetchSavedOverlay = async () => {
       if (!selectedProperty) return;
@@ -3693,7 +3707,7 @@ function AdminViewMap() {
           importWarnings={lotImport.draft?.warnings || []}
           importMessage={lotImport.message}
           importError={lotImport.error}
-          onReviewImport={lotImport.openReview}
+          onReviewImport={handleOpenReview}
           previewImport={lotImport.preview}
           onToggleImportPreview={lotImport.togglePreview}
           isPreparingOverlay={isPreparingOverlay}
@@ -3754,6 +3768,7 @@ function AdminViewMap() {
             originalUploadedImageRef.current = null;
             transparentOverlayRef.current = null;
             unrotatedSpanRef.current = null;
+            reviewViewportRef.current = null;
             if (selectedProperty) {
               await removeBlueprintOverlay(selectedProperty);
             }
@@ -3766,7 +3781,28 @@ function AdminViewMap() {
         <LotImportReviewModal
           candidates={lotImport.candidates}
           onCandidatesChange={lotImport.changeCandidates}
-          onClose={lotImport.closeReview}
+          initialViewport={reviewViewportRef.current}
+          onClose={(reviewViewport) => {
+            if (reviewViewport) {
+              reviewViewportRef.current = reviewViewport;
+            }
+            lotImport.closeReview();
+            setShowOverlayPanel(true);
+            setIsEditingOverlay(true);
+            if (reviewViewport?.isCustomView && map && overlayBounds && lotImport.draft) {
+              const target = calculateMapViewportFromReview(
+                reviewViewport,
+                lotImport.draft,
+                overlayBounds,
+                overlayRotation,
+                map
+              );
+              if (target && target.center && Number.isFinite(target.zoom)) {
+                map.setView(target.center, target.zoom, { animate: false });
+                map.invalidateSize({ animate: false });
+              }
+            }
+          }}
           onImport={() => lotImport.importLots(handleLotUpdated)}
           isImporting={lotImport.isImporting}
           error={lotImport.error}

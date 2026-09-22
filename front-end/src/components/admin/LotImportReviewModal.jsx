@@ -37,6 +37,7 @@ export function LotImportReviewModal({
   candidates = [], onCandidatesChange, onClose, onImport, isImporting = false,
   error, sourceName, existingLotNumbers = [], imageUrl, pageWidth, pageHeight, warnings = [],
   autoFixDuplicates = false, onRescan, isRescanning = false, autoSelectAll = false,
+  initialViewport = null,
 }) {
   const dialogRef = useRef(null);
   const previewRef = useRef(null);
@@ -81,6 +82,11 @@ export function LotImportReviewModal({
     viewportRef.current = vp;
   }, []);
 
+  const handleClose = useCallback(() => {
+    if (isImporting || effectiveRescanning) return;
+    onClose?.(viewportRef.current);
+  }, [isImporting, effectiveRescanning, onClose]);
+
   useEffect(() => {
     const previouslyFocused = document.activeElement;
     const previousOverflow = document.body.style.overflow;
@@ -104,7 +110,7 @@ export function LotImportReviewModal({
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
-      if (!isImporting) onClose();
+      handleClose();
     }
     if (event.key !== "Tab") return;
     const focusable = Array.from(dialogRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]'));
@@ -347,7 +353,7 @@ export function LotImportReviewModal({
             )}
           </div>
           <p id="lot-import-description" className="sr-only">Check the boundaries and details, then create the lots you approve.</p>
-          <button type="button" disabled={isImporting || effectiveRescanning} onClick={onClose} aria-label="Close lot import review"
+          <button type="button" disabled={isImporting || effectiveRescanning} onClick={handleClose} aria-label="Close lot import review"
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-white/5 hover:text-slate-300 disabled:opacity-40 transition-colors"><X className="h-4 w-4" /></button>
         </header>
 
@@ -357,6 +363,7 @@ export function LotImportReviewModal({
               pageWidth={pageWidth} pageHeight={pageHeight} disabled={isImporting || effectiveRescanning} onUpdate={updateCandidate}
               onActivate={(id) => activateCandidate(id, false, true)}
               onViewportChange={handleViewportChange}
+              initialViewport={initialViewport}
               isExpanded={isMapExpanded} onToggleExpand={() => setIsMapExpanded((prev) => !prev)}
               isEditingShape={isEditingShape} onToggleEditShape={setIsEditingShape}
               onAddManualCandidate={handleAddManualCandidate}
@@ -504,7 +511,7 @@ export function LotImportReviewModal({
               <span>I checked the map alignment, included boundaries, lot numbers and areas.</span>
             </label>
             <div className="flex items-center gap-2">
-              <button type="button" disabled={isImporting} onClick={onClose} className={buttonClass}>Back to alignment</button>
+              <button type="button" disabled={isImporting} onClick={handleClose} className={buttonClass}>Back to alignment</button>
               <button type="button" disabled={!canImport} onClick={handleSubmit}
                 className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-white px-4 text-xs font-semibold text-slate-950 transition-all hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-slate-500">
                 {isImporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}

@@ -33,17 +33,30 @@ export default function LotPlanPreview({
   isEditingShape = false, onToggleEditShape, onAddManualCandidate,
   onRescan, isRescanning,
   onResetBoundary, canResetBoundary = false,
+  initialViewport = null,
 }) {
   const svgRef = useRef(null);
   const gesture = useRef(null);
   const [dragPoints, setDragPoints] = useState(null);
   const dragPointsRef = useRef(null);
   const [imageAspect, setImageAspect] = useState(0.707);
-  const [zoom, setZoom] = useState(1);
-  const [center, setCenter] = useState(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 707 });
   const aspect = pageWidth > 0 && pageHeight > 0 ? pageHeight / pageWidth : imageAspect;
   const sourceHeight = sourceWidth * aspect;
+  const [zoom, setZoom] = useState(() => (
+    initialViewport?.zoom && initialViewport.zoom > 1 ? clamp(initialViewport.zoom, 1, 24) : 1
+  ));
+  const [center, setCenter] = useState(() => {
+    if (initialViewport?.centerX != null && initialViewport?.centerY != null && initialViewport.isCustomView) {
+      const initAspect = pageWidth > 0 && pageHeight > 0 ? pageHeight / pageWidth : 0.707;
+      const initHeight = sourceWidth * initAspect;
+      return {
+        x: clamp(initialViewport.centerX * sourceWidth, 0, sourceWidth),
+        y: clamp(initialViewport.centerY * initHeight, 0, initHeight),
+      };
+    }
+    return null;
+  });
+  const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 707 });
   const viewWidth = sourceWidth / zoom;
   const viewHeight = sourceHeight / zoom;
   const renderScale = Math.max(0.01, Math.min(canvasSize.width / viewWidth, canvasSize.height / viewHeight));
@@ -59,8 +72,9 @@ export default function LotPlanPreview({
       viewWidthNorm: viewWidth / sourceWidth,
       viewHeightNorm: viewHeight / sourceHeight,
       zoom,
+      isCustomView: Boolean(center || zoom > 1.05),
     });
-  }, [viewCenter.x, viewCenter.y, viewWidth, viewHeight, zoom, sourceHeight, onViewportChange]);
+  }, [viewCenter.x, viewCenter.y, viewWidth, viewHeight, zoom, sourceHeight, onViewportChange, center]);
 
   useEffect(() => {
     if (typeof ResizeObserver === "undefined") return undefined;

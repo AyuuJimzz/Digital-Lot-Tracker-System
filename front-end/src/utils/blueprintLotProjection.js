@@ -16,6 +16,142 @@ export function sourcePointToOverlay([u, v], source, rotation = 0) {
   return [(x * cos - y * sin) / rotatedWidth + 0.5, (x * sin + y * cos) / rotatedHeight + 0.5];
 }
 
+export function overlayToSourcePoint([overlayU, overlayV], source, rotation = 0) {
+  const crop = source?.cropBounds || { minX: 0, minY: 0, width: 100, height: 100 };
+  const width = source?.imageWidth || 1000;
+  const height = source?.imageHeight || 1000;
+  const rawWidth = source?.cropBounds ? Math.max(10, Math.round(width * crop.width / 100)) : width;
+  const rawHeight = source?.cropBounds ? Math.max(10, Math.round(height * crop.height / 100)) : height;
+
+  const angle = (rotation || 0) * Math.PI / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const rotatedWidth = Math.max(10, Math.floor(rawWidth * Math.abs(cos) + rawHeight * Math.abs(sin)));
+  const rotatedHeight = Math.max(10, Math.floor(rawWidth * Math.abs(sin) + rawHeight * Math.abs(cos)));
+
+  const rx = (overlayU - 0.5) * rotatedWidth;
+  const ry = (overlayV - 0.5) * rotatedHeight;
+
+  const x = rx * cos + ry * sin;
+  const y = -rx * sin + ry * cos;
+
+  const renderW = source?.renderWidth || width;
+  const renderH = source?.renderHeight || height;
+
+  const u = (x + width * crop.minX / 100 + rawWidth / 2) / renderW;
+  const v = (y + height * crop.minY / 100 + rawHeight / 2) / renderH;
+
+  return [u, v];
+}
+
+export function projectBlueprintPointToLatLng([u, v], source, bounds, rotation, map) {
+  if (!map || !bounds || !source) return null;
+  const [overlayU, overlayV] = sourcePointToOverlay([u, v], source, rotation);
+  const northwest = map.project([bounds[1][0], bounds[0][1]], 20);
+  const southeast = map.project([bounds[0][0], bounds[1][1]], 20);
+  const location = map.unproject([
+    northwest.x + overlayU * (southeast.x - northwest.x),
+    northwest.y + overlayV * (southeast.y - northwest.y),
+  ], 20);
+  return [location.lat, location.lng];
+}
+
+export function projectLatLngToBlueprintPoint([lat, lng], source, bounds, rotation = 0, map) {
+  if (!map || !bounds || !source) return null;
+  const northwest = map.project([bounds[1][0], bounds[0][1]], 20);
+  const southeast = map.project([bounds[0][0], bounds[1][1]], 20);
+  const pt = map.project([lat, lng], 20);
+
+  const denomX = southeast.x - northwest.x;
+  const denomY = southeast.y - northwest.y;
+  if (Math.abs(denomX) < 1e-6 || Math.abs(denomY) < 1e-6) return null;
+
+  const overlayU = (pt.x - northwest.x) / denomX;
+  const overlayV = (pt.y - northwest.y) / denomY;
+
+  return overlayToSourcePoint([overlayU, overlayV], source, rotation);
+}
+
+export function calculateMapViewportFromReview(reviewViewport, source, bounds, rotation, map) {
+  if (!reviewViewport || !source || !bounds || !map) return null;
+
+  const { centerX, centerY, viewWidthNorm, viewHeightNorm, zoom } = reviewViewport;
+  if (!Number.isFinite(centerX) || !Number.isFinite(centerY)) return null;
+
+  const targetCenter = projectBlueprintPointToLatLng([centerX, centerY], source, bounds, rotation, map);
+  if (!targetCenter || !Number.isFinite(targetCenter[0]) || !Number.isFinite(targetCenter[1])) {
+    return null;
+  }
+
+  const effectiveZoom = Math.max(1, Number(zoom) || 1);
+  const halfW = (Number.isFinite(viewWidthNorm) && viewWidthNorm > 0 ? viewWidthNorm : (1 / effectiveZoom)) / 2;
+  const halfH = (Number.isFinite(viewHeightNorm) && viewHeightNorm > 0 ? viewHeightNorm : (1 / effectiveZoom)) / 2;
+
+  const corners = [
+    [centerX - halfW, centerY - halfH],
+    [centerX + halfW, centerY - halfH],
+    [centerX + halfW, centerY + halfH],
+    [centerX - halfW, centerY + halfH],
+  ];
+
+  const geoCorners = corners
+    .map((corner) => projectBlueprintPointToLatLng(corner, source, bounds, rotation, map))
+    .filter((pt) => pt && Number.isFinite(pt[0]) && Number.isFinite(pt[1]));
+
+  if (geoCorners.length < 4) return null;
+
+  const lats = geoCorners.map((p) => p[0]);
+  const lngs = geoCorners.map((p) => p[1]);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  const visibleBounds = [[minLat, minLng], [maxLat, maxLng]];
+
+  let targetZoom = map.getBoundsZoom(visibleBounds, false);
+  const minZoom = map.getMinZoom?.() ?? 1;
+  const maxZoom = map.getMaxZoom?.() ?? 28;
+  targetZoom = Math.max(minZoom, Math.min(maxZoom, targetZoom));
+
+  return {
+    center: targetCenter,
+    zoom: targetZoom,
+    bounds: visibleBounds,
+  };
+}
+
+export function calculateReviewViewportFromMap(map, source, bounds, rotation = 0) {
+  if (!map || !source || !bounds) return null;
+  const center = map.getCenter();
+  const blueprintPoint = projectLatLngToBlueprintPoint([center.lat, center.lng], source, bounds, rotation, map);
+  if (!blueprintPoint) return null;
+
+  const [u, v] = blueprintPoint;
+  if (!Number.isFinite(u) || !Number.isFinite(v)) return null;
+  if (u < -0.2 || u > 1.2 || v < -0.2 || v > 1.2) return null;
+
+  const clampedU = Math.max(0.01, Math.min(0.99, u));
+  const clampedV = Math.max(0.01, Math.min(0.99, v));
+
+  let zoomFactor = 1;
+  try {
+    const baseZoom = map.getBoundsZoom(bounds, false);
+    const currentZoom = map.getZoom();
+    zoomFactor = Math.pow(2, currentZoom - baseZoom);
+  } catch (e) {
+    zoomFactor = 1;
+  }
+  const clampedZoom = Math.max(1, Math.min(24, zoomFactor));
+
+  return {
+    centerX: clampedU,
+    centerY: clampedV,
+    zoom: clampedZoom,
+    isCustomView: clampedZoom > 1.05 || Math.abs(clampedU - 0.5) > 0.05 || Math.abs(clampedV - 0.5) > 0.05,
+  };
+}
+
 export function projectLotCandidate(candidate, source, bounds, rotation, map) {
   const northwest = map.project([bounds[1][0], bounds[0][1]], 20);
   const southeast = map.project([bounds[0][0], bounds[1][1]], 20);
