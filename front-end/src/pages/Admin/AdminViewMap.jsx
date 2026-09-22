@@ -29,6 +29,7 @@ import { mergeGeneratedRoadAnnotations } from "../../utils/pdfLotImport/roadLabe
 import { MapAnnotationControl } from "../../components/admin/MapAnnotationControl";
 import { MapLocationSearch } from "../../components/admin/MapLocationSearch";
 import { MapLayerControls, ActiveMapTileLayer, MAP_LAYERS } from "../../components/admin/MapLayerControls";
+import { UnifiedLotEditorPanel } from "../../components/admin/UnifiedLotEditorPanel";
 import {
   geocodeAddress,
   MUNICIPALITY_COORDINATES,
@@ -40,7 +41,7 @@ import {
   findSnapVertex,
   offsetPolygonAdjacent,
 } from "../../utils/geoUtils";
-import { Magnet, Copy, Ruler, Plus, X, GripHorizontal, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import {
   saveBlueprintOverlay,
   loadBlueprintOverlay,
@@ -502,12 +503,12 @@ function AdminViewMap() {
   // State and Ref for dragging the entire polygon
   const [isDraggingPolygon, setIsDraggingPolygon] = useState(false);
   const polygonDragRef = React.useRef(null);
-  const draggedCoordsRef = React.useRef(null); // stores coordinates temporarily during bulk polygon drag
 
   // Refs for smooth vertex dragging
   const editingPolygonRef = React.useRef(null);
   const dragCoordsRef = React.useRef([]);
   const cornerMarkersRef = React.useRef([]); // stores refs to Leaflet Marker instances for direct DOM positioning during drag
+  const centerMoveMarkerRef = React.useRef(null);
 
   // Live Real-Time Geodesic Area Calculations
   const liveAreaSqm = useMemo(() => {
@@ -582,14 +583,12 @@ function AdminViewMap() {
     )).filter(Boolean);
   }, [map, overlayBounds, overlayRotation, lotImport.draft]);
 
-  // ── Draggable Floating Quick Add Lot States ────────────────────────────────
-  const [showQuickAddLot, setShowQuickAddLot] = useState(false);
+  // ── Draggable Floating Unified Lot States ──────────────────────────────────
   const [quickLotNumber, setQuickLotNumber] = useState("");
   const [quickAreaSqm, setQuickAreaSqm] = useState(100);
   const [quickStatus, setQuickStatus] = useState("Available");
-  const [isCreatingQuickLot, setIsCreatingQuickLot] = useState(false);
   const [floatingPos, setFloatingPos] = useState(() => ({
-    x: typeof window !== "undefined" ? Math.max(340, Math.floor(window.innerWidth / 2 - 160)) : 380,
+    x: typeof window !== "undefined" ? Math.max(340, Math.floor(window.innerWidth / 2 - 190)) : 380,
     y: 110,
   }));
   const isDraggingFloatingRef = React.useRef(false);
@@ -614,15 +613,64 @@ function AdminViewMap() {
   }, [mapData, selectedProperty]);
 
   const handleOpenQuickAdd = useCallback(() => {
-    setQuickLotNumber(getNextSuggestedLotNumber());
-    setQuickAreaSqm(100);
+    const nextNum = getNextSuggestedLotNumber();
+    const area = 100;
+    setQuickLotNumber(nextNum);
+    setQuickAreaSqm(area);
     setQuickStatus("Available");
     setFloatingPos({
-      x: typeof window !== "undefined" ? Math.max(340, Math.floor(window.innerWidth / 2 - 160)) : 380,
+      x: typeof window !== "undefined" ? Math.max(340, Math.floor(window.innerWidth / 2 - 190)) : 380,
       y: 110,
     });
-    setShowQuickAddLot(true);
-  }, [getNextSuggestedLotNumber]);
+
+    // Compute initial square coords immediately at current map center or property coords
+    const currentCenter = map ? map.getCenter() : null;
+    let baseCoords = null;
+    if (currentCenter) {
+      baseCoords = [currentCenter.lat, currentCenter.lng];
+    } else {
+      const prop = mapData?.properties?.find((p) => Number(p.property_id || p.id) === Number(selectedProperty));
+      if (prop?.coordinates) {
+        baseCoords = typeof prop.coordinates === "string" ? JSON.parse(prop.coordinates) : prop.coordinates;
+      }
+      if (!baseCoords) {
+        baseCoords = DEFAULT_COORDINATES_MAP[selectedProperty] || [10.7372, 122.3857];
+      }
+    }
+
+    const sideMeters = Math.sqrt(area);
+    const latRad = (baseCoords[0] * Math.PI) / 180;
+    const dLat = (sideMeters / 2) / 111320;
+    const dLng = (sideMeters / 2) / (111320 * Math.cos(latRad));
+
+    const rotRad = ((overlayRotation || 0) * Math.PI) / 180;
+    const cosR = Math.cos(rotRad);
+    const sinR = Math.sin(rotRad);
+
+    const corners = [
+      [-dLat, -dLng],
+      [dLat, -dLng],
+      [dLat, dLng],
+      [-dLat, dLng],
+    ];
+
+    const initCoords = corners.map(([dy, dx]) => {
+      const rotY = dy * cosR - dx * sinR;
+      const rotX = dy * sinR + dx * cosR;
+      return [baseCoords[0] + rotY, baseCoords[1] + rotX];
+    });
+
+    dragCoordsRef.current = initCoords.map((c) => [...c]);
+    setEditingCoords(initCoords);
+
+    setEditingLot({
+      isNew: true,
+      lot_number: nextNum,
+      area_sqm: area,
+      status: "Available",
+      property_id: parseInt(selectedProperty),
+    });
+  }, [getNextSuggestedLotNumber, map, mapData, selectedProperty, overlayRotation]);
 
   // Listen for openQuickAddLot event from AdminHeader Manage Lots
   useEffect(() => {
@@ -811,8 +859,8 @@ function AdminViewMap() {
 
     const handleMouseMove = (moveEvent) => {
       if (!isDraggingFloatingRef.current) return;
-      const newX = Math.max(10, Math.min(window.innerWidth - 320, moveEvent.clientX - dragOffsetRef.current.x));
-      const newY = Math.max(10, Math.min(window.innerHeight - 340, moveEvent.clientY - dragOffsetRef.current.y));
+      const newX = Math.max(10, Math.min(window.innerWidth - 380, moveEvent.clientX - dragOffsetRef.current.x));
+      const newY = Math.max(10, Math.min(window.innerHeight - 480, moveEvent.clientY - dragOffsetRef.current.y));
       setFloatingPos({ x: newX, y: newY });
     };
 
@@ -824,50 +872,6 @@ function AdminViewMap() {
 
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
-  };
-
-  const handleCreateQuickLot = async (e) => {
-    if (e) e.preventDefault();
-    const lotNum = (quickLotNumber || getNextSuggestedLotNumber()).trim();
-    const area = parseFloat(quickAreaSqm) || 100;
-    if (!lotNum) return;
-
-    setIsCreatingQuickLot(true);
-    try {
-      const response = await axios.post(
-        `${API_BASE_URL}/api/lots`,
-        {
-          property_id: parseInt(selectedProperty),
-          lot_number: lotNum,
-          area_sqm: area,
-          status: quickStatus,
-        },
-        { withCredentials: true, ...getAuthConfig() }
-      );
-
-      const newLot = response.data;
-      const nextNum = autoIncrementLotNumber(lotNum);
-      setQuickLotNumber(nextNum);
-      await handleLotUpdated();
-
-      // Automatically launch the interactive 4-corner polygon coordinate editor on the map!
-      window.dispatchEvent(
-        new CustomEvent("startVisualEdit", {
-          detail: {
-            lot_id: newLot.lot_id,
-            lot_number: newLot.lot_number,
-            property_id: newLot.property_id,
-            area_sqm: area,
-            coordinates: null, // centers a default square right at current map focus
-          },
-        })
-      );
-    } catch (err) {
-      console.error("Error creating quick lot:", err);
-      alert(err.response?.data?.error || err.message || "Failed to create lot");
-    } finally {
-      setIsCreatingQuickLot(false);
-    }
   };
 
   // ── Bulk Shift States ──────────────────────────────────────────────────────
@@ -908,6 +912,9 @@ function AdminViewMap() {
       if (editingPolygonRef.current) {
         editingPolygonRef.current.setLatLngs(dragCoordsRef.current);
       }
+      if (centerMoveMarkerRef.current) {
+        centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(dragCoordsRef.current));
+      }
     }
   };
 
@@ -942,6 +949,9 @@ function AdminViewMap() {
     if (editingPolygonRef.current) {
       editingPolygonRef.current.setLatLngs(updated);
     }
+    if (centerMoveMarkerRef.current) {
+      centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(updated));
+    }
   };
 
   // Remove a vertex by index (triggered by double-clicking a corner handle)
@@ -957,6 +967,9 @@ function AdminViewMap() {
     if (editingPolygonRef.current) {
       editingPolygonRef.current.setLatLngs(newCoords);
     }
+    if (centerMoveMarkerRef.current) {
+      centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(newCoords));
+    }
   };
 
   // Add a new vertex at a specific index
@@ -968,6 +981,9 @@ function AdminViewMap() {
     setEditingCoords(newCoords);
     if (editingPolygonRef.current) {
       editingPolygonRef.current.setLatLngs(newCoords);
+    }
+    if (centerMoveMarkerRef.current) {
+      centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(newCoords));
     }
   };
 
@@ -1015,6 +1031,52 @@ function AdminViewMap() {
       `,
       iconSize: [18, 18],
       iconAnchor: [9, 9],
+    });
+  };
+
+  // Helper: Computes centroid of a polygon coordinate array
+  const getPolygonCentroid = (coords) => {
+    if (!coords || coords.length === 0) return [0, 0];
+    let sumLat = 0;
+    let sumLng = 0;
+    for (let i = 0; i < coords.length; i++) {
+      sumLat += coords[i][0];
+      sumLng += coords[i][1];
+    }
+    return [sumLat / coords.length, sumLng / coords.length];
+  };
+
+  // Create an explicit center move icon for grabbing and dragging the entire lot
+  const createPolygonCenterMoveIcon = () => {
+    return L.divIcon({
+      className: "custom-polygon-center-icon",
+      html: `
+        <div style="
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: rgba(15, 23, 42, 0.9);
+          border: 2px solid #10b981;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(16, 185, 129, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: move;
+          color: #10b981;
+          user-select: none;
+        " title="Drag to move entire lot">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="5 9 2 12 5 15"></polyline>
+            <polyline points="9 5 12 2 15 5"></polyline>
+            <polyline points="15 19 12 22 9 19"></polyline>
+            <polyline points="19 9 22 12 19 15"></polyline>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <line x1="12" y1="2" x2="12" y2="22"></line>
+          </svg>
+        </div>
+      `,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
     });
   };
 
@@ -2110,8 +2172,23 @@ function AdminViewMap() {
   // Listen for start visual edit event
   useEffect(() => {
     const handleStartVisualEdit = (event) => {
-      const { lot_id, lot_number, property_id, coordinates, area_sqm } = event.detail;
-      setEditingLot({ lot_id, lot_number, property_id, area_sqm });
+      const { lot_id, lot_number, property_id, coordinates, area_sqm, status } = event.detail;
+      const found = mapData?.lots?.find((l) => Number(l.lot_id) === Number(lot_id));
+      const lotStatus = status || found?.status || "Available";
+      const lotNum = lot_number || found?.lot_number || "";
+      const lotArea = parseFloat(area_sqm || found?.area_sqm) || 100;
+
+      setEditingLot({
+        lot_id,
+        lot_number: lotNum,
+        property_id: property_id || selectedProperty,
+        area_sqm: lotArea,
+        status: lotStatus,
+        isNew: false,
+      });
+      setQuickLotNumber(lotNum);
+      setQuickAreaSqm(lotArea);
+      setQuickStatus(lotStatus);
 
       let parsedCoords = coordinates;
       if (typeof parsedCoords === "string") {
@@ -2139,11 +2216,23 @@ function AdminViewMap() {
       } else {
         // Use current active map center if available so coordinates appear exactly where user is focused
         const currentCenter = map ? map.getCenter() : null;
-        const baseCoords =
-          currentCenter
-            ? [currentCenter.lat, currentCenter.lng]
-            : properties.find((p) => Number(p.id) === Number(property_id))?.coordinates ||
-              selectedPropertyCoords;
+        let baseCoords = null;
+        if (currentCenter) {
+          baseCoords = [currentCenter.lat, currentCenter.lng];
+        } else {
+          const prop = mapData?.properties?.find(
+            (p) => Number(p.property_id || p.id) === Number(property_id || selectedProperty)
+          );
+          if (prop?.coordinates) {
+            baseCoords =
+              typeof prop.coordinates === "string"
+                ? JSON.parse(prop.coordinates)
+                : prop.coordinates;
+          }
+          if (!baseCoords) {
+            baseCoords = DEFAULT_COORDINATES_MAP[selectedProperty] || [10.7372, 122.3857];
+          }
+        }
 
         const targetArea = parseFloat(area_sqm) || 100;
         const sideMeters = Math.sqrt(targetArea); // ~10m for 100 sqm
@@ -2178,16 +2267,24 @@ function AdminViewMap() {
     return () => {
       window.removeEventListener("startVisualEdit", handleStartVisualEdit);
     };
-  }, [map, properties, selectedPropertyCoords, overlayRotation, mapData]);
+  }, [map, mapData, selectedProperty, overlayRotation]);
 
-  // Handle dragging the entire polygon shape with global pointer tracking & magnetic snapping
-  useEffect(() => {
+  // Handle dragging the entire polygon shape with immediate synchronous pointer tracking & magnetic snapping
+  const startPolygonDrag = useCallback((startLatLng) => {
     if (!map) return;
+    map.dragging.disable();
 
-    const handleGlobalMouseMove = (e) => {
-      if (!isDraggingPolygon || !polygonDragRef.current || !map) return;
+    const currentCoords =
+      dragCoordsRef.current && dragCoordsRef.current.length === editingCoords.length
+        ? dragCoordsRef.current
+        : editingCoords;
+    const initialCoords = currentCoords.map((c) => [...c]);
+    polygonDragRef.current = { startLatLng, initialCoords };
+    setIsDraggingPolygon(true);
 
-      const { startLatLng, initialCoords } = polygonDragRef.current;
+    let currentCandidate = null;
+
+    const onGlobalMouseMove = (e) => {
       let mouseLatLng = e.latlng;
       if (!mouseLatLng && typeof e.clientX === "number" && typeof e.clientY === "number") {
         try {
@@ -2198,15 +2295,15 @@ function AdminViewMap() {
       }
       if (!mouseLatLng) return;
 
-      let deltaLat = mouseLatLng.lat - startLatLng.lat;
-      let deltaLng = mouseLatLng.lng - startLatLng.lng;
+      const deltaLat = mouseLatLng.lat - startLatLng.lat;
+      const deltaLng = mouseLatLng.lng - startLatLng.lng;
 
       let candidateCoords = initialCoords.map(([lat, lng]) => [
         lat + deltaLat,
         lng + deltaLng,
       ]);
 
-      // Magnetic snapping for the entire polygon: snap any corner to adjacent lot vertices
+      // Magnetic snapping for the entire polygon
       if (enableSnapping && mapData?.lots) {
         for (let i = 0; i < candidateCoords.length; i++) {
           const corner = candidateCoords[i];
@@ -2229,7 +2326,7 @@ function AdminViewMap() {
         }
       }
 
-      // Direct Leaflet element updates for buttery smooth 60 FPS movement
+      // Direct Leaflet element updates for 60 FPS movement
       if (editingPolygonRef.current) {
         editingPolygonRef.current.setLatLngs(candidateCoords);
       }
@@ -2243,41 +2340,39 @@ function AdminViewMap() {
         });
       }
 
+      // Center move marker update
+      if (centerMoveMarkerRef.current) {
+        centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(candidateCoords));
+      }
+
       dragCoordsRef.current = candidateCoords.map((c) => [...c]);
-      draggedCoordsRef.current = candidateCoords;
+      currentCandidate = candidateCoords;
     };
 
-    const handleGlobalMouseUp = () => {
-      if (isDraggingPolygon) {
-        setIsDraggingPolygon(false);
-        polygonDragRef.current = null;
-        if (map) {
-          map.dragging.enable();
-        }
+    const onGlobalMouseUp = () => {
+      window.removeEventListener("mousemove", onGlobalMouseMove);
+      window.removeEventListener("mouseup", onGlobalMouseUp);
+      map.off("mousemove", onGlobalMouseMove);
+      map.off("mouseup", onGlobalMouseUp);
 
-        if (draggedCoordsRef.current) {
-          const finalCoords = draggedCoordsRef.current.map((c) => [...c]);
-          dragCoordsRef.current = finalCoords.map((c) => [...c]);
-          setEditingCoords(finalCoords);
-          draggedCoordsRef.current = null;
-        }
+      setIsDraggingPolygon(false);
+      polygonDragRef.current = null;
+      if (map) {
+        map.dragging.enable();
+      }
+
+      if (currentCandidate) {
+        const finalCoords = currentCandidate.map((c) => [...c]);
+        dragCoordsRef.current = finalCoords.map((c) => [...c]);
+        setEditingCoords(finalCoords);
       }
     };
 
-    if (isDraggingPolygon) {
-      window.addEventListener("mousemove", handleGlobalMouseMove);
-      window.addEventListener("mouseup", handleGlobalMouseUp);
-      map.on("mousemove", handleGlobalMouseMove);
-      map.on("mouseup", handleGlobalMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener("mousemove", handleGlobalMouseMove);
-      window.removeEventListener("mouseup", handleGlobalMouseUp);
-      map.off("mousemove", handleGlobalMouseMove);
-      map.off("mouseup", handleGlobalMouseUp);
-    };
-  }, [map, isDraggingPolygon, enableSnapping, mapData, editingLot]);
+    window.addEventListener("mousemove", onGlobalMouseMove);
+    window.addEventListener("mouseup", onGlobalMouseUp);
+    map.on("mousemove", onGlobalMouseMove);
+    map.on("mouseup", onGlobalMouseUp);
+  }, [map, editingCoords, enableSnapping, mapData, editingLot]);
 
   // Handle scaling the current editing polygon around its center
   const handleScaleEditingCoords = (factor) => {
@@ -2302,15 +2397,26 @@ function AdminViewMap() {
 
   // Handle resetting the polygon to an exact standard lot square (e.g. 100 sqm)
   const handleResetToSquareSize = (targetArea = 100) => {
-    if (!editingCoords || editingCoords.length === 0) return;
-    let sumLat = 0;
-    let sumLng = 0;
-    editingCoords.forEach(([lat, lng]) => {
-      sumLat += lat;
-      sumLng += lng;
-    });
-    const cLat = sumLat / editingCoords.length;
-    const cLng = sumLng / editingCoords.length;
+    let cLat, cLng;
+    if (editingCoords && editingCoords.length > 0) {
+      let sumLat = 0;
+      let sumLng = 0;
+      editingCoords.forEach(([lat, lng]) => {
+        sumLat += lat;
+        sumLng += lng;
+      });
+      cLat = sumLat / editingCoords.length;
+      cLng = sumLng / editingCoords.length;
+    } else {
+      const currentCenter = map ? map.getCenter() : null;
+      const baseCoords =
+        currentCenter
+          ? [currentCenter.lat, currentCenter.lng]
+          : properties?.find((p) => Number(p.id) === Number(selectedProperty))?.coordinates ||
+            selectedPropertyCoords;
+      cLat = baseCoords[0];
+      cLng = baseCoords[1];
+    }
 
     const sideMeters = Math.sqrt(targetArea);
     const latRad = (cLat * Math.PI) / 180;
@@ -2336,43 +2442,178 @@ function AdminViewMap() {
 
     setEditingCoords(newCoords);
     dragCoordsRef.current = newCoords.map((c) => [...c]);
+    return newCoords;
   };
 
-  // Handle saving visual coordinates
-  const handleSaveVisualCoords = async () => {
-    if (!editingLot || editingCoords.length < 3) return;
+  // Handle saving unified lot (both new and existing lots)
+  const handleSaveUnifiedLot = async () => {
+    if (!editingLot || editingCoords.length < 3) {
+      alert("Please ensure the lot has at least 3 corner points.");
+      return;
+    }
 
     setIsSavingCoords(true);
     try {
-      await axios.put(`${API_BASE_URL}/api/lots/${editingLot.lot_id}/coordinates`, {
-        coordinates: editingCoords,
-      });
+      if (editingLot.isNew) {
+        const lotNum = (quickLotNumber || editingLot.lot_number || getNextSuggestedLotNumber()).trim();
+        const area = parseFloat(quickAreaSqm || editingLot.area_sqm) || 100;
+        const status = quickStatus || editingLot.status || "Available";
+        const propId = parseInt(selectedProperty || editingLot.property_id);
 
-      alert("Coordinates updated successfully!");
-      handleLotUpdated();
+        if (!lotNum) {
+          alert("Please enter a lot identifier or number.");
+          setIsSavingCoords(false);
+          return;
+        }
+
+        // 1. Create lot record in backend
+        const response = await axios.post(
+          `${API_BASE_URL}/api/lots`,
+          {
+            property_id: propId,
+            lot_number: lotNum,
+            area_sqm: area,
+            status: status,
+          },
+          { withCredentials: true, ...getAuthConfig() }
+        );
+
+        const newLotId = response.data.lot_id;
+
+        // 2. Save coordinates for the created lot
+        await axios.put(
+          `${API_BASE_URL}/api/lots/${newLotId}/coordinates`,
+          { coordinates: editingCoords },
+          getAuthConfig()
+        );
+
+        alert(`Lot ${lotNum} created and positioned successfully!`);
+      } else {
+        // Existing lot update coordinates
+        await axios.put(
+          `${API_BASE_URL}/api/lots/${editingLot.lot_id}/coordinates`,
+          { coordinates: editingCoords },
+          getAuthConfig()
+        );
+
+        // Update details (lot_number, area) if available
+        const currentLotNum = (quickLotNumber || editingLot.lot_number || "").trim();
+        const currentArea = parseFloat(quickAreaSqm || editingLot.area_sqm || targetAreaSqm) || 100;
+        if (currentLotNum) {
+          try {
+            await axios.put(
+              `${API_BASE_URL}/api/lots/${editingLot.lot_id}/details`,
+              {
+                lot_number: currentLotNum,
+                area_sqm: currentArea,
+              },
+              getAuthConfig()
+            );
+          } catch (e) {
+            console.warn("Could not update lot details:", e);
+          }
+        }
+
+        // Update status if available
+        const currentStatus = quickStatus || editingLot.status;
+        if (currentStatus) {
+          try {
+            await axios.put(
+              `${API_BASE_URL}/api/lots/${editingLot.lot_id}/status`,
+              { status: currentStatus },
+              getAuthConfig()
+            );
+          } catch (e) {
+            console.warn("Could not update lot status:", e);
+          }
+        }
+
+        alert("Coordinates updated successfully!");
+      }
+
+      try {
+        sessionStorage.removeItem("mapDataCache");
+      } catch (e) {}
+
+      await handleLotUpdated();
       setEditingLot(null);
+      setEditingCoords([]);
     } catch (err) {
-      console.error("Error saving coordinates:", err);
-      alert(err.response?.data?.error || "Failed to update coordinates");
+      console.error("Error saving lot:", err);
+      alert(err.response?.data?.error || err.message || "Failed to save lot");
     } finally {
       setIsSavingCoords(false);
     }
   };
 
-  // Handle saving visual coordinates and immediately auto-creating the adjacent next lot!
-  const handleSaveAndAddNext = async () => {
-    if (!editingLot || editingCoords.length < 3) return;
+  // Handle saving coordinates and immediately starting next adjacent lot
+  const handleSaveUnifiedAndNext = async () => {
+    if (!editingLot || editingCoords.length < 3) {
+      alert("Please ensure the lot has at least 3 corner points.");
+      return;
+    }
+
     setIsSavingCoords(true);
     try {
-      await axios.put(`${API_BASE_URL}/api/lots/${editingLot.lot_id}/coordinates`, {
-        coordinates: editingCoords,
-      });
+      const lotNum = (quickLotNumber || editingLot.lot_number || getNextSuggestedLotNumber()).trim();
+      const area = parseFloat(quickAreaSqm || editingLot.area_sqm) || 100;
+      const status = quickStatus || editingLot.status || "Available";
+      const propId = parseInt(selectedProperty || editingLot.property_id);
+
+      if (!lotNum) {
+        alert("Please enter a lot identifier or number.");
+        setIsSavingCoords(false);
+        return;
+      }
+
+      // 1. Save current lot to database
+      let currentId = editingLot.lot_id;
+      if (editingLot.isNew) {
+        const response = await axios.post(
+          `${API_BASE_URL}/api/lots`,
+          {
+            property_id: propId,
+            lot_number: lotNum,
+            area_sqm: area,
+            status: status,
+          },
+          { withCredentials: true, ...getAuthConfig() }
+        );
+        currentId = response.data.lot_id;
+      }
+
+      await axios.put(
+        `${API_BASE_URL}/api/lots/${currentId}/coordinates`,
+        { coordinates: editingCoords },
+        getAuthConfig()
+      );
+
+      // Refresh map lots in background
+      try {
+        sessionStorage.removeItem("mapDataCache");
+      } catch (e) {}
       await handleLotUpdated();
-      // Immediately duplicate & place adjacent next lot
-      await handleDuplicateLot();
+
+      // 2. Prepare next adjacent lot
+      const nextNum = autoIncrementLotNumber(lotNum);
+      const nextCoords = offsetPolygonAdjacent(editingCoords);
+
+      setQuickLotNumber(nextNum);
+      setQuickAreaSqm(area);
+      setQuickStatus("Available");
+      setEditingCoords(nextCoords.map((c) => [...c]));
+      dragCoordsRef.current = nextCoords.map((c) => [...c]);
+
+      setEditingLot({
+        isNew: true,
+        lot_number: nextNum,
+        area_sqm: area,
+        status: "Available",
+        property_id: propId,
+      });
     } catch (err) {
-      console.error("Error saving coordinates:", err);
-      alert(err.response?.data?.error || "Failed to update coordinates");
+      console.error("Error in Save & Next:", err);
+      alert(err.response?.data?.error || err.message || "Failed to save and add next lot");
     } finally {
       setIsSavingCoords(false);
     }
@@ -3048,10 +3289,11 @@ function AdminViewMap() {
 
         {/* Render Editable Polygon & Draggable Handles when editing coordinates */}
         {editingLot && (
-          <>
+          <Pane name="editing-lot-pane" style={{ zIndex: 650 }}>
             <Polygon
               ref={editingPolygonRef}
               positions={editingCoords}
+              pane="editing-lot-pane"
               pathOptions={{
                 color: "#10b981",
                 fillColor: "#10b981",
@@ -3062,27 +3304,50 @@ function AdminViewMap() {
               }}
               eventHandlers={{
                 mousedown: (e) => {
-                  e.originalEvent.stopPropagation();
-                  const startLatLng = e.latlng;
-                  const currentCoords =
-                    dragCoordsRef.current &&
-                    dragCoordsRef.current.length === editingCoords.length
-                      ? dragCoordsRef.current
-                      : editingCoords;
-                  const initialCoords = currentCoords.map((c) => [...c]);
-                  polygonDragRef.current = { startLatLng, initialCoords };
-                  setIsDraggingPolygon(true);
-                  if (map) {
-                    map.dragging.disable();
+                  if (e.originalEvent) {
+                    e.originalEvent.stopPropagation();
+                    e.originalEvent.preventDefault();
                   }
+                  startPolygonDrag(e.latlng);
                 },
               }}
             />
+
+            {/* Center Move Handle (allows grabbing and dragging entire lot effortlessly) */}
+            {editingCoords && editingCoords.length >= 3 && (() => {
+              const centroid = getPolygonCentroid(editingCoords);
+              return (
+                <Marker
+                  ref={centerMoveMarkerRef}
+                  position={centroid}
+                  pane="editing-lot-pane"
+                  draggable={true}
+                  icon={createPolygonCenterMoveIcon()}
+                  eventHandlers={{
+                    dragstart: (e) => {
+                      if (e.originalEvent) {
+                        e.originalEvent.stopPropagation();
+                      }
+                      startPolygonDrag(e.target.getLatLng());
+                    },
+                    mousedown: (e) => {
+                      if (e.originalEvent) {
+                        e.originalEvent.stopPropagation();
+                        e.originalEvent.preventDefault();
+                      }
+                      startPolygonDrag(e.latlng);
+                    },
+                  }}
+                />
+              );
+            })()}
+
             {editingCoords.map((coord, index) => (
               <Marker
                 key={`handle-${index}`}
                 ref={(el) => (cornerMarkersRef.current[index] = el)}
                 position={coord}
+                pane="editing-lot-pane"
                 draggable={true}
                 icon={createHandleIcon(index)}
                 eventHandlers={{
@@ -3114,6 +3379,7 @@ function AdminViewMap() {
               <Marker
                 key={`midpoint-${idx}-${editingCoords.length}`}
                 position={mid.position}
+                pane="editing-lot-pane"
                 icon={createMidpointIcon()}
                 eventHandlers={{
                   click: (e) => {
@@ -3123,7 +3389,7 @@ function AdminViewMap() {
                 }}
               />
             ))}
-          </>
+          </Pane>
         )}
 
         {/* Road and map labels match the generated blueprint and stay visible across zoom levels */}
@@ -3174,258 +3440,65 @@ function AdminViewMap() {
           })}
       </MapContainer>
 
-      {/* Floating Coordinate Editor Panel — Eye-Friendly Executive Glassmorphic Design */}
-      {editingLot && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-slate-900/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-700/70 rounded-2xl shadow-2xl p-3.5 z-[999] flex flex-col gap-2.5 transition-all duration-200 w-11/12 max-w-lg text-slate-200">
-          {/* Header Row */}
-          <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] shrink-0"></div>
-              <span className="font-bold text-white text-xs sm:text-sm truncate" title={editingLot.lot_number}>
-                Lot {editingLot.lot_number}
-              </span>
-
-              {/* Clean Area Badge */}
-              <div
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-slate-800/90 border border-slate-700 text-emerald-400 text-xs font-semibold shrink-0"
-                title={
-                  targetAreaSqm > 0
-                    ? `Area: ${liveAreaSqm.toFixed(1)} m² (Target: ${targetAreaSqm} m²)`
-                    : `Area: ${liveAreaSqm.toFixed(1)} m²`
-                }
-              >
-                <Ruler className="w-3 h-3 text-emerald-400" />
-                <span>{liveAreaSqm.toFixed(1)} m²</span>
-                {targetAreaSqm > 0 && (
-                  <span className="text-[10px] text-slate-400 font-normal ml-0.5">
-                    / {targetAreaSqm} m²
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Size Scale Adjusters */}
-            <div className="flex items-center gap-1 bg-slate-950/60 p-0.5 rounded-xl border border-slate-800">
-              <button
-                type="button"
-                onClick={() => handleScaleEditingCoords(0.85)}
-                className="px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                title="Shrink size (-15%)"
-              >
-                -15%
-              </button>
-              <button
-                type="button"
-                onClick={() => handleScaleEditingCoords(1.15)}
-                className="px-2 py-1 text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                title="Enlarge size (+15%)"
-              >
-                +15%
-              </button>
-              <button
-                type="button"
-                onClick={() => handleResetToSquareSize(targetAreaSqm || 100)}
-                className="px-2 py-1 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 rounded-lg transition-colors cursor-pointer"
-                title={`Reset to neat ${targetAreaSqm || 100}m² square`}
-              >
-                📐 Fit {targetAreaSqm || 100}m²
-              </button>
-            </div>
-
-            {/* Subtle Magnet Snapping Toggle */}
-            <button
-              type="button"
-              onClick={() => setEnableSnapping((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition-all cursor-pointer select-none shrink-0 ${
-                enableSnapping
-                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow-sm"
-                  : "bg-slate-800/80 text-slate-400 border-slate-700 hover:text-slate-200"
-              }`}
-              title="Magnetic Snapping to nearby corners"
-            >
-              <Magnet className={`w-3.5 h-3.5 ${enableSnapping ? "text-indigo-400" : "text-slate-400"}`} />
-              <span>Snap {enableSnapping ? "ON" : "OFF"}</span>
-            </button>
-          </div>
-
-          {/* Action Buttons Row */}
-          <div className="flex items-center justify-between gap-2 pt-0.5">
-            <button
-              type="button"
-              onClick={() => handleDuplicateLot()}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
-              title="Clone this lot & position adjacent"
-            >
-              <Copy className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Duplicate</span>
-            </button>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingLot(null)}
-                className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800/80 text-xs font-medium rounded-xl transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveVisualCoords}
-                disabled={isSavingCoords}
-                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 text-slate-200 border border-slate-700 text-xs font-semibold rounded-xl transition-all active:scale-95 cursor-pointer"
-              >
-                {isSavingCoords ? "Saving..." : "Save"}
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveAndAddNext}
-                disabled={isSavingCoords}
-                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-800 disabled:to-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-600/25 active:scale-95 cursor-pointer flex items-center gap-1.5"
-                title="Save coordinates and immediately start tracing the next adjacent lot!"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Save & Next</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Unified Lot Editor Panel — Replaces dual panels (Top bar + Quick Add card) */}
+      {editingLot && !isBulkShifting && (
+        <UnifiedLotEditorPanel
+          isOpen={Boolean(editingLot)}
+          isNewLot={Boolean(editingLot?.isNew)}
+          lotNumber={
+            editingLot?.isNew
+              ? quickLotNumber
+              : (editingLot?.lot_number || "")
+          }
+          onLotNumberChange={(val) => {
+            if (editingLot?.isNew) {
+              setQuickLotNumber(val);
+            }
+            setEditingLot((prev) => (prev ? { ...prev, lot_number: val } : prev));
+          }}
+          targetArea={
+            editingLot?.isNew
+              ? quickAreaSqm
+              : (targetAreaSqm || editingLot?.area_sqm || 100)
+          }
+          onTargetAreaChange={(val) => {
+            const num = parseFloat(val) || 0;
+            if (editingLot?.isNew) {
+              setQuickAreaSqm(num);
+            }
+            setEditingLot((prev) => (prev ? { ...prev, area_sqm: num } : prev));
+            if (num > 0) {
+              handleResetToSquareSize(num);
+            }
+          }}
+          liveArea={liveAreaSqm}
+          status={
+            editingLot?.isNew
+              ? quickStatus
+              : (editingLot?.status || "Available")
+          }
+          onStatusChange={(val) => {
+            if (editingLot?.isNew) {
+              setQuickStatus(val);
+            }
+            setEditingLot((prev) => (prev ? { ...prev, status: val } : prev));
+          }}
+          enableSnapping={enableSnapping}
+          onToggleSnapping={() => setEnableSnapping((prev) => !prev)}
+          onScaleCoords={handleScaleEditingCoords}
+          onFitSquare={handleResetToSquareSize}
+          onDuplicate={handleDuplicateLot}
+          onSave={handleSaveUnifiedLot}
+          onSaveAndNext={handleSaveUnifiedAndNext}
+          onCancel={() => {
+            setEditingLot(null);
+            setEditingCoords([]);
+          }}
+          isSaving={isSavingCoords}
+          floatingPos={floatingPos}
+          onMouseDownHeader={handleFloatingMouseDown}
+        />
       )}
-
-      {/* Draggable Quick Add Lot Modal */}
-      {showQuickAddLot && !isBulkShifting && typeof document !== "undefined" &&
-        ReactDOM.createPortal(
-          <div
-            style={{
-              position: "fixed",
-              left: `${floatingPos.x}px`,
-              top: `${floatingPos.y}px`,
-              zIndex: 999999,
-            }}
-            className="bg-slate-900/95 backdrop-blur-2xl border border-slate-700/90 rounded-2xl shadow-2xl p-5 w-88 text-slate-200 select-none cursor-default animate-in fade-in zoom-in-95 duration-150"
-          >
-            {/* Draggable Header */}
-            <div
-              onMouseDown={handleFloatingMouseDown}
-              className="flex items-center justify-between pb-3 mb-3.5 border-b border-slate-800 cursor-move active:cursor-grabbing select-none"
-              title="Hold and drag to move this box"
-            >
-              <div className="flex items-center gap-2.5">
-                <GripHorizontal className="w-5 h-5 text-slate-400" />
-                <span className="font-bold text-white text-sm tracking-wide">Quick Add Lot</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowQuickAddLot(false)}
-                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateQuickLot} className="space-y-3.5 cursor-default">
-              {/* Lot Number Input */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Lot Identifier / Number
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={quickLotNumber}
-                  onChange={(e) => setQuickLotNumber(e.target.value)}
-                  placeholder="e.g. Lot 1"
-                  className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-semibold cursor-text shadow-inner"
-                  autoFocus
-                />
-              </div>
-
-              {/* Area (SQM) Input */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Area (m²)</label>
-                  <div className="flex items-center gap-1">
-                    {[100, 120, 150].map((sz) => (
-                      <button
-                        key={sz}
-                        type="button"
-                        onClick={() => setQuickAreaSqm(sz)}
-                        className={`text-[11px] px-1.5 py-0.5 rounded-md border transition-all cursor-pointer font-semibold ${
-                          Number(quickAreaSqm) === sz
-                            ? "bg-blue-600 text-white border-blue-500 shadow-sm font-bold"
-                            : "bg-slate-800/90 text-slate-400 border-slate-700 hover:text-slate-200 hover:bg-slate-700"
-                        }`}
-                      >
-                        {sz}m²
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <input
-                  type="number"
-                  min="1"
-                  step="any"
-                  required
-                  value={quickAreaSqm}
-                  onChange={(e) => setQuickAreaSqm(e.target.value)}
-                  placeholder="100"
-                  className="w-full px-3.5 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-semibold cursor-text shadow-inner"
-                />
-              </div>
-
-              {/* Status Selector */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Status</label>
-                <div className="grid grid-cols-3 gap-1.5 bg-slate-950/70 p-1.5 rounded-xl border border-slate-800">
-                  {[
-                    { key: "Available", label: "Available" },
-                    { key: "Pending", label: "Pending" },
-                    { key: "Sold", label: "Sold" },
-                  ].map((st) => (
-                    <button
-                      key={st.key}
-                      type="button"
-                      onClick={() => setQuickStatus(st.key)}
-                      className={`py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer text-center ${
-                        quickStatus === st.key
-                          ? "bg-slate-700 text-white border-slate-600 shadow-sm ring-1 ring-white/10"
-                          : "border-transparent text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      {st.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Submit Action Button */}
-              <div className="pt-2 flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setShowQuickAddLot(false)}
-                  className="flex-1 py-2.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl text-xs font-semibold transition-colors cursor-pointer text-center"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCreatingQuickLot}
-                  className="flex-[2] py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-800 disabled:to-slate-800 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-600/30 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {isCreatingQuickLot ? (
-                    <span>Placing...</span>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      <span>Place Lot</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>,
-          document.body
-        )}
 
       {/* Floating Bulk Shift Alignment Editor Panel */}
       {isBulkShifting && (

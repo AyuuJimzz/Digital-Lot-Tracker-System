@@ -295,46 +295,46 @@ export function AdminHeader({ sidebarCollapsed }) {
 
             {/* Dropdown Menu */}
             {lotsDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[9999] dark:bg-slate-800 dark:border-slate-700">
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800/95 backdrop-blur-md border border-gray-200 dark:border-slate-700/90 rounded-xl shadow-xl py-1 z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                 <button
-                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
+                  className="group flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/80 transition-colors text-left cursor-pointer"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("openOverlayPanel"));
                     setLotsDropdownOpen(false);
                   }}
                 >
-                  <Layers className="mr-2 h-4 w-4 text-purple-600 dark:text-purple-400" />
-                  Subdivision Blueprint
+                  <Layers className="mr-2.5 h-4 w-4 text-slate-400 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                  <span className="font-medium">Subdivision Blueprint</span>
                 </button>
                 <button
-                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700 cursor-pointer"
+                  className="group flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/80 transition-colors text-left border-t border-gray-100 dark:border-slate-700/70 cursor-pointer"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("openQuickAddLot"));
                     setLotsDropdownOpen(false);
                   }}
                 >
-                  <Plus className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  Add New Lot
+                  <Plus className="mr-2.5 h-4 w-4 text-slate-400 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                  <span className="font-medium">Add New Lot</span>
                 </button>
                 <button
-                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700 cursor-pointer"
+                  className="group flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/80 transition-colors text-left border-t border-gray-100 dark:border-slate-700/70 cursor-pointer"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("openAnnotationPanel"));
                     setLotsDropdownOpen(false);
                   }}
                 >
-                  <Type className="mr-2 h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  Road & Map Labels
+                  <Type className="mr-2.5 h-4 w-4 text-slate-400 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                  <span className="font-medium">Road & Map Labels</span>
                 </button>
                 <button
-                  className="flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left border-t border-gray-100 dark:border-slate-700 cursor-pointer"
+                  className="group flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/80 transition-colors text-left border-t border-gray-100 dark:border-slate-700/70 cursor-pointer"
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("openMoveAllLots"));
                     setLotsDropdownOpen(false);
                   }}
                 >
-                  <Move className="mr-2 h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  Move All Lots Together
+                  <Move className="mr-2.5 h-4 w-4 text-slate-400 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                  <span className="font-medium">Move All Lots Together</span>
                 </button>
               </div>
             )}
