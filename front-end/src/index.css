@@ -52,19 +52,14 @@ body {
   transition: opacity 150ms ease-out;
 }
 
-/* ── Geo-anchored Road Labels: 100% hidden unless at street close-up level (Zoom 20+) ── */
+/* ── Geo-anchored Road Labels: Continuous display matching generated blueprint overlay ── */
 .map-road-label-icon {
-  display: none !important;
+  display: block !important;
   overflow: visible !important;
   background: transparent !important;
   border: none !important;
   width: 0 !important;
   height: 0 !important;
-}
-
-.map-zoom-street-level .map-road-label-icon,
-.map-editing-labels-active .map-road-label-icon {
-  display: block !important;
 }
 
 .map-road-label-inner {
@@ -122,12 +117,17 @@ body {
    without changing a single pixel of a pin and without keeping a single layer
    promoted once the flight ends. Positions, z-order, tooltips and clicks are
    untouched: Leaflet still writes the exact same rounded position each frame. */
-/* Promote the tile and lot panes during property flights. */
+/* Promote the tile and lot panes during property flights and wheel/touchpad zoom gestures. */
 .map-is-flying .lot-plan-pin-marker,
 .map-is-flying .leaflet-tile-pane,
 .map-is-flying .lot-plan-pane,
 .map-is-flying .leaflet-overlay-pane,
-.map-is-flying .leaflet-marker-pane {
+.map-is-flying .leaflet-marker-pane,
+.map-wheel-zooming .lot-plan-pin-marker,
+.map-wheel-zooming .leaflet-tile-pane,
+.map-wheel-zooming .lot-plan-pane,
+.map-wheel-zooming .leaflet-overlay-pane,
+.map-wheel-zooming .leaflet-marker-pane {
   will-change: transform;
   transform: translateZ(0); /* 🚀 Pinupwersa ang GPU VRAM allocation */
   backface-visibility: hidden;
@@ -135,7 +135,9 @@ body {
 
 /* 🖼️ High Resolution at Anti-Aliasing para sa Satellite Tiles: */
 .map-is-flying .leaflet-tile,
-.map-is-flying .leaflet-image-layer {
+.map-is-flying .leaflet-image-layer,
+.map-wheel-zooming .leaflet-tile,
+.map-wheel-zooming .leaflet-image-layer {
   image-rendering: -webkit-optimize-contrast; /* Mas malinaw at crisp habang nagzo-zoom */
   backface-visibility: hidden;
   transform: translate3d(0, 0, 0);

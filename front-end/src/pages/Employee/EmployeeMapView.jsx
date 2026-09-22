@@ -853,8 +853,8 @@ const EmployeeMapView = () => {
             showTooltips={showLotTooltips} isTouchDevice={isTouchDevice} />
         </Pane>
 
-        {/* PDF labels follow the plan at subdivision zoom. */}
-        {allPropertyAnnotations.filter((item) => currentZoom >= (item.scaleWithMap ? 18.2 : 19.5)).map((item) => (
+        {/* Road and map labels match the generated blueprint and stay visible across zoom levels */}
+        {allPropertyAnnotations.map((item) => (
             <Marker
               key={item.id}
               position={[item.lat, item.lng]}

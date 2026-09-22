@@ -3112,9 +3112,8 @@ function AdminViewMap() {
           </>
         )}
 
-        {/* PDF labels remain visible at subdivision zoom after locking alignment. */}
-        {allPropertiesAnnotations.filter((item) => showAnnotationPanel || isEditingOverlay ||
-          currentZoom >= (item.scaleWithMap ? 18.2 : 19.5)).map((item) => {
+        {/* Road and map labels match the generated blueprint and stay visible across zoom levels */}
+        {allPropertiesAnnotations.map((item) => {
             const isThisPropActive =
               Number(item.property_id) === Number(selectedProperty);
             const isInteractive =

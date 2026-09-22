@@ -7,8 +7,11 @@ export function attachSmoothWheelZoom(map) {
   map.scrollWheelZoom.disable();
   let active = false, frame = null, ownMove = false;
   let targetZoom, anchor, offset, lastTime, lastInput;
+  let lastPoint = null;
+  let currentTau = 58;
 
   const move = (zoom, final = false) => {
+    if (!anchor || !offset) return;
     const center = map.unproject(map.project(anchor, zoom).subtract(offset), zoom);
     ownMove = true;
     try {
@@ -23,6 +26,7 @@ export function attachSmoothWheelZoom(map) {
     frame = null;
     if (!active) return;
     active = false;
+    lastPoint = null;
     container.classList.remove("map-wheel-zooming");
     // Commit the currently displayed view, never jump to an unrendered target.
     move(map.getZoom(), true);
@@ -33,14 +37,14 @@ export function attachSmoothWheelZoom(map) {
   const step = (time) => {
     frame = null;
     if (!active) return;
-    const elapsed = Math.min(64, Math.max(1, time - lastTime));
+    const elapsed = Math.min(40, Math.max(1, time - lastTime));
     lastTime = time;
     const difference = targetZoom - map.getZoom();
     const nextZoom = Math.abs(difference) < 0.001
       ? targetZoom
-      : map.getZoom() + difference * (1 - Math.exp(-elapsed / 75));
+      : map.getZoom() + difference * (1 - Math.exp(-elapsed / currentTau));
     move(nextZoom);
-    if (Math.abs(targetZoom - nextZoom) < 0.001 && time - lastInput >= 100) {
+    if (Math.abs(targetZoom - nextZoom) < 0.001 && time - lastInput >= 80) {
       move(targetZoom);
       finish();
     } else {
@@ -56,22 +60,51 @@ export function attachSmoothWheelZoom(map) {
     if (!Number.isFinite(delta) || delta === 0) return;
     event.preventDefault();
     event.stopPropagation();
+
+    const now = performance.now();
     if (!active) {
       if (map._animatingZoom) map._onZoomTransitionEnd();
       map._stop();
       targetZoom = map.getZoom();
       active = true;
-      lastTime = performance.now();
+      lastTime = now;
+      lastPoint = null;
       container.classList.add("map-wheel-zooming");
       ownMove = true;
       try { map._moveStart(true); } finally { ownMove = false; }
     }
-    lastInput = performance.now();
+    lastInput = now;
+
+    // Zero-drift Spatial Anchor: Lock the exact geographical coordinate under the cursor
+    // so the spot under the mouse stays completely motionless while zooming.
+    // Only re-anchor if the user physically moves the cursor across the screen.
     const point = map.mouseEventToContainerPoint(event);
-    anchor = map.containerPointToLatLng(point);
-    offset = point.subtract(map.getSize().divideBy(2));
-    targetZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(),
-      targetZoom - Math.max(-120, Math.min(120, delta)) / 300));
+    if (!anchor || !offset || !lastPoint || point.distanceTo(lastPoint) > 3) {
+      anchor = map.containerPointToLatLng(point);
+      offset = point.subtract(map.getSize().divideBy(2));
+      lastPoint = point;
+    }
+
+    // Adaptive Input Classification:
+    // 1. Touchpad Pinch (event.ctrlKey) -> High-fidelity direct 1:1 gesture response
+    // 2. Discrete Mouse Wheel (notched wheel) -> Crisp, controlled step with silky deceleration
+    // 3. Touchpad Continuous Swipe -> Natural, low-latency follow-through without rubber-banding
+    const isPinch = Boolean(event.ctrlKey);
+    const isDiscreteWheel = event.deltaMode === 1 || (Math.abs(delta) >= 50 && Number.isInteger(delta));
+    let zoomDelta;
+
+    if (isPinch) {
+      zoomDelta = -Math.max(-0.7, Math.min(0.7, delta * 0.018));
+      currentTau = 28; // Ultra-responsive follow-through for fingers
+    } else if (isDiscreteWheel) {
+      zoomDelta = -Math.sign(delta) * Math.min(0.38, Math.abs(delta) / 280);
+      currentTau = 58; // Creamy luxury glide between wheel notches
+    } else {
+      zoomDelta = -Math.max(-0.45, Math.min(0.45, delta / 160));
+      currentTau = 36; // Tactile response for two-finger touchpad swipes
+    }
+
+    targetZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), targetZoom + zoomDelta));
     if (frame === null) frame = requestAnimationFrame(step);
   };
 
