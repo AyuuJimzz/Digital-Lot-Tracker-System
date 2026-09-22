@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Layers, Maximize, Minimize } from "lucide-react";
-import { TileLayer } from "react-leaflet";
+import { FlightRetainedTileLayer } from "./FlightRetainedTileLayer";
 
 
 export const MAP_LAYERS = {
@@ -57,6 +57,24 @@ const OVERVIEW_TILE_PROPS = {
   zIndex: 1,
 };
 
+// A persistent parent pyramid. At native zoom 8 the Oton–Guimbal corridor is
+// only two adjacent images, so a cold start gets a complete coarse base before
+// the larger z12/z13 overview grid. Leaflet scales these parents underneath the
+// detail layers at every camera zoom.
+const MACRO_TILE_PROPS = {
+  subdomains: ["0", "1", "2", "3"],
+  minZoom: 1,
+  maxZoom: 28,
+  maxNativeZoom: 8,
+  crossOrigin: false,
+  keepBuffer: 2,
+  updateWhenZooming: true,
+  updateWhenIdle: false,
+  updateInterval: 50,
+  zIndex: 0,
+  fetchPriority: "high",
+};
+
 const TILE_LAYER_CONFIG = {
   [MAP_LAYERS.SATELLITE]: {
     url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
@@ -73,6 +91,11 @@ function prepareTile({ tile }) {
   // Decode downloaded imagery off the synchronous rendering path where the
   // browser supports it. Keep Leaflet's normal grid updates and tile retention.
   tile.decoding = "async";
+}
+
+function prepareMacroTile({ tile }) {
+  tile.decoding = "async";
+  tile.fetchPriority = "high";
 }
 
 /**
@@ -156,7 +179,15 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
 
   return (
     <>
-      <TileLayer
+      <FlightRetainedTileLayer
+        key={`gdep-macro-${activeLayer}`}
+        url={TILE_LAYER_CONFIG[activeLayer]?.url || TILE_LAYER_CONFIG[MAP_LAYERS.SATELLITE].url}
+        className="gdep-macro-tile-layer"
+        opacity={1}
+        eventHandlers={{ tileloadstart: prepareMacroTile }}
+        {...MACRO_TILE_PROPS}
+      />
+      <FlightRetainedTileLayer
         key={`gdep-overview-${activeLayer}`}
         url={TILE_LAYER_CONFIG[activeLayer]?.url || TILE_LAYER_CONFIG[MAP_LAYERS.SATELLITE].url}
         className="gdep-smooth-tile-layer"
@@ -165,7 +196,7 @@ export function ActiveMapTileLayer({ activeLayer = MAP_LAYERS.SATELLITE }) {
         {...OVERVIEW_TILE_PROPS}
       />
       {Object.entries(renderedLayers).map(([layerId, layerState]) => (
-        <TileLayer
+        <FlightRetainedTileLayer
           key={`gdep-tile-${layerId}`}
           url={TILE_LAYER_CONFIG[layerId].url}
           className="gdep-smooth-tile-layer"

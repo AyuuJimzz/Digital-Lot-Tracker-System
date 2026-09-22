@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { preloadLocationTiles, preloadRegionalOverviewTiles } from "../utils/tilePreloader";
+import { preloadLocationTiles, preloadFlightCorridorTiles } from "../utils/tilePreloader";
 import { createPropertyFlight } from "../utils/propertyFlight";
 
 const flyingMaps = new WeakSet();
@@ -21,21 +21,31 @@ export function waitForPropertyFlight(map) {
 export function usePropertyMapNavigation(map, options) {
   const latest = useRef(options);
   latest.current = options;
+  const flightWarmupRef = useRef({ settled: true, ready: Promise.resolve(true) });
+  const propertyWarmupKey = (options?.properties || [])
+    .map((property) => Array.isArray(property?.coordinates) ? property.coordinates.join(",") : "")
+    .join("|");
 
-  // Preload regional overview tiles (Zoom 12-13) covering the estate region
+  // Start with the two or three z8 parent tiles, then fill the z12/z13 corridor.
+  // Re-run when async property data arrives; the old implementation only ran
+  // once with an empty property list on a cold application start.
   useEffect(() => {
     if (!map) return;
-    const cancelOverview = preloadRegionalOverviewTiles?.(latest.current?.properties, latest.current?.mapLayer || "satellite");
-    return () => cancelOverview?.();
-  }, [map, options?.mapLayer]);
+    const warmup = preloadFlightCorridorTiles(latest.current?.properties, latest.current?.mapLayer || "satellite");
+    const state = { settled: false, ready: warmup.ready };
+    flightWarmupRef.current = state;
+    warmup.ready.finally(() => { state.settled = true; });
+    return () => warmup?.();
+  }, [map, options?.mapLayer, propertyWarmupKey]);
 
   useEffect(() => {
     if (!map) return;
-    let target = null, targetZoom = 19, userMoved = false, moveTimer, flightToken = 0;
+    let target = null, targetZoom = 19, userMoved = false, moveTimer, flightToken = 0, navigationIntent = 0;
     let cancelPreload;
     const flight = createPropertyFlight(map, () => cancelFlight());
     const container = map.getContainer();
     const cancelFlight = () => {
+      navigationIntent++;
       const wasFlying = flyingMaps.has(map);
       cancelPreload?.();
       flightToken++;
@@ -57,7 +67,7 @@ export function usePropertyMapNavigation(map, options) {
       map.fire("propertyflightend");
       latest.current.onFlightEnd?.();
     };
-    const navigate = (coordinates, requestedZoom = 19, flightOptions = {}) => {
+    const startNavigate = (coordinates, requestedZoom = 19, flightOptions = {}) => {
       if (!Array.isArray(coordinates) || coordinates.length !== 2 ||
         !coordinates.every(Number.isFinite) || Math.abs(coordinates[0]) > 90 || Math.abs(coordinates[1]) > 180) return;
       const minZoom = map.getMinZoom?.() ?? 1;
@@ -97,6 +107,25 @@ export function usePropertyMapNavigation(map, options) {
       cancelPreload = preloadLocationTiles(coordinates[0], coordinates[1], preloadZooms, destinationLayer, preloadRadius);
       flight.navigate(coordinates, destinationZoom, { duration, animate: true, ...flightOptions });
       latest.current.triggerArrivalPulse?.(coordinates);
+    };
+    const navigate = (coordinates, requestedZoom = 19, flightOptions = {}) => {
+      const intent = ++navigationIntent;
+      const startWhenCorridorReady = () => {
+        if (intent !== navigationIntent) return;
+        const warmup = flightWarmupRef.current;
+        if (!warmup?.settled) {
+          // A first cold-cache flight waits for the bounded high-priority corridor.
+          // Property selection still updates immediately, and later clicks replace
+          // an earlier destination while this one-time warmup is in progress.
+          warmup.ready.finally(() => {
+            if (flightWarmupRef.current !== warmup) startWhenCorridorReady();
+            else if (intent === navigationIntent) startNavigate(coordinates, requestedZoom, flightOptions);
+          });
+          return;
+        }
+        startNavigate(coordinates, requestedZoom, flightOptions);
+      };
+      startWhenCorridorReady();
     };
     const onUserInterrupt = () => {
       if (!flyingMaps.has(map)) return;
