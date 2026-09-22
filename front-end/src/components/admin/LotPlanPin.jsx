@@ -1,7 +1,8 @@
 import { createElementObject, createLayerComponent, extendContext } from "@react-leaflet/core";
-import { Marker as LeafletMarker, divIcon } from "leaflet";
+import { divIcon } from "leaflet";
 import React from "react";
 import { useStableMapProps } from "../../hooks/useStableMapProps";
+import { ViewportLotMarker } from "../../utils/viewportLotMarker";
 
 const pinIconCache = new Map();
 
@@ -21,7 +22,7 @@ function getPinIcon(color) {
 
 const Pin = createLayerComponent(
   ({ center, color, pane, ...options }, context) => {
-    const instance = new LeafletMarker(center, {
+    const instance = new ViewportLotMarker(center, {
       ...options,
       pane: pane || "markerPane",
       icon: getPinIcon(color),
@@ -50,4 +51,3 @@ export function LotPlanPin({ eventHandlers, ...props }) {
   const stable = useStableMapProps(undefined, eventHandlers);
   return <Pin {...props} {...stable} />;
 }
-

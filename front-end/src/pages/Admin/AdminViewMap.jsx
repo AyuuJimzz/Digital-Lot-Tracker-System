@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../../config/api";
-import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useState, useMemo, useCallback, useRef } from "react";
 import ReactDOM from "react-dom";
 
 import {
@@ -81,6 +81,40 @@ const createOverviewPropertyIcon = (name, lotCount) => {
 };
 
 // Component to handle map centering and event listening
+// ── Optimization: O(1) status → color lookup ──────────────────────────────
+const STATUS_COLORS = {
+  Available: "#22c55e",
+  Pending: "#eab308",
+  Sold: "#ef4444",
+  NonSaleable: "#64748b",
+};
+
+const isNonSaleableLot = (lotNumber = "", areaSqm = 0) => {
+  const num = String(lotNumber || "").toLowerCase().trim();
+  return (
+    num.includes("park") ||
+    num.includes("playground") ||
+    num.includes("facility") ||
+    num.includes("clubhouse") ||
+    num.includes("excluded") ||
+    num.includes("open space") ||
+    num.includes("easement") ||
+    num.includes("community") ||
+    num.includes("p & pg") ||
+    num.includes("amenity") ||
+    num.includes("common") ||
+    num.includes("non-saleable") ||
+    num.includes("non saleable")
+  );
+};
+
+const getStatusColor = (status, lotNumber = "", areaSqm = 0) => {
+  if (isNonSaleableLot(lotNumber, areaSqm)) {
+    return STATUS_COLORS.NonSaleable;
+  }
+  return STATUS_COLORS[status] || "#94a3b8";
+};
+
 function MapController({
   center,
   onLotUpdated,
@@ -1883,39 +1917,7 @@ function AdminViewMap() {
     return properties.length > 0 ? [10.7372, 122.4998] : [10.90, 122.60];
   }, [properties, selectedProperty]);
 
-  // ── Optimization: O(1) status → color lookup ──────────────────────────────
-  const STATUS_COLORS = {
-    Available: "#22c55e",
-    Pending: "#eab308",
-    Sold: "#ef4444",
-    NonSaleable: "#64748b",
-  };
 
-  const isNonSaleableLot = (lotNumber = "", areaSqm = 0) => {
-    const num = String(lotNumber || "").toLowerCase().trim();
-    return (
-      num.includes("park") ||
-      num.includes("playground") ||
-      num.includes("facility") ||
-      num.includes("clubhouse") ||
-      num.includes("excluded") ||
-      num.includes("open space") ||
-      num.includes("easement") ||
-      num.includes("community") ||
-      num.includes("p & pg") ||
-      num.includes("amenity") ||
-      num.includes("common") ||
-      num.includes("non-saleable") ||
-      num.includes("non saleable")
-    );
-  };
-
-  const getStatusColor = (status, lotNumber = "", areaSqm = 0) => {
-    if (isNonSaleableLot(lotNumber, areaSqm)) {
-      return STATUS_COLORS.NonSaleable;
-    }
-    return STATUS_COLORS[status] || "#94a3b8";
-  };
 
 
   // Fetch map data
@@ -2490,6 +2492,218 @@ function AdminViewMap() {
     (window.matchMedia("(hover: none) and (pointer: coarse)").matches ||
       ("ontouchstart" in window && window.innerWidth < 1100));
 
+  // Event handlers read the committed selection without rebuilding every lot
+  // when a property switch or sidebar update renders the map page.
+  const lotDetailsContext = useRef({ properties, selectedProperty });
+  useLayoutEffect(() => {
+    lotDetailsContext.current = { properties, selectedProperty };
+  }, [properties, selectedProperty]);
+  const showLotTooltips = currentZoom >= 19;
+  const shiftedPropertyId = isBulkShifting ? selectedProperty : null;
+  const renderedLots = useMemo(() => filteredLots.map((lot) => {
+    // Skip rendering original polygon if it's currently being edited visually
+    if (editingLot && Number(lot.lot_id) === Number(editingLot.lot_id)) {
+      return null;
+    }
+
+    // Skip lots with invalid or missing coordinates
+    if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
+      console.warn(
+        `Lot ${lot.lot_id} (${lot.lot_number}) has invalid coordinates, skipping...`
+      );
+      return null;
+    }
+
+    // Apply bulk shift offset if active for this property's lots
+    const coords =
+      isBulkShifting && Number(lot.property_id) === Number(shiftedPropertyId)
+        ? lot.coordinates.map(([lat, lng]) => [
+            lat + bulkShiftOffset.lat,
+            lng + bulkShiftOffset.lng,
+          ])
+        : lot.coordinates;
+
+    const isShifted = isBulkShifting && Number(lot.property_id) === Number(shiftedPropertyId);
+    const centerLat = isShifted ? (lot._centerLat ?? 0) + bulkShiftOffset.lat : (lot._centerLat ?? 0);
+    const centerLng = isShifted ? (lot._centerLng ?? 0) + bulkShiftOffset.lng : (lot._centerLng ?? 0);
+    const statusColor = getStatusColor(lot.status, lot.lot_number, lot.area_sqm);
+
+    const openFullLotDetails = async () => {
+      const matchingProp = lotDetailsContext.current.properties.find(
+        (p) => Number(p.id) === Number(lot.property_id || lotDetailsContext.current.selectedProperty)
+      );
+      const propName = matchingProp?.name || matchingProp?.property_name || "Golden Dragon Estate";
+      const propLocation = matchingProp?.location || matchingProp?.name || "Guimbal, Iloilo";
+
+      // Set basic lot data immediately with property details attached
+      setSelectedLot({
+        ...lot,
+        property_name: lot.property_name || propName,
+        location: lot.location || propLocation,
+      });
+      setIsOffcanvasOpen(true);
+
+      // Then fetch fresh data in background
+      try {
+        const lotDetails = await axios.get(
+          `${API_BASE_URL}/api/lots/${lot.lot_id}`,
+          getAuthConfig()
+        );
+        setSelectedLot({
+          ...lotDetails.data,
+          property_name: lotDetails.data.property_name || propName,
+          location: lotDetails.data.location || propLocation,
+        });
+      } catch (err) {
+        console.error("Lot Details Error:", err);
+      }
+    };
+
+    const handleLotClick = (e) => {
+      if (e?.originalEvent) {
+        e.originalEvent.stopPropagation();
+        e.originalEvent.preventDefault();
+      }
+      // On desktop (mouse), clicking immediately opens the full sidebar
+      if (!isTouchDevice) {
+        openFullLotDetails();
+      } else {
+        setActivePopupLot({
+          ...lot,
+          position: [centerLat, centerLng],
+          statusColor,
+        });
+      }
+    };
+
+    return (
+      <React.Fragment key={`lot-node-${lot.lot_id}`}>
+        <LotPlanPolygon
+          key={`poly-${lot.lot_id}`}
+          noClip={true}
+          positions={coords}
+          pathOptions={{
+            color: isBulkShifting ? "#3b82f6" : statusColor,
+            fillColor: isBulkShifting ? "#3b82f6" : statusColor,
+            fillOpacity: isBulkShifting ? 0.65 : 0.6,
+            weight: isBulkShifting ? 2.5 : 2,
+            dashArray: isBulkShifting ? "4, 4" : undefined,
+            className: isBulkShifting ? "cursor-grab active:cursor-grabbing" : undefined,
+          }}
+          eventHandlers={{
+            mousedown: (e) => {
+              if (isBulkShifting && map) {
+                if (e?.originalEvent) {
+                  e.originalEvent.stopPropagation();
+                  e.originalEvent.preventDefault();
+                }
+                map.dragging.disable();
+                const startPoint = e.latlng;
+                const initOffset = { ...bulkShiftOffset };
+
+                const handleMove = (moveEvent) => {
+                  const dLat = moveEvent.latlng.lat - startPoint.lat;
+                  const dLng = moveEvent.latlng.lng - startPoint.lng;
+                  setBulkShiftOffset({
+                    lat: initOffset.lat + dLat,
+                    lng: initOffset.lng + dLng,
+                  });
+                };
+
+                const handleUp = () => {
+                  map.dragging.enable();
+                  map.off("mousemove", handleMove);
+                  map.off("mouseup", handleUp);
+                };
+
+                map.on("mousemove", handleMove);
+                map.on("mouseup", handleUp);
+              }
+            },
+            click: (e) => {
+              if (isBulkShifting) return;
+              handleLotClick(e);
+            },
+          }}
+        />
+
+        {!isBulkShifting && (
+          <LotPlanPin
+            key={`pin-${lot.lot_id}`}
+            center={[centerLat, centerLng]}
+            color={statusColor}
+            eventHandlers={{
+              click: handleLotClick,
+            }}
+          >
+            {!isTouchDevice && showLotTooltips && (
+              <Tooltip
+                pane="tooltipPane"
+                permanent={false}
+                direction="top"
+                offset={[0, -18]}
+                sticky={false}
+                interactive={false}
+                opacity={0.95}
+              >
+                <div className="text-center text-xs leading-tight">
+                  <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
+                  <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
+                  <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
+                    {isNonSaleableLot(lot.lot_number, lot.area_sqm) ? "Non-Saleable" : lot.status}
+                  </div>
+                  {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
+                    <>
+                      <div className="mt-2 pt-2 border-t border-gray-300">
+                        <div className="text-[11px] text-gray-700">
+                          <div className="font-semibold">Customer Info:</div>
+                          <div>{lot.customer.full_name || "N/A"}</div>
+                          <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
+                          <div className="text-gray-600">
+                            {lot.customer.contact_number || "N/A"}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </Tooltip>
+            )}
+          </LotPlanPin>
+        )}
+      </React.Fragment>
+    );
+
+        }), [
+    filteredLots, isTouchDevice, showLotTooltips,
+    editingLot, isBulkShifting, shiftedPropertyId, bulkShiftOffset, map,
+  ]);
+
+  const overviewBeacons = useMemo(() => properties.map((property) => {
+    if (!property.coordinates || !Array.isArray(property.coordinates) || property.coordinates.length < 2) return null;
+    return (
+      <Marker
+        key={`overview-prop-${property.id}`}
+        position={property.coordinates}
+        icon={createOverviewPropertyIcon(property.name, property.lotCount || 0)}
+        eventHandlers={{
+          click: (e) => {
+            if (e?.originalEvent) {
+              e.originalEvent.stopPropagation();
+            }
+            setSelectedProperty(property.id);
+            localStorage.setItem("selectedProperty", property.id.toString());
+            window.dispatchEvent(
+              new CustomEvent("selectProperty", {
+                detail: { propertyId: property.id, coordinates: property.coordinates, straight: true },
+              })
+            );
+          },
+        }}
+      />
+    );
+        }), [properties]);
+
   if (!mapData) return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
 
   return (
@@ -2644,30 +2858,7 @@ function AdminViewMap() {
         )}
 
         {/* ── Zoomed-Out Overview Green Property Location Beacons (CSS visibility) ── */}
-        {properties.map((property) => {
-          if (!property.coordinates || !Array.isArray(property.coordinates) || property.coordinates.length < 2) return null;
-          return (
-            <Marker
-              key={`overview-prop-${property.id}`}
-              position={property.coordinates}
-              icon={createOverviewPropertyIcon(property.name, property.lotCount || 0)}
-              eventHandlers={{
-                click: (e) => {
-                  if (e?.originalEvent) {
-                    e.originalEvent.stopPropagation();
-                  }
-                  setSelectedProperty(property.id);
-                  localStorage.setItem("selectedProperty", property.id.toString());
-                  window.dispatchEvent(
-                    new CustomEvent("selectProperty", {
-                      detail: { propertyId: property.id, coordinates: property.coordinates, straight: true },
-                    })
-                  );
-                },
-              }}
-            />
-          );
-        })}
+        {overviewBeacons}
 
         {lotImport.preview && !isEditingOverlay && !isPreparingOverlay && (() => {
           const candidateColor =
@@ -2857,181 +3048,7 @@ function AdminViewMap() {
 
 
         <Pane name="lot-plan" className="lot-plan-pane" style={{ zIndex: 410 }}>
-        {filteredLots.map((lot) => {
-          // Skip rendering original polygon if it's currently being edited visually
-          if (editingLot && Number(lot.lot_id) === Number(editingLot.lot_id)) {
-            return null;
-          }
-
-          // Skip lots with invalid or missing coordinates
-          if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {
-            console.warn(
-              `Lot ${lot.lot_id} (${lot.lot_number}) has invalid coordinates, skipping...`
-            );
-            return null;
-          }
-
-          // Apply bulk shift offset if active for this property's lots
-          const coords =
-            isBulkShifting && Number(lot.property_id) === Number(selectedProperty)
-              ? lot.coordinates.map(([lat, lng]) => [
-                  lat + bulkShiftOffset.lat,
-                  lng + bulkShiftOffset.lng,
-                ])
-              : lot.coordinates;
-
-          const isShifted = isBulkShifting && Number(lot.property_id) === Number(selectedProperty);
-          const centerLat = isShifted ? (lot._centerLat ?? 0) + bulkShiftOffset.lat : (lot._centerLat ?? 0);
-          const centerLng = isShifted ? (lot._centerLng ?? 0) + bulkShiftOffset.lng : (lot._centerLng ?? 0);
-          const statusColor = getStatusColor(lot.status, lot.lot_number, lot.area_sqm);
-
-          const openFullLotDetails = async () => {
-            const matchingProp = properties.find(
-              (p) => Number(p.id) === Number(lot.property_id || selectedProperty)
-            );
-            const propName = matchingProp?.name || matchingProp?.property_name || "Golden Dragon Estate";
-            const propLocation = matchingProp?.location || matchingProp?.name || "Guimbal, Iloilo";
-
-            // Set basic lot data immediately with property details attached
-            setSelectedLot({
-              ...lot,
-              property_name: lot.property_name || propName,
-              location: lot.location || propLocation,
-            });
-            setIsOffcanvasOpen(true);
-
-            // Then fetch fresh data in background
-            try {
-              const lotDetails = await axios.get(
-                `${API_BASE_URL}/api/lots/${lot.lot_id}`,
-                getAuthConfig()
-              );
-              setSelectedLot({
-                ...lotDetails.data,
-                property_name: lotDetails.data.property_name || propName,
-                location: lotDetails.data.location || propLocation,
-              });
-            } catch (err) {
-              console.error("Lot Details Error:", err);
-            }
-          };
-
-          const handleLotClick = (e) => {
-            if (e?.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.preventDefault();
-            }
-            // On desktop (mouse), clicking immediately opens the full sidebar
-            if (!isTouchDevice) {
-              openFullLotDetails();
-            } else {
-              setActivePopupLot({
-                ...lot,
-                position: [centerLat, centerLng],
-                statusColor,
-              });
-            }
-          };
-
-          return (
-            <React.Fragment key={`lot-node-${lot.lot_id}`}>
-              <LotPlanPolygon
-                key={`poly-${lot.lot_id}`}
-                noClip={true}
-                positions={coords}
-                pathOptions={{
-                  color: isBulkShifting ? "#3b82f6" : statusColor,
-                  fillColor: isBulkShifting ? "#3b82f6" : statusColor,
-                  fillOpacity: isBulkShifting ? 0.65 : 0.6,
-                  weight: isBulkShifting ? 2.5 : 2,
-                  dashArray: isBulkShifting ? "4, 4" : undefined,
-                  className: isBulkShifting ? "cursor-grab active:cursor-grabbing" : undefined,
-                }}
-                eventHandlers={{
-                  mousedown: (e) => {
-                    if (isBulkShifting && map) {
-                      if (e?.originalEvent) {
-                        e.originalEvent.stopPropagation();
-                        e.originalEvent.preventDefault();
-                      }
-                      map.dragging.disable();
-                      const startPoint = e.latlng;
-                      const initOffset = { ...bulkShiftOffset };
-
-                      const handleMove = (moveEvent) => {
-                        const dLat = moveEvent.latlng.lat - startPoint.lat;
-                        const dLng = moveEvent.latlng.lng - startPoint.lng;
-                        setBulkShiftOffset({
-                          lat: initOffset.lat + dLat,
-                          lng: initOffset.lng + dLng,
-                        });
-                      };
-
-                      const handleUp = () => {
-                        map.dragging.enable();
-                        map.off("mousemove", handleMove);
-                        map.off("mouseup", handleUp);
-                      };
-
-                      map.on("mousemove", handleMove);
-                      map.on("mouseup", handleUp);
-                    }
-                  },
-                  click: (e) => {
-                    if (isBulkShifting) return;
-                    handleLotClick(e);
-                  },
-                }}
-              />
-
-              {!isBulkShifting && (
-                <LotPlanPin
-                  key={`pin-${lot.lot_id}`}
-                  center={[centerLat, centerLng]}
-                  color={statusColor}
-                  eventHandlers={{
-                    click: handleLotClick,
-                  }}
-                >
-                  {!isTouchDevice && currentZoom >= 19 && (
-                    <Tooltip
-                      pane="tooltipPane"
-                      permanent={false}
-                      direction="top"
-                      offset={[0, -18]}
-                      sticky={false}
-                      interactive={false}
-                      opacity={0.95}
-                    >
-                      <div className="text-center text-xs leading-tight">
-                        <div className="mb-1 font-bold text-slate-900">{lot.lot_number}</div>
-                        <div className="mb-1 text-[12px] text-gray-600">{lot.area_sqm} sqm</div>
-                        <div className="mb-1 text-[12px] font-bold" style={{ color: statusColor }}>
-                          {isNonSaleableLot(lot.lot_number, lot.area_sqm) ? "Non-Saleable" : lot.status}
-                        </div>
-                        {(lot.status === "Pending" || lot.status === "Sold") && lot.customer && (
-                          <>
-                            <div className="mt-2 pt-2 border-t border-gray-300">
-                              <div className="text-[11px] text-gray-700">
-                                <div className="font-semibold">Customer Info:</div>
-                                <div>{lot.customer.full_name || "N/A"}</div>
-                                <div className="text-gray-600">{lot.customer.email || "N/A"}</div>
-                                <div className="text-gray-600">
-                                  {lot.customer.contact_number || "N/A"}
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </Tooltip>
-                  )}
-                </LotPlanPin>
-              )}
-            </React.Fragment>
-          );
-
-        })}
+        {renderedLots}
 
         </Pane>
 
