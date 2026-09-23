@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="front-end/src/assets/image/golden-dragon-logo.png" alt="Golden Dragon Estate Logo" width="90" style="border-radius: 50%;" />
+<img src="front-end/src/assets/image/golden-dragon-logo.png" alt="Golden Dragon Estate Logo" width="100" style="border-radius: 50%;" />
 
 # Golden Dragon Estate Platform
 
-**Modern GIS Subdivision Mapping, Digital Lot Tracking & Real Estate Sales Management System**
+**Enterprise GIS Subdivision Mapping & Digital Real Estate Management System**
 
-An enterprise full-stack web platform built for Golden Dragon Estate Corporation to manage subdivision lot inventories, interactive CAD & satellite mapping, agent sales pipelines, and customer reservations.
+An end-to-end full-stack platform engineered for real estate developers and brokers to manage subdivision inventories, interactive satellite GIS mapping, automated CAD blueprint ingestion, agent sales pipelines, and customer reservations.
 
 [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-v20-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -19,119 +19,110 @@ An enterprise full-stack web platform built for Golden Dragon Estate Corporation
 [![UptimeRobot](https://img.shields.io/badge/Uptime-100%25_UptimeRobot-3BD671?style=flat-square&logo=uptimerobot&logoColor=white)](https://uptimerobot.com)
 [![Brevo](https://img.shields.io/badge/Email_API-Brevo-0B996F?style=flat-square&logo=brevo&logoColor=white)](https://www.brevo.com/)
 [![Meta Messenger](https://img.shields.io/badge/Alerts-Meta_Messenger-00B2FF?style=flat-square&logo=messenger&logoColor=white)](https://developers.facebook.com/docs/messenger-platform/)
-[![Docker](https://img.shields.io/badge/Containers-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 <br />
 
-[**Explore Live Deployment — goldendragonestate.onrender.com**](https://goldendragonestate.onrender.com)
+[**🌐 Explore Live Platform — goldendragonestate.onrender.com**](https://goldendragonestate.onrender.com)
 
 </div>
 
-<br />
+---
 
-## Features
+## 🌟 Key Features
 
-| Feature | Details |
-| :--- | :--- |
-| **Interactive GIS Engine** | 596+ georeferenced subdivision lots with high-precision polygon boundaries across Oton, Guimbal, and surrounding estates. Hardware-accelerated 60 FPS zoom with zero DOM churn. |
-| **AI/Vector PDF Blueprint Import** | Automated in-browser PDF vector parsing extracting 700+ lot parcel boundaries, road alignments, and lot numbers directly from subdivision engineering blueprints. |
-| **Automatic Map Cutout (Auto-Crop)** | Non-rectangular transparent boundary masking that isolates subdivision lots while automatically stripping out title blocks, legends, and distant vicinity maps. |
-| **Interactive Vector Geometry Editor** | Dedicated Edit Mode with smooth 60–120 FPS vertex dragging, dynamic corner point insertion, fast double-click / right-click corner deletion, and candidate shape transformation. |
-| **CAD Blueprint Tracing** | Official subdivision CAD overlays on live satellite imagery with real-time opacity, scale, and rotation controls for administrators with unified high-visibility lime styling. |
-| **Road & Street Annotations** | Transparent, geo-anchored road width and street name text labels with deep-zoom level auto-filtering. |
-| **Sales CRM Pipeline** | Scoped agent transaction management (`My Sales`, `My Clients`) tracking reservation status, lot dimensions, client history, and payment terms. |
-| **Lot Status Architecture** | Synchronized status engine categorized into `Available` (Green), `Pending` (Amber/Gold), `Sold` (Red), and `Cancelled` (Purple). |
-| **Dual Authentication** | Persistent 30-day session cookies paired with Bearer JWT tokens, single active device session enforcement, and role-based route guards. |
-| **OWASP Top 10 Security** | 100% parameterized SQL queries, automated DOMPurify script sanitization on inputs, and brute-force rate limiters (5 attempts/15 min). |
-| **Bi-Directional Cloud Sync** | 1-command database backup scripts synchronizing local Laragon environments with production Aiven Cloud MySQL over SSL. |
-| **24/7 Continuous Uptime** | Automated 5-minute heartbeat via UptimeRobot preventing Render backend sleep and executing active SQL handshakes with Aiven Cloud MySQL for guaranteed zero-downtime availability. |
-| **Automated Alerts & Brevo Email** | Transactional customer reservation receipts & OTP dispatches via Brevo HTTPS REST API, alongside real-time system health and customer lead alert push notifications routed directly to Meta Facebook Messenger via Graph API. |
-| **PWA & Field Tablet Ready** | Progressive Web App with custom service worker asset caching, landscape viewport optimization, and an in-memory 43-LGU geocoding engine for Panay Island. |
-| **Developer Console** | Protected administrative diagnostics suite featuring table storage inspection, system state audits, and configurable master PIN security. |
+### 🗺️ Interactive GIS & Subdivision Map (UI & UX)
+- **Cinematic Smooth Wheel Zoom**: Fluid, cursor-anchored zoom navigation delivering a continuous 60 FPS experience across large subdivision maps.
+- **Dynamic Map Style Switching**: Smooth cross-fade visual transitions when toggling between Satellite, Street Map, and Hybrid views.
+- **Real-Time Color-Coded Lot Inventory**: Instant visual inventory tracking: `Available` (Green), `Pending` (Gold), `Sold` (Red), and `Cancelled` (Purple).
+- **Interactive Lot Selection & Tooltips**: Instant parcel hover glows, lot metadata tooltips, and smooth camera fly-to centering upon selection.
+- **Interactive Multi-Lot Bulk Shift**: Visual drag-and-move tool enabling administrators to translate clusters of lots and annotations across the map with live bounding box preview.
+- **Road & Street Geo-Labels**: Transparent, geo-anchored street names and road width markers that automatically adapt to zoom levels.
+
+### 📐 CAD Blueprint & Vector PDF Tools (UI & UX)
+- **Automated Blueprint PDF Ingestion**: Upload subdivision engineering PDFs and let the system automatically extract lot parcels, numbers, and boundaries.
+- **Smart Survey Boundary Cutout (Auto-Crop)**: Automatically isolates estate lots while masking out title blocks, legends, and non-saleable survey margins.
+- **Visual Vector Shape Editor**: Precision CAD drawing canvas with draggable corner vertices, midpoint `+` handles for adding points, double-click corner deletion, and keyboard nudges.
+- **Visual Satellite Blueprint Overlay**: Live tracing paper overlay on satellite imagery with amber corner rotation handles, 4-way translation tool, opacity slider, and custom line styles (Lime, Cyan, Yellow, White).
+
+### 💼 Sales CRM & Administrative Workflow
+- **Slide-Out Lot Reservation Drawer**: Sleek right-side offcanvas panel displaying complete lot dimensions, pricing calculations, buyer info, and reservation actions.
+- **Agent Sales Dashboard**: Dedicated agent portals (`My Sales`, `My Clients`) for tracking reservation deposits, client profiles, and payment milestones.
+- **Role-Based Portals**: Tailored workflows and navigation layouts for Administrators, Brokers, and Sales Employees.
+- **Clean Feedback Notifications**: Modern, unobtrusive toast notifications for status updates, lot saves, and system alerts.
+
+### 📱 Modern Platform & Cloud Architecture
+- **PWA & Field Tablet Ready**: Responsive design optimized for mobile and field tablets with home screen installation support.
+- **Dual Authentication Security**: Secure 30-day persistent sessions, Bearer JWT protection, and role-based route guards.
+- **Automated Multi-Channel Alerts**: Instant customer reservation receipts via Brevo email and real-time broker lead notifications sent directly to Facebook Messenger.
+- **24/7 Zero-Downtime Availability**: Automated synthetic heartbeat keeping cloud services active with zero cold-start delays.
 
 ---
 
-## System Architecture
+## 🛠️ Technology Stack
 
-<p align="center">
-  <img src="docs/architecture-overview.png" alt="Golden Dragon Estate Platform - High Availability Cloud Architecture" width="100%" />
-  <br />
-  <sub>High-Availability 24/7 Cloud Architecture & Inactivity Keep-Alive Engine — <a href="https://goldendragonestate.onrender.com/architecture.html" target="_blank">Open Interactive Map ↗</a></sub>
-</p>
-
----
-
-## Technology Stack
-
-| Layer | Technology | Purpose |
+| Layer | Technology | Details |
 | :--- | :--- | :--- |
-| **Frontend UI** | React 18, React Router v7, Tailwind CSS 3.4 | Responsive Single Page Application with dynamic role views |
-| **GIS & Visualization** | Leaflet, React-Leaflet, Recharts, Lucide React | Interactive satellite mapping, polygon tracing, and analytics |
-| **Backend API** | Node.js, Express 5, Express-Session, Helmet.js | RESTful API server with security middlewares and rate limiting |
-| **Database** | MySQL2 (Connection Pooling), MySQL 8 | Relational database with full transaction isolation |
-| **Cloud Hosting** | Render (Frontend SPA & Backend Web Service) | Continuous deployment, automated TLS/SSL, and cloud host runtime |
-| **Cloud Database** | Aiven Cloud MySQL (SSL Mode Required) | Managed high-availability cloud database with SSL encryption |
-| **High Availability** | UptimeRobot (24/7 Synthetic Heartbeat) | Automated 5-minute health check keeping Render awake and pinging Aiven MySQL |
-| **Communications** | Brevo HTTPS REST API (Transactional Email) | Automated customer inquiry confirmations, receipts, and OTPs |
-| **Real-Time Alerts** | Meta Graph API (Facebook Messenger) | Direct push notifications to broker/developer for instant lead alerts |
-| **State & Caching** | TanStack React Query v5 | Automatic background refetching and client cache management |
-| **DevOps & Containers** | Docker, Docker Compose, phpMyAdmin | Containerized development environment with local DB administration |
-| **Security & Auth** | JWT (`jsonwebtoken`), `bcryptjs`, DOMPurify | Cryptographic token signing, password hashing, XSS sanitization |
+| **Frontend** | React 18, React Router v7, Tailwind CSS | Modern Single Page Application with PWA offline shell |
+| **GIS & Mapping** | Leaflet, React-Leaflet, Recharts, Lucide | Hardware-accelerated vector mapping and sales analytics |
+| **Backend API** | Node.js, Express 5, Express-Session | RESTful micro-architecture with strict input sanitization |
+| **Database** | MySQL 8, MySQL2 Connection Pool | High-performance relational database with ACID compliance |
+| **Cloud Hosting** | Render (Static Frontend & Web Service Backend) | Automated CI/CD deployment with free TLS/SSL certificates |
+| **Cloud Database** | Aiven Cloud MySQL | High-availability cloud-managed database with SSL encryption |
+| **Communications** | Brevo API & Meta Graph API (Messenger) | Automated email receipts and instant mobile lead dispatch |
+| **Monitoring** | UptimeRobot (24/7 Heartbeat) | Synthetic monitoring with active database ping |
 
 ---
 
-## Repository Structure
+## 📁 Repository Structure
 
 ```text
 .
 ├── back-end/
 │   ├── config/             # Database connection pool & system state
-│   ├── scripts/            # Database export & Aiven Cloud Sync tools
+│   ├── scripts/            # Database export & Aiven Cloud sync utilities
 │   └── src/
-│       ├── app.js          # Express app with security middlewares
+│       ├── app.js          # Express application & security middlewares
 │       ├── server.js       # HTTP server bootstrapper
-│       ├── controllers/    # Business logic (Lots, Properties, Customers, Auth, Transactions)
-│       ├── routes/         # API endpoints with rate limiters & developer routes
+│       ├── controllers/    # Domain business logic (Lots, Properties, Customers, Auth)
+│       ├── routes/         # Declarative API routers & route guards
 │       ├── middleware/     # Auth, session, maintenance & sanitization
-│       ├── services/       # Brevo email service, Messenger alerts & session manager
-│       └── utils/          # OWASP XSS sanitizer & geocoding helpers
+│       ├── services/       # Email delivery, Messenger alerts & session manager
+│       └── utils/          # Geocoding helpers & input sanitizers
 ├── front-end/
-│   ├── public/             # PWA Manifest, Service Worker & Icons
+│   ├── public/             # PWA Manifest, Service Worker & branding assets
 │   └── src/
-│       ├── components/     # UI components (Admin, Employee, Header, Map, Modals)
-│       ├── pages/          # Admin, Employee, Developer Panel, Login, Maps
-│       └── utils/          # Geocoding engine & coordinate helpers
-├── database_Backup/        # Master SQL dump (00_FULL_BACKUP.sql) & table files
-├── docker-compose.yml
-└── package.json            # Monorepo root scripts
+│       ├── components/     # Reusable UI component suites (Admin, Employee, Map, Modals)
+│       ├── pages/          # Admin portal, Employee portal, Developer Console, Map views
+│       └── utils/          # Geocoding engine & map projection helpers
+├── database_Backup/        # Master SQL schemas & data snapshots
+├── docker-compose.yml      # Local containerized development stack
+└── package.json            # Monorepo scripts
 ```
 
 ---
 
-## Quick Start (Local Development)
+## 🚀 Quick Start
 
 ### 1. Prerequisites
 - **Node.js:** v20+ LTS
 - **npm:** v9+
 - **MySQL:** Laragon or MySQL 8.0+
 
-### 2. Installation
-Clone the repository and install all monorepo dependencies:
-
+### 2. Clone & Install
 ```bash
 git clone https://github.com/goldendragonestate/Digital-Lot-Tracker-System.git
 cd Digital-Lot-Tracker-System
 npm install
 ```
 
-### 3. Environment Configuration
+### 3. Environment Setup
 Create a `.env` file in the root directory:
 
 ```env
 PORT=5000
-SESSION_SECRET=golden_dragon_secure_session_key_2026
-JWT_SECRET=golden_dragon_jwt_secret_key_2026
+SESSION_SECRET=your_secure_session_secret
+JWT_SECRET=your_jwt_secret_key
 
 # Local Database Configuration
 DB_HOST=localhost
@@ -145,22 +136,19 @@ FRONTEND_URL=http://localhost:3000
 
 # Transactional Email Engine (Brevo HTTPS REST API)
 EMAIL_USER=goldendragonestate@gmail.com
-BREVO_API_KEY=your_brevo_api_key_here
+BREVO_API_KEY=your_brevo_api_key
 
-# Real-Time Broker Alerts (Meta Facebook Messenger Graph API)
+# Broker Alerts (Meta Facebook Messenger Graph API)
 FB_PAGE_ACCESS_TOKEN=your_facebook_page_access_token
 FB_RECIPIENT_PSID=your_recipient_page_scoped_id
 FB_VERIFY_TOKEN=golden_dragon_bot_2026
 
 # Production Cloud Database (Aiven Cloud MySQL over SSL)
-AIVEN_SERVICE_URI=mysql://avnadmin:YOUR_PASSWORD@YOUR_AIVEN_HOST:PORT/defaultdb?ssl-mode=REQUIRED
-
-# Developer Diagnostics Gate
-DEVELOPER_PIN=5551
+AIVEN_SERVICE_URI=mysql://avnadmin:PASSWORD@HOST:PORT/defaultdb?ssl-mode=REQUIRED
 ```
 
 ### 4. Run Development Servers
-Start both the Frontend and Backend concurrently with a single command:
+Start both the Frontend and Backend concurrently:
 
 ```bash
 npm run dev
@@ -168,53 +156,10 @@ npm run dev
 
 - **Frontend Client:** `http://localhost:3000`
 - **Backend API:** `http://localhost:5000`
-- **Health Check:** `http://localhost:5000/api/health`
+- **System Health:** `http://localhost:5000/api/health`
 
 ---
 
-## Database Synchronization (Laragon / Aiven Cloud)
+## 📄 License
 
-Automated database migration and cloud synchronization scripts located in `back-end`:
-
-```bash
-# 1. Export local database to database_Backup/
-npm --prefix back-end run db:export
-
-# 2. Upload and sync backup directly to Aiven Cloud MySQL
-npm --prefix back-end run db:sync-cloud
-```
-
----
-
-## Available NPM Scripts
-
-| Command | Working Directory | Description |
-| :--- | :--- | :--- |
-| `npm run dev` | Root | Concurrently runs frontend (`:3000`) and backend (`:5000`) |
-| `npm run build:front` | Root | Builds optimized production bundle in `front-end/build` |
-| `npm run format` | Root | Formats repository source code with Prettier |
-| `npm run dev` | `back-end/` | Runs Express server with Nodemon auto-reload |
-| `npm run db:export` | `back-end/` | Dumps SQL backup of all 596 lots and associated tables |
-| `npm run db:sync-cloud` | `back-end/` | Pushes local SQL snapshots to Aiven Cloud MySQL |
-| `npm start` | `front-end/` | Launches React development server |
-| `npm run build` | `front-end/` | Produces production-ready React client bundle |
-
----
-
-## Docker Deployment (Optional)
-
-Run the containerized platform stack with MySQL and phpMyAdmin:
-
-```bash
-docker compose up --build
-```
-
-- **Frontend Application:** `http://localhost:3000`
-- **Backend Service:** `http://localhost:5000`
-- **Database Administration (phpMyAdmin):** `http://localhost:8080`
-
----
-
-## License
-
-Distributed under the **MIT License**. Engineered for Golden Dragon Estate Corporation.
+Distributed under the **MIT License**. Engineered for **Golden Dragon Estate Corporation**.
