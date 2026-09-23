@@ -122,12 +122,16 @@ export function createPropertyFlight(map, onInterrupt) {
     const cruiseZoom = Math.max(map.getMinZoom(), Math.min(minTripZoom - (screensAwayAt19 < 2 ? localLift : 0), idealOverviewZoom));
     const phaseDelay = 0.30;
     const wasActive = !!trajectory;
+    const destLatLng = latLng(coordinates);
+    const isTargetVisible = typeof map.getBounds === "function" && map.getBounds().contains(destLatLng);
+    const isOverviewDirect = options.straight !== false && !wasActive && startZoom < 17.5 && startZoom < zoom && isTargetVisible;
+    const isStraight = Boolean(options.straight || isOverviewDirect);
     trajectory = {
       from: { x: from.x, y: from.y, zoom: startZoom },
       to: { x: to.x, y: to.y, zoom },
-      duration: duration * 1000, destination: latLng(coordinates),
-      arc: options.straight ? 0 : Math.max(0, (startZoom + zoom) / 2 - cruiseZoom),
-      straight: !!options.straight,
+      duration: duration * 1000, destination: destLatLng,
+      arc: isStraight ? 0 : Math.max(0, (startZoom + zoom) / 2 - cruiseZoom),
+      straight: isStraight,
       phaseDelay,
     };
     elapsed = 0;
