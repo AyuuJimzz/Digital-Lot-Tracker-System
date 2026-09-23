@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
+import { showToast } from "../../components/GlobalToast";
 
 import { API_BASE_URL } from "../../config/api";
 
@@ -789,7 +790,7 @@ const DeveloperPanel = () => {
         setLogs(stateRes.data.logs || []);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to delete admin account");
+      showToast(err.response?.data?.error || "Failed to delete admin account", "error");
     } finally {
       setDeleteLoading(false);
     }
@@ -827,7 +828,7 @@ const DeveloperPanel = () => {
       });
       setLogs(stateRes.data.logs || []);
     } catch (err) {
-      alert("Failed to download database backup: " + (err.message || "Server Error"));
+      showToast("Failed to download database backup: " + (err.message || "Server Error"), "error");
     } finally {
       setDbLoading(false);
     }
@@ -855,7 +856,7 @@ const DeveloperPanel = () => {
       });
       setLogs(stateRes.data.logs || []);
     } catch (err) {
-      alert("Failed to toggle maintenance mode: " + (err.response?.data?.error || "Error"));
+      showToast("Failed to toggle maintenance mode: " + (err.response?.data?.error || "Error"), "error");
     } finally {
       setToggleLoading(false);
     }
@@ -939,7 +940,7 @@ const DeveloperPanel = () => {
         setLogs(stateRes.data.logs || []);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to delete record");
+      showToast(err.response?.data?.error || "Failed to delete record", "error");
     } finally {
       setRowDeleteLoading(false);
     }
@@ -974,7 +975,7 @@ const DeveloperPanel = () => {
         setLogs(stateRes.data.logs || []);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to purge test data");
+      showToast(err.response?.data?.error || "Failed to purge test data", "error");
     } finally {
       setPurgeLoading(false);
     }
@@ -1009,7 +1010,7 @@ const DeveloperPanel = () => {
         setLogs(stateRes.data.logs || []);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to generate demo data");
+      showToast(err.response?.data?.error || "Failed to generate demo data", "error");
     } finally {
       setDemoDataLoading(false);
     }
@@ -1057,7 +1058,7 @@ const DeveloperPanel = () => {
         setLogs(stateRes.data.logs || []);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to toggle demo employee account");
+      showToast(err.response?.data?.error || "Failed to toggle demo employee account", "error");
     } finally {
       setDemoEmpLoading(false);
     }
@@ -1090,7 +1091,7 @@ const DeveloperPanel = () => {
         setLogs(stateRes.data.logs || []);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to activate demo employee accounts");
+      showToast(err.response?.data?.error || "Failed to activate demo employee accounts", "error");
     } finally {
       setDemoEmpLoading(false);
     }
@@ -1123,7 +1124,7 @@ const DeveloperPanel = () => {
         setLogs(stateRes.data.logs || []);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to deactivate demo employee accounts");
+      showToast(err.response?.data?.error || "Failed to deactivate demo employee accounts", "error");
     } finally {
       setDemoEmpLoading(false);
     }

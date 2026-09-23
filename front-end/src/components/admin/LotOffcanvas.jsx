@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FileText, Copy, Edit3, ChevronDown, MapPin, Check, AlertTriangle, Trash2, X } from "lucide-react";
 import { API_BASE_URL } from "../../config/api";
 import { exportSingleLotWordDoc } from "../../utils/exportUtils";
+import { showToast } from "../GlobalToast";
 
 const checkIsNonSaleable = (num = "", area = 0) => {
   const text = String(num || "").toLowerCase().trim();
@@ -384,6 +385,7 @@ const LotOffcanvas = ({
       }
 
       setSaveMessage("Lot saved successfully!");
+      showToast("Lot saved successfully!", "success");
 
       if (onLotUpdated) {
         onLotUpdated();
@@ -394,7 +396,9 @@ const LotOffcanvas = ({
       }, 1500);
     } catch (error) {
       console.error("Error saving lot:", error);
-      setSaveMessage(error.message || "Failed to save lot. Please try again.");
+      const errMsg = error.message || "Failed to save lot. Please try again.";
+      setSaveMessage(errMsg);
+      showToast(errMsg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -442,6 +446,7 @@ const LotOffcanvas = ({
       }
 
       setSaveMessage("Lot deleted successfully!");
+      showToast("Lot deleted successfully!", "success");
       setLotPendingDelete(null);
 
       if (onLotUpdated) {
@@ -460,6 +465,7 @@ const LotOffcanvas = ({
         "Failed to delete lot. Please try again.";
       setDeleteLotError(errorMsg);
       setSaveMessage(errorMsg);
+      showToast(errorMsg, "error");
     } finally {
       setIsDeletingLot(false);
     }

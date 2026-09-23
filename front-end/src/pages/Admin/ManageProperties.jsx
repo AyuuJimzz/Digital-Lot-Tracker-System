@@ -2,8 +2,9 @@ import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Edit, Trash2, Plus, Eye, EyeOff, X, MapPin, AlertTriangle } from "lucide-react";
+import { Edit, Trash2, Plus, Eye, EyeOff, X, MapPin, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { geocodeAddress } from "../../utils/geocoding";
+import { showToast } from "../../components/GlobalToast";
 
 const MUNICIPALITY_COORDINATES = {
   "barotac nuevo": [10.8906, 122.7042],
@@ -47,6 +48,13 @@ const ManageProperties = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState("");
+
+  // Auto-dismiss delete success notification after 4 seconds
+  useEffect(() => {
+    if (!deleteSuccessMessage) return;
+    const timer = setTimeout(() => setDeleteSuccessMessage(""), 4000);
+    return () => clearTimeout(timer);
+  }, [deleteSuccessMessage]);
 
   const navigate = useNavigate();
 
@@ -148,10 +156,10 @@ const ManageProperties = () => {
         // Automatically direct user straight to the map location!
         navigate("/manage-lots");
       } else {
-        alert(editingProperty ? "Property updated successfully" : "Property added successfully");
+        showToast(editingProperty ? "Property updated successfully" : "Property added successfully", "success");
       }
     } catch (err) {
-      alert(err.response?.data?.error || err.message || "Failed to save property");
+      showToast(err.response?.data?.error || err.message || "Failed to save property", "error");
     } finally {
       setIsSubmitting(false);
       setSubmitStatus("");
@@ -179,8 +187,10 @@ const ManageProperties = () => {
       } catch (err) {}
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
-      alert(`Property status changed to ${newStatus}`);
-    } catch (err) { alert(err.message || "Failed to update property status"); }
+      showToast(`Property status changed to ${newStatus}`, "success");
+    } catch (err) {
+      showToast(err.response?.data?.error || err.message || "Failed to update property status", "error");
+    }
   };
 
   const openDeleteModal = (property) => {
@@ -217,7 +227,7 @@ const ManageProperties = () => {
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await fetchProperties();
       setPropertyPendingDelete(null);
-      setDeleteSuccessMessage(`Property "${propertyName}" deleted successfully`);
+      showToast(`Property "${propertyName}" deleted successfully`, "success");
     } catch (err) {
       const errorMsg =
         err.response?.data?.error ||
@@ -225,6 +235,7 @@ const ManageProperties = () => {
         err.message ||
         "Failed to delete property";
       setDeleteError(errorMsg);
+      showToast(errorMsg, "error");
     } finally {
       setIsDeleting(false);
     }
@@ -484,16 +495,20 @@ const ManageProperties = () => {
         </div>
       )}
 
-      {/* Success Notification Banner */}
+      {/* Floating Success Toast Notification (Zero Layout Shift) */}
       {deleteSuccessMessage && (
-        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 rounded-xl px-4 py-3 text-sm animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{deleteSuccessMessage}</span>
+        <div className="fixed bottom-6 right-6 z-[99999] flex items-center gap-3.5 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-700/80 dark:border-slate-700 text-white rounded-2xl px-5 py-4 shadow-2xl shadow-black/40 max-w-md animate-in slide-in-from-bottom-5 fade-in duration-200">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Success</div>
+            <div className="text-sm font-semibold text-slate-100 truncate">{deleteSuccessMessage}</div>
           </div>
           <button
             type="button"
             onClick={() => setDeleteSuccessMessage("")}
-            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 p-1 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
             title="Dismiss"
           >
             <X className="w-4 h-4" />

@@ -12,6 +12,7 @@ import axios from "axios";
 import { startKeepAlive, stopKeepAlive } from "./utils/keepAlive";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import ConcurrentSessionModal from "./components/ConcurrentSessionModal";
+import GlobalToast from "./components/GlobalToast";
 import { API_BASE_URL } from "./config/api";
 
 // Pages (Code-split with React.lazy for maximum performance & bundle optimization)
@@ -192,6 +193,9 @@ function App() {
 
       {/* Concurrent Device Session Kickout Alert Modal */}
       <ConcurrentSessionModal />
+
+      {/* Global Luxury Toast Notification System & Native Alert Interceptor */}
+      <GlobalToast />
     </>
   );
 }

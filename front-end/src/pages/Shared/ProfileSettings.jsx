@@ -2,6 +2,7 @@ import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
+import { showToast } from "../../components/GlobalToast";
 import {
   User,
   Shield,
@@ -131,11 +132,14 @@ const ProfileSettings = () => {
         withCredentials: true,
       });
       setMessage({ type: "success", text: "Profile updated successfully!" });
+      showToast("Profile updated successfully!", "success");
       try {
         sessionStorage.setItem("userProfileCache", JSON.stringify(profileData));
       } catch (e) {}
     } catch (err) {
-      setMessage({ type: "error", text: err.response?.data?.message || "Error updating profile." });
+      const errMsg = err.response?.data?.message || "Error updating profile.";
+      setMessage({ type: "error", text: errMsg });
+      showToast(errMsg, "error");
     } finally {
       setSaving(false);
     }
@@ -147,6 +151,7 @@ const ProfileSettings = () => {
 
     if (passwords.newPassword !== passwords.confirmPassword) {
       setMessage({ type: "error", text: "New passwords do not match." });
+      showToast("New passwords do not match.", "warning");
       return;
     }
 
@@ -162,12 +167,15 @@ const ProfileSettings = () => {
         { headers, withCredentials: true }
       );
       setMessage({ type: "success", text: "Password changed successfully!" });
+      showToast("Password changed successfully!", "success");
       setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err) {
+      const errMsg = err.response?.data?.message || "Error changing password.";
       setMessage({
         type: "error",
-        text: err.response?.data?.message || "Error changing password.",
+        text: errMsg,
       });
+      showToast(errMsg, "error");
     } finally {
       setSaving(false);
     }

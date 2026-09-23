@@ -13,6 +13,7 @@ import {
 } from "react-leaflet";
 import axios from "axios";
 import L from "leaflet";
+import { showToast } from "../../components/GlobalToast";
 import LotOffcanvas from "../../components/admin/LotOffcanvas";
 import { ImageOverlayControl } from "../../components/admin/ImageOverlayControl";
 import { BlueprintCropModal } from "../../components/admin/BlueprintCropModal";
@@ -534,6 +535,7 @@ function AdminViewMap() {
   const [overlayLineColor, setOverlayLineColor] = useState("lime"); // High-contrast CAD color (default to lime)
   const [overlayLineBoldness, setOverlayLineBoldness] = useState("super_fine"); // super_fine (hairline), fine, normal, bold
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [duplicateModalData, setDuplicateModalData] = useState(null);
   const originalUploadedImageRef = React.useRef(null);
   const rawOverlayRef = React.useRef(null);
   const transparentOverlayRef = React.useRef(null);
@@ -955,7 +957,7 @@ function AdminViewMap() {
   // Remove a vertex by index (triggered by double-clicking a corner handle)
   const handleRemoveVertex = (index) => {
     if (editingCoords.length <= 3) {
-      alert("A polygon must have at least 3 corners.");
+      showToast("A polygon must have at least 3 corners.", "warning");
       return;
     }
     const base = dragCoordsRef.current?.length === editingCoords.length ? dragCoordsRef.current : editingCoords;
@@ -2111,12 +2113,12 @@ function AdminViewMap() {
         { annotations: nextAnnotations },
         getAuthConfig()
       );
-      if (notify) alert("✅ Road & map labels saved successfully to database!");
+      if (notify) showToast("Road & map labels saved successfully to database!", "success");
       await handleLotUpdated();
       return true;
     } catch (err) {
       console.error("Error saving map annotations:", err);
-      alert(err.response?.data?.error || "Blueprint aligned, but the road labels could not be saved. Open Road Labels and try Save again.");
+      showToast(err.response?.data?.error || "Blueprint aligned, but the road labels could not be saved. Open Road Labels and try Save again.", "error");
       return false;
     } finally {
       setIsSavingAnnotations(false);
@@ -2446,7 +2448,7 @@ function AdminViewMap() {
   // Handle saving unified lot (both new and existing lots)
   const handleSaveUnifiedLot = async () => {
     if (!editingLot || editingCoords.length < 3) {
-      alert("Please ensure the lot has at least 3 corner points.");
+      showToast("Please ensure the lot has at least 3 corner points.", "warning");
       return;
     }
 
@@ -2459,7 +2461,7 @@ function AdminViewMap() {
         const propId = parseInt(selectedProperty || editingLot.property_id);
 
         if (!lotNum) {
-          alert("Please enter a lot identifier or number.");
+          showToast("Please enter a lot identifier or number.", "warning");
           setIsSavingCoords(false);
           return;
         }
@@ -2485,7 +2487,7 @@ function AdminViewMap() {
           getAuthConfig()
         );
 
-        alert(`Lot ${lotNum} created and positioned successfully!`);
+        showToast(`Lot ${lotNum} created and positioned successfully!`, "success");
       } else {
         // Existing lot update coordinates
         await axios.put(
@@ -2526,7 +2528,7 @@ function AdminViewMap() {
           }
         }
 
-        alert("Coordinates updated successfully!");
+        showToast("Coordinates updated successfully!", "success");
       }
 
       try {
@@ -2538,7 +2540,7 @@ function AdminViewMap() {
       setEditingCoords([]);
     } catch (err) {
       console.error("Error saving lot:", err);
-      alert(err.response?.data?.error || err.message || "Failed to save lot");
+      showToast(err.response?.data?.error || err.message || "Failed to save lot", "error");
     } finally {
       setIsSavingCoords(false);
     }
@@ -2547,7 +2549,7 @@ function AdminViewMap() {
   // Handle saving coordinates and immediately starting next adjacent lot
   const handleSaveUnifiedAndNext = async () => {
     if (!editingLot || editingCoords.length < 3) {
-      alert("Please ensure the lot has at least 3 corner points.");
+      showToast("Please ensure the lot has at least 3 corner points.", "warning");
       return;
     }
 
@@ -2559,7 +2561,7 @@ function AdminViewMap() {
       const propId = parseInt(selectedProperty || editingLot.property_id);
 
       if (!lotNum) {
-        alert("Please enter a lot identifier or number.");
+        showToast("Please enter a lot identifier or number.", "warning");
         setIsSavingCoords(false);
         return;
       }
@@ -2611,14 +2613,14 @@ function AdminViewMap() {
       });
     } catch (err) {
       console.error("Error in Save & Next:", err);
-      alert(err.response?.data?.error || err.message || "Failed to save and add next lot");
+      showToast(err.response?.data?.error || err.message || "Failed to save and add next lot", "error");
     } finally {
       setIsSavingCoords(false);
     }
   };
 
   // Handle duplicating / cloning a lot with auto-incremented identifier & adjacent offset
-  const handleDuplicateLot = async (lotToDuplicate) => {
+  const handleDuplicateLot = (lotToDuplicate) => {
     const sourceLot =
       lotToDuplicate ||
       (editingLot
@@ -2632,7 +2634,7 @@ function AdminViewMap() {
         : selectedLot);
 
     if (!sourceLot) {
-      alert("Please select a lot to duplicate.");
+      showToast("Please select a lot to duplicate.", "warning");
       return;
     }
 
@@ -2640,14 +2642,25 @@ function AdminViewMap() {
     const nextLotNumber = autoIncrementLotNumber(sourceLot.lot_number || "Lot 1");
     const targetArea = sourceLot.area_sqm || 100;
 
-    const confirmedName = window.prompt(
-      `Duplicate Lot: Enter identifier for the new adjacent lot:`,
-      nextLotNumber
-    );
+    setDuplicateModalData({
+      sourceLot,
+      propId,
+      targetArea,
+      lotName: nextLotNumber,
+      isSubmitting: false,
+    });
+  };
 
-    // If user clicked cancel
-    if (confirmedName === null) return;
-    const finalLotName = (confirmedName || nextLotNumber).trim() || nextLotNumber;
+  const handleConfirmDuplicateLot = async () => {
+    if (!duplicateModalData || duplicateModalData.isSubmitting) return;
+    const { sourceLot, propId, targetArea, lotName } = duplicateModalData;
+    const finalLotName = (lotName || "").trim();
+    if (!finalLotName) {
+      showToast("Please enter an identifier for the new lot.", "warning");
+      return;
+    }
+
+    setDuplicateModalData((prev) => ({ ...prev, isSubmitting: true }));
 
     try {
       // 1. Resolve source lot polygon coordinates
@@ -2722,6 +2735,7 @@ function AdminViewMap() {
 
       // 6. Close drawer and switch visual coordinate editor to the new lot
       setIsOffcanvasOpen(false);
+      setDuplicateModalData(null);
       setEditingLot({
         lot_id: newLotId,
         lot_number: finalLotName,
@@ -2742,10 +2756,11 @@ function AdminViewMap() {
         })
       );
 
-      alert(`✅ Successfully created ${finalLotName}! You can now adjust its corners.`);
+      showToast(`Successfully created ${finalLotName}! You can now adjust its corners.`, "success");
     } catch (err) {
       console.error("Error duplicating lot:", err);
-      alert(err.response?.data?.error || err.message || "Failed to duplicate lot");
+      showToast(err.response?.data?.error || err.message || "Failed to duplicate lot", "error");
+      setDuplicateModalData((prev) => (prev ? { ...prev, isSubmitting: false } : null));
     }
   };
 
@@ -3903,6 +3918,64 @@ function AdminViewMap() {
         onApplyCrop={handleApplyCrop}
         onClose={() => setIsCropModalOpen(false)}
       />
+
+      {/* ── In-App Duplicate Lot Modal ──────────────────────────────── */}
+      {duplicateModalData && typeof document !== "undefined" && ReactDOM.createPortal(
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-start justify-between pb-3 mb-4 border-b border-gray-100 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Duplicate Lot</h3>
+              <button
+                type="button"
+                onClick={() => setDuplicateModalData(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
+              Enter an identifier for the new adjacent lot (cloned with matching dimensions):
+            </p>
+            <input
+              type="text"
+              autoFocus
+              value={duplicateModalData.lotName}
+              onChange={(e) =>
+                setDuplicateModalData((prev) => ({ ...prev, lotName: e.target.value }))
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleConfirmDuplicateLot();
+                if (e.key === "Escape") setDuplicateModalData(null);
+              }}
+              placeholder="e.g. Lot 2"
+              className="w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white mb-5 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            />
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDuplicateModalData(null)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={duplicateModalData.isSubmitting}
+                onClick={handleConfirmDuplicateLot}
+                className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md shadow-blue-600/25 active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                {duplicateModalData.isSubmitting ? "Duplicating..." : "Duplicate Lot"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Road & Map Labels Floating Control ───────────────────────── */}
       {showAnnotationPanel && (

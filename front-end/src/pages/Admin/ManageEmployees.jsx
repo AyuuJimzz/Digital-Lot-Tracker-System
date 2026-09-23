@@ -15,6 +15,7 @@ import {
   KeyRound,
   AlertTriangle,
 } from "lucide-react";
+import { showToast } from "../../components/GlobalToast";
 
 const inputCls =
   "w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-slate-700 rounded-lg shadow-sm bg-white dark:bg-slate-800/90 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:focus:border-blue-500 transition-all";
@@ -47,6 +48,13 @@ const ManageEmployees = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState("");
+
+  // Auto-dismiss delete success notification after 4 seconds
+  useEffect(() => {
+    if (!deleteSuccessMessage) return;
+    const timer = setTimeout(() => setDeleteSuccessMessage(""), 4000);
+    return () => clearTimeout(timer);
+  }, [deleteSuccessMessage]);
 
   const navigate = useNavigate();
 
@@ -237,18 +245,19 @@ const ManageEmployees = () => {
         : `${API_BASE_URL}/api/employees`;
       if (editingEmployee) {
         await axios.put(url, formData, authConfig);
-        alert("Employee updated successfully");
+        showToast("Employee updated successfully", "success");
       } else {
         const res = await axios.post(url, formData, authConfig);
-        alert(
+        showToast(
           res.data?.message ||
-            "Employee added successfully. An email with login credentials has been sent."
+            "Employee added successfully. An email with login credentials has been sent.",
+          "success"
         );
       }
       await fetchEmployees();
       resetForm();
     } catch (err) {
-      alert(err.response?.data?.error || err.message || "Failed to save employee");
+      showToast(err.response?.data?.error || err.message || "Failed to save employee", "error");
     }
   };
 
@@ -296,7 +305,7 @@ const ManageEmployees = () => {
 
       await fetchEmployees();
       setEmployeePendingDelete(null);
-      setDeleteSuccessMessage(`Employee "${employeeName}" deleted successfully`);
+      showToast(`Employee "${employeeName}" deleted successfully`, "success");
     } catch (err) {
       const errorMsg =
         err.response?.data?.error ||
@@ -304,6 +313,7 @@ const ManageEmployees = () => {
         err.message ||
         "Failed to delete employee";
       setDeleteError(errorMsg);
+      showToast(errorMsg, "error");
     } finally {
       setIsDeleting(false);
     }
@@ -565,16 +575,20 @@ const ManageEmployees = () => {
         </div>
       )}
 
-      {/* Success Notification Banner */}
+      {/* Floating Success Toast Notification (Zero Layout Shift) */}
       {deleteSuccessMessage && (
-        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 rounded-xl px-4 py-3 text-sm animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{deleteSuccessMessage}</span>
+        <div className="fixed bottom-6 right-6 z-[99999] flex items-center gap-3.5 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-700/80 dark:border-slate-700 text-white rounded-2xl px-5 py-4 shadow-2xl shadow-black/40 max-w-md animate-in slide-in-from-bottom-5 fade-in duration-200">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Success</div>
+            <div className="text-sm font-semibold text-slate-100 truncate">{deleteSuccessMessage}</div>
           </div>
           <button
             type="button"
             onClick={() => setDeleteSuccessMessage("")}
-            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 p-1 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
             title="Dismiss"
           >
             <X className="w-4 h-4" />
