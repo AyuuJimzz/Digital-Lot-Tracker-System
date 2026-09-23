@@ -4,7 +4,7 @@ import { API_BASE_URL } from "../../../../config/api";
 import { showToast } from "../../../../components/GlobalToast";
 import { getLotBounds } from "../../../../utils/lotViewport";
 import { MAP_LAYERS } from "../../../../components/admin/MapLayerControls";
-import { DEFAULT_COORDINATES_MAP } from "../../../../utils/geocoding";
+import { getPropertyFallbackCoordinates } from "../../../../utils/geocoding";
 import { autoIncrementLotNumber, offsetPolygonAdjacent } from "../../../../utils/geoUtils";
 import {
   getAuthConfig,
@@ -108,9 +108,9 @@ export const useAdminViewMap = () => {
   const properties = useMemo(() => {
     if (mapData && Array.isArray(mapData.properties) && mapData.properties.length > 0) {
       return mapData.properties.filter((p) => p.status !== "inactive").map((p) => {
-        let coords = DEFAULT_COORDINATES_MAP[p.property_id];
+        let coords = getPropertyFallbackCoordinates(p.property_id, p.location, p.property_name);
         const propLots = (mapData.lots || []).filter(
-          (l) => l.property_id === p.property_id && l.coordinates && l.coordinates.length > 0
+          (l) => Number(l.property_id) === Number(p.property_id) && l.coordinates && l.coordinates.length > 0
         );
 
         if (propLots.length > 0) {
@@ -169,7 +169,7 @@ export const useAdminViewMap = () => {
 
   // Selected property coordinates
   const selectedPropertyCoords = useMemo(() => {
-    const prop = properties.find((p) => p.id === selectedProperty);
+    const prop = properties.find((p) => Number(p.id) === Number(selectedProperty));
     if (prop && prop.coordinates) return prop.coordinates;
 
     try {

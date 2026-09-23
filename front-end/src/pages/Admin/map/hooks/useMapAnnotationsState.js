@@ -3,7 +3,7 @@ import axios from "axios";
 import L from "leaflet";
 import { API_BASE_URL } from "../../../../config/api";
 import { showToast } from "../../../../components/GlobalToast";
-import { DEFAULT_COORDINATES_MAP } from "../../../../utils/geocoding";
+import { getPropertyFallbackCoordinates } from "../../../../utils/geocoding";
 import { mergeGeneratedRoadAnnotations } from "../../../../utils/pdfLotImport/roadLabels";
 import { getAuthConfig } from "../utils/mapConstants";
 
@@ -88,11 +88,17 @@ export function useMapAnnotationsState({
   }, []);
 
   const handleAddAnnotation = useCallback(() => {
+    const property = mapData?.properties?.find(
+      (item) => Number(item.property_id) === Number(selectedProperty)
+    );
+    const fallback = getPropertyFallbackCoordinates(
+      selectedProperty, property?.location, property?.property_name
+    );
     const center = map
       ? map.getCenter()
       : {
-          lat: DEFAULT_COORDINATES_MAP[selectedProperty]?.[0] || 10.7372,
-          lng: DEFAULT_COORDINATES_MAP[selectedProperty]?.[1] || 122.4998,
+          lat: fallback[0],
+          lng: fallback[1],
         };
     const newId = "label_" + Date.now();
     const newLabel = {
@@ -108,7 +114,7 @@ export function useMapAnnotationsState({
     setActiveAnnotationId(newId);
     setIsEditingAnnotations(true);
     setShowAnnotationPanel(true);
-  }, [map, annotations.length, selectedProperty]);
+  }, [map, annotations.length, selectedProperty, mapData]);
 
   const handleUpdateAnnotation = useCallback((id, updates) => {
     setAnnotations((prev) =>

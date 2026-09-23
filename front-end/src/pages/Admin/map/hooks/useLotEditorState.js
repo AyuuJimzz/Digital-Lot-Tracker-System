@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { calculateGeodesicArea } from "../../../../utils/geoUtils";
-import { DEFAULT_COORDINATES_MAP } from "../../../../utils/geocoding";
+import { getPropertyFallbackCoordinates } from "../../../../utils/geocoding";
 import {
   getPolygonCentroid,
   createMidpointIcon,
@@ -130,7 +130,7 @@ export function useLotEditorState({
         baseCoords = typeof prop.coordinates === "string" ? JSON.parse(prop.coordinates) : prop.coordinates;
       }
       if (!baseCoords) {
-        baseCoords = DEFAULT_COORDINATES_MAP[selectedProperty] || [10.7372, 122.3857];
+        baseCoords = getPropertyFallbackCoordinates(selectedProperty, prop?.location, prop?.property_name);
       }
     }
 
@@ -214,7 +214,7 @@ export function useLotEditorState({
                 : prop.coordinates;
           }
           if (!baseCoords) {
-            baseCoords = DEFAULT_COORDINATES_MAP[selectedProperty] || [10.7372, 122.3857];
+            baseCoords = getPropertyFallbackCoordinates(property_id || selectedProperty, prop?.location, prop?.property_name);
           }
         }
 

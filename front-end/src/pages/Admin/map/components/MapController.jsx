@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 import { usePropertyMapNavigation } from "../../../../hooks/usePropertyMapNavigation";
 import { useSmoothWheelZoom } from "../../../../hooks/useSmoothWheelZoom";
+import { loadPropertyMapView } from "../../../../utils/propertyMapView";
 
 export function MapController({
   selectedProperty,
@@ -142,7 +143,8 @@ export function MapController({
     const targetProp = properties.find((p) => Number(p.id) === Number(selectedProperty));
     if (targetProp && targetProp.coordinates) {
       initialFlyDoneRef.current = true;
-      map.setView(targetProp.coordinates, 19, { animate: false });
+      const savedView = targetProp.lotCount === 0 ? loadPropertyMapView(selectedProperty) : null;
+      map.setView(savedView?.center || targetProp.coordinates, savedView?.zoom || 19, { animate: false });
       map.invalidateSize({ animate: false });
     }
   }, [map, properties, selectedProperty]);

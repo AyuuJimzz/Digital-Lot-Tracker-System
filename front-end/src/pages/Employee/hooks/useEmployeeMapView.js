@@ -6,11 +6,7 @@ import { getLotBounds } from "../../../utils/lotViewport";
 import { LotPlanPolygon } from "../../../components/admin/LotPlanPolygon";
 import { LotPlanPin } from "../../../components/admin/LotPlanPin";
 import { MAP_LAYERS } from "../../../components/admin/MapLayerControls";
-import {
-  geocodeAddress,
-  MUNICIPALITY_COORDINATES,
-  DEFAULT_COORDINATES_MAP,
-} from "../../../utils/geocoding";
+import { getPropertyFallbackCoordinates } from "../../../utils/geocoding";
 import {
   getAuthConfig,
   isNonSaleableLot,
@@ -94,9 +90,9 @@ export function useEmployeeMapView() {
       return mapData.properties
         .filter((p) => p.status !== "inactive")
         .map((p) => {
-          let coords = DEFAULT_COORDINATES_MAP[p.property_id];
+          let coords = getPropertyFallbackCoordinates(p.property_id, p.location, p.property_name);
           const propLots = (mapData.lots || []).filter(
-            (l) => l.property_id === p.property_id && l.coordinates && l.coordinates.length > 0
+            (l) => Number(l.property_id) === Number(p.property_id) && l.coordinates && l.coordinates.length > 0
           );
 
           if (propLots.length > 0) {
@@ -124,28 +120,6 @@ export function useEmployeeMapView() {
               }
             } catch (_) {}
 
-            if (!coords) {
-              const locationText = `${p.location || ""} ${p.property_name || ""}`.toLowerCase();
-              for (const [key, townCoords] of Object.entries(MUNICIPALITY_COORDINATES)) {
-                if (locationText.includes(key)) {
-                  coords = townCoords;
-                  try {
-                    localStorage.setItem("propertyCustomCoords_" + p.property_id, JSON.stringify(townCoords));
-                  } catch (_) {}
-                  break;
-                }
-              }
-            }
-
-            if (!coords && (p.location || p.property_name)) {
-              geocodeAddress(p.location || p.property_name)
-                .then((geo) => {
-                  if (geo && geo.lat && geo.lng) {
-                    localStorage.setItem("propertyCustomCoords_" + p.property_id, JSON.stringify([geo.lat, geo.lng]));
-                  }
-                })
-                .catch(() => {});
-            }
           }
 
           return {
@@ -154,6 +128,9 @@ export function useEmployeeMapView() {
             location: p.location,
             coordinates: coords || [10.7372, 122.4998],
             hasLots: propLots.length > 0,
+            lotCount: (mapData.lots || []).filter(
+              (lot) => Number(lot.property_id) === Number(p.property_id)
+            ).length,
             status: p.status || "active",
           };
         });
@@ -264,7 +241,7 @@ export function useEmployeeMapView() {
 
   // Selected property coordinates
   const selectedPropertyCoords = useMemo(() => {
-    const prop = properties.find((p) => p.id === selectedProperty);
+    const prop = properties.find((p) => Number(p.id) === Number(selectedProperty));
     if (prop && prop.coordinates) return prop.coordinates;
 
     try {

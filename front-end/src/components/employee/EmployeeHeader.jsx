@@ -6,8 +6,7 @@ import axios from "axios";
 
 import {
   geocodeAddress,
-  MUNICIPALITY_COORDINATES,
-  DEFAULT_COORDINATES_MAP,
+  getPropertyFallbackCoordinates,
 } from "../../utils/geocoding";
 
 // Robust coordinate resolver that checks direct coords, localStorage, town database, and geocoding
@@ -34,36 +33,25 @@ const resolvePropertyCoords = (p) => {
     }
   } catch (e) {}
 
-  // 3. Known property ID map
-  if (propId && DEFAULT_COORDINATES_MAP[propId]) {
-    return DEFAULT_COORDINATES_MAP[propId];
-  }
-
-  // 4. Known municipality matching
-  const locationText = `${p.location || ""} ${p.property_name || ""} ${p.name || ""}`.toLowerCase();
-  for (const [key, coords] of Object.entries(MUNICIPALITY_COORDINATES)) {
-    if (locationText.includes(key)) {
-      try {
-        localStorage.setItem("propertyCustomCoords_" + propId, JSON.stringify(coords));
-      } catch (e) {}
-      return coords;
-    }
-  }
+  // 3. Use the actual address, never an assumed database ID.
+  const fallback = getPropertyFallbackCoordinates(propId, p.location, p.property_name || p.name);
+  if (fallback[0] !== 10.7202 || fallback[1] !== 122.5621) return fallback;
 
   // 5. Dynamic geocoding
   if (p.location || p.property_name || p.name) {
     const query = p.location || p.property_name || p.name;
     geocodeAddress(query).then((geo) => {
       if (geo && geo.lat && geo.lng) {
-        localStorage.setItem(
-          "propertyCustomCoords_" + propId,
-          JSON.stringify([geo.lat, geo.lng])
-        );
+        try {
+          if (!localStorage.getItem("propertyCustomCoords_" + propId)) {
+            localStorage.setItem("propertyCustomCoords_" + propId, JSON.stringify([geo.lat, geo.lng]));
+          }
+        } catch (e) {}
       }
     }).catch(() => {});
   }
 
-  return [10.7372, 122.4998];
+  return fallback;
 };
 
 export function EmployeeHeader({ sidebarCollapsed }) {

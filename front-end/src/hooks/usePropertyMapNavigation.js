@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { preloadLocationTiles, preloadFlightCorridorTiles } from "../utils/tilePreloader";
 import { createPropertyFlight } from "../utils/propertyFlight";
+import { loadPropertyMapView, savePropertyMapView } from "../utils/propertyMapView";
 
 const flyingMaps = new WeakSet();
 
@@ -40,10 +41,15 @@ export function usePropertyMapNavigation(map, options) {
 
   useEffect(() => {
     if (!map) return;
-    let target = null, targetZoom = 19, userMoved = false, moveTimer, flightToken = 0, navigationIntent = 0;
+    let target = null, targetZoom = 19, userMoved = false, flightToken = 0, navigationIntent = 0;
     let cancelPreload;
     const flight = createPropertyFlight(map, () => cancelFlight());
     const container = map.getContainer();
+    const rememberEmptyPropertyView = () => {
+      const { properties = [], selectedProperty } = latest.current;
+      const property = properties.find((item) => Number(item.id) === Number(selectedProperty));
+      if (property && property.lotCount === 0) savePropertyMapView(selectedProperty, map);
+    };
     const cancelFlight = () => {
       navigationIntent++;
       const wasFlying = flyingMaps.has(map);
@@ -64,6 +70,7 @@ export function usePropertyMapNavigation(map, options) {
       target = null;
       targetZoom = 19;
       cancelPreload?.();
+      rememberEmptyPropertyView();
       map.fire("propertyflightend");
       latest.current.onFlightEnd?.();
     };
@@ -75,7 +82,6 @@ export function usePropertyMapNavigation(map, options) {
       const destinationZoom = Math.max(minZoom, Math.min(maxZoom, Number.isFinite(requestedZoom) ? requestedZoom : 19));
       if (target && map.distance(target, coordinates) < 1 && Math.abs(targetZoom - destinationZoom) < 0.05) return;
       if (!target && map.distance(map.getCenter(), coordinates) < 1 && Math.abs(map.getZoom() - destinationZoom) < 0.05) return;
-      clearTimeout(moveTimer);
       userMoved = false;
       target = coordinates;
       targetZoom = destinationZoom;
@@ -146,10 +152,11 @@ export function usePropertyMapNavigation(map, options) {
       latest.current.setSelectedProperty?.(propertyId);
       if (autoSwiped) return;
       const property = latest.current.properties?.find((item) => Number(item.id) === Number(propertyId));
-      navigate(property?.coordinates || coordinates, 19, straight ? { straight: true } : {});
+      const savedView = property?.lotCount === 0 ? loadPropertyMapView(propertyId) : null;
+      navigate(savedView?.center || property?.coordinates || coordinates, savedView?.zoom || 19,
+        straight ? { straight: true } : {});
     };
     const onDragStart = () => {
-      clearTimeout(moveTimer);
       cancelFlight();
       userMoved = true;
     };
@@ -160,23 +167,10 @@ export function usePropertyMapNavigation(map, options) {
         return;
       }
       if (!userMoved) return;
-      clearTimeout(moveTimer);
-      moveTimer = setTimeout(() => {
-        if (flyingMaps.has(map) || !userMoved) return;
-        userMoved = false;
-        const { properties = [], selectedProperty } = latest.current;
-        let nearest = null, distance = 3500;
-        properties.forEach((property) => {
-          if (!property.coordinates) return;
-          const candidateDistance = map.distance(map.getCenter(), property.coordinates);
-          if (candidateDistance < distance) { nearest = property; distance = candidateDistance; }
-        });
-        if (!nearest || Number(nearest.id) === Number(selectedProperty)) return;
-        localStorage.setItem("selectedProperty", String(nearest.id));
-        window.dispatchEvent(new CustomEvent("selectProperty", {
-          detail: { propertyId: nearest.id, autoSwiped: true },
-        }));
-      }, 120);
+      userMoved = false;
+      // Panning to align an empty property must not silently select a nearby
+      // property with existing lots. Keep this browser's view for the chosen ID.
+      rememberEmptyPropertyView();
     };
     map.on("dragstart", onDragStart);
     map.on("moveend", onMoveEnd);
@@ -186,7 +180,6 @@ export function usePropertyMapNavigation(map, options) {
     window.addEventListener("navigateToProperty", onNavigate);
     window.addEventListener("selectProperty", onSelect);
     return () => {
-      clearTimeout(moveTimer);
       cancelFlight();
       flight.dispose();
       map.off("dragstart", onDragStart);

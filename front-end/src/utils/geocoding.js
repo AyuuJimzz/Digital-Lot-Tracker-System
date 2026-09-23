@@ -104,21 +104,11 @@ export const MUNICIPALITY_COORDINATES = {
 };
 
 /**
- * Default fallback coordinates map for the pre-seeded demo properties
- */
-export const DEFAULT_COORDINATES_MAP = {
-  1: [10.7372, 122.4998], // LOT-3896 Oton Cadastre
-  2: [10.737956, 122.505478], // Lot-2018 Oton Cadastre
-  3: [10.671313, 122.335284], // Lot-204 Nanga Guimbal
-};
-
-/**
  * ── Dynamic Property Location Resolver ──
  * Resolves accurate coordinates for any existing, newly created, or offline property:
  * 1. Checks localStorage cache (if property center was previously calculated from lots).
- * 2. Checks MUNICIPALITY_COORDINATES table by scanning location string and property name.
- * 3. Checks pre-seeded DEFAULT_COORDINATES_MAP if available.
- * 4. Falls back to Iloilo Province Center [10.7202, 122.5621].
+ * 2. Checks the location string and property name for a known municipality.
+ * 3. Falls back to the Iloilo area when no location is recognized.
  *
  * @param {number|string} propertyId
  * @param {string} [locationString]
@@ -139,20 +129,16 @@ export function getPropertyFallbackCoordinates(propertyId, locationString = "", 
     }
   } catch (e) {}
 
-  // 2. Scan location string & property name against our 43+ Municipalities Database
+  // 2. Prefer a specific place over the generic "Iloilo" in addresses such
+  // as "Brgy. Abilay Norte, Oton, Iloilo".
   const combined = `${locationString || ""} ${propertyName || ""}`.toLowerCase();
-  for (const [key, coords] of Object.entries(MUNICIPALITY_COORDINATES)) {
-    if (combined.includes(key)) {
-      return coords;
-    }
-  }
+  const specificPlace = Object.entries(MUNICIPALITY_COORDINATES)
+    .filter(([key]) => key !== "iloilo" && key !== "iloilo city" && combined.includes(key))
+    .sort(([first], [second]) => second.length - first.length)[0];
+  if (specificPlace) return specificPlace[1];
+  if (combined.includes("iloilo city")) return MUNICIPALITY_COORDINATES["iloilo city"];
 
-  // 3. Pre-seeded demo properties fallback
-  if (DEFAULT_COORDINATES_MAP[propIdNum]) {
-    return DEFAULT_COORDINATES_MAP[propIdNum];
-  }
-
-  // 4. Universal Iloilo Province Center
+  // 3. Unknown location: never infer a real property's location from its DB ID.
   return [10.7202, 122.5621];
 }
 
