@@ -2359,7 +2359,7 @@ export const useAdminViewMap = () => {
   useLayoutEffect(() => {
     lotDetailsContext.current = { properties, selectedProperty };
   }, [properties, selectedProperty]);
-  const showLotTooltips = currentZoom >= 19;
+  const showLotTooltips = currentZoom >= 17.5;
   const shiftedPropertyId = isBulkShifting ? selectedProperty : null;
   const renderLot = useCallback((lot, showHover, hideHover, renderer) => {
     // Skip rendering original polygon if it's currently being edited visually

@@ -122,7 +122,7 @@ function MapController({
       }
 
       // Real-time overview beacon and tooltip decluttering (instant on threshold, no debounce delay)
-      if (z < 18) {
+      if (z < 17.5) {
         container.classList.add("map-view-zoomed-out");
         container.classList.remove("map-view-zoomed-in");
       } else {
@@ -150,13 +150,12 @@ function MapController({
       clearTimeout(debounceTimer);
       const z = map.getZoom();
       updateZoomClasses(z);
-      // 300ms delay ensures Leaflet has fully finished its post-zoom SVG path
-      // recalculation and transform reset before React triggers any re-render
+      // Fast 60ms delay ensures responsiveness without thrashing
       debounceTimer = setTimeout(() => {
         if (setCurrentZoom) setCurrentZoom((previous) =>
-          [18, 18.2, 19, 19.5].some((threshold) => (previous < threshold) !== (z < threshold)) ? z : previous
+          [17.5, 18, 18.2, 19, 19.5].some((threshold) => (previous < threshold) !== (z < threshold)) ? z : previous
         );
-      }, 300);
+      }, 60);
     };
     // Auto-close any lingering hover tooltips when map begins moving/dragging/zooming
     const handleDismissTooltips = () => {
@@ -575,7 +574,7 @@ const EmployeeMapView = () => {
   useLayoutEffect(() => {
     lotDetailsContext.current = { properties, selectedProperty };
   }, [properties, selectedProperty]);
-  const showLotTooltips = currentZoom >= 19;
+  const showLotTooltips = currentZoom >= 17.5;
   const renderLot = useCallback((lot, showHover, hideHover, renderer) => {
     // Skip lots with invalid or missing coordinates
     if (!lot.coordinates || !Array.isArray(lot.coordinates) || lot.coordinates.length === 0) {

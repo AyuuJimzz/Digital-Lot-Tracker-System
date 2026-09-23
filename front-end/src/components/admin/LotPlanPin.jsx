@@ -29,6 +29,7 @@ const Pin = createLayerComponent(
       // lower. Keep pins in the separate marker stacking context instead.
       pane: !pane || pane === "lot-plan" ? "markerPane" : pane,
       icon: getPinIcon(color),
+      interactive: false,
     });
     return createElementObject(
       instance,

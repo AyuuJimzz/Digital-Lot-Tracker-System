@@ -156,6 +156,7 @@ body {
 .lot-plan-pin,
 .lot-plan-pin-marker {
   cursor: pointer;
+  pointer-events: none !important;
 }
 
 .lot-plan-pin-marker {

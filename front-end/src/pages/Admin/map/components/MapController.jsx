@@ -33,7 +33,7 @@ export function MapController({
       }
 
       // Real-time overview beacon and tooltip decluttering (instant on threshold, no debounce delay)
-      if (z < 18) {
+      if (z < 17.5) {
         container.classList.add("map-view-zoomed-out");
         container.classList.remove("map-view-zoomed-in");
       } else {
@@ -54,7 +54,7 @@ export function MapController({
     };
 
     let debounceTimer;
-    const ZOOM_THRESHOLDS = [18, 18.2, 19, 19.5];
+    const ZOOM_THRESHOLDS = [17.5, 18, 18.2, 19, 19.5];
     const handleZoomEnd = () => {
       clearTimeout(debounceTimer);
       const z = map.getZoom();
@@ -67,7 +67,7 @@ export function MapController({
           );
           return crossed ? z : prev;
         });
-      }, 300);
+      }, 60);
     };
 
     const handleDismissTooltips = () => {
