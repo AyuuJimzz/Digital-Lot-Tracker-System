@@ -2927,7 +2927,7 @@ function AdminViewMap() {
             localStorage.setItem("selectedProperty", property.id.toString());
             window.dispatchEvent(
               new CustomEvent("selectProperty", {
-                detail: { propertyId: property.id, coordinates: property.coordinates, straight: true },
+                detail: { propertyId: property.id, coordinates: property.coordinates },
               })
             );
           },

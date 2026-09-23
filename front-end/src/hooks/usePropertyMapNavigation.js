@@ -139,10 +139,7 @@ export function usePropertyMapNavigation(map, options) {
       latest.current.setSelectedProperty?.(propertyId);
       if (autoSwiped) return;
       const property = latest.current.properties?.find((item) => Number(item.id) === Number(propertyId));
-      // Re-use system overview/beacon threshold (zoom < 18): fly straight when starting from overview mode
-      const isOverview = map.getZoom() < 18;
-      const useStraight = Boolean(straight || isOverview);
-      navigate(property?.coordinates || coordinates, 19, useStraight ? { straight: true } : {});
+      navigate(property?.coordinates || coordinates, 19, straight ? { straight: true } : {});
     };
     const onDragStart = () => {
       clearTimeout(moveTimer);
