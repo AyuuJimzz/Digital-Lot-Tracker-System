@@ -9,6 +9,8 @@ const { sendEmail } = require("../../services/emailService");
 exports.updateLotStatus = async (req, res) => {
   const { id } = req.params;
   const { status, email, fullName, contactNumber, address, paymentMethod } = req.body;
+  let connection;
+  const postCommitTasks = [];
 
   // Determine acting agent/admin automatically from authenticated user
   let employeeId = null;
@@ -41,6 +43,14 @@ exports.updateLotStatus = async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status. Must be Available, Pending, or Sold" });
     }
+    if (email && !email.includes("@")) {
+      return res.status(400).json({ error: "Valid email is required" });
+    }
+    if (status === "Pending" && (!email || !fullName?.trim() || !contactNumber?.trim() || !address?.trim())) {
+      return res.status(400).json({
+        error: "All customer fields (email, full name, contact number, address) are required when setting lot status to Pending",
+      });
+    }
 
     // Check if lot exists
     const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
@@ -50,38 +60,17 @@ exports.updateLotStatus = async (req, res) => {
     }
 
     const lot = lotRows[0];
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+    const query = (...args) => connection.query(...args);
 
     // Update lot status
-    await db.query("UPDATE lots SET status = ? WHERE lot_id = ?", [status, id]);
+    await query("UPDATE lots SET status = ? WHERE lot_id = ?", [status, id]);
 
     // Handle customer information update if provided
     if (email) {
-      // Validate email
-      if (!email.includes("@")) {
-        return res.status(400).json({ error: "Valid email is required" });
-      }
-
-      // For Pending status, require all customer fields
-      if (status === "Pending") {
-        if (!fullName?.trim()) {
-          return res
-            .status(400)
-            .json({ error: "Full name is required when setting lot status to Pending" });
-        }
-        if (!contactNumber?.trim()) {
-          return res
-            .status(400)
-            .json({ error: "Contact number is required when setting lot status to Pending" });
-        }
-        if (!address?.trim()) {
-          return res
-            .status(400)
-            .json({ error: "Address is required when setting lot status to Pending" });
-        }
-      }
-
       // Check if customer already exists for this lot
-      const [existingCustomer] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
+      const [existingCustomer] = await query("SELECT * FROM customers WHERE lot_id = ?", [id]);
 
       // If lot was previously Available (cancelled) and now getting a new Pending customer,
       // INSERT a new record to preserve the cancelled customer's history
@@ -90,18 +79,18 @@ exports.updateLotStatus = async (req, res) => {
       if (existingCustomer.length > 0 && !lotWasCancelled) {
         // Update existing customer (lot was Pending→Sold or same active customer editing)
         if (status === "Pending") {
-          await db.query(
+          await query(
             `UPDATE customers SET 
              full_name = ?, contact_number = ?, email = ?, address = ?, employee_id = COALESCE(employee_id, ?), customer_status = 'Pending', updated_at = NOW() 
              WHERE lot_id = ? AND customer_id = ?`,
             [fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), employeeId, id, existingCustomer[0].customer_id]
           );
         } else if (status === "Sold") {
-          await db.query("UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
+          await query("UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
             id, existingCustomer[0].customer_id,
           ]);
         } else {
-          await db.query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
+          await query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
             email, id, existingCustomer[0].customer_id,
           ]);
         }
@@ -109,17 +98,17 @@ exports.updateLotStatus = async (req, res) => {
         // INSERT: either no existing customer, or lot was Available (history must be preserved)
         if (lotWasCancelled && existingCustomer.length > 0) {
           // Mark ALL previous customers for this lot as Cancelled
-          await db.query("UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ?", [id]);
+          await query("UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ?", [id]);
         }
         if (fullName?.trim() && contactNumber?.trim() && address?.trim()) {
-          await db.query(
+          await query(
             `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at) 
              VALUES (?, ?, ?, ?, ?, ?, 'Pending', NOW(), NOW())`,
             [id, fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), employeeId]
           );
         } else if (status !== "Pending") {
           // For non-pending status, create with just email
-          await db.query(
+          await query(
             "INSERT INTO customers (lot_id, email, employee_id, customer_status, created_at, updated_at) VALUES (?, ?, ?, 'Pending', NOW(), NOW())",
             [id, email, employeeId]
           );
@@ -129,19 +118,11 @@ exports.updateLotStatus = async (req, res) => {
 
     // Handle timestamp logic based on status change
     if (status === "Pending" && lot.status !== "Pending") {
-      // Require all customer fields for Pending status
-      if (!email || !fullName?.trim() || !contactNumber?.trim() || !address?.trim()) {
-        return res.status(400).json({
-          error:
-            "All customer fields (email, full name, contact number, address) are required when setting lot status to Pending",
-        });
-      }
-
       // Setting to Pending (from Available or Sold) - record timestamp
-      await db.query("UPDATE lots SET pending_since = NOW() WHERE lot_id = ?", [id]);
+      await query("UPDATE lots SET pending_since = NOW() WHERE lot_id = ?", [id]);
 
       // Create or update transaction record for this specific customer
-      const [latestCustRows] = await db.query(
+      const [latestCustRows] = await query(
         "SELECT customer_id FROM customers WHERE lot_id = ? ORDER BY customer_id DESC LIMIT 1",
         [id]
       );
@@ -150,20 +131,20 @@ exports.updateLotStatus = async (req, res) => {
         const customerId = latestCustRows[0].customer_id;
 
         // Check if transaction already exists for this specific customer
-        const [existingTransaction] = await db.query(
+        const [existingTransaction] = await query(
           "SELECT transaction_id FROM transactions WHERE customer_id = ?",
           [customerId]
         );
 
         if (existingTransaction.length > 0) {
           // Update existing transaction for this customer with current reserver
-          await db.query(
+          await query(
             "UPDATE transactions SET payment_type = 'No Downpayment', notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW() WHERE transaction_id = ?",
             [`Transaction updated for lot ${lot.lot_number} - Pending status`, employeeId, agentName, existingTransaction[0].transaction_id]
           );
         } else {
           // Create new transaction for this customer with persistent agent_name
-          await db.query(
+          await query(
             "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date) VALUES (?, ?, 'No Downpayment', ?, ?, ?, NOW())",
             [
               id,
@@ -178,7 +159,7 @@ exports.updateLotStatus = async (req, res) => {
 
       // Send instant confirmation email immediately to customer upon reservation
       if (email && email.trim()) {
-        (async () => {
+        postCommitTasks.push(async () => {
           try {
             const [propRows] = await db.query(
               "SELECT property_name, location FROM properties WHERE property_id = ?",
@@ -224,20 +205,21 @@ exports.updateLotStatus = async (req, res) => {
               </div>
             `;
 
-            await sendEmail(
+            const emailResult = await sendEmail(
               email.trim(),
               `Lot Reservation Confirmation - ${lot.lot_number} (${propName})`,
               instantEmailHtml
             );
-            console.log(`Instant reservation confirmation email sent to ${email.trim()}`);
+            if (emailResult.success) console.log(`Instant reservation confirmation email sent to ${email.trim()}`);
+            else console.error(`Failed to send pending confirmation email: ${emailResult.error}`);
           } catch (mailErr) {
             console.error("Error sending instant pending email:", mailErr);
           }
-        })();
+        });
       }
     } else if (status === "Sold" && lot.status !== "Sold") {
       // Setting to Sold - create/update transaction record
-      const customerResult = await db.query("SELECT customer_id FROM customers WHERE lot_id = ?", [
+      const customerResult = await query("SELECT customer_id FROM customers WHERE lot_id = ?", [
         id,
       ]);
 
@@ -245,14 +227,14 @@ exports.updateLotStatus = async (req, res) => {
         const customerId = customerResult[0][0].customer_id;
 
         // Check if transaction already exists
-        const existingTransaction = await db.query(
+        const existingTransaction = await query(
           "SELECT transaction_id FROM transactions WHERE lot_id = ?",
           [id]
         );
 
         if (existingTransaction[0].length > 0) {
           // Update existing transaction to Sold with whoever is currently finalizing the sale
-          await db.query(
+          await query(
             "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW() WHERE lot_id = ?",
             [
               paymentMethod || "Cash",
@@ -264,7 +246,7 @@ exports.updateLotStatus = async (req, res) => {
           );
         } else {
           // Create new transaction for Sold with persistent agent_name
-          await db.query(
+          await query(
             "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date) VALUES (?, ?, ?, ?, ?, ?, NOW())",
             [
               id,
@@ -281,7 +263,7 @@ exports.updateLotStatus = async (req, res) => {
         if (email) {
           const emailDate = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
 
-          schedule.scheduleJob(emailDate, async () => {
+          postCommitTasks.push(() => schedule.scheduleJob(emailDate, async () => {
             try {
               // Get lot and customer details for email
               const [lotDetails] = await db.query(
@@ -345,17 +327,17 @@ exports.updateLotStatus = async (req, res) => {
             } catch (emailError) {
               console.error("Error sending sold confirmation email:", emailError);
             }
-          });
+          }));
         }
       }
     } else if (status === "Available" || (lot.status === "Pending" && status !== "Pending")) {
       // Changing from Pending to Available/another status - clear timestamps & mark customer as Cancelled if Available
-      await db.query(
+      await query(
         "UPDATE lots SET pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
         [id]
       );
       if (status === "Available") {
-        await db.query(
+        await query(
           "UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ? AND (customer_status = 'Pending' OR customer_status IS NULL)",
           [id]
         );
@@ -364,13 +346,26 @@ exports.updateLotStatus = async (req, res) => {
 
     console.log(`🏡 [Lot Status Updated] Lot ID #${id} (${lot.lot_number || "Lot"}) | Transition: ${lot.status} → ${status} | Initiator: ${req.user?.email || "Staff"}`);
 
+    await connection.commit();
+    for (const task of postCommitTasks) {
+      try { void task(); } catch (taskError) {
+        console.error("Unable to schedule lot notification:", taskError);
+      }
+    }
     res.json({
       message: "Lot status updated successfully",
       status,
       email: email || "unchanged",
     });
   } catch (err) {
+    if (connection) {
+      try { await connection.rollback(); } catch (rollbackError) {
+        console.error("Error rolling back lot status update:", rollbackError);
+      }
+    }
     console.error(`❌ [Lot Status Update Error] Lot #${id}:`, err);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) connection.release();
   }
 };

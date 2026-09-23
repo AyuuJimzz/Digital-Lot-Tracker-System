@@ -14,6 +14,10 @@ const getApiUrl = () => {
 
 export const API_BASE_URL = getApiUrl();
 
+// Keep authentication and data screens from waiting forever on a stalled
+// connection. Longer operations can override this per request.
+axios.defaults.timeout = 12000;
+
 // Auto-restore JWT token for cross-origin deployments (Vercel frontend + Render backend).
 const savedToken = localStorage.getItem('authToken') || localStorage.getItem('token');
 if (savedToken) {
@@ -38,6 +42,10 @@ axios.interceptors.response.use(
         error.message?.includes('Network Error') ||
         error.message?.includes('ERR_CONNECTION_CLOSED'))
     ) {
+      const method = (config.method || 'get').toUpperCase();
+      if (method !== 'GET' && method !== 'HEAD') {
+        return Promise.reject(error);
+      }
       config._retry = true;
       await new Promise((resolve) => setTimeout(resolve, 800));
       return axios(config);

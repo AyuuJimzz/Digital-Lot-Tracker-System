@@ -1,8 +1,12 @@
-const fs = require("fs");
-const path = require("path");
 const rateLimit = require("express-rate-limit");
-
-const configPath = path.join(__dirname, "../../../config/system_state.json");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const {
+  configPath,
+  getSystemState,
+  updateSystemState,
+  updateDurableSystemState,
+} = require("../../services/systemStateStore");
 
 // ── OWASP TOP 10 HARDENING: RATE LIMITER FOR PIN VERIFICATION ──
 const devPinRateLimiter = rateLimit({
@@ -11,51 +15,45 @@ const devPinRateLimiter = rateLimit({
   message: { error: "Too many authentication attempts. Please wait 15 minutes before trying again." },
   standardHeaders: true,
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
 });
-
-let runtimeCustomPin = null;
-
-function setRuntimeCustomPin(pin) {
-  runtimeCustomPin = pin;
-}
-
-function getRuntimeCustomPin() {
-  return runtimeCustomPin;
-}
 
 // Helper to get active developer PIN (Supports Console UI changes + Render Env Variables)
 function getActiveDeveloperPin() {
-  if (runtimeCustomPin) {
-    return runtimeCustomPin;
-  }
-  try {
-    if (fs.existsSync(configPath)) {
-      const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      if (state.runtimeDeveloperPin) return state.runtimeDeveloperPin.toString().trim();
-    }
-  } catch (err) {}
+  const state = getSystemState();
+  if (state.runtimeDeveloperPin) return state.runtimeDeveloperPin.toString().trim();
 
   const envPin = (process.env.DEVELOPER_PIN || process.env.DEV_PIN || "").toString().trim();
   if (envPin) {
     return envPin;
   }
 
-  try {
-    if (fs.existsSync(configPath)) {
-      const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      if (state.developerPin) return state.developerPin.toString().trim();
-    }
-  } catch (err) {}
+  if (state.developerPin) return state.developerPin.toString().trim();
 
-  return "1234";
+  const isProduction = process.env.NODE_ENV === "production" || !!process.env.RENDER ||
+    process.env.DB_HOST?.includes("aivencloud.com");
+  return isProduction ? "" : "1234";
+}
+
+async function verifyDeveloperPin(pin) {
+  const candidate = pin == null ? "" : pin.toString().trim();
+  if (!candidate) return false;
+
+  const hash = getSystemState().developerPinHash;
+  if (hash) return bcrypt.compare(candidate, hash);
+
+  const activePin = getActiveDeveloperPin();
+  if (!activePin) return false;
+  const candidateDigest = crypto.createHash("sha256").update(candidate).digest();
+  const activeDigest = crypto.createHash("sha256").update(activePin).digest();
+  return crypto.timingSafeEqual(candidateDigest, activeDigest);
 }
 
 // Middleware to verify developer session (OWASP A01: Broken Access Control)
-function requireDeveloper(req, res, next) {
-  const activePin = getActiveDeveloperPin();
+async function requireDeveloper(req, res, next) {
   const devKey = req.headers["x-developer-pin"] || req.body?.key;
 
-  if (devKey && devKey.toString().trim() === activePin) {
+  if (await verifyDeveloperPin(devKey)) {
     if (req.session) {
       req.session.isDeveloper = true;
     }
@@ -71,34 +69,24 @@ function requireDeveloper(req, res, next) {
 
 // Helper to read system_state.json
 function readSystemStateFile() {
-  try {
-    if (fs.existsSync(configPath)) {
-      return JSON.parse(fs.readFileSync(configPath, "utf8"));
-    }
-  } catch (err) {}
-  return { maintenanceMode: false, developerPin: "1234", logs: [], dismissedMessengerPsids: [] };
+  return getSystemState();
 }
 
 // Helper to write to system_state.json
 function updateSystemStateFile(updatedFields) {
-  try {
-    let currentState = readSystemStateFile();
-    const mergedState = { ...currentState, ...updatedFields };
-    fs.writeFileSync(configPath, JSON.stringify(mergedState, null, 2), "utf8");
-    return mergedState;
-  } catch (e) {
-    console.error("Failed to update system_state.json:", e);
-    return null;
-  }
+  return updateSystemState(updatedFields);
+}
+
+function updateDurableSystemStateFile(updatedFields, deleteKeys) {
+  return updateDurableSystemState(updatedFields, deleteKeys);
 }
 
 module.exports = {
   configPath,
   devPinRateLimiter,
-  getActiveDeveloperPin,
-  setRuntimeCustomPin,
-  getRuntimeCustomPin,
+  verifyDeveloperPin,
   requireDeveloper,
   readSystemStateFile,
   updateSystemStateFile,
+  updateDurableSystemStateFile,
 };

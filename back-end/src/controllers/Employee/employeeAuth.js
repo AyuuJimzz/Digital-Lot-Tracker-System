@@ -3,7 +3,10 @@ const bcrypt = require("bcryptjs");
 
 const loginEmployee = async (email, password) => {
 	try {
-		const [results] = await db.query("SELECT * FROM employees WHERE email = ?", [email]);
+		const [results] = await db.query(
+			"SELECT employee_id, email, password, status, temp_password_expiry, password_reset_required FROM employees WHERE email = ?",
+			[email]
+		);
 		if (!results.length) return { success: false };
 
 		const employee = results[0];

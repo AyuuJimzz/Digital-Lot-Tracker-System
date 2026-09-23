@@ -40,7 +40,7 @@ function Login({ setRole }) {
       axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
     }
     axios
-      .get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true })
+      .get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true, timeout: 8000 })
       .then((response) => {
         if (response.data.authenticated && response.data.role) {
           localStorage.setItem("role", response.data.role || "");
@@ -55,11 +55,15 @@ function Login({ setRole }) {
           delete axios.defaults.headers.common["Authorization"];
         }
       })
-      .catch(() => {
-        localStorage.removeItem("role");
-        localStorage.removeItem("authToken");
-        localStorage.removeItem("password_reset_required");
-        delete axios.defaults.headers.common["Authorization"];
+      .catch((err) => {
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          localStorage.removeItem("role");
+          localStorage.removeItem("authToken");
+          localStorage.removeItem("password_reset_required");
+          delete axios.defaults.headers.common["Authorization"];
+        } else {
+          setError("The server is unavailable or took too long to respond. Please try again.");
+        }
       });
   }, [navigate, setRole]);
 
@@ -71,7 +75,7 @@ function Login({ setRole }) {
       const response = await axios.post(
         `${API_BASE_URL}/api/auth/login`,
         { email, password },
-        { withCredentials: true }
+        { withCredentials: true, timeout: 10000 }
       );
       const userRole = response.data.user.role;
       const passwordResetRequired = response.data.password_reset_required;

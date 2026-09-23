@@ -31,6 +31,8 @@ const sendEmail = async (toOrOptions, subjectParam, htmlParam) => {
   }
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
     const senderEmail = process.env.EMAIL_USER || "goldendragonestate@gmail.com";
     const senderName = "Golden Dragon Estate Corporation";
 
@@ -51,9 +53,11 @@ const sendEmail = async (toOrOptions, subjectParam, htmlParam) => {
         subject,
         htmlContent: html,
       }),
+      signal: controller.signal,
     });
 
     const data = await response.json();
+    clearTimeout(timeout);
     if (response.ok && data?.messageId) {
       console.log(`✅ [EmailService] Brevo HTTPS delivered email to ${to} (MessageId: ${data.messageId})`);
       addDeveloperLog(`Email delivered to: ${targetEmailStr} | Subject: "${subject || "Notification"}"`, {

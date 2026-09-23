@@ -1,19 +1,11 @@
 const jwt = require("jsonwebtoken");
-const fs = require("fs");
-const path = require("path");
-const configPath = path.join(__dirname, "../../config/system_state.json");
 const { isValidSession } = require("../services/sessionManager");
+const { getSystemState } = require("../services/systemStateStore");
 
 // Helper to get active auth revocation timestamp
 function getAuthRevocationTimestamp() {
-  try {
-    if (fs.existsSync(configPath)) {
-      const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      if (state.authRevocationTimestamp) {
-        return new Date(state.authRevocationTimestamp).getTime();
-      }
-    }
-  } catch (err) {}
+  const state = getSystemState();
+  if (state.authRevocationTimestamp) return new Date(state.authRevocationTimestamp).getTime();
   return 0;
 }
 

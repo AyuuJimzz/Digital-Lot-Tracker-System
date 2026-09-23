@@ -18,7 +18,6 @@ An end-to-end full-stack platform engineered for real estate developers and brok
 [![Render](https://img.shields.io/badge/Hosting-Render-46E3B7?style=flat-square&logo=render&logoColor=black)](https://render.com/)
 [![UptimeRobot](https://img.shields.io/badge/Uptime-100%25_UptimeRobot-3BD671?style=flat-square&logo=uptimerobot&logoColor=white)](https://uptimerobot.com)
 [![Brevo](https://img.shields.io/badge/Email_API-Brevo-0B996F?style=flat-square&logo=brevo&logoColor=white)](https://www.brevo.com/)
-[![Meta Messenger](https://img.shields.io/badge/Alerts-Meta_Messenger-00B2FF?style=flat-square&logo=messenger&logoColor=white)](https://developers.facebook.com/docs/messenger-platform/)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 <br />
@@ -54,7 +53,7 @@ An end-to-end full-stack platform engineered for real estate developers and brok
 ### 📱 Modern Platform & Cloud Architecture
 - **PWA & Field Tablet Ready**: Responsive design optimized for mobile and field tablets with home screen installation support.
 - **Dual Authentication Security**: Secure 30-day persistent sessions, Bearer JWT protection, and role-based route guards.
-- **Automated Multi-Channel Alerts**: Instant customer reservation receipts via Brevo email and real-time broker lead notifications sent directly to Facebook Messenger.
+- **Transactional Email**: Customer reservation receipts via Brevo email.
 - **24/7 Zero-Downtime Availability**: Automated synthetic heartbeat keeping cloud services active with zero cold-start delays.
 
 ---
@@ -69,7 +68,7 @@ An end-to-end full-stack platform engineered for real estate developers and brok
 | **Database** | MySQL 8, MySQL2 Connection Pool | High-performance relational database with ACID compliance |
 | **Cloud Hosting** | Render (Static Frontend & Web Service Backend) | Automated CI/CD deployment with free TLS/SSL certificates |
 | **Cloud Database** | Aiven Cloud MySQL | High-availability cloud-managed database with SSL encryption |
-| **Communications** | Brevo API & Meta Graph API (Messenger) | Automated email receipts and instant mobile lead dispatch |
+| **Communications** | Brevo API | Automated email receipts |
 | **Monitoring** | UptimeRobot (24/7 Heartbeat) | Synthetic monitoring with active database ping |
 
 ---
@@ -87,7 +86,7 @@ An end-to-end full-stack platform engineered for real estate developers and brok
 │       ├── controllers/    # Domain business logic (Lots, Properties, Customers, Auth)
 │       ├── routes/         # Declarative API routers & route guards
 │       ├── middleware/     # Auth, session, maintenance & sanitization
-│       ├── services/       # Email delivery, Messenger alerts & session manager
+│       ├── services/       # Email delivery & session manager
 │       └── utils/          # Geocoding helpers & input sanitizers
 ├── front-end/
 │   ├── public/             # PWA Manifest, Service Worker & branding assets
@@ -95,7 +94,7 @@ An end-to-end full-stack platform engineered for real estate developers and brok
 │       ├── components/     # Reusable UI component suites (Admin, Employee, Map, Modals)
 │       ├── pages/          # Admin portal, Employee portal, Developer Console, Map views
 │       └── utils/          # Geocoding engine & map projection helpers
-├── database_Backup/        # Master SQL schemas & data snapshots
+├── database_Backup/        # Local database snapshots (ignored by Git)
 ├── docker-compose.yml      # Local containerized development stack
 └── package.json            # Monorepo scripts
 ```
@@ -137,11 +136,6 @@ FRONTEND_URL=http://localhost:3000
 # Transactional Email Engine (Brevo HTTPS REST API)
 EMAIL_USER=goldendragonestate@gmail.com
 BREVO_API_KEY=your_brevo_api_key
-
-# Broker Alerts (Meta Facebook Messenger Graph API)
-FB_PAGE_ACCESS_TOKEN=your_facebook_page_access_token
-FB_RECIPIENT_PSID=your_recipient_page_scoped_id
-FB_VERIFY_TOKEN=golden_dragon_bot_2026
 
 # Production Cloud Database (Aiven Cloud MySQL over SSL)
 AIVEN_SERVICE_URI=mysql://avnadmin:PASSWORD@HOST:PORT/defaultdb?ssl-mode=REQUIRED

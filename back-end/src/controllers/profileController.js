@@ -18,7 +18,10 @@ exports.getProfile = async (req, res) => {
     }
 
     // We get role-agnostic basic info. Note: employees table might have 'first_name', 'last_name', etc.
-    const [rows] = await db.query(`SELECT * FROM ${table} WHERE ${idColumn} = ?`, [user.id]);
+    const profileFields = user.role === "admin"
+      ? "admin_id, email, full_name, created_at, password_reset_required"
+      : "employee_id, first_name, last_name, email, status, password_reset_required, last_login, created_at";
+    const [rows] = await db.query(`SELECT ${profileFields} FROM ${table} WHERE ${idColumn} = ?`, [user.id]);
 
     if (rows.length === 0) return res.status(404).json({ message: "User not found" });
 

@@ -44,6 +44,22 @@ async function run() {
   console.log('       🐉 GOLDEN DRAGON - AIVEN CLOUD DB SYNC         ');
   console.log('======================================================\n');
 
+  const backupDir = path.join(__dirname, '..', '..', 'database_Backup');
+  const masterFile = path.join(backupDir, '00_golden_dragon_corp_FULL_BACKUP.sql');
+  const requiredTableFiles = [
+    '01_golden_dragon_corp_properties.sql',
+    '02_golden_dragon_corp_lots.sql',
+    '03_golden_dragon_corp_customers.sql',
+    '04_golden_dragon_corp_admins.sql',
+    '05_golden_dragon_corp_employees.sql',
+    '06_golden_dragon_corp_transactions.sql',
+  ];
+  if (!fs.existsSync(masterFile) && requiredTableFiles.some((file) => !fs.existsSync(path.join(backupDir, file)))) {
+    console.error('❌ Missing local database backup. db:sync-cloud was cancelled before connecting to Aiven.');
+    process.exitCode = 1;
+    return;
+  }
+
   let connectionConfig = null;
   const cliInput = process.argv.slice(2)[0];
 
@@ -123,9 +139,6 @@ async function run() {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0;');
     await connection.query('SET SESSION sql_require_primary_key = 0;');
 
-    const backupDir = path.join(__dirname, '..', '..', 'database_Backup');
-    const masterFile = path.join(backupDir, '00_golden_dragon_corp_FULL_BACKUP.sql');
-
     if (fs.existsSync(masterFile)) {
       console.log(`\n📦 Ina-upload ang 00_golden_dragon_corp_FULL_BACKUP.sql (Lahat ng 6 na tables at 596 lots)...`);
       let sqlContent = fs.readFileSync(masterFile, 'utf8');
@@ -158,6 +171,7 @@ async function run() {
     console.log('\n🎉 TAPOS NA! 100% UPDATED NA ANG IYONG AIVEN CLOUD DATABASE!\n');
   } catch (error) {
     console.error('\n❌ Error habang nag-i-import sa Aiven:', error.message);
+    process.exitCode = 1;
   } finally {
     if (connection) await connection.end();
   }

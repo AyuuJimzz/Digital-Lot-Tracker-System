@@ -12,7 +12,12 @@ const lotReminders = require("./lots/lotRemindersController");
 // =======================
 exports.getAllLots = async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT * FROM lots ORDER BY property_id, lot_number");
+    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 5000, 1), 5000);
+    const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
+    const [rows] = await db.query(
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, pending_since FROM lots ORDER BY property_id, lot_number LIMIT ? OFFSET ?",
+      [limit, offset]
+    );
     res.json(rows);
   } catch (err) {
     console.error("Error in getAllLots:", err);
@@ -24,9 +29,10 @@ exports.getLotsByProperty = async (req, res) => {
   const { propertyId } = req.params;
 
   try {
-    const [rows] = await db.query("SELECT * FROM lots WHERE property_id = ? ORDER BY lot_number", [
-      propertyId,
-    ]);
+    const [rows] = await db.query(
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates, pending_since, last_reminder_sent FROM lots WHERE property_id = ? ORDER BY lot_number",
+      [propertyId]
+    );
     res.json(rows);
   } catch (err) {
     console.error("Error in getLotsByProperty:", err);
@@ -38,7 +44,10 @@ exports.getLotById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+    const [lotRows] = await db.query(
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates, pending_since, last_reminder_sent FROM lots WHERE lot_id = ?",
+      [id]
+    );
 
     if (lotRows.length === 0) {
       return res.status(404).json({ error: "Lot not found" });
@@ -47,7 +56,10 @@ exports.getLotById = async (req, res) => {
     const lot = lotRows[0];
 
     // Get customer information if exists
-    const [customerRows] = await db.query("SELECT * FROM customers WHERE lot_id = ?", [id]);
+    const [customerRows] = await db.query(
+      "SELECT customer_id, lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at FROM customers WHERE lot_id = ?",
+      [id]
+    );
 
     // Add customer information to lot object if exists
     if (customerRows.length > 0) {
@@ -96,10 +108,10 @@ exports.getMapData = async (req, res) => {
 
     const [rows] = await db.query(
       `SELECT l.lot_id, l.property_id, l.lot_number, l.area_sqm, l.status, l.coordinates,
-              c.full_name AS customer_name, c.email AS customer_email, c.contact_number AS customer_contact, c.address AS customer_address
+              c.full_name AS customer_name, c.email AS customer_email, c.contact_number AS customer_contact
        FROM lots l
        LEFT JOIN (
-         SELECT customer_id, lot_id, full_name, email, contact_number, address,
+         SELECT customer_id, lot_id, full_name, email, contact_number,
                 ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY updated_at DESC, customer_id DESC) AS rn
          FROM customers
          WHERE lot_id IS NOT NULL
@@ -139,7 +151,6 @@ exports.getMapData = async (req, res) => {
                 full_name: lot.customer_name || "",
                 email: lot.customer_email || "",
                 contact_number: lot.customer_contact || "",
-                address: lot.customer_address || "",
               }
             : null,
           coordinates: parsedCoordinates,

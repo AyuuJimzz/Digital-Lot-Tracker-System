@@ -14,6 +14,7 @@ const generateToken = (user, sessionId) => {
 			sessionId: sessionId || user.sessionId || null,
 			isHeadAdmin: user.isHeadAdmin || false,
 			canManageEmployees: user.canManageEmployees || false,
+			password_reset_required: user.password_reset_required || false,
 		},
 		process.env.JWT_SECRET,
 		{ expiresIn: "30d" },
@@ -64,7 +65,7 @@ const login = async (req, res) => {
 		};
 
 		// Store in session
-		req.session.user = user;
+		if (req.session) req.session.user = user;
 
 		// JWT signed with sessionId
 		const token = generateToken(user, sessionId);
@@ -75,19 +76,6 @@ const login = async (req, res) => {
 			user: user.email,
 			role: user.role,
 		});
-
-		try {
-			const { sendMessengerAlert } = require("../services/messengerAlertService");
-			sendMessengerAlert(
-				`Staff Login: ${user.email}`,
-				`A ${user.role.toUpperCase()} account successfully signed into the platform.`,
-				{
-					category: "authSecurity",
-					user: user.email,
-					ip: req.ip || req.headers["x-forwarded-for"],
-				}
-			).catch(() => {});
-		} catch (_) {}
 
 		return res.json({
 			message: "Login successful",
@@ -109,7 +97,7 @@ const logout = async (req, res) => {
 	let userRole = req.session?.user?.role;
 	let userId = req.session?.user?.id;
 
-	// Fallback 1: Extract and decode JWT from Authorization header or cookies
+	// Fallback 1: Verify the JWT before allowing it to invalidate a session.
 	if (!userEmail) {
 		const authHeader = req.headers?.authorization;
 		const token = authHeader && authHeader.startsWith("Bearer ")
@@ -118,7 +106,7 @@ const logout = async (req, res) => {
 
 		if (token) {
 			try {
-				const decoded = jwt.decode(token);
+				const decoded = jwt.verify(token, process.env.JWT_SECRET);
 				if (decoded && (decoded.email || decoded.username || decoded.name)) {
 					userEmail = decoded.email || decoded.username || decoded.name;
 					userRole = decoded.role || userRole;
@@ -166,19 +154,11 @@ const logout = async (req, res) => {
 	}
 };
 
-const fs = require("fs");
-const path = require("path");
-const configPath = path.join(__dirname, "../../config/system_state.json");
+const { getSystemState } = require("../services/systemStateStore");
 
 function getAuthRevocationTimestamp() {
-	try {
-		if (fs.existsSync(configPath)) {
-			const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
-			if (state.authRevocationTimestamp) {
-				return new Date(state.authRevocationTimestamp).getTime();
-			}
-		}
-	} catch (err) {}
+  const state = getSystemState();
+  if (state.authRevocationTimestamp) return new Date(state.authRevocationTimestamp).getTime();
 	return 0;
 }
 

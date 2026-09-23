@@ -13,7 +13,6 @@ const lotRoutes = require("./routes/lotRoutes");
 const customerRoutes = require("./routes/customerRoutes");
 const transactionRoutes = require("./routes/transactionRoutes");
 const developerRoutes = require("./routes/developerRoutes");
-const messengerRoutes = require("./routes/messengerRoutes");
 const { checkMaintenance } = require("./middleware/maintenanceCheck");
 const db = require("../config/database_connection");
 
@@ -44,26 +43,29 @@ app.use(
 );
 
 // ── Strict CORS Policy (OWASP A05) ──
+const configuredFrontendOrigin = process.env.FRONTEND_URL;
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "http://127.0.0.1:3000",
+  "https://goldendragonestate.onrender.com",
+  configuredFrontendOrigin && (!isProduction || !/^https?:\/\/localhost(?::\d+)?$/.test(configuredFrontendOrigin))
+    ? configuredFrontendOrigin
+    : null,
+  ...(isProduction ? [] : [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+  ]),
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (
-        !isProduction ||
-        allowedOrigins.includes(origin) ||
-        origin.endsWith(".onrender.com") ||
-        origin.endsWith(".vercel.app")
-      ) {
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(new Error("CORS Policy: Origin not allowed"));
+      const error = new Error("CORS Policy: Origin not allowed");
+      error.status = 403;
+      return callback(error);
     },
     credentials: true,
   })
@@ -87,26 +89,30 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 const { sanitizeBodyMiddleware } = require("./utils/sanitizer");
 app.use(sanitizeBodyMiddleware);
 
-// ── Session Configuration (OWASP A02 & A07) ──
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "golden_dragon_secure_session_key_2026",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      httpOnly: true,
-      sameSite: isProduction ? "none" : "lax",
-      secure: isProduction,
-    },
-  })
-);
-
-// ── Maintenance Mode Check ──
-app.use(checkMaintenance);
+// JWT is the production authentication mechanism. The session middleware is
+// retained only for local development compatibility (developer-console state
+// and legacy cookies), so Render never uses Express's default MemoryStore.
+if (!isProduction) {
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "golden_dragon_secure_session_key_2026",
+      resave: false,
+      saveUninitialized: false,
+      cookie: { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true, sameSite: "lax", secure: false },
+    })
+  );
+}
 
 // ── Health Check & Keep-Alive Endpoints (Used by UptimeRobot & Render Keep-Awake) ──
-const handleHealthCheck = async (req, res) => {
+const handleLiveness = (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    server: "running",
+    timestamp: new Date().toISOString(),
+  });
+};
+
+const handleReadiness = async (req, res) => {
   let dbStatus = "connected";
   let dbLatencyMs = null;
   const start = Date.now();
@@ -120,7 +126,7 @@ const handleHealthCheck = async (req, res) => {
     console.error("[HealthCheck] Database ping failed:", err.message);
   }
 
-  res.status(200).json({
+  res.status(dbStatus === "connected" ? 200 : 503).json({
     status: dbStatus === "connected" ? "ok" : "degraded",
     server: "running",
     database: dbStatus,
@@ -128,9 +134,13 @@ const handleHealthCheck = async (req, res) => {
     timestamp: new Date().toISOString(),
   });
 };
-app.get("/api/health", handleHealthCheck);
-app.get("/health", handleHealthCheck);
-app.get("/ping", handleHealthCheck);
+app.get("/live", handleLiveness);
+app.get("/api/health", handleReadiness);
+app.get("/health", handleReadiness);
+app.get("/ping", handleLiveness);
+
+// ── Maintenance Mode Check ──
+app.use(checkMaintenance);
 
 // ── Routes with Security Middleware ──
 app.use("/api/developer", developerRoutes);
@@ -140,7 +150,6 @@ app.use("/api/properties", propertyRoutes);
 app.use("/api/lots", lotRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/transactions", transactionRoutes);
-app.use("/api/messenger", messengerRoutes);
 app.use("/api/admin", sessionOrToken({ roles: ["admin"] }), adminRoutes);
 
 // 404 handler
@@ -154,7 +163,6 @@ app.use((req, res) => {
 
 // ── Global Error Interceptor & Diagnostic Logger ──
 const { addDeveloperLog, parseDevice, getClientIp } = require("./services/loggerService");
-const { sendMessengerAlert } = require("./services/messengerAlertService");
 
 app.use((err, req, res, next) => {
   const statusCode = err.status || err.statusCode || 500;
@@ -179,15 +187,6 @@ app.use((err, req, res, next) => {
     });
   } catch (logErr) {
     console.error("Failed to log error to developer logs:", logErr);
-  }
-
-  // Instant Messenger Alert for Server 500 Failures
-  if (statusCode >= 500) {
-    sendMessengerAlert(`Critical API Failure on ${routePath}`, errorMsg, {
-      route: routePath,
-      user: userIdentifier,
-      ip,
-    }).catch(() => {});
   }
 
   // Safe client response (doesn't leak internal paths or database credentials)

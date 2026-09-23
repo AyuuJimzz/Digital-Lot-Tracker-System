@@ -23,9 +23,9 @@
       },
       {
         "id": "alerts-pipeline",
-        "label": "Real-Time Push Alerts",
-        "focus": ["backend", "messenger", "brevo"],
-        "note": "Instant Meta Messenger lead alerts & Brevo transaction emails."
+        "label": "Transactional Email",
+        "focus": ["backend", "brevo"],
+        "note": "Brevo delivers transaction emails."
       },
       {
         "id": "admin-operations",
@@ -93,16 +93,6 @@
       "tag": "SELECT 1 Active"
     },
     {
-      "id": "messenger",
-      "type": "external",
-      "label": "Meta Messenger",
-      "sublabel": "Graph API Push",
-      "brand": "facebook",
-      "pos": [840, 130],
-      "size": [150, 60],
-      "tag": "Lead Alerts"
-    },
-    {
       "id": "brevo",
       "type": "messagebus",
       "label": "Brevo Email Engine",
@@ -165,15 +155,6 @@
       "variant": "emphasis"
     },
     {
-      "id": "backend-to-messenger",
-      "from": "backend",
-      "to": "messenger",
-      "label": "Lead Alerts",
-      "variant": "dashed",
-      "fromSide": "top",
-      "toSide": "left"
-    },
-    {
       "id": "backend-to-brevo",
       "from": "backend",
       "to": "brevo",
@@ -205,7 +186,7 @@
       "title": "Security & Alerts",
       "items": [
         "Dual JWT + 30-day persistent session cookies",
-        "Meta Messenger instant leads & Brevo email notifications"
+        "Brevo email notifications"
       ]
     }
   ]

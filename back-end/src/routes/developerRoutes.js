@@ -5,12 +5,12 @@ const router = express.Router();
 const devSystemController = require("../controllers/developer/devSystemController");
 const devDatabaseController = require("../controllers/developer/devDatabaseController");
 const devAccountsController = require("../controllers/developer/devAccountsController");
-const devMessengerController = require("../controllers/developer/devMessengerController");
 
 const { requireDeveloper, devPinRateLimiter } = devSystemController;
+router.use(devPinRateLimiter);
 
 // ── SYSTEM & DIAGNOSTICS ROUTES ──
-router.post("/verify-pin", devPinRateLimiter, devSystemController.verifyPin);
+router.post("/verify-pin", devSystemController.verifyPin);
 router.post("/change-pin", requireDeveloper, devSystemController.changePin);
 router.get("/maintenance-status", devSystemController.getMaintenanceStatus);
 router.get("/system-state", requireDeveloper, devSystemController.getSystemState);
@@ -46,15 +46,5 @@ router.post("/create-employee", requireDeveloper, devAccountsController.createEm
 router.post("/reset-employee-password", requireDeveloper, devAccountsController.resetEmployeePassword);
 router.put("/update-employee", requireDeveloper, devAccountsController.updateEmployee);
 router.delete("/delete-employee/:employee_id", requireDeveloper, devAccountsController.deleteEmployee);
-
-// ── MESSENGER INTEGRATION & ALERTS ──
-router.post("/test-messenger-alert", requireDeveloper, devMessengerController.testMessengerAlert);
-router.get("/messenger-conversations", requireDeveloper, devMessengerController.getMessengerConversations);
-router.post("/dismiss-messenger-recipient", requireDeveloper, devMessengerController.dismissMessengerRecipient);
-router.post("/restore-messenger-recipients", requireDeveloper, devMessengerController.restoreMessengerRecipients);
-router.post("/set-messenger-recipient", requireDeveloper, devMessengerController.setMessengerRecipient);
-router.get("/alert-filters", requireDeveloper, devMessengerController.getAlertFilters);
-router.post("/toggle-messenger-master-switch", requireDeveloper, devMessengerController.toggleMessengerMasterSwitch);
-router.post("/set-alert-filters", requireDeveloper, devMessengerController.setAlertFilters);
 
 module.exports = router;

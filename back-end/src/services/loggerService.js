@@ -1,7 +1,4 @@
-const fs = require("fs");
-const path = require("path");
-
-const configPath = path.join(__dirname, "../../config/system_state.json");
+const { getSystemState, updateSystemState } = require("./systemStateStore");
 
 // Helper to parse User-Agent into clean device & browser name
 function parseDevice(userAgent = "") {
@@ -41,12 +38,7 @@ function getClientIp(req) {
 // Add a structured log entry
 function addDeveloperLog(eventText, meta = {}) {
   try {
-    let currentState = { maintenanceMode: false, developerPin: "1234", logs: [] };
-    if (fs.existsSync(configPath)) {
-      try {
-        currentState = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      } catch (err) {}
-    }
+    const currentState = getSystemState();
 
     const logEntry = {
       timestamp: new Date().toISOString(),
@@ -59,8 +51,7 @@ function addDeveloperLog(eventText, meta = {}) {
     };
 
     const logs = [logEntry, ...(currentState.logs || [])].slice(0, 150); // Keep last 150 logs
-    const updatedState = { ...currentState, logs };
-    fs.writeFileSync(configPath, JSON.stringify(updatedState, null, 2), "utf8");
+    updateSystemState({ logs });
     return logEntry;
   } catch (e) {
     console.error("Failed to add developer log:", e);

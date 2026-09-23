@@ -1,11 +1,5 @@
 {
   "maintenanceMode": false,
-  "developerPin": "5551",
-  "alertFilters": {
-    "criticalErrors": false,
-    "reservations": false,
-    "authSecurity": false,
-    "systemChanges": false
-  },
+  "developerPinHash": null,
   "logs": []
 }

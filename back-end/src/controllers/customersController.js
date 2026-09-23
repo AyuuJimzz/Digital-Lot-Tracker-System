@@ -8,7 +8,8 @@ const { sanitizeText, sanitizeEmail, sanitizePhone, sanitizeNotes } = require(".
 exports.getAllCustomersForMap = async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT c.*, l.lot_number, l.area_sqm,
+      SELECT c.customer_id, c.lot_id, c.full_name, c.contact_number, c.email, c.address,
+        c.employee_id, c.created_at, c.updated_at, l.lot_number, l.area_sqm,
         CASE 
           WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN 'Cancelled'
           ELSE COALESCE(c.customer_status, l.status)
@@ -32,7 +33,8 @@ exports.getAllCustomersForMap = async (req, res) => {
 exports.getAllCustomers = async (req, res) => {
   try {
     let query = `
-      SELECT c.*, l.lot_number, l.area_sqm,
+      SELECT c.customer_id, c.lot_id, c.full_name, c.contact_number, c.email, c.address,
+        c.employee_id, c.created_at, c.updated_at, l.lot_number, l.area_sqm,
         CASE 
           WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN 'Cancelled'
           ELSE COALESCE(c.customer_status, l.status)
@@ -62,7 +64,10 @@ exports.getAllCustomers = async (req, res) => {
 exports.getCustomerById = async (req, res) => {
   const { id } = req.params;
   try {
-    const [rows] = await db.query("SELECT * FROM customers WHERE customer_id = ?", [id]);
+    const [rows] = await db.query(
+      "SELECT customer_id, lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at FROM customers WHERE customer_id = ?",
+      [id]
+    );
     if (rows.length === 0) {
       return res.status(404).json({ error: "Customer not found" });
     }
@@ -82,7 +87,8 @@ exports.getLotWithCustomer = async (req, res) => {
   try {
     // Get lot details
     const [lotRows] = await db.query(
-      `SELECT l.*, p.property_name, p.location 
+      `SELECT l.lot_id, l.property_id, l.lot_number, l.area_sqm, l.status, l.coordinates,
+              l.pending_since, l.last_reminder_sent, p.property_name, p.location
        FROM lots l 
        LEFT JOIN properties p ON l.property_id = p.property_id 
        WHERE l.lot_id = ?`,
@@ -121,9 +127,12 @@ exports.getLotWithCustomer = async (req, res) => {
 // CREATE CUSTOMER
 // =======================
 exports.createCustomer = async (req, res) => {
-  const { full_name, contact_number, email, address } = req.body;
+  const { lot_id, full_name, contact_number, email, address } = req.body;
 
   // Validation
+  if (!Number.isInteger(Number(lot_id)) || Number(lot_id) <= 0) {
+    return res.status(400).json({ message: "A valid lot ID is required." });
+  }
   if (!full_name?.trim()) {
     return res.status(400).json({ message: "Full name is required." });
   }
@@ -144,9 +153,9 @@ exports.createCustomer = async (req, res) => {
     const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
     const [result] = await db.query(
       `INSERT INTO customers 
-        (full_name, contact_number, email, address, employee_id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [full_name.trim(), contact_number.trim(), email.trim(), address.trim(), employeeId]
+        (lot_id, full_name, contact_number, email, address, employee_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [lot_id, full_name.trim(), contact_number.trim(), email.trim(), address.trim(), employeeId]
     );
 
     console.log(`👤 [New Customer Added] ID #${result.insertId} | "${full_name.trim()}" (${email.trim()})`);
@@ -168,7 +177,10 @@ exports.updateCustomer = async (req, res) => {
   const { full_name, contact_number, email, address } = req.body;
 
   try {
-    const [existing] = await db.query("SELECT * FROM customers WHERE customer_id = ?", [id]);
+    const [existing] = await db.query(
+      "SELECT customer_id, lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at FROM customers WHERE customer_id = ?",
+      [id]
+    );
     if (existing.length === 0) {
       return res.status(404).json({ error: "Customer not found" });
     }
@@ -204,7 +216,10 @@ exports.updateCustomer = async (req, res) => {
 exports.deleteCustomer = async (req, res) => {
   const { id } = req.params;
   try {
-    const [existing] = await db.query("SELECT * FROM customers WHERE customer_id = ?", [id]);
+    const [existing] = await db.query(
+      "SELECT customer_id, lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at FROM customers WHERE customer_id = ?",
+      [id]
+    );
     if (existing.length === 0) {
       return res.status(404).json({ error: "Customer not found" });
     }
@@ -241,14 +256,18 @@ exports.createOrUpdateCustomer = async (req, res) => {
     }
 
     // Check if lot exists
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+    const [lotRows] = await db.query(
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates, pending_since, last_reminder_sent FROM lots WHERE lot_id = ?",
+      [id]
+    );
     if (lotRows.length === 0) {
       return res.status(404).json({ error: "Lot not found" });
     }
 
     // Check if customer already exists for this specific lot
     const [existingCustomerForLot] = await db.query(
-      `SELECT c.*, l.status as lot_status 
+      `SELECT c.customer_id, c.lot_id, c.full_name, c.contact_number, c.email, c.address,
+              c.employee_id, c.customer_status, c.created_at, c.updated_at, l.status as lot_status
        FROM customers c 
        JOIN lots l ON c.lot_id = l.lot_id 
        WHERE c.lot_id = ?`,
@@ -274,7 +293,8 @@ exports.createOrUpdateCustomer = async (req, res) => {
 
     // Check if customer with same email exists (for different lot)
     const [existingCustomerByEmail] = await db.query(
-      `SELECT c.*, l.status as lot_status 
+      `SELECT c.customer_id, c.lot_id, c.full_name, c.contact_number, c.email, c.address,
+              c.employee_id, c.customer_status, c.created_at, c.updated_at, l.status as lot_status
        FROM customers c 
        JOIN lots l ON c.lot_id = l.lot_id 
        WHERE c.email = ?`,
@@ -295,22 +315,23 @@ exports.createOrUpdateCustomer = async (req, res) => {
         res.json({ message: "New customer record created (previous lot is sold)" });
       } else {
         // Start transaction to handle both customer update and lot status changes
-        await db.beginTransaction();
+        const connection = await db.getConnection();
 
         try {
+          await connection.beginTransaction();
           const oldLotId = existingCustomer.lot_id;
 
           // Update the old lot status back to Available
-          await db.query(
+          await connection.query(
             `UPDATE lots SET status = 'Available', pending_since = NULL WHERE lot_id = ?`,
             [oldLotId]
           );
 
           // Delete old transaction for the previous lot
-          await db.query(`DELETE FROM transactions WHERE lot_id = ?`, [oldLotId]);
+          await connection.query(`DELETE FROM transactions WHERE lot_id = ?`, [oldLotId]);
 
           // Update customer to the new lot
-          await db.query(
+          await connection.query(
             `UPDATE customers SET 
              lot_id = ?, full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
              WHERE customer_id = ?`,
@@ -325,23 +346,29 @@ exports.createOrUpdateCustomer = async (req, res) => {
           );
 
           // Create new transaction for the new lot
-          await db.query(
+          await connection.query(
             `INSERT INTO transactions (lot_id, customer_id, payment_type, notes)
              VALUES (?, ?, 'No Downpayment', NULL)`,
             [id, existingCustomer.customer_id]
           );
 
           // Update the new lot status to Pending
-          await db.query(
+          await connection.query(
             `UPDATE lots SET status = 'Pending', pending_since = NOW() WHERE lot_id = ?`,
             [id]
           );
 
-          await db.commit();
+          await connection.commit();
           res.json({ message: "Customer updated to new lot with transaction" });
         } catch (error) {
-          await db.rollback();
+          try {
+            await connection.rollback();
+          } catch (rollbackError) {
+            console.error("Error rolling back customer update:", rollbackError);
+          }
           throw error;
+        } finally {
+          connection.release();
         }
       }
     } else {

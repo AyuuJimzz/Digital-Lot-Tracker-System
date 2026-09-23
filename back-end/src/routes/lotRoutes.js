@@ -24,7 +24,7 @@ const requireAuth = sessionOrToken({ roles: ["admin", "employee"] });
 const requireAdmin = sessionOrToken({ roles: ["admin"] });
 
 // Read routes
-router.get("/map-data", getMapData);
+router.get("/map-data", requireAuth, getMapData);
 router.get("/dashboard-stats", requireAuth, getDashboardStats);
 router.get("/property-stats", requireAuth, getPropertyLotStats);
 router.get("/monthly-sales", requireAuth, getMonthlySalesData);

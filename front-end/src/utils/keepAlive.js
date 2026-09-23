@@ -12,8 +12,10 @@
  * - Sends a lightweight HEAD request (no body, minimal bandwidth)
  */
 
+import { API_BASE_URL } from "../config/api";
+
 const KEEP_ALIVE_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
-const BACKEND_URL = "https://golden-dragon-estate-backend.onrender.com";
+const BACKEND_URL = API_BASE_URL;
 
 let pingTimer = null;
 
@@ -27,12 +29,15 @@ function sendPing() {
   }
 
   const run = () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     fetch(`${BACKEND_URL}/api/health`, {
       method: "HEAD",
       cache: "no-store",
+      signal: controller.signal,
     }).catch(() => {
       // Silently ignore — server may be temporarily unreachable
-    });
+    }).finally(() => clearTimeout(timeout));
   };
 
   // Use idle callback so ping never blocks user interaction

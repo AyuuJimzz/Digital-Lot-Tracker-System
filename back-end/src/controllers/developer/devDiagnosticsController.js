@@ -246,27 +246,6 @@ exports.getEnvHealth = (req, res) => {
       default: "http://localhost:3000",
     },
     {
-      key: "FACEBOOK_PAGE_ACCESS_TOKEN",
-      category: "Integrations / Messenger",
-      required: false,
-      description: "Page Access Token for Facebook Graph API automated alerts",
-      mask: true,
-    },
-    {
-      key: "DEVELOPER_MESSENGER_PSID",
-      category: "Integrations / Messenger",
-      required: false,
-      description: "Facebook Messenger Page-Scoped User ID for alert dispatches",
-      mask: true,
-    },
-    {
-      key: "DEV_MESSENGER_PSID",
-      category: "Integrations / Messenger",
-      required: false,
-      description: "Alternative alias for Messenger PSID recipient",
-      mask: true,
-    },
-    {
       key: "EMAIL_USER",
       category: "Integrations / SMTP",
       required: false,

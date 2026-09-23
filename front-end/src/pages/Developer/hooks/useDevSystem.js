@@ -31,7 +31,7 @@ const useDevSystem = (onAuthReady) => {
   const [mapDiagFilter, setMapDiagFilter] = useState("ALL");
   const [showFlaggedLotsList, setShowFlaggedLotsList] = useState(true);
 
-  // Sidebar Layout Navigation state ("SYSTEM" | "ENDPOINTS" | "ENV" | "MESSENGER" | "DATABASE" | "MAP" | "ACCOUNTS")
+  // Sidebar Layout Navigation state ("SYSTEM" | "ENDPOINTS" | "ENV" | "DATABASE" | "MAP" | "ACCOUNTS")
   const [activeSidebarTab, setActiveSidebarTab] = useState("SYSTEM");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 

@@ -1,30 +1,27 @@
 // controllers/developer/devSystemController.js
-const fs = require("fs");
 const {
-  configPath,
   devPinRateLimiter,
-  getActiveDeveloperPin,
-  setRuntimeCustomPin,
+  verifyDeveloperPin,
   requireDeveloper,
   readSystemStateFile,
   updateSystemStateFile,
+  updateDurableSystemStateFile,
 } = require("./devSystemStateService");
+const bcrypt = require("bcryptjs");
 const devDiagnosticsController = require("./devDiagnosticsController");
 const devKillSwitchController = require("./devKillSwitchController");
 const { addDeveloperLog, logAuthEvent, parseDevice, getClientIp } = require("../../services/loggerService");
-const { sendMessengerAlert } = require("../../services/messengerAlertService");
 
 // ── VERIFY DEVELOPER PIN ──
-exports.verifyPin = (req, res) => {
+exports.verifyPin = async (req, res) => {
   const { pin } = req.body;
-  const activePin = getActiveDeveloperPin();
 
   if (!pin) {
     if (req.session) req.session.isDeveloper = false;
     return res.status(400).json({ error: "PIN is required" });
   }
 
-  if (pin.toString().trim() === activePin) {
+  if (await verifyDeveloperPin(pin)) {
     if (req.session) req.session.isDeveloper = true;
     logAuthEvent(req, "Developer console authenticated", {
       type: "SECURITY",
@@ -46,15 +43,14 @@ exports.verifyPin = (req, res) => {
 };
 
 // ── CHANGE DEVELOPER PIN ──
-exports.changePin = (req, res) => {
+exports.changePin = async (req, res) => {
   const { currentPin, newPin, confirmNewPin } = req.body;
-  const activePin = getActiveDeveloperPin();
 
   if (!currentPin || !newPin || !confirmNewPin) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
-  if (currentPin.toString().trim() !== activePin) {
+  if (!(await verifyDeveloperPin(currentPin))) {
     return res.status(400).json({ error: "Current PIN is incorrect" });
   }
 
@@ -69,106 +65,65 @@ exports.changePin = (req, res) => {
     return res.status(400).json({ error: "New PIN and confirmation PIN do not match" });
   }
 
-  setRuntimeCustomPin(cleanNewPin);
-  const updatedState = updateSystemStateFile({ developerPin: cleanNewPin, runtimeDeveloperPin: cleanNewPin });
-  if (updatedState) {
+  try {
+    const developerPinHash = await bcrypt.hash(cleanNewPin, 10);
+    await updateDurableSystemStateFile(
+      { developerPinHash },
+      ["developerPin", "runtimeDeveloperPin"]
+    );
     logAuthEvent(req, "Developer PIN was successfully changed", {
       type: "SECURITY",
       user: "Developer (Root)",
       role: "Developer",
     });
 
-    try {
-      sendMessengerAlert("Developer PIN Updated", "The developer security master PIN was updated successfully.", {
-        category: "systemChanges",
-        user: "Developer Console",
-        ip: getClientIp(req),
-      }).catch(() => {});
-    } catch (_) {}
-
-    return res.json({ 
-      success: true, 
-      message: "Developer Security PIN updated successfully!", 
-      newPin: cleanNewPin 
-    });
+    return res.json({ success: true, message: "Developer Security PIN updated successfully!" });
+  } catch (error) {
+    console.error("Failed to update Developer PIN:", error);
+    return res.status(503).json({ error: "Failed to persist Developer PIN. Please try again." });
   }
-
-  res.status(500).json({ error: "Failed to update Developer PIN" });
 };
 
 // ── PUBLIC MAINTENANCE STATUS FOR REDIRECTS ──
 exports.getMaintenanceStatus = (req, res) => {
-  try {
-    let state = { maintenanceMode: false };
-    if (fs.existsSync(configPath)) {
-      state = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    }
-    res.json({ maintenanceMode: !!state.maintenanceMode });
-  } catch (e) {
-    res.json({ maintenanceMode: false });
-  }
+  const state = readSystemStateFile();
+  res.json({ maintenanceMode: !!state.maintenanceMode });
 };
 
 // ── GET SYSTEM STATE & LOGS ──
 exports.getSystemState = (req, res) => {
-  try {
-    let state = { maintenanceMode: false, logs: [] };
-    if (fs.existsSync(configPath)) {
-      state = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    }
-    res.json({
-      maintenanceMode: !!state.maintenanceMode,
-      logs: state.logs || [],
-    });
-  } catch (e) {
-    res.status(500).json({ error: "Failed to read system state" });
-  }
+  const state = readSystemStateFile();
+  res.json({ maintenanceMode: !!state.maintenanceMode, logs: state.logs || [] });
 };
 
 // ── TOGGLE MAINTENANCE MODE ──
-exports.toggleMaintenance = (req, res) => {
+exports.toggleMaintenance = async (req, res) => {
   const { maintenanceMode } = req.body;
 
   if (typeof maintenanceMode !== "boolean") {
     return res.status(400).json({ error: "maintenanceMode must be a boolean" });
   }
 
-  const newState = updateSystemStateFile({ maintenanceMode });
-  if (newState) {
+  try {
+    const newState = await updateDurableSystemStateFile({ maintenanceMode });
     addDeveloperLog(`System maintenance mode set to: ${maintenanceMode ? "ENABLED" : "DISABLED"}`, {
       type: "MAINTENANCE",
       device: parseDevice(req.headers["user-agent"]),
       ip: getClientIp(req),
     });
 
-    try {
-      sendMessengerAlert(
-        `Maintenance Mode: ${maintenanceMode ? "ENABLED" : "DISABLED"}`,
-        `The platform was set to ${maintenanceMode ? "Maintenance Mode (Under Construction)" : "Live Operations Mode"}.`,
-        {
-          category: "systemChanges",
-          user: "Developer Console",
-          ip: getClientIp(req),
-        }
-      ).catch(() => {});
-    } catch (_) {}
-
     return res.json({ success: true, maintenanceMode: newState.maintenanceMode });
+  } catch (error) {
+    console.error("Failed to persist maintenance mode:", error);
+    return res.status(503).json({ error: "Failed to persist maintenance mode. Please try again." });
   }
-
-  res.status(500).json({ error: "Failed to toggle maintenance mode" });
 };
 
 // ── CLEAR CONSOLE LOGS ──
 exports.clearLogs = (req, res) => {
   const { type } = req.body;
   
-  let currentState = { maintenanceMode: false, developerPin: "1234", logs: [] };
-  if (fs.existsSync(configPath)) {
-    try {
-      currentState = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    } catch (err) {}
-  }
+  const currentState = readSystemStateFile();
   
   let filteredLogs = [];
   if (type === "AUTH") {
@@ -210,6 +165,6 @@ exports.getGlobalKillSwitchStatus = devKillSwitchController.getGlobalKillSwitchS
 // ── HELPER UTILITIES & AUTH MIDDLEWARE DELEGATIONS ──
 exports.requireDeveloper = requireDeveloper;
 exports.devPinRateLimiter = devPinRateLimiter;
-exports.getActiveDeveloperPin = getActiveDeveloperPin;
+exports.verifyDeveloperPin = verifyDeveloperPin;
 exports.readSystemStateFile = readSystemStateFile;
 exports.updateSystemStateFile = updateSystemStateFile;

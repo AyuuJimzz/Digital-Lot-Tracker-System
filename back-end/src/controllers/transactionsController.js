@@ -45,13 +45,15 @@ const getTransactions = async (req, res) => {
 
 // Create new transaction
 const createTransaction = async (req, res) => {
+  let connection;
   try {
     const { lot_id, customer_id, payment_type, notes, agent_name: customAgentName, agent_id: customAgentId } = req.body;
     let employeeId = (req.user && req.user.role === "employee") ? req.user.id : (customAgentId || null);
     let agentName = customAgentName || (req.user && req.user.role === "employee" ? (req.user.name || "Employee") : "Admin");
 
     // Start transaction
-    await db.beginTransaction();
+    connection = await db.getConnection();
+    await connection.beginTransaction();
 
     // Create transaction record with persistent agent_name snapshot
     const insertTransactionQuery = `
@@ -59,7 +61,7 @@ const createTransaction = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    const [result] = await db.execute(insertTransactionQuery, [
+    const [result] = await connection.execute(insertTransactionQuery, [
       lot_id,
       customer_id,
       payment_type || "No Downpayment",
@@ -76,41 +78,36 @@ const createTransaction = async (req, res) => {
       WHERE lot_id = ?
     `;
 
-    await db.execute(updateLotQuery, [lot_id]);
+    await connection.execute(updateLotQuery, [lot_id]);
 
     // Commit transaction
-    await db.commit();
+    await connection.commit();
 
     console.log(`💳 [New Transaction Created] TXN ID: ${result.insertId} | Lot #${lot_id} | Cust #${customer_id} | Payment: ${payment_type || "No Downpayment"} | Agent: ${req.user?.email || "System"}`);
-
-    try {
-      const { sendMessengerAlert } = require("../services/messengerAlertService");
-      sendMessengerAlert(
-        "New Lot Reservation / Transaction",
-        `A new transaction (Lot #${lot_id}) was processed with payment type: ${payment_type || "Standard"}.`,
-        {
-          category: "reservations",
-          user: req.user?.email || "Staff",
-        }
-      ).catch(() => {});
-    } catch (_) {}
 
     res.status(201).json({
       message: "Transaction created successfully",
       transaction_id: result.insertId,
     });
   } catch (error) {
-    await db.rollback();
+    if (connection) {
+      try { await connection.rollback(); } catch (rollbackError) {
+        console.error("Error rolling back transaction creation:", rollbackError);
+      }
+    }
     console.error("Error creating transaction:", error);
     res.status(500).json({
       error: "Database error",
       message: "Failed to create transaction",
     });
+  } finally {
+    if (connection) connection.release();
   }
 };
 
 // Update transaction status (for marking as Sold)
 const updateTransactionStatus = async (req, res) => {
+  let connection;
   try {
     const { transaction_id } = req.params;
     const { payment_type } = req.body;
@@ -128,30 +125,37 @@ const updateTransactionStatus = async (req, res) => {
     const lot_id = transaction[0].lot_id;
 
     // Start transaction
-    await db.beginTransaction();
+    connection = await db.getConnection();
+    await connection.beginTransaction();
 
     // Update payment type
-    await db.execute("UPDATE transactions SET payment_type = ? WHERE transaction_id = ?", [
+    await connection.execute("UPDATE transactions SET payment_type = ? WHERE transaction_id = ?", [
       payment_type,
       transaction_id,
     ]);
 
     // Update lot status to Sold
-    await db.execute('UPDATE lots SET status = "Sold", pending_since = NULL WHERE lot_id = ?', [
+    await connection.execute('UPDATE lots SET status = "Sold", pending_since = NULL WHERE lot_id = ?', [
       lot_id,
     ]);
 
     // Commit transaction
-    await db.commit();
+    await connection.commit();
 
     res.json({ message: "Transaction updated successfully" });
   } catch (error) {
-    await db.rollback();
+    if (connection) {
+      try { await connection.rollback(); } catch (rollbackError) {
+        console.error("Error rolling back transaction update:", rollbackError);
+      }
+    }
     console.error("Error updating transaction:", error);
     res.status(500).json({
       error: "Database error",
       message: "Failed to update transaction",
     });
+  } finally {
+    if (connection) connection.release();
   }
 };
 

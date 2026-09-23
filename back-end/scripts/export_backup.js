@@ -26,7 +26,7 @@ async function exportAll() {
   }
 
   const [tables] = await db.query('SHOW TABLES');
-  const tableOrder = ['properties', 'lots', 'customers', 'admins', 'employees', 'transactions'];
+  const tableOrder = ['properties', 'lots', 'customers', 'admins', 'employees', 'transactions', 'system_state'];
 
   const fileMap = {
     properties: '01_golden_dragon_corp_properties.sql',
@@ -47,6 +47,7 @@ async function exportAll() {
     let sql = `-- Golden Dragon Corp Database Backup\n`;
     sql += `-- Table: ${tableName}\n`;
     sql += `-- Generated on: ${new Date().toISOString()}\n\n`;
+    sql += `/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI_QUOTES' */;\n`;
     sql += `DROP TABLE IF EXISTS \`${tableName}\`;\n`;
     sql += `${createSql};\n\n`;
 
@@ -66,6 +67,7 @@ async function exportAll() {
       sql += `UNLOCK TABLES;\n`;
     }
 
+    sql += `/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n`;
     const fileName = fileMap[tableName] || `${tableName}.sql`;
     fs.writeFileSync(path.join(backupDir, fileName), sql, 'utf8');
     console.log(`✅ Saved ${fileName} (${rows.length} rows)`);
@@ -77,7 +79,7 @@ async function exportAll() {
   fullSql += `/*!40101 SET NAMES utf8mb4 */;\n`;
   fullSql += `/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;\n`;
   fullSql += `/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;\n`;
-  fullSql += `/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;\n\n`;
+  fullSql += `/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI_QUOTES' */;\n\n`;
 
   for (const tableName of tableOrder) {
     if (!foundTableNames.includes(tableName)) continue;
@@ -110,9 +112,10 @@ async function exportAll() {
 
   fullSql += `/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;\n`;
   fullSql += `/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;\n`;
+  fullSql += `/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;\n`;
 
   fs.writeFileSync(path.join(backupDir, '00_golden_dragon_corp_FULL_BACKUP.sql'), fullSql, 'utf8');
-  console.log(`✅ Saved 00_golden_dragon_corp_FULL_BACKUP.sql (All 6 tables)`);
+  console.log(`✅ Saved 00_golden_dragon_corp_FULL_BACKUP.sql (${tableOrder.filter((table) => foundTableNames.includes(table)).length} tables)`);
 
   process.exit(0);
 }

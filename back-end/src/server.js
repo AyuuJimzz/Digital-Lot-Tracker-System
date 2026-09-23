@@ -3,17 +3,24 @@ require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 require("dotenv").config();
 const app = require("./app");
 const { sendPendingLotReminders } = require("./controllers/lotsController");
+const { ready: systemStateReady } = require("./services/systemStateStore");
 
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
-  console.log(`\n==============================================`);
-  console.log(`🚀 SYSTEM IS RUNNING SUCCESSFULLY!`);
-  console.log(`==============================================`);
-  console.log(`🌐 Frontend (Website):     http://localhost:3000`);
-  console.log(`⚙️  Backend (API):         http://localhost:${PORT}`);
-  console.log(`🗄️  Database (phpMyAdmin): http://localhost:8080`);
-  console.log(`==============================================\n`);
+let server;
+systemStateReady.then(() => {
+  server = app.listen(PORT, () => {
+    console.log(`\n==============================================`);
+    console.log(`🚀 SYSTEM IS RUNNING SUCCESSFULLY!`);
+    console.log(`==============================================`);
+    console.log(`🌐 Frontend (Website):     http://localhost:3000`);
+    console.log(`⚙️  Backend (API):         http://localhost:${PORT}`);
+    console.log(`🗄️  Database (phpMyAdmin): http://localhost:8080`);
+    console.log(`==============================================\n`);
+  });
+}).catch((error) => {
+  console.error("Failed to load system state before startup:", error);
+  process.exitCode = 1;
 });
 
 // =======================
@@ -45,12 +52,16 @@ const reminderJob = schedule.scheduleJob("0 * * * *", async () => {
 });
 
 const { addDeveloperLog } = require("./services/loggerService");
-const { sendMessengerAlert } = require("./services/messengerAlertService");
 
 // =======================
 // GRACEFUL SHUTDOWN & CLEANUP (Releases Port 5000 cleanly on Nodemon restart)
 // =======================
 const shutdown = (signal) => {
+  if (!server) {
+    if (reminderJob) reminderJob.cancel();
+    process.exit(0);
+    return;
+  }
   server.close(() => {
     if (reminderJob) reminderJob.cancel();
     if (signal === "SIGUSR2") {
@@ -64,4 +75,3 @@ const shutdown = (signal) => {
 process.once("SIGUSR2", () => shutdown("SIGUSR2"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
-

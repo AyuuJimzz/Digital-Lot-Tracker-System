@@ -42,4 +42,6 @@ save-progress.md
 .freebuff
 demo-video
 scratch/
+database_Backup/*.sql
+!database_Backup/07_password_reset_columns.sql
 docs/PDF-LOT-IMPORT-TROUBLESHOOTING.md

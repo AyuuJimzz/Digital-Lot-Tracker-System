@@ -13,7 +13,14 @@ exports.getAllEmployees = async (req, res) => {
   try {
     const query = `
       SELECT 
-        e.*,
+        e.employee_id,
+        e.first_name,
+        e.last_name,
+        e.email,
+        e.status,
+        e.password_reset_required,
+        e.last_login,
+        e.created_at,
         COALESCE(sales.sold_count, 0) AS lots_sold,
         COALESCE(reserves.pending_count, 0) AS lots_pending
       FROM employees e
@@ -34,7 +41,7 @@ exports.getAllEmployees = async (req, res) => {
       res.json(rows);
     } catch (fallbackErr) {
       // Fallback query if employee_id column is not in transactions/customers
-      const [rows] = await db.query("SELECT * FROM employees ORDER BY employee_id ASC");
+      const [rows] = await db.query("SELECT employee_id, first_name, last_name, email, status, password_reset_required, last_login, created_at FROM employees ORDER BY employee_id ASC");
       res.json(rows);
     }
   } catch (err) {
@@ -116,17 +123,19 @@ exports.createEmployee = async (req, res) => {
       </div>
     `;
 
-    try {
-      await sendEmail(email.trim(), "Welcome to Golden Dragon - Your Staff Credentials", emailHtml);
-    } catch (emailErr) {
-      console.warn("Could not dispatch welcome email:", emailErr.message);
-    }
+    // Account creation is the critical operation. Dispatch the invitation
+    // without making the successful database insert wait on Brevo.
+    void sendEmail(email.trim(), "Welcome to Golden Dragon - Your Staff Credentials", emailHtml)
+      .then((result) => {
+        if (!result.success) console.warn("Could not dispatch welcome email:", result.error);
+      })
+      .catch((emailErr) => console.warn("Could not dispatch welcome email:", emailErr.message));
 
     console.log(`👥 [Employee Created] ID #${result.insertId} | "${first_name} ${last_name}" (${email})`);
     res.status(201).json({
-      message: "Employee added successfully. An email with login credentials has been sent.",
+      message: "Employee added successfully. Invitation email dispatch has started.",
       employee_id: result.insertId,
-      email_sent: true,
+      email_dispatch_started: true,
     });
   } catch (err) {
     console.error("❌ [Create Employee Error]:", err);
@@ -226,7 +235,10 @@ exports.getEmployeeActivities = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const [empRows] = await db.query("SELECT * FROM employees WHERE employee_id = ?", [id]);
+    const [empRows] = await db.query(
+      "SELECT employee_id, first_name, last_name, email, status, password_reset_required FROM employees WHERE employee_id = ?",
+      [id]
+    );
     if (!empRows.length) {
       return res.status(404).json({ error: "Employee not found" });
     }

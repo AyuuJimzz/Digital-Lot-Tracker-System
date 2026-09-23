@@ -35,7 +35,6 @@ const DeveloperHeader = ({
               {activeSidebarTab === "ACCOUNTS" && "Accounts & Credentials"}
               {activeSidebarTab === "ENDPOINTS" && "API Routes & Health"}
               {activeSidebarTab === "ENV" && "Environment (.env) Inspector"}
-              {activeSidebarTab === "MESSENGER" && "Facebook Messenger Bot"}
             </span>
           </div>
         </div>

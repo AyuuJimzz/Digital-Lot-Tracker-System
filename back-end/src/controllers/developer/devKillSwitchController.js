@@ -1,12 +1,11 @@
-const fs = require("fs");
-const { configPath, updateSystemStateFile } = require("./devSystemStateService");
+const { readSystemStateFile, updateDurableSystemStateFile } = require("./devSystemStateService");
 const { addDeveloperLog, parseDevice, getClientIp } = require("../../services/loggerService");
 
 // ── EMERGENCY GLOBAL KILL SWITCH / FORCE LOGOUT ALL ──
-exports.globalKillSwitch = (req, res) => {
+exports.globalKillSwitch = async (req, res) => {
   try {
     const timestamp = new Date().toISOString();
-    updateSystemStateFile({ authRevocationTimestamp: timestamp });
+    await updateDurableSystemStateFile({ authRevocationTimestamp: timestamp });
 
     addDeveloperLog(`🚨 EMERGENCY GLOBAL KILL SWITCH: Force-logged out all active sessions and invalidated all issued JWT tokens.`, {
       type: "SECURITY",
@@ -29,11 +28,7 @@ exports.globalKillSwitch = (req, res) => {
 // ── GET GLOBAL KILL SWITCH STATUS ──
 exports.getGlobalKillSwitchStatus = (req, res) => {
   try {
-    let authRevocationTimestamp = null;
-    if (fs.existsSync(configPath)) {
-      const state = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      authRevocationTimestamp = state.authRevocationTimestamp || null;
-    }
+    const authRevocationTimestamp = readSystemStateFile().authRevocationTimestamp || null;
     res.json({ success: true, authRevocationTimestamp });
   } catch (err) {
     res.status(500).json({ error: "Failed to get kill switch status" });

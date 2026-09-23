@@ -5,9 +5,6 @@ const DeveloperSidebar = ({
   setMobileSidebarOpen,
   activeSidebarTab,
   setActiveSidebarTab,
-  fetchAlertFilters,
-  messengerRecipients,
-  fetchMessengerRecipients,
   maintenanceMode,
 }) => {
   return (
@@ -220,35 +217,6 @@ const DeveloperSidebar = ({
             </div>
           </button>
 
-          {/* 7. Facebook Messenger Alert Bot */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveSidebarTab("MESSENGER");
-              setMobileSidebarOpen(false);
-              fetchAlertFilters();
-              if (messengerRecipients.length === 0) {
-                fetchMessengerRecipients();
-              }
-            }}
-            className={`w-full p-3 rounded-xl transition flex items-center justify-between text-left group ${
-              activeSidebarTab === "MESSENGER"
-                ? "bg-emerald-500/15 border border-emerald-500/30 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${activeSidebarTab === "MESSENGER" ? "bg-sky-500/20 text-sky-400" : "bg-slate-900 text-slate-400 group-hover:text-slate-300"}`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-xs font-bold">Messenger Alert Bot</div>
-                <div className="text-[10px] text-slate-500">Push Notifications</div>
-              </div>
-            </div>
-          </button>
         </div>
 
         {/* Sidebar Footer */}

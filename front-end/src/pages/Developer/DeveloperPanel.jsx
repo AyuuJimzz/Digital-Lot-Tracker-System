@@ -10,7 +10,6 @@ import DeveloperHeader from "./components/DeveloperHeader";
 import SystemTab from "./tabs/SystemTab";
 import EndpointsTab from "./tabs/EndpointsTab";
 import EnvHealthTab from "./tabs/EnvHealthTab";
-import MessengerTab from "./tabs/MessengerTab";
 import DatabaseTab from "./tabs/DatabaseTab";
 import MapDiagnosticsTab from "./tabs/MapDiagnosticsTab";
 import AccountsTab from "./tabs/AccountsTab";
@@ -47,7 +46,6 @@ const DeveloperPanel = () => {
           {dev.activeSidebarTab === "SYSTEM" && <SystemTab {...dev} />}
           {dev.activeSidebarTab === "ENDPOINTS" && <EndpointsTab {...dev} />}
           {dev.activeSidebarTab === "ENV" && <EnvHealthTab {...dev} />}
-          {dev.activeSidebarTab === "MESSENGER" && <MessengerTab {...dev} />}
           {dev.activeSidebarTab === "DATABASE" && <DatabaseTab {...dev} />}
           {dev.activeSidebarTab === "MAP" && <MapDiagnosticsTab {...dev} />}
           {dev.activeSidebarTab === "ACCOUNTS" && <AccountsTab {...dev} />}

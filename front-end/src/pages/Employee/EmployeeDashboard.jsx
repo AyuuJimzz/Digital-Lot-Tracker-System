@@ -45,37 +45,32 @@ const EmployeeDashboard = () => {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         };
 
-        const [mapDataResponse, employeesResponse, customersResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig),
-          axios.get(`${API_BASE_URL}/api/employees`, authConfig).catch(() => ({ data: [] })),
-          axios.get(`${API_BASE_URL}/api/customers/all-for-map`, authConfig).catch(() => ({ data: [] })),
-        ]);
-
-        const summary = mapDataResponse?.data?.summary || {};
-        const employees = Array.isArray(employeesResponse?.data) ? employeesResponse.data : [];
-        const customers = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
-
-        // Group customers by email to count unique emails only
-        const uniqueCustomersByEmail = new Map();
-        customers.forEach((customer) => {
-          if (!uniqueCustomersByEmail.has(customer.email)) {
-            uniqueCustomersByEmail.set(customer.email, customer);
-          }
-        });
+        // Use the compact statistics endpoint for the dashboard. The full map
+        // is a separate screen and must never block the dashboard shell.
+        const statsResponse = await axios.get(`${API_BASE_URL}/api/lots/dashboard-stats`, authConfig);
+        const summary = statsResponse?.data || {};
 
         const newStats = {
           totalLots: summary.totalLots || 0,
           soldLots: summary.soldLots || 0,
           availableLots: summary.availableLots || 0,
           pendingLots: summary.pendingLots || 0,
-          teamMembers: employees.length || 0,
-          totalCustomer: uniqueCustomersByEmail.size || 0,
+          teamMembers: 0,
+          totalCustomer: summary.totalClients || 0,
         };
 
         setStats(newStats);
         try {
           sessionStorage.setItem("employeeStatsCache", JSON.stringify(newStats));
         } catch (e) {}
+
+        // Team count is optional and updates the cards when available.
+        axios.get(`${API_BASE_URL}/api/employees`, authConfig)
+          .then((response) => setStats((current) => ({
+            ...current,
+            teamMembers: Array.isArray(response.data) ? response.data.length : current.teamMembers,
+          })))
+          .catch(() => {});
       } catch (dashboardError) {
         setError("Unable to load employee dashboard data. Please refresh and try again.");
       } finally {

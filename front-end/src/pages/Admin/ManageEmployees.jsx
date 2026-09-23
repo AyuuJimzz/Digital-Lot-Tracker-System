@@ -130,7 +130,7 @@ const ManageEmployees = () => {
         const res = await axios.post(url, formData, authConfig);
         showToast(
           res.data?.message ||
-            "Employee added successfully. An email with login credentials has been sent.",
+            "Employee added successfully. Invitation email dispatch has started.",
           "success"
         );
       }
