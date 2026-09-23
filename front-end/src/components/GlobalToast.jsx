@@ -63,7 +63,7 @@ export default function GlobalToast() {
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-[999999] flex flex-col gap-2.5 pointer-events-none max-w-sm sm:max-w-md w-full px-4 sm:px-0"
+      className="fixed top-5 left-1/2 -translate-x-1/2 z-[999999] flex flex-col items-center gap-2.5 pointer-events-none max-w-sm sm:max-w-md w-full px-4 sm:px-0"
       aria-live="polite"
     >
       {toasts.map((toast) => {
@@ -75,7 +75,7 @@ export default function GlobalToast() {
         return (
           <div
             key={toast.id}
-            className="pointer-events-auto flex items-center gap-3 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800 rounded-xl px-4 py-3 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-150 animate-in slide-in-from-bottom-2 fade-in"
+            className="pointer-events-auto flex items-center gap-3 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800 rounded-xl px-4 py-3 shadow-xl shadow-black/10 dark:shadow-black/40 transition-all duration-150 animate-in slide-in-from-top-2 fade-in w-full"
           >
             <div className="shrink-0 flex items-center justify-center">
               {isError && <XCircle className="w-4 h-4 text-rose-500 shrink-0" strokeWidth={2.2} />}

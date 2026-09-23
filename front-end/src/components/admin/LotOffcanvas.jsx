@@ -72,6 +72,7 @@ const LotOffcanvas = ({
   const [areaSqm, setAreaSqm] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
+  const [validationErrors, setValidationErrors] = useState({});
 
   const userRole = (localStorage.getItem("role") || "").toLowerCase();
   const isAdmin = isAdminProp !== undefined ? isAdminProp : userRole === "admin";
@@ -113,6 +114,7 @@ const LotOffcanvas = ({
       setLotPendingDelete(null);
       setDeleteLotError("");
       setIsDeletingLot(false);
+      setValidationErrors({});
       const nonSaleableInitial =
         checkIsNonSaleable(selectedLot.lot_number, selectedLot.area_sqm) ||
         selectedLot.is_non_saleable === 1 ||
@@ -281,20 +283,33 @@ const LotOffcanvas = ({
 
     // Validate lot details
     if (!lotNumber.trim() || !areaSqm) {
+      const errors = {};
+      if (!lotNumber.trim()) errors.lotNumber = true;
+      if (!areaSqm) errors.areaSqm = true;
+      setValidationErrors(errors);
       showToast("Lot Number and Area (SQM) are required.", "error");
       return;
     }
 
-    // Validate customer information if status is being set to Pending (only if saleable)
-    if (!isNonSaleable && status === "Pending") {
-      if (!email || !fullName || !contactNumber || !address) {
+    // Validate customer information if status is being set to Pending or Sold (only if saleable)
+    if (!isNonSaleable && (status === "Pending" || status === "Sold")) {
+      const errors = {};
+      if (!fullName?.trim()) errors.fullName = true;
+      if (!contactNumber?.trim()) errors.contactNumber = true;
+      if (!email?.trim()) errors.email = true;
+      if (!address?.trim()) errors.address = true;
+
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
         showToast(
-          "All customer fields (email, full name, contact number, address) are required when setting status to Pending",
+          `All customer fields (full name, contact number, email, address) are required when setting status to ${status}.`,
           "error"
         );
         return;
       }
     }
+
+    setValidationErrors({});
 
     setIsSaving(true);
     const getAuthHeaders = () => {
@@ -643,15 +658,23 @@ const LotOffcanvas = ({
                   name="lot_number"
                   type="text"
                   value={lotNumber}
-                  onChange={(e) => setLotNumber(e.target.value)}
+                  onChange={(e) => {
+                    setLotNumber(e.target.value);
+                    if (validationErrors.lotNumber) setValidationErrors((prev) => ({ ...prev, lotNumber: false }));
+                  }}
                   disabled={!isAdmin}
                   readOnly={!isAdmin}
                   title={!isAdmin ? "Only Admins can edit lot number" : ""}
-                  className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 font-semibold ${
-                    !isAdmin ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white dark:bg-slate-700 font-semibold transition-colors ${
+                    validationErrors.lotNumber
+                      ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
+                      : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
+                  } ${!isAdmin ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""}`}
                   placeholder="e.g. BLOCK 7 Lot 1"
                 />
+                {validationErrors.lotNumber && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-medium">Lot number is required</p>
+                )}
                 {isAdmin && !isNonSaleable && checkIsNonSaleable(lotNumber) && (
                   <button
                     type="button"
@@ -688,15 +711,23 @@ const LotOffcanvas = ({
                   type="number"
                   step="0.01"
                   value={areaSqm}
-                  onChange={(e) => setAreaSqm(e.target.value)}
+                  onChange={(e) => {
+                    setAreaSqm(e.target.value);
+                    if (validationErrors.areaSqm) setValidationErrors((prev) => ({ ...prev, areaSqm: false }));
+                  }}
                   disabled={!isAdmin}
                   readOnly={!isAdmin}
                   title={!isAdmin ? "Only Admins can edit lot area" : ""}
-                  className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                    !isAdmin ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white dark:bg-slate-700 transition-colors ${
+                    validationErrors.areaSqm
+                      ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
+                      : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
+                  } ${!isAdmin ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""}`}
                   placeholder="e.g. 200"
                 />
+                {validationErrors.areaSqm && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-medium">Area is required</p>
+                )}
               </div>
 
               {/* Latitude and Longitude */}
@@ -952,14 +983,22 @@ const LotOffcanvas = ({
                         name="customer_name"
                         type="text"
                         value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        onChange={(e) => {
+                          setFullName(e.target.value);
+                          if (validationErrors.fullName) setValidationErrors((prev) => ({ ...prev, fullName: false }));
+                        }}
                         disabled={isLockedForUser}
                         title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
-                        className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                          isLockedForUser ? "cursor-not-allowed opacity-75" : ""
-                        }`}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white dark:bg-slate-700 transition-colors ${
+                          validationErrors.fullName
+                            ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
+                            : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
+                        } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
                         placeholder="Enter customer's full name"
                       />
+                    )}
+                    {validationErrors.fullName && (
+                      <p className="text-[11px] text-rose-500 mt-1 font-medium">Customer full name is required</p>
                     )}
                   </div>
 
@@ -977,14 +1016,22 @@ const LotOffcanvas = ({
                           name="customer_contact"
                           type="tel"
                           value={contactNumber}
-                          onChange={(e) => setContactNumber(e.target.value)}
+                          onChange={(e) => {
+                            setContactNumber(e.target.value);
+                            if (validationErrors.contactNumber) setValidationErrors((prev) => ({ ...prev, contactNumber: false }));
+                          }}
                           disabled={isLockedForUser}
                           title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
-                          className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                            isLockedForUser ? "cursor-not-allowed opacity-75" : ""
-                          }`}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white dark:bg-slate-700 transition-colors ${
+                            validationErrors.contactNumber
+                              ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
+                              : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
+                          } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
                           placeholder="Enter contact number"
                         />
+                        {validationErrors.contactNumber && (
+                          <p className="text-[11px] text-rose-500 mt-1 font-medium">Contact number is required</p>
+                        )}
                       </div>
 
                       {/* Payment Method - Only show when status is Sold */}
@@ -1040,14 +1087,22 @@ const LotOffcanvas = ({
                           name="customer_contact"
                           type="tel"
                           value={contactNumber}
-                          onChange={(e) => setContactNumber(e.target.value)}
+                          onChange={(e) => {
+                            setContactNumber(e.target.value);
+                            if (validationErrors.contactNumber) setValidationErrors((prev) => ({ ...prev, contactNumber: false }));
+                          }}
                           disabled={isLockedForUser}
                           title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
-                          className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                            isLockedForUser ? "cursor-not-allowed opacity-75" : ""
-                          }`}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white dark:bg-slate-700 transition-colors ${
+                            validationErrors.contactNumber
+                              ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
+                              : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
+                          } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
                           placeholder="Enter contact number"
                         />
+                      )}
+                      {validationErrors.contactNumber && (
+                        <p className="text-[11px] text-rose-500 mt-1 font-medium">Contact number is required</p>
                       )}
                     </div>
                   )}
@@ -1095,14 +1150,22 @@ const LotOffcanvas = ({
                         name="customer_email"
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (validationErrors.email) setValidationErrors((prev) => ({ ...prev, email: false }));
+                        }}
                         disabled={isLockedForUser}
                         title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
-                        className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white dark:bg-slate-700 ${
-                          isLockedForUser ? "cursor-not-allowed opacity-75" : ""
-                        }`}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-gray-900 dark:text-white dark:bg-slate-700 transition-colors ${
+                          validationErrors.email
+                            ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
+                            : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
+                        } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
                         placeholder="Enter email address"
                       />
+                    )}
+                    {validationErrors.email && (
+                      <p className="text-[11px] text-rose-500 mt-1 font-medium">Email address is required</p>
                     )}
                   </div>
 
@@ -1132,14 +1195,22 @@ const LotOffcanvas = ({
                         name="customer_address"
                         type="text"
                         value={address}
-                        onChange={(e) => setAddress(e.target.value)}
+                        onChange={(e) => {
+                          setAddress(e.target.value);
+                          if (validationErrors.address) setValidationErrors((prev) => ({ ...prev, address: false }));
+                        }}
                         disabled={isLockedForUser}
                         title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
-                        className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-gray-900 dark:text-white dark:bg-slate-700 ${
-                          isLockedForUser ? "cursor-not-allowed opacity-75" : ""
-                        }`}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 text-sm text-gray-900 dark:text-white dark:bg-slate-700 transition-colors ${
+                          validationErrors.address
+                            ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
+                            : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
+                        } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
                         placeholder="Enter customer's address"
                       />
+                    )}
+                    {validationErrors.address && (
+                      <p className="text-[11px] text-rose-500 mt-1 font-medium">Customer address is required</p>
                     )}
                   </div>
 
