@@ -87,10 +87,17 @@ exports.getMapData = async (req, res) => {
     );
 
     const [rows] = await db.query(
-      `SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates 
-       FROM lots 
-       WHERE coordinates IS NOT NULL 
-       ORDER BY property_id, lot_number`
+      `SELECT l.lot_id, l.property_id, l.lot_number, l.area_sqm, l.status, l.coordinates,
+              c.full_name AS customer_name, c.email AS customer_email, c.contact_number AS customer_contact, c.address AS customer_address
+       FROM lots l
+       LEFT JOIN (
+         SELECT customer_id, lot_id, full_name, email, contact_number, address,
+                ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY updated_at DESC, customer_id DESC) AS rn
+         FROM customers
+         WHERE lot_id IS NOT NULL
+       ) c ON l.lot_id = c.lot_id AND c.rn = 1
+       WHERE l.coordinates IS NOT NULL 
+       ORDER BY l.property_id, l.lot_number`
     );
 
     // Format the data similar to the original lotData structure
@@ -102,15 +109,34 @@ exports.getMapData = async (req, res) => {
         soldLots: rows.filter((lot) => lot.status === "Sold").length,
       },
       properties: propertyRows,
-      lots: rows.map((lot) => ({
-        lot_id: lot.lot_id,
-        property_id: lot.property_id,
-        lot_number: lot.lot_number,
-        area_sqm: lot.area_sqm,
-        status: lot.status,
-        coordinates:
-          typeof lot.coordinates === "string" ? JSON.parse(lot.coordinates) : lot.coordinates,
-      })),
+      lots: rows.map((lot) => {
+        const hasCustomer = Boolean(lot.customer_name || lot.customer_email || lot.customer_contact);
+        let parsedCoordinates = lot.coordinates;
+        if (typeof lot.coordinates === "string") {
+          try {
+            parsedCoordinates = JSON.parse(lot.coordinates);
+          } catch (e) {
+            console.error("Error parsing coordinates for lot:", lot.lot_id, e);
+          }
+        }
+
+        return {
+          lot_id: lot.lot_id,
+          property_id: lot.property_id,
+          lot_number: lot.lot_number,
+          area_sqm: lot.area_sqm,
+          status: lot.status,
+          customer: hasCustomer
+            ? {
+                full_name: lot.customer_name || "",
+                email: lot.customer_email || "",
+                contact_number: lot.customer_contact || "",
+                address: lot.customer_address || "",
+              }
+            : null,
+          coordinates: parsedCoordinates,
+        };
+      }),
     };
 
     res.json(mapData);
