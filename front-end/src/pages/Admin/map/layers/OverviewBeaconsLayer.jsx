@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Marker } from "react-leaflet";
+import { Marker, Pane } from "react-leaflet";
 import L from "leaflet";
 
 // ── Lightweight Static Overview Location Beacon (no animation = no GPU stutter) ──
@@ -63,7 +63,9 @@ export const OverviewBeaconsLayer = ({
     });
   }, [properties, setSelectedProperty]);
 
-  return <>{beacons}</>;
+  // Lot pins use Leaflet's default marker pane (z-index 600). Keep the
+  // property beacon above them so dense lots cannot cover its icon or label.
+  return <Pane name="property-beacons" style={{ zIndex: 625 }}>{beacons}</Pane>;
 };
 
 export default OverviewBeaconsLayer;
