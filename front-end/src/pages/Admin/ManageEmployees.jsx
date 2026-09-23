@@ -1,24 +1,15 @@
-import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import {
-  Edit,
-  Trash2,
-  Plus,
-  X,
-  History,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Calendar,
-  KeyRound,
-  AlertTriangle,
-} from "lucide-react";
+import { Plus, CheckCircle2, X } from "lucide-react";
+import { API_BASE_URL } from "../../config/api";
 import { showToast } from "../../components/GlobalToast";
-
-const inputCls =
-  "w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-slate-700 rounded-lg shadow-sm bg-white dark:bg-slate-800/90 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:focus:border-blue-500 transition-all";
+import {
+  EmployeeTable,
+  EmployeeAddEditModal,
+  EmployeeDeleteModal,
+  EmployeeActivityModal,
+} from "../../components/admin/employees";
 
 const ManageEmployees = () => {
   const [employees, setEmployees] = useState(() => {
@@ -49,6 +40,8 @@ const ManageEmployees = () => {
   const [deleteError, setDeleteError] = useState("");
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState("");
 
+  const navigate = useNavigate();
+
   // Auto-dismiss delete success notification after 4 seconds
   useEffect(() => {
     if (!deleteSuccessMessage) return;
@@ -56,17 +49,18 @@ const ManageEmployees = () => {
     return () => clearTimeout(timer);
   }, [deleteSuccessMessage]);
 
-  const navigate = useNavigate();
-
   const fetchEmployees = useCallback(async () => {
     try {
       const token = localStorage.getItem("authToken");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await axios.get(`${API_BASE_URL}/api/employees`, {
-        withCredentials: true, headers,
+        withCredentials: true,
+        headers,
       });
       setEmployees(response.data);
-      try { sessionStorage.setItem("employeesCache", JSON.stringify(response.data)); } catch (e) {}
+      try {
+        sessionStorage.setItem("employeesCache", JSON.stringify(response.data));
+      } catch (e) {}
       setLoading(false);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -101,148 +95,34 @@ const ManageEmployees = () => {
     }
   };
 
-  const formatRelativeTime = (timestamp) => {
-    if (!timestamp) return "Recently";
-    const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return "Recently";
-    const diffMs = Date.now() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1)
-      return "Yesterday at " + date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  };
-
-  const getActivityIcon = (act) => {
-    if (act.type === "SALE") {
-      return <CheckCircle2 className="w-3.5 h-3.5 text-rose-400" />;
-    }
-    if (act.type === "CANCELLATION") {
-      return <XCircle className="w-3.5 h-3.5 text-orange-400" />;
-    }
-    return <Clock className="w-3.5 h-3.5 text-amber-400" />;
-  };
-
-  const getEmployeeActivityStatus = (employee) => {
-    if (employee.status === "inactive") {
-      return {
-        label: "Disabled",
-        textCls: "text-slate-500 dark:text-slate-400",
-        dotCls: "bg-slate-500",
-        pulse: false,
-        title: "Account is disabled",
-      };
-    }
-
-    const lastActiveTimestamp = employee.last_login || employee.updated_at || employee.created_at;
-    if (!lastActiveTimestamp) {
-      return {
-        label: "Online Now",
-        textCls: "text-emerald-600 dark:text-emerald-400",
-        dotCls: "bg-emerald-500 dark:bg-emerald-400",
-        pulse: true,
-        title: "Recently active",
-      };
-    }
-
-    const lastActiveDate = new Date(lastActiveTimestamp);
-    if (isNaN(lastActiveDate.getTime())) {
-      return {
-        label: "Online Now",
-        textCls: "text-emerald-600 dark:text-emerald-400",
-        dotCls: "bg-emerald-500 dark:bg-emerald-400",
-        pulse: true,
-        title: "Active now",
-      };
-    }
-
-    const diffMinutes = Math.floor((Date.now() - lastActiveDate.getTime()) / (1000 * 60));
-
-    // 1. Online now (within 15 minutes)
-    if (diffMinutes <= 15) {
-      return {
-        label: "Online Now",
-        textCls: "text-emerald-600 dark:text-emerald-400",
-        dotCls: "bg-emerald-500 dark:bg-emerald-400",
-        pulse: true,
-        title: "Active on the platform now",
-      };
-    }
-
-    // 2. Active X mins ago (< 60 mins)
-    if (diffMinutes < 60) {
-      return {
-        label: `Active ${diffMinutes}m ago`,
-        textCls: "text-gray-600 dark:text-slate-400",
-        dotCls: "bg-gray-400 dark:bg-slate-400",
-        pulse: false,
-        title: `Last active ${diffMinutes} minutes ago`,
-      };
-    }
-
-    const diffHours = Math.floor(diffMinutes / 60);
-    // 3. Active X hours ago (< 24 hrs)
-    if (diffHours < 24) {
-      return {
-        label: `Active ${diffHours}h ago`,
-        textCls: "text-gray-600 dark:text-slate-400",
-        dotCls: "bg-gray-400 dark:bg-slate-400",
-        pulse: false,
-        title: `Last active ${diffHours} hours ago`,
-      };
-    }
-
-    const diffDays = Math.floor(diffHours / 24);
-    // 4. Active Yesterday
-    if (diffDays === 1) {
-      return {
-        label: "Active Yesterday",
-        textCls: "text-gray-600 dark:text-slate-400",
-        dotCls: "bg-gray-400 dark:bg-slate-400",
-        pulse: false,
-        title: "Last active yesterday",
-      };
-    }
-
-    // 5. Active X days ago (<= 30 days)
-    if (diffDays <= 30) {
-      return {
-        label: `Active ${diffDays}d ago`,
-        textCls: "text-gray-600 dark:text-slate-400",
-        dotCls: "bg-gray-400 dark:bg-slate-400",
-        pulse: false,
-        title: `Last active ${diffDays} days ago`,
-      };
-    }
-
-    // 6. Inactive (30+ days)
-    return {
-      label: "Inactive (30+ days)",
-      textCls: "text-gray-400 dark:text-slate-500",
-      dotCls: "bg-gray-300 dark:bg-slate-600",
-      pulse: false,
-      title: "No activity for over 30 days",
-    };
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      first_name: "",
+      last_name: "",
+      email: "",
+      password: "",
+    });
+    setEditingEmployee(null);
+    setShowForm(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("authToken");
-      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+      const authConfig = {
+        withCredentials: true,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      };
       const url = editingEmployee
         ? `${API_BASE_URL}/api/employees/${editingEmployee.employee_id}`
         : `${API_BASE_URL}/api/employees`;
+
       if (editingEmployee) {
         await axios.put(url, formData, authConfig);
         showToast("Employee updated successfully", "success");
@@ -289,7 +169,9 @@ const ManageEmployees = () => {
     setDeleteError("");
 
     const employeeId = employeePendingDelete.employee_id;
-    const employeeName = `${employeePendingDelete.first_name || ""} ${employeePendingDelete.last_name || ""}`.trim() || "Employee";
+    const employeeName =
+      `${employeePendingDelete.first_name || ""} ${employeePendingDelete.last_name || ""}`.trim() ||
+      "Employee";
 
     try {
       const token = localStorage.getItem("authToken");
@@ -319,153 +201,42 @@ const ManageEmployees = () => {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      first_name: "",
-      last_name: "",
-      email: "",
-      password: "",
-    });
-    setEditingEmployee(null);
-    setShowForm(false);
-  };
-
-  if (loading)
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500 dark:text-slate-400">
         Loading employees...
       </div>
     );
-  if (error) return <div className="text-red-600 dark:text-red-400 p-4">Error: {error}</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-600 dark:text-red-400 p-4">Error: {error}</div>;
+  }
 
   return (
     <div className="space-y-6 p-6">
       {/* ── In-App Delete Confirmation Modal ── */}
-      {employeePendingDelete && (
-        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-employee-modal-title"
-            className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 max-w-md w-full animate-in zoom-in-95 duration-150"
-          >
-            {/* Modal Header */}
-            <div className="flex items-start justify-between pb-3 mb-4 border-b border-gray-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-500/10 dark:bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 id="delete-employee-modal-title" className="text-lg font-bold text-gray-900 dark:text-white">
-                    Delete Employee?
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">
-                    Permanent deletion confirmation
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40 cursor-pointer"
-                title="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      <EmployeeDeleteModal
+        employee={employeePendingDelete}
+        isDeleting={isDeleting}
+        deleteError={deleteError}
+        onConfirm={confirmDeleteEmployee}
+        onClose={closeDeleteModal}
+      />
 
-            {/* Employee Details */}
-            <div className="bg-gray-50 dark:bg-slate-800/60 rounded-xl p-3.5 mb-4 border border-gray-100 dark:border-slate-700/60 space-y-2 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                  Employee:
-                </span>
-                <span className="font-bold text-gray-900 dark:text-white text-right truncate max-w-[240px]">
-                  {employeePendingDelete.first_name} {employeePendingDelete.last_name}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                  Email:
-                </span>
-                <span className="font-medium text-gray-600 dark:text-slate-300 text-right truncate max-w-[240px]">
-                  {employeePendingDelete.email}
-                </span>
-              </div>
-            </div>
-
-            {/* Warning Message */}
-            <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3.5 mb-4 text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
-              <p className="font-semibold mb-1 flex items-center gap-1.5 text-rose-800 dark:text-rose-200">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
-                Warning
-              </p>
-              <p>
-                Deleting this employee will remove their employee account/access.
-              </p>
-              <p className="mt-1">
-                Existing transaction/sales history should remain preserved according to the current backend behavior.
-              </p>
-              <p className="mt-1 font-semibold text-rose-800 dark:text-rose-200">
-                This action cannot be undone.
-              </p>
-            </div>
-
-            {/* Error Message inside Modal */}
-            {deleteError && (
-              <div className="bg-red-100 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-red-800 dark:text-red-200 rounded-lg p-3 text-xs mb-4">
-                <span className="font-bold">Error: </span>
-                {deleteError}
-              </div>
-            )}
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDeleteEmployee}
-                disabled={isDeleting}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-lg shadow-md transition-all cursor-pointer ${
-                  isDeleting
-                    ? "bg-rose-400 dark:bg-rose-600/70 cursor-not-allowed"
-                    : "bg-rose-600 hover:bg-rose-700 shadow-rose-600/25 focus:ring-2 focus:ring-rose-500 focus:outline-none"
-                }`}
-              >
-                {isDeleting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    <span>Delete Employee</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Header */}
+      {/* ── Page Header ── */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Employees</h1>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Register, manage and assign estate agents & team staff</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+            Register, manage and assign estate agents & team staff
+          </p>
         </div>
         {!showForm && (
           <button
+            type="button"
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center px-4 py-2 rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-500/20 transition-all"
+            className="inline-flex items-center px-4 py-2 rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-500/20 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add New Employee
@@ -473,109 +244,17 @@ const ManageEmployees = () => {
         )}
       </div>
 
-      {/* Form */}
-      {showForm && (
-        <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-gray-200 dark:border-slate-800 p-6 max-w-4xl mx-auto transition-all">
-          <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100 dark:border-slate-800">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                {editingEmployee ? "Edit Employee Details" : "Add New Employee"}
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                Fill in the employee credentials and profile information
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={resetForm}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-              title="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="employee-first-name" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">First Name *</label>
-                <input
-                  id="employee-first-name"
-                  type="text"
-                  name="first_name"
-                  value={formData.first_name}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Juan"
-                  required
-                  className={inputCls}
-                />
-              </div>
+      {/* ── Add / Edit Form Modal ── */}
+      <EmployeeAddEditModal
+        isOpen={showForm}
+        editingEmployee={editingEmployee}
+        formData={formData}
+        onChange={handleInputChange}
+        onSubmit={handleSubmit}
+        onClose={resetForm}
+      />
 
-              <div>
-                <label htmlFor="employee-last-name" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Last Name *</label>
-                <input
-                  id="employee-last-name"
-                  type="text"
-                  name="last_name"
-                  value={formData.last_name}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Dela Cruz"
-                  required
-                  className={inputCls}
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label htmlFor="employee-email" className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">Email Address *</label>
-                <input
-                  id="employee-email"
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="e.g. juan@goldendragon.com"
-                  required
-                  autoComplete="new-email"
-                  className={inputCls}
-                />
-              </div>
-
-              {!editingEmployee && (
-                <div className="md:col-span-2 p-3.5 bg-gray-50/80 dark:bg-slate-800/40 border border-gray-200/80 dark:border-slate-700/60 rounded-xl flex items-start gap-3 text-xs">
-                  <div className="p-1.5 rounded-lg bg-gray-200/60 dark:bg-slate-700/50 text-gray-600 dark:text-slate-400 shrink-0 mt-0.5">
-                    <KeyRound className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-800 dark:text-slate-200">
-                      Auto-Generated Password & Email Dispatch
-                    </p>
-                    <p className="text-gray-500 dark:text-slate-400 mt-0.5 leading-relaxed font-normal">
-                      A secure temporary password will be automatically generated and emailed to this staff member. They will be prompted to set their own private password upon their first login.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md shadow-blue-500/25 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-              >
-                {editingEmployee ? "Update Employee" : "Create & Send Credentials"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Floating Success Toast Notification (Zero Layout Shift) */}
+      {/* ── Floating Success Toast Notification (Zero Layout Shift) ── */}
       {deleteSuccessMessage && (
         <div className="fixed bottom-6 right-6 z-[99999] flex items-center gap-3.5 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-700/80 dark:border-slate-700 text-white rounded-2xl px-5 py-4 shadow-2xl shadow-black/40 max-w-md animate-in slide-in-from-bottom-5 fade-in duration-200">
           <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
@@ -583,7 +262,9 @@ const ManageEmployees = () => {
           </div>
           <div className="flex-1 min-w-0 pr-2">
             <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Success</div>
-            <div className="text-sm font-semibold text-slate-100 truncate">{deleteSuccessMessage}</div>
+            <div className="text-sm font-semibold text-slate-100 truncate">
+              {deleteSuccessMessage}
+            </div>
           </div>
           <button
             type="button"
@@ -596,205 +277,21 @@ const ManageEmployees = () => {
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white dark:bg-slate-900 shadow rounded-lg border border-gray-200 dark:border-slate-800 overflow-hidden transition-colors duration-300">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-800">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Employee List ({employees.length})
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
-            <thead className="bg-gray-50 dark:bg-slate-800/80">
-              <tr>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-14 hidden sm:table-cell">#</th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Employee Name</th>
-                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Email Address</th>
+      {/* ── Employee Table ── */}
+      <EmployeeTable
+        employees={employees}
+        onViewActivity={handleViewActivity}
+        onEdit={handleEdit}
+        onDelete={openDeleteModal}
+      />
 
-                <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Status</th>
-                <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider hidden lg:table-cell whitespace-nowrap">Date Joined</th>
-                <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-24">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
-              {employees.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan="6"
-                    className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400"
-                  >
-                    No employees found
-                  </td>
-                </tr>
-              ) : (
-                employees.map((employee, idx) => (
-                  <tr
-                    key={employee.employee_id}
-                    className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
-                  >
-                    <td className="px-4 py-3.5 text-sm font-semibold text-gray-500 dark:text-slate-400 hidden sm:table-cell">
-                      #{idx + 1}
-                    </td>
-                    <td className="px-4 py-3.5 text-left text-sm font-bold text-gray-900 dark:text-white">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center text-xs font-bold shadow-sm ring-2 ring-amber-500/20 uppercase shrink-0">
-                          {(employee.first_name?.[0] || "") + (employee.last_name?.[0] || "")}
-                        </div>
-                        <div className="font-bold text-gray-900 dark:text-white capitalize leading-snug">
-                          {employee.first_name} {employee.last_name}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 text-sm text-gray-600 dark:text-slate-300">
-                      {employee.email}
-                    </td>
-
-                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                      {(() => {
-                        const statusInfo = getEmployeeActivityStatus(employee);
-                        return (
-                          <span
-                            className={`inline-flex items-center gap-1.5 text-xs font-semibold ${statusInfo.textCls}`}
-                            title={statusInfo.title}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${statusInfo.dotCls} ${
-                                statusInfo.pulse ? "animate-pulse" : ""
-                              }`}
-                            ></span>
-                            {statusInfo.label}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-4 py-3.5 text-center text-sm text-gray-500 dark:text-slate-400 hidden lg:table-cell whitespace-nowrap">
-                      {employee.created_at
-                        ? new Date(employee.created_at).toLocaleDateString()
-                        : "8/31/2026"}
-                    </td>
-                    <td className="px-4 py-3.5 text-right text-sm font-medium whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleViewActivity(employee)}
-                          className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
-                          title="View Activity History"
-                        >
-                          <History className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(employee)}
-                          className="p-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
-                          title="Edit Employee"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteModal(employee)}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
-                          title="Delete Employee"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Activity History Modal (Audit Log) */}
-      {activityEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gray-50/50 dark:bg-slate-800/40">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center text-sm font-bold shadow-md uppercase shrink-0">
-                  {(activityEmployee.first_name?.[0] || "") + (activityEmployee.last_name?.[0] || "")}
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900 dark:text-white capitalize flex items-center gap-2">
-                    {activityEmployee.first_name} {activityEmployee.last_name}
-                    <span className="text-xs font-normal text-gray-400 dark:text-slate-500">
-                      (ID #{activityEmployee.employee_id})
-                    </span>
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">
-                    {activityEmployee.email} • Sales & Reservation History
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setActivityEmployee(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                title="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Content / Timeline */}
-            <div className="p-6 overflow-y-auto space-y-4 flex-1">
-              {loadingActivities ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
-                  <div className="w-7 h-7 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-xs">Loading sales & reservation history...</span>
-                </div>
-              ) : activities.length === 0 ? (
-                <div className="py-12 text-center text-gray-400 dark:text-slate-500">
-                  <Clock className="w-10 h-10 mx-auto mb-2 opacity-30 text-amber-400" />
-                  <p className="text-sm font-medium">No sales or reservations recorded yet</p>
-                  <p className="text-xs mt-1">Lot sales and reservations handled by this agent will appear here.</p>
-                </div>
-              ) : (
-                <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200 dark:before:bg-slate-800">
-                  {activities.map((act) => (
-                    <div key={act.id} className="relative group">
-                      {/* Timeline Dot Icon */}
-                      <div className="absolute -left-6 top-0.5 w-6 h-6 rounded-full bg-white dark:bg-slate-900 border-2 border-gray-200 dark:border-slate-700 flex items-center justify-center shadow-sm">
-                        {getActivityIcon(act)}
-                      </div>
-                      {/* Card Content */}
-                      <div className="bg-gray-50/70 dark:bg-slate-800/50 hover:bg-gray-100/80 dark:hover:bg-slate-800/80 border border-gray-200/80 dark:border-slate-700/60 rounded-xl p-3.5 transition-colors">
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-sm font-semibold text-gray-900 dark:text-white leading-snug">
-                            {act.title}
-                          </h4>
-                          <span className="text-[11px] font-medium text-gray-400 dark:text-slate-400 whitespace-nowrap">
-                            {formatRelativeTime(act.timestamp)}
-                          </span>
-                        </div>
-                        {act.description && (
-                          <p className="text-xs text-gray-600 dark:text-slate-300 mt-1 leading-relaxed">
-                            {act.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400 dark:text-slate-500 mt-2 font-mono">
-                          <Calendar className="w-3 h-3 opacity-60" />
-                          {new Date(act.timestamp).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-3 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/40 flex justify-end">
-              <button
-                onClick={() => setActivityEmployee(null)}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Activity History Modal (Audit Log) ── */}
+      <EmployeeActivityModal
+        employee={activityEmployee}
+        activities={activities}
+        loadingActivities={loadingActivities}
+        onClose={() => setActivityEmployee(null)}
+      />
     </div>
   );
 };
