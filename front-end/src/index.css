@@ -63,10 +63,19 @@ body {
 }
 
 .map-road-label-inner {
-  opacity: 1;
+  opacity: 0;
+  pointer-events: none;
   transition: opacity 150ms ease-out;
 }
 
+/* Road labels appear only at subdivision / street level (z >= 18.2) or while actively editing labels */
+.map-zoom-street-level .map-road-label-inner,
+.map-editing-labels-active .map-road-label-inner {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.map-view-zoomed-out .map-road-label-inner,
 .map-is-flying .map-road-label-inner {
   opacity: 0 !important;
   pointer-events: none !important;
