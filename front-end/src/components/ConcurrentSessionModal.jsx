@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ShieldAlert, LogIn } from "lucide-react";
+import { clearStoredAuth } from "../utils/authStorage";
 
 export default function ConcurrentSessionModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,10 +24,7 @@ export default function ConcurrentSessionModal() {
 
   const handleReturnToLogin = () => {
     setIsOpen(false);
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("user");
+    clearStoredAuth();
     sessionStorage.clear();
     window.location.href = "/login";
   };

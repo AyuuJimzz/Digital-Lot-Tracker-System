@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
 import logo from "../assets/image/golden-dragon-logo.png";
 import { API_BASE_URL } from "../config/api";
+import { clearStoredAuth, getStoredToken } from "../utils/authStorage";
 
 function Login({ setRole }) {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ function Login({ setRole }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [logoClicks, setLogoClicks] = useState(0);
+  const loginStartedRef = useRef(false);
 
   const handleLogoClick = () => {
     setLogoClicks((prev) => {
@@ -34,14 +36,19 @@ function Login({ setRole }) {
   }, [logoClicks]);
 
   useEffect(() => {
-    // Restore saved JWT token for cross-origin deployments (Vercel + Render)
-    const savedToken = localStorage.getItem("authToken");
+    let cancelled = false;
+    const savedToken = getStoredToken();
     if (savedToken) {
       axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
     }
     axios
-      .get(`${API_BASE_URL}/api/auth/check-session`, { withCredentials: true, timeout: 8000 })
+      .get(`${API_BASE_URL}/api/auth/check-session`, {
+        headers: { Authorization: savedToken ? `Bearer ${savedToken}` : null },
+        withCredentials: true,
+        timeout: 8000,
+      })
       .then((response) => {
+        if (cancelled || loginStartedRef.current || getStoredToken() !== savedToken) return;
         if (response.data.authenticated && response.data.role) {
           localStorage.setItem("role", response.data.role || "");
           localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
@@ -49,39 +56,37 @@ function Login({ setRole }) {
           if (response.data.role === "admin") navigate("/admin-panel");
           else if (response.data.role === "employee") navigate("/employee-panel");
         } else {
-          localStorage.removeItem("role");
-          localStorage.removeItem("authToken");
-          localStorage.removeItem("password_reset_required");
-          delete axios.defaults.headers.common["Authorization"];
+          clearStoredAuth(savedToken);
         }
       })
       .catch((err) => {
+        if (cancelled || loginStartedRef.current || getStoredToken() !== savedToken) return;
         if (err.response?.status === 401 || err.response?.status === 403) {
-          localStorage.removeItem("role");
-          localStorage.removeItem("authToken");
-          localStorage.removeItem("password_reset_required");
-          delete axios.defaults.headers.common["Authorization"];
+          clearStoredAuth(savedToken);
         } else {
           setError("The server is unavailable or took too long to respond. Please try again.");
         }
       });
+    return () => { cancelled = true; };
   }, [navigate, setRole]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    loginStartedRef.current = true;
     setError("");
     setLoading(true);
     try {
       const response = await axios.post(
         `${API_BASE_URL}/api/auth/login`,
         { email, password },
-        { withCredentials: true, timeout: 10000 }
+        { headers: { Authorization: null }, withCredentials: true, timeout: 10000 }
       );
       const userRole = response.data.user.role;
       const passwordResetRequired = response.data.password_reset_required;
       // Save JWT token for cross-origin deployments (Vercel + Render)
       if (response.data.token) {
         localStorage.setItem("authToken", response.data.token);
+        localStorage.removeItem("token");
         axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
       }
       localStorage.setItem("role", userRole);

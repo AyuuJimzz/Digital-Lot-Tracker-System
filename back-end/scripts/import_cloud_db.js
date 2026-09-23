@@ -140,11 +140,11 @@ async function run() {
     await connection.query('SET SESSION sql_require_primary_key = 0;');
 
     if (fs.existsSync(masterFile)) {
-      console.log(`\n📦 Ina-upload ang 00_golden_dragon_corp_FULL_BACKUP.sql (Lahat ng 6 na tables at 596 lots)...`);
+      console.log(`\n📦 Ina-upload ang 00_golden_dragon_corp_FULL_BACKUP.sql...`);
       let sqlContent = fs.readFileSync(masterFile, 'utf8');
       sqlContent = sqlContent.replace(/^USE\s+[^;]+;/gmi, '');
       await connection.query(sqlContent);
-      console.log(`  ✅ Lahat ng tables, properties, annotations, at 596 lots ay nai-import na!`);
+      console.log(`  ✅ Lahat ng tables, properties, annotations, at lots ay nai-import na!`);
     } else {
       const sqlFiles = [
         '01_golden_dragon_corp_properties.sql',

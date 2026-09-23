@@ -9,7 +9,10 @@
     "build": "npm --prefix front-end run build",
     "build:front": "npm --prefix front-end run build",
     "format": "npx prettier . --write",
-    "format:check": "npx prettier . --check"
+    "format:check": "npx prettier . --check",
+    "db:setup": "npm --prefix back-end run db:setup",
+    "db:export": "npm --prefix back-end run db:export",
+    "db:sync-cloud": "npm --prefix back-end run db:sync-cloud"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",

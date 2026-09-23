@@ -1,5 +1,6 @@
 // API Configuration for local dev & production deployment
 import axios from 'axios';
+import { clearStoredAuth, getStoredToken } from '../utils/authStorage';
 
 const getApiUrl = () => {
   if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
@@ -19,7 +20,7 @@ export const API_BASE_URL = getApiUrl();
 axios.defaults.timeout = 12000;
 
 // Auto-restore JWT token for cross-origin deployments (Vercel frontend + Render backend).
-const savedToken = localStorage.getItem('authToken') || localStorage.getItem('token');
+const savedToken = getStoredToken();
 if (savedToken) {
   axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
 }
@@ -27,7 +28,11 @@ if (savedToken) {
 // Global Interceptor: Silent auto-retry on transient network drops + session handling
 let isHandlingKickout = false;
 axios.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config?.method?.toLowerCase() === 'post' &&
+        response.config?.url?.endsWith('/api/auth/login')) isHandlingKickout = false;
+    return response;
+  },
   async (error) => {
     const config = error.config;
 
@@ -68,12 +73,12 @@ axios.interceptors.response.use(
       (data?.code === 'CONCURRENT_SESSION_EXPIRED' ||
         (data?.message && data.message.toLowerCase().includes('another device')))
     ) {
-      if (!isHandlingKickout) {
+      const authHeader = config?.headers?.get?.('Authorization') ?? config?.headers?.Authorization;
+      const failedToken = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+        ? authHeader.slice(7)
+        : undefined;
+      if (!isHandlingKickout && clearStoredAuth(failedToken)) {
         isHandlingKickout = true;
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('user');
         sessionStorage.clear();
 
         window.dispatchEvent(

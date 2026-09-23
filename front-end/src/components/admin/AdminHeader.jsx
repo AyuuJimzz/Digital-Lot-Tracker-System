@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { User, LogOut, UserCircle, MapPin, Edit, Moon, Sun, Plus, Type, Move, Layers } from "lucide-react";
 import axios from "axios";
+import { clearStoredAuth } from "../../utils/authStorage";
 import {
   geocodeAddress,
   getPropertyFallbackCoordinates,
@@ -238,10 +239,7 @@ export function AdminHeader({ sidebarCollapsed }) {
     } catch (error) {
       console.error("Logout failed:", error);
     } finally {
-      localStorage.removeItem("role");
-      localStorage.removeItem("authToken");
-      localStorage.removeItem("password_reset_required");
-      delete axios.defaults.headers.common["Authorization"];
+      clearStoredAuth();
       setIsOpen(false);
       navigate("/", { replace: true });
     }

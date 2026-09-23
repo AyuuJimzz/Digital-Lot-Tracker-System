@@ -2,6 +2,7 @@ import { API_BASE_URL } from "../config/api";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import AccessDenied from "../view/AccessDenied";
+import { clearStoredAuth, getStoredToken } from "../utils/authStorage";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
 	const [retryCount, setRetryCount] = useState(0);
@@ -9,7 +10,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 	const allowedRolesList = rolesKey ? rolesKey.split(",") : [];
 
 	const [auth, setAuth] = useState(() => {
-		const initialToken = localStorage.getItem("authToken");
+		const initialToken = getStoredToken();
 		const initialRole = localStorage.getItem("role");
 		const isRoleValid = !allowedRolesList.length || (initialRole && allowedRolesList.includes(initialRole));
 		const isLocallyAuthorized = Boolean(initialToken && isRoleValid);
@@ -22,11 +23,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 	});
 
 	useEffect(() => {
+		let cancelled = false;
 		// Restore saved JWT token for cross-origin deployments (Vercel + Render)
-		const savedToken = localStorage.getItem("authToken");
-		const headers = {};
+		const savedToken = getStoredToken();
+		const headers = { Authorization: savedToken ? `Bearer ${savedToken}` : null };
 		if (savedToken) {
-			headers["Authorization"] = `Bearer ${savedToken}`;
 			axios.defaults.headers.common["Authorization"] = `Bearer ${savedToken}`;
 		}
 
@@ -37,6 +38,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 				timeout: 8000,
 			})
 			.then((response) => {
+				if (cancelled) return;
+				if (getStoredToken() !== savedToken) {
+					setRetryCount((current) => current + 1);
+					return;
+				}
 				if (response.data && response.data.authenticated) {
 					localStorage.setItem("role", response.data.role || "");
 					localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
@@ -44,16 +50,18 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 					const hasRole = roles.length > 0 ? roles.includes(response.data.role) : true;
 					setAuth({ loading: false, isAuthorized: hasRole, isAuthenticated: true });
 				} else {
-					localStorage.removeItem("authToken");
-					localStorage.removeItem("role");
+					clearStoredAuth(savedToken);
 					setAuth({ loading: false, isAuthorized: false, isAuthenticated: false });
 				}
 			})
 			.catch((error) => {
+				if (cancelled) return;
+				if (getStoredToken() !== savedToken) {
+					setRetryCount((current) => current + 1);
+					return;
+				}
 				if (error.response?.status === 401 || error.response?.status === 403) {
-					localStorage.removeItem("authToken");
-					localStorage.removeItem("role");
-					delete axios.defaults.headers.common["Authorization"];
+					clearStoredAuth(savedToken);
 					setAuth({ loading: false, isAuthorized: false, isAuthenticated: false });
 					return;
 				}
@@ -64,6 +72,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 					error: "Session verification failed or timed out.",
 				});
 			});
+		return () => { cancelled = true; };
 	}, [rolesKey, retryCount]);
 
 	if (auth.loading) {
