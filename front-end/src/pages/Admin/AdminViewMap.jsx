@@ -222,7 +222,7 @@ function MapController({
   useEffect(() => {
     if (!map) return;
     map.setMaxZoom(28);
-    map.setMinZoom(1);
+    map.setMinZoom(7);
     map.invalidateSize();
 
     const handleZoomIn = () => map.zoomIn(0.5);
@@ -2952,6 +2952,7 @@ function AdminViewMap() {
         zoomSnap={0}
         wheelPxPerZoomLevel={220}
         wheelDebounceTime={20}
+        minZoom={7}
         maxZoom={28}
         scrollWheelZoom={false}
         zoomControl={false}

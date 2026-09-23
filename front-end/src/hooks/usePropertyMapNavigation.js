@@ -70,7 +70,7 @@ export function usePropertyMapNavigation(map, options) {
     const startNavigate = (coordinates, requestedZoom = 19, flightOptions = {}) => {
       if (!Array.isArray(coordinates) || coordinates.length !== 2 ||
         !coordinates.every(Number.isFinite) || Math.abs(coordinates[0]) > 90 || Math.abs(coordinates[1]) > 180) return;
-      const minZoom = map.getMinZoom?.() ?? 1;
+      const minZoom = map.getMinZoom?.() ?? 7;
       const maxZoom = map.getMaxZoom?.() ?? 28;
       const destinationZoom = Math.max(minZoom, Math.min(maxZoom, Number.isFinite(requestedZoom) ? requestedZoom : 19));
       if (target && map.distance(target, coordinates) < 1 && Math.abs(targetZoom - destinationZoom) < 0.05) return;

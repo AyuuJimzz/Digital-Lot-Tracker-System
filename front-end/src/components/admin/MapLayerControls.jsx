@@ -46,7 +46,7 @@ const TILE_SHARED_PROPS = {
 // this layer paints the entire island/region seamlessly edge-to-edge with 0 CPU overhead.
 const OVERVIEW_TILE_PROPS = {
   subdomains: ["0", "1", "2", "3"],
-  minZoom: 1,
+  minZoom: 7,
   maxZoom: 28,
   maxNativeZoom: 13,
   crossOrigin: false,
@@ -63,7 +63,7 @@ const OVERVIEW_TILE_PROPS = {
 // detail layers at every camera zoom.
 const MACRO_TILE_PROPS = {
   subdomains: ["0", "1", "2", "3"],
-  minZoom: 1,
+  minZoom: 7,
   maxZoom: 28,
   maxNativeZoom: 8,
   crossOrigin: false,
