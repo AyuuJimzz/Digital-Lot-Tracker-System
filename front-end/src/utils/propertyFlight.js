@@ -105,19 +105,21 @@ export function createPropertyFlight(map, onInterrupt) {
     const from = map.project(map.getCenter(), projectionZoom);
     const to = map.project(coordinates, projectionZoom);
     const startZoom = map.getZoom();
-    const screenDistance = from.distanceTo(to) * map.getZoomScale(Math.min(startZoom, zoom), projectionZoom);
     const viewport = Math.max(1, Math.max(map.getSize().x, map.getSize().y));
-    const screensAway = screenDistance / viewport;
+    const screenDistanceAt19 = from.distanceTo(to);
+    const screensAwayAt19 = screenDistanceAt19 / viewport;
 
-    // Smooth continuous distance-based altitude calculation:
-    // Tataas lang ng unti batay sa calculated distance, unified rounded dome:
-    // - Nearby flights (~1-2 screens): ~1.4 - 1.5 levels drop (Zoom 19 → ~17.5)
-    // - Distant flights (up to 100 screens): smoothly reaches ~2.2 levels drop (Zoom 19 → ~16.8)
-    const rawDrop = Math.log2(1 + screensAway);
-    const calculatedDrop = rawDrop <= 1.4
-      ? rawDrop
-      : 1.4 + (6.4 - 1.4) * (1 - Math.exp(-(rawDrop - 1.4) / 0.8));
-    const cruiseZoom = Math.max(map.getMinZoom(), Math.min(startZoom, zoom) - calculatedDrop);
+    // True Geodesic Altitude Calculation:
+    // Scale flight altitude according to physical distance so large inter-province
+    // journeys (e.g. Iloilo -> Boracay ~180km) pull all the way back to island overview
+    // (Zoom 9-10), while local switches (<15km) stay at comfortable town level (Zoom 13-14).
+    const idealOverviewZoom = projectionZoom - Math.log2(Math.max(1, screensAwayAt19 * 1.25));
+    // For very close local hops (<1km), provide a gentle, polished 3D pop arc (0.5 to 1.2 levels):
+    const localLift = Math.min(1.2, 0.4 + Math.min(1, screensAwayAt19) * 0.8);
+    const minTripZoom = Math.min(startZoom, zoom);
+    // Cruise altitude: never dive into space if already in wide overview,
+    // and rises to idealOverviewZoom on long cross-island flights:
+    const cruiseZoom = Math.max(map.getMinZoom(), Math.min(minTripZoom - (screensAwayAt19 < 2 ? localLift : 0), idealOverviewZoom));
     const phaseDelay = 0.30;
     const wasActive = !!trajectory;
     trajectory = {

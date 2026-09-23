@@ -91,7 +91,10 @@ export const MUNICIPALITY_COORDINATES = {
   "sibunag": [10.5500, 122.6000],
   "guimaras": [10.6000, 122.6000],
 
-  // ── Neighboring Hubs (Panay / Negros) ──
+  // ── Neighboring Hubs (Panay / Aklan / Negros) ──
+  "boracay": [11.9674, 121.9248],
+  "malay": [11.9000, 121.9167],
+  "aklan": [11.7000, 122.3500],
   "bacolod": [10.6766, 122.9510],
   "bacolod city": [10.6766, 122.9510],
   "roxas": [11.5853, 122.7511],

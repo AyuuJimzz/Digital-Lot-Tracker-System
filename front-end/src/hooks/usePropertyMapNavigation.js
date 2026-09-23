@@ -86,11 +86,18 @@ export function usePropertyMapNavigation(map, options) {
       // time for long travel or a large overview-to-lot zoom to settle.
       const distanceDuration = 1.2 + Math.log2(1 + distanceKm) * 0.08;
       const zoomDuration = 1.2 + Math.abs(destinationZoom - map.getZoom()) * 0.06;
-      // Kapag malayo (>5km), bigyan ng chill & smooth duration (2.4s - 3.0s) para HINDI SOBRANG BILIS:
-      const maxDuration = distanceKm > 5 ? Math.min(3.0, 1.8 + Math.log2(distanceKm / 5) * 0.25) : 1.8;
-      const duration = distanceKm > 5 
-        ? Math.min(3.0, Math.max(2.4, distanceDuration + Math.log2(distanceKm / 5) * 0.25))
-        : Math.min(maxDuration, Math.max(distanceDuration, zoomDuration));
+      let duration;
+      if (distanceKm > 60) {
+        // Inter-province / Island-wide journey (e.g. Iloilo -> Boracay ~180km)
+        duration = Math.min(3.8, 3.2 + Math.log2(distanceKm / 60) * 0.35);
+      } else if (distanceKm > 5) {
+        // Inter-town journey (e.g. Guimbal -> Oton ~10-15km)
+        duration = Math.min(2.8, 2.0 + Math.log2(distanceKm / 5) * 0.22);
+      } else {
+        // Local neighborhood / estate hop (<5km)
+        const localDuration = Math.max(distanceDuration, zoomDuration);
+        duration = Math.min(1.8, Math.max(1.4, localDuration));
+      }
       const wasFlying = flyingMaps.has(map);
       // Finish wheel motion before marking this flight active: its moveend must
       // not accidentally finish a newly requested flight at the same location.
