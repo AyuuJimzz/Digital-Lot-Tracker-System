@@ -63,7 +63,7 @@ export default function GlobalToast() {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-[999999] flex flex-col gap-3 pointer-events-none max-w-sm sm:max-w-md w-full px-4 sm:px-0"
+      className="fixed bottom-5 right-5 z-[999999] flex flex-col gap-2.5 pointer-events-none max-w-sm sm:max-w-md w-full px-4 sm:px-0"
       aria-live="polite"
     >
       {toasts.map((toast) => {
@@ -72,51 +72,30 @@ export default function GlobalToast() {
         const isInfo = toast.type === "info";
         const isSuccess = !isError && !isWarning && !isInfo;
 
-        const badgeClasses = isError
-          ? "bg-rose-500/15 border-rose-500/30 text-rose-400"
-          : isWarning
-          ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-          : isInfo
-          ? "bg-blue-500/15 border-blue-500/30 text-blue-400"
-          : "bg-emerald-500/15 border-emerald-500/30 text-emerald-400";
-
-        const titleText = isError ? "Error" : isWarning ? "Notice" : isInfo ? "Info" : "Success";
-        const titleColor = isError
-          ? "text-rose-400"
-          : isWarning
-          ? "text-amber-400"
-          : isInfo
-          ? "text-blue-400"
-          : "text-emerald-400";
-
         return (
           <div
             key={toast.id}
-            className="pointer-events-auto flex items-start gap-3.5 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-md border border-slate-700/80 dark:border-slate-700 text-white rounded-2xl p-4 shadow-2xl shadow-black/50 transition-all animate-in slide-in-from-bottom-5 fade-in duration-200"
+            className="pointer-events-auto flex items-center gap-3 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200/90 dark:border-slate-800 rounded-xl px-4 py-3 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-150 animate-in slide-in-from-bottom-2 fade-in"
           >
-            <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${badgeClasses}`}>
-              {isError && <XCircle className="w-5 h-5" />}
-              {isWarning && <AlertTriangle className="w-5 h-5" />}
-              {isInfo && <Info className="w-5 h-5" />}
-              {isSuccess && <CheckCircle2 className="w-5 h-5" />}
+            <div className="shrink-0 flex items-center justify-center">
+              {isError && <XCircle className="w-4 h-4 text-rose-500 shrink-0" strokeWidth={2.2} />}
+              {isWarning && <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" strokeWidth={2.2} />}
+              {isInfo && <Info className="w-4 h-4 text-blue-500 shrink-0" strokeWidth={2.2} />}
+              {isSuccess && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" strokeWidth={2.2} />}
             </div>
 
-            <div className="flex-1 min-w-0 pr-1">
-              <div className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${titleColor}`}>
-                {titleText}
-              </div>
-              <div className="text-sm font-medium text-slate-100 leading-snug break-words">
-                {toast.message}
-              </div>
-            </div>
+            <p className="text-sm font-medium leading-snug flex-1 break-words text-slate-800 dark:text-slate-200">
+              {toast.message}
+            </p>
 
             <button
               type="button"
               onClick={() => removeToast(toast.id)}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0 ml-1"
+              aria-label="Close"
               title="Close"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         );
