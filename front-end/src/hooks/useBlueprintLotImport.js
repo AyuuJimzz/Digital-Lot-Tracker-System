@@ -6,7 +6,7 @@ import { candidateInsideCrop, importedLotIdentifier, projectLotCandidate } from 
 import { calculateGeodesicArea } from "../utils/geoUtils";
 import { PDF_LOT_DETECTOR_VERSION } from "../utils/pdfLotImport/version";
 
-export function useBlueprintLotImport({ propertyId, map, bounds, rotation, isAligning }) {
+export function useBlueprintLotImport({ propertyId, map, bounds, rotation, isAligning } = {}) {
   const [state, setState] = useState(null);
   const [reviewProperty, setReviewProperty] = useState(null);
   const [preview, setPreview] = useState(true);
