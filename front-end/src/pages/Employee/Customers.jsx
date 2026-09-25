@@ -1,48 +1,30 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 
 const ROWS_PER_PAGE = 10;
+const EMPTY_CUSTOMERS = [];
 
 const paginBtnCls =
   "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
 const Customers = () => {
-  const [customers, setCustomers] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem("customersCache");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
+  const customersQuery = useQuery({
+    queryKey: ["customers", "employee"],
+    queryFn: async () => {
+      const token = localStorage.getItem("authToken");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const response = await axios.get(`${API_BASE_URL}/api/customers`, { withCredentials: true, headers });
+      return Array.isArray(response.data) ? response.data : [];
+    },
   });
-  const [loading, setLoading] = useState(() => !sessionStorage.getItem("customersCache"));
-  const [error, setError] = useState("");
+  const customers = customersQuery.data || EMPTY_CUSTOMERS;
+  const loading = customersQuery.isPending;
+  const error = customersQuery.error ? "Unable to load customer data. Please try again." : "";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const fetchCustomers = async () => {
-    try {
-      const token = localStorage.getItem("authToken");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.get(`${API_BASE_URL}/api/customers`, { withCredentials: true, headers });
-      const fetched = Array.isArray(res.data) ? res.data : [];
-      setCustomers(fetched);
-      try {
-        sessionStorage.setItem("customersCache", JSON.stringify(fetched));
-      } catch (e) {}
-    } catch {
-      setError("Unable to load customer data. Please refresh and try again.");
-      setCustomers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Show all customer records individually (including cancelled history per lot)
   const filteredCustomersByEmail = useMemo(() => {
@@ -102,6 +84,7 @@ const Customers = () => {
       {error && (
         <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
           {error}
+          <button type="button" onClick={() => customersQuery.refetch()} className="ml-2 underline">Retry</button>
         </div>
       )}
 

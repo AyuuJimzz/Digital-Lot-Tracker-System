@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, CheckCircle2, X } from "lucide-react";
 import { API_BASE_URL } from "../../config/api";
 import { showToast } from "../../components/GlobalToast";
@@ -13,16 +14,28 @@ import {
 } from "../../components/admin/properties";
 
 const ManageProperties = () => {
-  const [properties, setProperties] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem("propertiesCache");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
+  const propertiesQuery = useQuery({
+    queryKey: ["properties"],
+    initialData: () => {
+      try {
+        const cached = JSON.parse(sessionStorage.getItem("propertiesCache") || "null");
+        return Array.isArray(cached) ? cached : undefined;
+      } catch { return undefined; }
+    },
+    initialDataUpdatedAt: 0,
+    queryFn: async () => {
+      const token = localStorage.getItem("authToken");
+      const response = await axios.get(`${API_BASE_URL}/api/properties`, {
+        withCredentials: true,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      try { sessionStorage.setItem("propertiesCache", JSON.stringify(response.data)); } catch (e) {}
+      return response.data;
+    },
   });
-  const [loading, setLoading] = useState(() => !sessionStorage.getItem("propertiesCache"));
-  const [error, setError] = useState("");
+  const properties = propertiesQuery.data || [];
+  const loading = propertiesQuery.isPending;
+  const error = propertiesQuery.error?.message;
   const [showForm, setShowForm] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
   const [formData, setFormData] = useState({
@@ -47,33 +60,11 @@ const ManageProperties = () => {
     return () => clearTimeout(timer);
   }, [deleteSuccessMessage]);
 
-  const fetchProperties = useCallback(async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("authToken");
-      const authConfig = {
-        withCredentials: true,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      };
-      const response = await axios.get(`${API_BASE_URL}/api/properties`, authConfig);
-      setProperties(response.data);
-      try {
-        sessionStorage.setItem("propertiesCache", JSON.stringify(response.data));
-      } catch (e) {}
-      setLoading(false);
-    } catch (err) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/access-denied?status=401&message=Unauthorized");
-        return;
-      }
-      setError(err.message || "Failed to fetch properties");
-      setLoading(false);
-    }
-  }, [navigate]);
-
   useEffect(() => {
-    fetchProperties();
-  }, [fetchProperties]);
+    if (propertiesQuery.error?.response?.status === 401 || propertiesQuery.error?.response?.status === 403) {
+      navigate("/access-denied?status=401&message=Unauthorized");
+    }
+  }, [propertiesQuery.error, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -136,7 +127,7 @@ const ManageProperties = () => {
       } catch (err) {}
 
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
-      await fetchProperties();
+      await propertiesQuery.refetch();
       resetForm();
 
       if (!editingProperty && createdPropId) {
@@ -193,7 +184,7 @@ const ManageProperties = () => {
         }
       } catch (err) {}
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
-      await fetchProperties();
+      await propertiesQuery.refetch();
       showToast(`Property status changed to ${newStatus}`, "success");
     } catch (err) {
       showToast(err.response?.data?.error || err.message || "Failed to update property status", "error");
@@ -235,7 +226,7 @@ const ManageProperties = () => {
         }
       } catch (err) {}
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
-      await fetchProperties();
+      await propertiesQuery.refetch();
       setPropertyPendingDelete(null);
       showToast(`Property "${propertyName}" deleted successfully`, "success");
     } catch (err) {
@@ -260,7 +251,7 @@ const ManageProperties = () => {
   }
 
   if (error) {
-    return <div className="text-red-600 dark:text-red-400 p-4">Error: {error}</div>;
+    if (!propertiesQuery.data) return <div className="text-red-600 dark:text-red-400 p-4" role="alert">Error: {error} <button type="button" onClick={() => propertiesQuery.refetch()} className="ml-2 underline">Retry</button></div>;
   }
 
   return (

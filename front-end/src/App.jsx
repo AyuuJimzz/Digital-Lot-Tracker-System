@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import DesktopOnlyGuard from "./components/DesktopOnlyGuard";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./config/queryClient";
 
 // Layouts & Components
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -32,18 +33,6 @@ const Forbidden = React.lazy(() => import("./view/forbidden"));
 const ProfileSettings = React.lazy(() => import("./pages/Shared/ProfileSettings"));
 const DeveloperPanel = React.lazy(() => import("./pages/Developer/DeveloperPanel"));
 const MaintenancePage = React.lazy(() => import("./pages/MaintenancePage"));
-
-// ── Optimized QueryClient (5-minute fresh cache, 15-minute garbage collection, no focus spam) ──
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,       // 5 minutes: keeps lot and property data fresh in memory
-      gcTime: 1000 * 60 * 15,          // 15 minutes: reclaims inactive query data from tablet RAM
-      refetchOnWindowFocus: false,    // Prevents redundant API spam when switching apps on tablet
-      retry: 1,                       // Safe 1-retry fallback for transient network drops
-    },
-  },
-});
 
 function App() {
   const [, setRole] = useState(localStorage.getItem("role") || null);

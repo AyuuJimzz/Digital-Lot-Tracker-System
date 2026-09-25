@@ -38,7 +38,14 @@ function AdminViewMap() {
   const mapState = useAdminViewMap();
 
   if (!mapState.mapData) {
-    return <div className="p-5 text-gray-600 text-sm">Loading Estate Map...</div>;
+    return <div className="p-5 text-gray-600 dark:text-slate-400 text-sm">
+      {mapState.mapError ? (
+        <div role="alert">
+          <p>Unable to load Estate Map. Please check your connection.</p>
+          <button type="button" onClick={() => mapState.retryMapData()} className="mt-2 text-blue-500 underline">Retry</button>
+        </div>
+      ) : "Loading Estate Map..."}
+    </div>;
   }
 
   const {

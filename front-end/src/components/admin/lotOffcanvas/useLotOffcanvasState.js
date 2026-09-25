@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "../../../config/api";
+import { invalidateEstateMutation } from "../../../config/queryClient";
 import { showToast } from "../../GlobalToast";
 import { checkIsNonSaleable, stripNonSaleableTags } from "./lotOffcanvasUtils";
 
@@ -327,6 +328,7 @@ export function useLotOffcanvasState({
       }
 
       await response.json();
+      invalidateEstateMutation(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/status`);
 
       // Synchronize in-memory selectedLot object
       if (selectedLot) {
@@ -397,6 +399,7 @@ export function useLotOffcanvasState({
       }
 
       showToast("Lot deleted successfully!", "success");
+      invalidateEstateMutation(`${API_BASE_URL}/api/lots/${lotToDelete.lot_id}`);
       setLotPendingDelete(null);
 
       if (onLotUpdated) {

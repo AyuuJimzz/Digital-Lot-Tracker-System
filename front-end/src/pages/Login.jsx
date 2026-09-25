@@ -4,7 +4,7 @@ import axios from "axios";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
 import logo from "../assets/image/golden-dragon-logo.png";
 import { API_BASE_URL } from "../config/api";
-import { clearStoredAuth, getStoredToken } from "../utils/authStorage";
+import { clearStoredAuth, clearUserDataCache, getStoredToken } from "../utils/authStorage";
 
 function Login({ setRole }) {
   const navigate = useNavigate();
@@ -84,6 +84,7 @@ function Login({ setRole }) {
       );
       const userRole = response.data.user.role;
       const passwordResetRequired = response.data.password_reset_required;
+      clearUserDataCache();
       // Save JWT token for cross-origin deployments (Vercel + Render)
       if (response.data.token) {
         localStorage.setItem("authToken", response.data.token);

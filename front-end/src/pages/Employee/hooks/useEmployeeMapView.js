@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import L from "leaflet";
 import { API_BASE_URL } from "../../../config/api";
 import { getLotBounds } from "../../../utils/lotViewport";
@@ -14,14 +15,14 @@ import {
 } from "../../Admin/map/utils/mapConstants";
 
 export function useEmployeeMapView() {
-  const [mapData, setMapData] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem("mapDataCache");
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
+  const mapQuery = useQuery({
+    queryKey: ["map-data", "employee"],
+    queryFn: async () => (await axios.get(`${API_BASE_URL}/api/lots/map-data`, getAuthConfig())).data,
+    staleTime: 60 * 1000,
+    structuralSharing: false,
   });
+  const refetchMapData = mapQuery.refetch;
+  const mapData = mapQuery.data ?? null;
 
   const [selectedLot, setSelectedLot] = useState(null);
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
@@ -58,31 +59,10 @@ export function useEmployeeMapView() {
     localStorage.setItem("preferredMapLayer", newLayer);
   }, []);
 
-  // Fetch estate map data
-  const fetchMapData = useCallback(async () => {
-    try {
-      const authConfig = getAuthConfig();
-      const res = await axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig);
-
-      if (res.data) {
-        setMapData(res.data);
-        try {
-          sessionStorage.setItem("mapDataCache", JSON.stringify(res.data));
-        } catch (_) {}
-      }
-    } catch (err) {
-      console.error("Map Load Error:", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMapData();
-  }, [fetchMapData]);
-
   // Refresh map data when lot is updated
   const handleLotUpdated = useCallback(() => {
-    fetchMapData();
-  }, [fetchMapData]);
+    return refetchMapData();
+  }, [refetchMapData]);
 
   // Active property locations - derived from mapData or fallback
   const properties = useMemo(() => {
@@ -364,6 +344,8 @@ export function useEmployeeMapView() {
 
   return {
     mapData,
+    mapError: mapQuery.error,
+    retryMapData: refetchMapData,
     properties,
     selectedProperty,
     setSelectedProperty,

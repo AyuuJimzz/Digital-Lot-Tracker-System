@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useMemo, useCallback, useRef } from "react";
 import axios from "axios";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "../../../../config/api";
 import { showToast } from "../../../../components/GlobalToast";
 import { getLotBounds } from "../../../../utils/lotViewport";
@@ -23,7 +24,18 @@ import { useBulkShiftState } from "./useBulkShiftState";
 import { useLotEditorState } from "./useLotEditorState";
 
 export const useAdminViewMap = () => {
-  const [mapData, setMapData] = useState(null);
+  const queryClient = useQueryClient();
+  const mapQuery = useQuery({
+    queryKey: ["map-data", "admin"],
+    queryFn: async () => (await axios.get(`${API_BASE_URL}/api/lots/map-data`, getAuthConfig())).data,
+    staleTime: 60 * 1000,
+    structuralSharing: false,
+  });
+  const refetchMapData = mapQuery.refetch;
+  const mapData = mapQuery.data ?? null;
+  const setMapData = useCallback((update) => {
+    queryClient.setQueryData(["map-data", "admin"], update);
+  }, [queryClient]);
   const [map, setMap] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(19);
   const mapWrapperRef = useRef(null);
@@ -46,38 +58,11 @@ export const useAdminViewMap = () => {
     );
   }, []);
 
-  // Fetch map data
-  const fetchMapData = useCallback(async () => {
-    try {
-      const authConfig = getAuthConfig();
-      const [mapResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig),
-      ]);
-
-      if (mapResponse.data) {
-        setMapData(mapResponse.data);
-      }
-    } catch (err) {
-      console.error("Map Data Fetch Error:", err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMapData();
-  }, [fetchMapData]);
-
   // Handle updates when a lot is saved or updated
   const handleLotUpdated = useCallback(async () => {
-    try {
-      const authConfig = getAuthConfig();
-      const res = await axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig);
-      if (res.data) {
-        setMapData(res.data);
-      }
-    } catch (err) {
-      console.error("Refresh map data error:", err);
-    }
-  }, []);
+    const result = await refetchMapData();
+    if (result.error) console.error("Refresh map data error:", result.error);
+  }, [refetchMapData]);
 
   // Live lot updates from editing modal
   const handleLiveLotUpdate = useCallback((updatedFields) => {
@@ -95,7 +80,7 @@ export const useAdminViewMap = () => {
         ),
       };
     });
-  }, [selectedLot]);
+  }, [selectedLot, setMapData]);
 
   // Refresh map data listener
   useEffect(() => {
@@ -565,6 +550,8 @@ export const useAdminViewMap = () => {
   return {
     // Master Core Map State
     mapData,
+    mapError: mapQuery.error,
+    retryMapData: refetchMapData,
     setMapData,
     map,
     setMap,

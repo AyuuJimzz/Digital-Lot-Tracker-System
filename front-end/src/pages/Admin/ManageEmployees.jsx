@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, CheckCircle2, X } from "lucide-react";
 import { API_BASE_URL } from "../../config/api";
 import { showToast } from "../../components/GlobalToast";
@@ -12,16 +13,28 @@ import {
 } from "../../components/admin/employees";
 
 const ManageEmployees = () => {
-  const [employees, setEmployees] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem("employeesCache");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
+  const employeesQuery = useQuery({
+    queryKey: ["employees"],
+    initialData: () => {
+      try {
+        const cached = JSON.parse(sessionStorage.getItem("employeesCache") || "null");
+        return Array.isArray(cached) ? cached : undefined;
+      } catch { return undefined; }
+    },
+    initialDataUpdatedAt: 0,
+    queryFn: async () => {
+      const token = localStorage.getItem("authToken");
+      const response = await axios.get(`${API_BASE_URL}/api/employees`, {
+        withCredentials: true,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      try { sessionStorage.setItem("employeesCache", JSON.stringify(response.data)); } catch (e) {}
+      return response.data;
+    },
   });
-  const [loading, setLoading] = useState(() => !sessionStorage.getItem("employeesCache"));
-  const [error, setError] = useState("");
+  const employees = employeesQuery.data || [];
+  const loading = employeesQuery.isPending;
+  const error = employeesQuery.error?.message;
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [formData, setFormData] = useState({
@@ -49,32 +62,11 @@ const ManageEmployees = () => {
     return () => clearTimeout(timer);
   }, [deleteSuccessMessage]);
 
-  const fetchEmployees = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("authToken");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await axios.get(`${API_BASE_URL}/api/employees`, {
-        withCredentials: true,
-        headers,
-      });
-      setEmployees(response.data);
-      try {
-        sessionStorage.setItem("employeesCache", JSON.stringify(response.data));
-      } catch (e) {}
-      setLoading(false);
-    } catch (err) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        navigate("/access-denied?status=401&message=Unauthorized");
-        return;
-      }
-      setError(err.message || "Failed to fetch employees");
-      setLoading(false);
-    }
-  }, [navigate]);
-
   useEffect(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+    if (employeesQuery.error?.response?.status === 401 || employeesQuery.error?.response?.status === 403) {
+      navigate("/access-denied?status=401&message=Unauthorized");
+    }
+  }, [employeesQuery.error, navigate]);
 
   const handleViewActivity = async (employee) => {
     setActivityEmployee(employee);
@@ -134,7 +126,7 @@ const ManageEmployees = () => {
           "success"
         );
       }
-      await fetchEmployees();
+      await employeesQuery.refetch();
       resetForm();
     } catch (err) {
       showToast(err.response?.data?.error || err.message || "Failed to save employee", "error");
@@ -185,7 +177,7 @@ const ManageEmployees = () => {
         sessionStorage.removeItem("employeesCache");
       } catch (err) {}
 
-      await fetchEmployees();
+      await employeesQuery.refetch();
       setEmployeePendingDelete(null);
       showToast(`Employee "${employeeName}" deleted successfully`, "success");
     } catch (err) {
@@ -210,7 +202,7 @@ const ManageEmployees = () => {
   }
 
   if (error) {
-    return <div className="text-red-600 dark:text-red-400 p-4">Error: {error}</div>;
+    if (!employeesQuery.data) return <div className="text-red-600 dark:text-red-400 p-4" role="alert">Error: {error} <button type="button" onClick={() => employeesQuery.refetch()} className="ml-2 underline">Retry</button></div>;
   }
 
   return (

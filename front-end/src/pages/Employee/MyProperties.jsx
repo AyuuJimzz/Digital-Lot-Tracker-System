@@ -1,8 +1,10 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 
 const ROWS_PER_PAGE = 10;
+const EMPTY_LOTS = [];
 
 const getStatusColor = (status) => {
   switch (status) {
@@ -19,61 +21,38 @@ const selectCls = "w-full md:w-40 rounded-md border border-gray-300 dark:border-
 const paginBtnCls = "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
 const MyProperties = () => {
-  const [lots, setLots] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem("employeeLotsCache");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
+  const lotsQuery = useQuery({
+    queryKey: ["employee-lots"],
+    queryFn: async () => {
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+      const [lotsResponse, propertiesResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/lots/all`, authConfig),
+        axios.get(`${API_BASE_URL}/api/properties`, authConfig),
+      ]);
+      const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
+      const fetchedProperties = Array.isArray(propertiesResponse.data) ? propertiesResponse.data : [];
+      const propNameMap = new Map();
+      fetchedProperties.forEach((property) => {
+        propNameMap.set(Number(property.property_id), property.property_name || `Property ${property.property_id}`);
+      });
+      const activePropertyIds = new Set(
+        fetchedProperties.filter((property) => property.status !== "inactive").map((property) => Number(property.property_id))
+      );
+      return fetchedLots
+        .filter((lot) => activePropertyIds.has(Number(lot.property_id)))
+        .map((lot) => ({
+          ...lot,
+          property_name: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
+        }));
+    },
   });
-  const [loading, setLoading] = useState(() => !sessionStorage.getItem("employeeLotsCache"));
-  const [error, setError] = useState("");
+  const lots = lotsQuery.data || EMPTY_LOTS;
+  const loading = lotsQuery.isPending;
+  const error = lotsQuery.error ? "Unable to load properties. Please try again." : "";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    const fetchLots = async () => {
-      try {
-        const token = localStorage.getItem("authToken");
-        const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
-        // Fetch properties and lots in parallel
-        const [lotsResponse, propertiesResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/all`, authConfig),
-          axios.get(`${API_BASE_URL}/api/properties`, authConfig),
-        ]);
-
-        const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
-        const fetchedProperties = Array.isArray(propertiesResponse.data) ? propertiesResponse.data : [];
-
-        // Map property names for clean display
-        const propNameMap = new Map();
-        fetchedProperties.forEach((p) => {
-          propNameMap.set(Number(p.property_id), p.property_name || `Property ${p.property_id}`);
-        });
-
-        // Get IDs of active properties only
-        const activePropertyIds = new Set(
-          fetchedProperties.filter((p) => p.status !== "inactive").map((p) => p.property_id)
-        );
-
-        // Filter lots to only those belonging to active properties
-        const activeLots = fetchedLots
-          .filter((lot) => activePropertyIds.has(lot.property_id))
-          .map((lot) => ({
-            ...lot,
-            property_name: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
-          }));
-
-        setLots(activeLots);
-        try { sessionStorage.setItem("employeeLotsCache", JSON.stringify(activeLots)); } catch (e) {}
-      } catch (requestError) {
-        setError("Unable to load properties. Please refresh and try again.");
-      } finally { setLoading(false); }
-    };
-    fetchLots();
-  }, []);
 
   const filteredLots = useMemo(() => {
     return lots.filter((lot) => {
@@ -109,9 +88,9 @@ const MyProperties = () => {
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">Browse and filter lots from the current inventory.</p>
       </div>
 
-      {error && <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">{error}</div>}
+      {error && <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">{error}<button type="button" onClick={() => lotsQuery.refetch()} className="ml-2 underline">Retry</button></div>}
 
-      {!error && (
+      {(!error || lotsQuery.data) && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <input

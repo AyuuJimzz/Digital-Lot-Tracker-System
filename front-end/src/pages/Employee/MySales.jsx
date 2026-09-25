@@ -1,8 +1,10 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 
 const ROWS_PER_PAGE = 10;
+const EMPTY_SALES = [];
 
 const getStatusColor = (status) => {
   switch (String(status || "").toLowerCase()) {
@@ -38,107 +40,88 @@ const paginBtnCls =
   "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
 const MySales = () => {
-  const [salesRecords, setSalesRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const salesQuery = useQuery({
+    queryKey: ["my-sales"],
+    queryFn: async () => {
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+      const [lotsResponse, customersResponse, propertiesResponse, txnsResponse] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/lots/all`, authConfig),
+        axios.get(`${API_BASE_URL}/api/customers`, authConfig),
+        axios.get(`${API_BASE_URL}/api/properties`, authConfig),
+        axios.get(`${API_BASE_URL}/api/transactions?scope=personal`, authConfig).catch(() => ({ data: [] })),
+      ]);
+
+      const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
+      const fetchedCustomers = Array.isArray(customersResponse.data) ? customersResponse.data : [];
+      const fetchedProperties = Array.isArray(propertiesResponse.data) ? propertiesResponse.data : [];
+      const fetchedTransactions = Array.isArray(txnsResponse.data) ? txnsResponse.data : [];
+
+      const propMap = new Map();
+      fetchedProperties.forEach((p) => {
+        propMap.set(Number(p.property_id), p.property_name || `Property ${p.property_id}`);
+      });
+      const lotMap = new Map();
+      fetchedLots.forEach((l) => {
+        lotMap.set(Number(l.lot_id), l);
+      });
+      const custMap = new Map();
+      fetchedCustomers.forEach((c) => {
+        if (c.lot_id) custMap.set(Number(c.lot_id), c);
+      });
+
+      const sales = [];
+      const seenLotIds = new Set();
+      fetchedTransactions.forEach((t) => {
+        if (String(t.status || "").toLowerCase() === "cancelled") return;
+        const lot = lotMap.get(Number(t.lot_id));
+        const cust = custMap.get(Number(t.lot_id));
+        if (t.lot_id) seenLotIds.add(Number(t.lot_id));
+        sales.push({
+          lot_id: t.lot_id,
+          sale_ref: t.transaction_id || `TXN-${String(t.lot_id).padStart(4, "0")}`,
+          sale_date: formatSaleDate(t.transaction_date),
+          lot_number: t.lot_number || lot?.lot_number || `Lot ${t.lot_id}`,
+          property_id: lot?.property_id,
+          property_name: t.property_name || (lot?.property_id ? propMap.get(Number(lot.property_id)) : "—"),
+          area_sqm: lot?.area_sqm,
+          status: t.status || lot?.status || "Sold",
+          buyer_name: t.customer_name || cust?.full_name || "—",
+          buyer_contact: cust?.contact_number || "",
+          buyer_email: cust?.email || "",
+        });
+      });
+
+      fetchedCustomers.forEach((c) => {
+        if (c.lot_id && !seenLotIds.has(Number(c.lot_id))) {
+          const lot = lotMap.get(Number(c.lot_id));
+          if (lot && ["sold", "pending"].includes(String(lot.status || "").toLowerCase())) {
+            sales.push({
+              lot_id: lot.lot_id,
+              sale_ref: `TXN-${String(lot.lot_id).padStart(4, "0")}`,
+              sale_date: formatSaleDate(c.created_at || lot.pending_since),
+              lot_number: lot.lot_number,
+              property_id: lot.property_id,
+              property_name: propMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
+              area_sqm: lot.area_sqm,
+              status: lot.status,
+              buyer_name: c.full_name || "—",
+              buyer_contact: c.contact_number || "",
+              buyer_email: c.email || "",
+            });
+          }
+        }
+      });
+      return sales;
+    },
+    staleTime: 60 * 1000,
+  });
+  const salesRecords = salesQuery.data || EMPTY_SALES;
+  const loading = salesQuery.isPending;
+  const error = salesQuery.error ? "Unable to load sales data. Please refresh and try again." : "";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    const fetchSalesData = async () => {
-      try {
-        const token = localStorage.getItem("authToken");
-        const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
-        const [lotsResponse, customersResponse, propertiesResponse, txnsResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/lots/all`, authConfig),
-          axios.get(`${API_BASE_URL}/api/customers`, authConfig),
-          axios.get(`${API_BASE_URL}/api/properties`, authConfig),
-          axios.get(`${API_BASE_URL}/api/transactions?scope=personal`, authConfig).catch(() => ({ data: [] })),
-        ]);
-
-        const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
-        const fetchedCustomers = Array.isArray(customersResponse.data) ? customersResponse.data : [];
-        const fetchedProperties = Array.isArray(propertiesResponse.data) ? propertiesResponse.data : [];
-        const fetchedTransactions = Array.isArray(txnsResponse.data) ? txnsResponse.data : [];
-
-        // Build lookup map for properties
-        const propMap = new Map();
-        fetchedProperties.forEach((p) => {
-          propMap.set(Number(p.property_id), p.property_name || `Property ${p.property_id}`);
-        });
-
-        // Build lookup map for lots
-        const lotMap = new Map();
-        fetchedLots.forEach((l) => {
-          lotMap.set(Number(l.lot_id), l);
-        });
-
-        // Build lookup map for customers by lot_id (already filtered to this employee)
-        const custMap = new Map();
-        fetchedCustomers.forEach((c) => {
-          if (c.lot_id) {
-            custMap.set(Number(c.lot_id), c);
-          }
-        });
-
-        // Map personal transactions directly (only active Sold and Pending sales)
-        const sales = [];
-        const seenLotIds = new Set();
-
-        fetchedTransactions.forEach((t) => {
-          // Exclude cancelled transactions from My Sales
-          if (String(t.status || "").toLowerCase() === "cancelled") return;
-
-          const lot = lotMap.get(Number(t.lot_id));
-          const cust = custMap.get(Number(t.lot_id));
-          if (t.lot_id) seenLotIds.add(Number(t.lot_id));
-          sales.push({
-            lot_id: t.lot_id,
-            sale_ref: t.transaction_id || `TXN-${String(t.lot_id).padStart(4, "0")}`,
-            sale_date: formatSaleDate(t.transaction_date),
-            lot_number: t.lot_number || lot?.lot_number || `Lot ${t.lot_id}`,
-            property_id: lot?.property_id,
-            property_name: t.property_name || (lot?.property_id ? propMap.get(Number(lot.property_id)) : "—"),
-            area_sqm: lot?.area_sqm,
-            status: t.status || lot?.status || "Sold",
-            buyer_name: t.customer_name || cust?.full_name || "—",
-            buyer_contact: cust?.contact_number || "",
-            buyer_email: cust?.email || "",
-          });
-        });
-
-        // Include any assigned customer whose lot reservation has not generated a transaction row yet
-        fetchedCustomers.forEach((c) => {
-          if (c.lot_id && !seenLotIds.has(Number(c.lot_id))) {
-            const lot = lotMap.get(Number(c.lot_id));
-            if (lot && ["sold", "pending"].includes(String(lot.status || "").toLowerCase())) {
-              sales.push({
-                lot_id: lot.lot_id,
-                sale_ref: `TXN-${String(lot.lot_id).padStart(4, "0")}`,
-                sale_date: formatSaleDate(c.created_at || lot.pending_since),
-                lot_number: lot.lot_number,
-                property_id: lot.property_id,
-                property_name: propMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
-                area_sqm: lot.area_sqm,
-                status: lot.status,
-                buyer_name: c.full_name || "—",
-                buyer_contact: c.contact_number || "",
-                buyer_email: c.email || "",
-              });
-            }
-          }
-        });
-
-        setSalesRecords(sales);
-      } catch (requestError) {
-        setError("Unable to load sales data. Please refresh and try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSalesData();
-  }, []);
 
   const filteredSales = useMemo(() => {
     return salesRecords.filter((sale) => {
@@ -187,10 +170,11 @@ const MySales = () => {
       {error && (
         <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
           {error}
+          <button type="button" onClick={() => salesQuery.refetch()} className="ml-2 underline">Retry</button>
         </div>
       )}
 
-      {!error && (
+      {(!error || salesQuery.data) && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <input

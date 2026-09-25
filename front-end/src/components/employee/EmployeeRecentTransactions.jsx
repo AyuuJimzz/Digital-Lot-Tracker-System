@@ -1,6 +1,5 @@
-import { API_BASE_URL } from "../../config/api";
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { useRecentTransactions } from "../../hooks/useRecentTransactions";
 
 const STATUS_STYLES = {
   Available: "text-green-600 dark:text-green-400 font-semibold",
@@ -13,41 +12,13 @@ const EmployeeRecentTransactions = () => {
   const [filter, setFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const transactionsQuery = useRecentTransactions("employee");
+  const transactions = transactionsQuery.data?.transactions || [];
+  const empNameMap = transactionsQuery.data?.empNameMap || {};
+  const loading = transactionsQuery.isPending;
+  const error = transactionsQuery.error ? "Failed to load transactions" : null;
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
-  const [empNameMap, setEmpNameMap] = useState({});
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("authToken");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const [txnRes, empRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/transactions`, { withCredentials: true, headers }),
-          axios.get(`${API_BASE_URL}/api/employees`, { withCredentials: true, headers }).catch(() => ({ data: [] })),
-        ]);
-        setTransactions(txnRes.data || []);
-        const map = {};
-        (empRes.data || []).forEach((e) => {
-          map[e.employee_id] = `${e.first_name || ""} ${e.last_name || ""}`.trim();
-        });
-        setEmpNameMap(map);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching transactions:", err);
-        setError("Failed to load transactions");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
   // Filter transactions by status, search query, and date
   const filtered = transactions.filter((t) => {
     // 1. Status filter
@@ -117,6 +88,7 @@ const EmployeeRecentTransactions = () => {
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 {error}
+                <button type="button" onClick={() => transactionsQuery.refetch()} className="underline">Retry</button>
               </p>
             )}
           </div>

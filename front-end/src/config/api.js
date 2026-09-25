@@ -1,6 +1,7 @@
 // API Configuration for local dev & production deployment
 import axios from 'axios';
 import { clearStoredAuth, getStoredToken } from '../utils/authStorage';
+import { invalidateEstateMutation } from './queryClient';
 
 const getApiUrl = () => {
   if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) {
@@ -31,6 +32,10 @@ axios.interceptors.response.use(
   (response) => {
     if (response.config?.method?.toLowerCase() === 'post' &&
         response.config?.url?.endsWith('/api/auth/login')) isHandlingKickout = false;
+    const method = response.config?.method?.toUpperCase();
+    if (method && !['GET', 'HEAD'].includes(method)) {
+      invalidateEstateMutation(response.config?.url || '');
+    }
     return response;
   },
   async (error) => {
