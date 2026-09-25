@@ -122,6 +122,7 @@ export function usePropertyMapNavigation(map, options) {
       latest.current.triggerArrivalPulse?.(coordinates);
     };
     const navigate = (coordinates, requestedZoom = 19, flightOptions = {}) => {
+      latest.current.onNavigationIntent?.();
       const intent = ++navigationIntent;
       const startWhenCorridorReady = () => {
         if (intent !== navigationIntent) return;

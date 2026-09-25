@@ -122,24 +122,21 @@ export function MapController({
     };
   }, [map]);
 
+  const initialFlyDoneRef = useRef(false);
   usePropertyMapNavigation(map, {
     selectedProperty,
     setSelectedProperty,
     properties,
     mapLayer,
     triggerArrivalPulse,
+    onNavigationIntent: () => { initialFlyDoneRef.current = true; },
   });
   useSmoothWheelZoom(map);
 
   // Set view to selected property directly on initial mount (no delayed flyTo jump)
-  const initialFlyDoneRef = useRef(false);
   useEffect(() => {
     if (!map || initialFlyDoneRef.current) return;
-    if (!properties || properties.length === 0) {
-      initialFlyDoneRef.current = true;
-      map.setView([10.90, 122.60], 9, { animate: false });
-      return;
-    }
+    if (!properties || properties.length === 0) return;
     const targetProp = properties.find((p) => Number(p.id) === Number(selectedProperty));
     if (targetProp && targetProp.coordinates) {
       initialFlyDoneRef.current = true;
