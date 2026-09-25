@@ -18,13 +18,22 @@ function ForgotPassword() {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/forgot-password`, { email });
+      const response = await axios.post(
+        `${API_BASE_URL}/api/auth/forgot-password`,
+        { email },
+        { timeout: 25000 }
+      );
       setMessage(response.data?.message || "Temporary password has been sent to your email.");
       setEmail("");
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.message ||
-        "Unable to connect to server or send reset email. Please try again.";
+      let errorMsg = "Unable to connect to server or send reset email. Please try again.";
+      if (err.code === "ECONNABORTED" || err.message?.toLowerCase().includes("timeout")) {
+        errorMsg = "Connection timed out. The server took too long to respond. Please try again.";
+      } else if (err.code === "ERR_NETWORK" || !err.response) {
+        errorMsg = "Unable to reach the server. Please check your internet connection.";
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message;
+      }
       setError(errorMsg);
       console.error("Forgot password error:", err);
     } finally {

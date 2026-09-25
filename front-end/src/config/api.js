@@ -17,7 +17,7 @@ export const API_BASE_URL = getApiUrl();
 
 // Keep authentication and data screens from waiting forever on a stalled
 // connection. Longer operations can override this per request.
-axios.defaults.timeout = 12000;
+axios.defaults.timeout = 20000;
 
 // Auto-restore JWT token for cross-origin deployments (Vercel frontend + Render backend).
 const savedToken = getStoredToken();

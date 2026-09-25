@@ -45,7 +45,7 @@ function Login({ setRole }) {
       .get(`${API_BASE_URL}/api/auth/check-session`, {
         headers: { Authorization: savedToken ? `Bearer ${savedToken}` : null },
         withCredentials: true,
-        timeout: 8000,
+        timeout: 15000,
       })
       .then((response) => {
         if (cancelled || loginStartedRef.current || getStoredToken() !== savedToken) return;
@@ -63,8 +63,9 @@ function Login({ setRole }) {
         if (cancelled || loginStartedRef.current || getStoredToken() !== savedToken) return;
         if (err.response?.status === 401 || err.response?.status === 403) {
           clearStoredAuth(savedToken);
-        } else {
-          setError("The server is unavailable or took too long to respond. Please try again.");
+        } else if (savedToken) {
+          // Only show error if the user had a previous session they were trying to resume
+          setError("Unable to restore previous session due to slow connection. Please sign in again.");
         }
       });
     return () => { cancelled = true; };
@@ -79,7 +80,7 @@ function Login({ setRole }) {
       const response = await axios.post(
         `${API_BASE_URL}/api/auth/login`,
         { email, password },
-        { headers: { Authorization: null }, withCredentials: true, timeout: 10000 }
+        { headers: { Authorization: null }, withCredentials: true, timeout: 25000 }
       );
       const userRole = response.data.user.role;
       const passwordResetRequired = response.data.password_reset_required;
@@ -95,7 +96,19 @@ function Login({ setRole }) {
       if (userRole === "admin") navigate("/admin-panel");
       else if (userRole === "employee") navigate("/employee-panel");
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Login failed");
+      if (err.code === "ECONNABORTED" || err.message?.toLowerCase().includes("timeout")) {
+        setError("The server took too long to respond (connection timed out). It may be waking up or your internet is slow. Please try again.");
+      } else if (err.code === "ERR_NETWORK" || !err.response) {
+        setError("Unable to connect to the server. Please check your internet connection.");
+      } else if (err.response?.status === 401 || err.response?.status === 400) {
+        setError(err.response?.data?.message || "Invalid email or password. Please try again.");
+      } else if (err.response?.status === 429) {
+        setError(err.response?.data?.message || "Too many login attempts. Please wait a moment and try again.");
+      } else if (err.response?.status >= 500) {
+        setError("The server is temporarily unavailable. Please try again in a few moments.");
+      } else {
+        setError(err.response?.data?.message || "Login failed. Please check your credentials and try again.");
+      }
     } finally {
       setLoading(false);
     }

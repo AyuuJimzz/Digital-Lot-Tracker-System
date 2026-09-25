@@ -35,7 +35,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 			.get(`${API_BASE_URL}/api/auth/check-session`, {
 				headers,
 				withCredentials: true,
-				timeout: 8000,
+				timeout: 15000,
 			})
 			.then((response) => {
 				if (cancelled) return;
@@ -65,11 +65,19 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 					setAuth({ loading: false, isAuthorized: false, isAuthenticated: false });
 					return;
 				}
+
+				let friendlyError = "Session verification failed. Please try again or sign in.";
+				if (error.code === "ECONNABORTED" || error.message?.toLowerCase().includes("timeout")) {
+					friendlyError = "Connection timed out. The server is taking longer than expected to respond. Please check your internet or click Retry.";
+				} else if (error.code === "ERR_NETWORK" || !error.response) {
+					friendlyError = "Unable to reach the server. Please check your internet connection.";
+				}
+
 				setAuth({
 					loading: false,
 					isAuthorized: false,
 					isAuthenticated: Boolean(savedToken),
-					error: "Session verification failed or timed out.",
+					error: friendlyError,
 				});
 			});
 		return () => { cancelled = true; };
