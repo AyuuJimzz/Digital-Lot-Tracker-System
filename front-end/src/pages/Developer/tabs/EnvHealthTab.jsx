@@ -7,6 +7,28 @@ const EnvHealthTab = ({
   envCategoryFilter,
   setEnvCategoryFilter,
 }) => {
+  const configuredRequired =
+    envHealthData?.configuredRequired ??
+    envHealthData?.variables?.filter((v) => v.required && v.isSet)?.length ??
+    0;
+  const totalRequired =
+    envHealthData?.totalRequired ??
+    envHealthData?.variables?.filter((v) => v.required)?.length ??
+    0;
+  const allRequiredSet =
+    envHealthData?.allRequiredSet !== undefined
+      ? Boolean(envHealthData.allRequiredSet)
+      : (configuredRequired === totalRequired && totalRequired > 0);
+  const configuredCount =
+    envHealthData?.configuredCount ??
+    envHealthData?.variables?.filter((v) => v.isSet)?.length ??
+    0;
+  const totalCount =
+    envHealthData?.totalCount ??
+    envHealthData?.totalVariables ??
+    envHealthData?.variables?.length ??
+    0;
+
   return (
     <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-xl overflow-hidden animate-in fade-in duration-150">
       {/* Header Bar */}
@@ -32,12 +54,12 @@ const EnvHealthTab = ({
           {/* Status Badge */}
           {envHealthData && (
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border ${
-              envHealthData.allRequiredSet
+              allRequiredSet
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                 : "bg-rose-500/10 text-rose-400 border-rose-500/20"
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${envHealthData.allRequiredSet ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
-              {envHealthData.allRequiredSet ? "🟢 All Required Configs Set" : "⚠️ Missing Required Variables"}
+              <span className={`w-1.5 h-1.5 rounded-full ${allRequiredSet ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
+              {allRequiredSet ? "🟢 All Required Configs Set" : "⚠️ Missing Required Variables"}
             </span>
           )}
 
@@ -71,7 +93,7 @@ const EnvHealthTab = ({
               Required Variables
             </div>
             <div className="text-lg font-bold font-mono text-slate-200">
-              {envHealthData ? `${envHealthData.configuredRequired} / ${envHealthData.totalRequired}` : "5 / 5"}
+              {`${configuredRequired} / ${totalRequired}`}
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">Core keys satisfied</div>
           </div>
@@ -81,7 +103,7 @@ const EnvHealthTab = ({
               Total Configured
             </div>
             <div className="text-lg font-bold font-mono text-slate-200">
-              {envHealthData ? `${envHealthData.configuredCount} / ${envHealthData.totalCount}` : "12 / 13"}
+              {`${configuredCount} / ${totalCount}`}
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">System & optional configs</div>
           </div>

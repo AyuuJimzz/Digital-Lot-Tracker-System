@@ -303,11 +303,16 @@ exports.getEnvHealth = (req, res) => {
   const totalRequired = envSpecs.filter((s) => s.required).length;
   const configuredRequired = variables.filter((v) => v.required && v.isSet).length;
   const allRequiredSet = configuredRequired === totalRequired;
+  const configuredCount = variables.filter((v) => v.isSet).length;
+  const totalCount = envSpecs.length;
 
   res.json({
     success: true,
     overallHealth: allRequiredSet ? "HEALTHY" : "WARNING",
-    totalVariables: envSpecs.length,
+    allRequiredSet,
+    totalVariables: totalCount,
+    totalCount,
+    configuredCount,
     totalRequired,
     configuredRequired,
     variables,
