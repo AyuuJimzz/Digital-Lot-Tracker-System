@@ -1,159 +1,131 @@
 <div align="center">
 
-<img src="front-end/src/assets/image/golden-dragon-logo.png" alt="Golden Dragon Estate Logo" width="100" style="border-radius: 50%;" />
+<img src="front-end/src/assets/image/golden-dragon-logo.png" alt="Golden Dragon Estate logo" width="88" />
 
 # Golden Dragon Estate Platform
 
-**Enterprise GIS Subdivision Mapping & Digital Real Estate Management System**
+An estate-management application for mapping subdivision lots, managing reservations and sales, and coordinating administrators and employees.
 
-An end-to-end full-stack platform engineered for real estate developers and brokers to manage subdivision inventories, interactive satellite GIS mapping, automated CAD blueprint ingestion, agent sales pipelines, and customer reservations.
-
-[![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-v20-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Express](https://img.shields.io/badge/Express-5.x-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
-[![Leaflet](https://img.shields.io/badge/GIS-Leaflet-199900?style=flat-square&logo=leaflet&logoColor=white)](https://leafletjs.com/)
-[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-3.4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![MySQL](https://img.shields.io/badge/Database-MySQL_8-4479A1?style=flat-square&logo=mysql&logoColor=white)](https://www.mysql.com/)
-[![Aiven Cloud](https://img.shields.io/badge/Cloud_DB-Aiven_MySQL-FF3E00?style=flat-square&logo=aiven&logoColor=white)](https://aiven.io/)
-[![Render](https://img.shields.io/badge/Hosting-Render-46E3B7?style=flat-square&logo=render&logoColor=black)](https://render.com/)
-[![UptimeRobot](https://img.shields.io/badge/Uptime-100%25_UptimeRobot-3BD671?style=flat-square&logo=uptimerobot&logoColor=white)](https://uptimerobot.com)
-[![Brevo](https://img.shields.io/badge/Email_API-Brevo-0B996F?style=flat-square&logo=brevo&logoColor=white)](https://www.brevo.com/)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
-
-<br />
-
-[**🌐 Explore Live Platform — goldendragonestate.onrender.com**](https://goldendragonestate.onrender.com)
+[Live application](https://goldendragonestate.onrender.com)
 
 </div>
 
----
+## Overview
 
-## 🌟 Key Features
+The platform combines an interactive lot map with property, customer, transaction, and employee workflows. Administrators manage inventory and staff; employees work with their assigned clients and sales. The frontend is a React single-page application backed by an Express API and MySQL.
 
-### 🗺️ Interactive GIS & Subdivision Map (UI & UX)
-- **Cinematic Smooth Wheel Zoom**: Fluid, cursor-anchored zoom navigation delivering a continuous 60 FPS experience across large subdivision maps.
-- **Dynamic Map Style Switching**: Smooth cross-fade visual transitions when toggling between Satellite, Street Map, and Hybrid views.
-- **Real-Time Color-Coded Lot Inventory**: Instant visual inventory tracking: `Available` (Green), `Pending` (Gold), `Sold` (Red), and `Cancelled` (Purple).
-- **Interactive Lot Selection & Tooltips**: Instant parcel hover glows, lot metadata tooltips, and smooth camera fly-to centering upon selection.
-- **Interactive Multi-Lot Bulk Shift**: Visual drag-and-move tool enabling administrators to translate clusters of lots and annotations across the map with live bounding box preview.
-- **Road & Street Geo-Labels**: Transparent, geo-anchored street names and road width markers that automatically adapt to zoom levels.
+### Main capabilities
 
-### 📐 CAD Blueprint & Vector PDF Tools (UI & UX)
-- **Automated Blueprint PDF Ingestion**: Upload subdivision engineering PDFs and let the system automatically extract lot parcels, numbers, and boundaries.
-- **Smart Survey Boundary Cutout (Auto-Crop)**: Automatically isolates estate lots while masking out title blocks, legends, and non-saleable survey margins.
-- **Visual Vector Shape Editor**: Precision CAD drawing canvas with draggable corner vertices, midpoint `+` handles for adding points, double-click corner deletion, and keyboard nudges.
-- **Visual Satellite Blueprint Overlay**: Live tracing paper overlay on satellite imagery with amber corner rotation handles, 4-way translation tool, opacity slider, and custom line styles (Lime, Cyan, Yellow, White).
+- **Estate map:** View property boundaries and lot details, switch map layers, and update lot information from the map interface.
+- **Inventory and reservations:** Track Available, Pending, and Sold lots. Non-saleable parcels are classified separately from saleable inventory.
+- **Customer and sales records:** Manage reservations, customer details, transactions, and agent attribution.
+- **Employee management:** Add employees, review activity, deactivate accounts, and reassign pending clients when staff responsibilities change.
+- **Account security:** Role-based access, session checks, profile settings, and recent sign-in history.
+- **Blueprint tools:** Import and align subdivision plans with the map for lot placement and editing.
 
-### 💼 Sales CRM & Administrative Workflow
-- **Slide-Out Lot Reservation Drawer**: Sleek right-side offcanvas panel displaying complete lot dimensions, pricing calculations, buyer info, and reservation actions.
-- **Agent Sales Dashboard**: Dedicated agent portals (`My Sales`, `My Clients`) for tracking reservation deposits, client profiles, and payment milestones.
-- **Role-Based Portals**: Tailored workflows and navigation layouts for Administrators, Brokers, and Sales Employees.
-- **Clean Feedback Notifications**: Modern, unobtrusive toast notifications for status updates, lot saves, and system alerts.
+## Technology
 
-### 📱 Modern Platform & Cloud Architecture
-- **PWA & Field Tablet Ready**: Responsive design optimized for mobile and field tablets with home screen installation support.
-- **Dual Authentication Security**: Secure 30-day persistent sessions, Bearer JWT protection, and role-based route guards.
-- **Transactional Email**: Customer reservation receipts via Brevo email.
-- **24/7 Zero-Downtime Availability**: Automated synthetic heartbeat keeping cloud services active with zero cold-start delays.
+| Layer | Main tools |
+| --- | --- |
+| Frontend | React 18, React Router 7, Tailwind CSS, React Query |
+| Maps and charts | Leaflet, React-Leaflet, Recharts |
+| API | Node.js, Express 5 |
+| Database | MySQL 8, `mysql2` |
 
----
-
-## 🛠️ Technology Stack
-
-| Layer | Technology | Details |
-| :--- | :--- | :--- |
-| **Frontend** | React 18, React Router v7, Tailwind CSS | Modern Single Page Application with PWA offline shell |
-| **GIS & Mapping** | Leaflet, React-Leaflet, Recharts, Lucide | Hardware-accelerated vector mapping and sales analytics |
-| **Backend API** | Node.js, Express 5, Express-Session | RESTful micro-architecture with strict input sanitization |
-| **Database** | MySQL 8, MySQL2 Connection Pool | High-performance relational database with ACID compliance |
-| **Cloud Hosting** | Render (Static Frontend & Web Service Backend) | Automated CI/CD deployment with free TLS/SSL certificates |
-| **Cloud Database** | Aiven Cloud MySQL | High-availability cloud-managed database with SSL encryption |
-| **Communications** | Brevo API | Automated email receipts |
-| **Monitoring** | UptimeRobot (24/7 Heartbeat) | Synthetic monitoring with active database ping |
-
----
-
-## 📁 Repository Structure
+## Repository layout
 
 ```text
-.
-├── back-end/
-│   ├── config/             # Database connection pool & system state
-│   ├── scripts/            # Database export & Aiven Cloud sync utilities
-│   └── src/
-│       ├── app.js          # Express application & security middlewares
-│       ├── server.js       # HTTP server bootstrapper
-│       ├── controllers/    # Domain business logic (Lots, Properties, Customers, Auth)
-│       ├── routes/         # Declarative API routers & route guards
-│       ├── middleware/     # Auth, session, maintenance & sanitization
-│       ├── services/       # Email delivery & session manager
-│       └── utils/          # Geocoding helpers & input sanitizers
-├── front-end/
-│   ├── public/             # PWA Manifest, Service Worker & branding assets
-│   └── src/
-│       ├── components/     # Reusable UI component suites (Admin, Employee, Map, Modals)
-│       ├── pages/          # Admin portal, Employee portal, Developer Console, Map views
-│       └── utils/          # Geocoding engine & map projection helpers
-├── database_Backup/        # Local database snapshots (ignored by Git)
-├── docker-compose.yml      # Local containerized development stack
-└── package.json            # Monorepo scripts
+back-end/
+  config/       Database connection configuration
+  scripts/      Explicit database setup and migrations
+  src/          API routes, controllers, middleware, and services
+  tests/        Database safety integration tests
+front-end/
+  public/       Static assets and PWA files
+  src/          React pages, components, hooks, and API configuration
+database_Backup/  SQL snapshots; review their contents before use
+docker-compose.yml  Optional local container stack
+package.json        Workspace-level commands
 ```
 
----
+## Local development
 
-## 🚀 Quick Start
+### Requirements
 
-### 1. Prerequisites
-- **Node.js:** v20+ LTS
-- **npm:** v9+
-- **MySQL:** Laragon or MySQL 8.0+
+- Node.js 20 or later and npm
+- MySQL 8 with an existing Golden Dragon Estate base schema
 
-### 2. Clone & Install
+Install the workspace dependencies from the repository root:
+
 ```bash
-git clone https://github.com/goldendragonestate/Digital-Lot-Tracker-System.git
-cd Digital-Lot-Tracker-System
 npm install
 ```
 
-### 3. Environment Setup
-Create a `.env` file in the root directory:
+Create a root `.env` file for the backend and replace the example values:
 
-```env
+```dotenv
 PORT=5000
-SESSION_SECRET=your_secure_session_secret
-JWT_SECRET=your_jwt_secret_key
-
-# Local Database Configuration
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=
+DB_PASSWORD=your_local_password
 DB_NAME=golden_dragon_corp
-
-# Frontend Client Origin
+JWT_SECRET=replace_with_a_long_random_secret
+SESSION_SECRET=replace_with_a_different_long_random_secret
 FRONTEND_URL=http://localhost:3000
-
-# Transactional Email Engine (Brevo HTTPS REST API)
-EMAIL_USER=goldendragonestate@gmail.com
-BREVO_API_KEY=your_brevo_api_key
-
-# Production Cloud Database (Aiven Cloud MySQL over SSL)
-AIVEN_SERVICE_URI=mysql://avnadmin:PASSWORD@HOST:PORT/defaultdb?ssl-mode=REQUIRED
 ```
 
-### 4. Run Development Servers
-Start both the Frontend and Backend concurrently:
+The root `.env` is ignored by Git. Do not commit secrets or production database credentials. If email delivery is needed, configure `BREVO_API_KEY` and `EMAIL_USER` in the same file. For a remote MySQL connection, configure the appropriate `DB_HOST`, `DB_PORT`, credentials, and `DB_SSL=true`.
+
+The database scripts extend an **existing** schema; they do not create all base tables from an empty database. Review the SQL snapshots in `database_Backup/` before using them, particularly if they contain real records. Once the base tables exist, review `back-end/scripts/setup_schema.js` before running `npm run db:setup`: it performs data backfills as well as schema changes.
+
+Start both development servers:
 
 ```bash
 npm run dev
 ```
 
-- **Frontend Client:** `http://localhost:3000`
-- **Backend API:** `http://localhost:5000`
-- **System Health:** `http://localhost:5000/api/health`
+| Service | Local URL |
+| --- | --- |
+| Frontend | `http://localhost:3000` |
+| API | `http://localhost:5000` |
+| API and database readiness | `http://localhost:5000/api/health` |
 
----
+The frontend defaults to the local API during development. To override it, set `REACT_APP_API_URL` in an ignored `front-end/.env.local` file. React reads this value at build time, so restart or rebuild the frontend after changing it.
 
-## 📄 License
+## Database changes
 
-Distributed under the **MIT License**. Engineered for **Golden Dragon Estate Corporation**.
+Run migrations only against the database you intend to change. Confirm the active `DB_*` values and take a backup before applying changes to an existing or production database.
+
+| Change | Command | Notes |
+| --- | --- | --- |
+| Login-history table | `npm --prefix back-end run db:migrate-login-history` | Creates `account_login_history` if it does not exist. |
+| Non-saleable lot classification preview | `node back-end/scripts/migrate_non_saleable_column.js --dry-run` | Inspects candidates without schema or data writes. |
+| Non-saleable lot classification | `node back-end/scripts/migrate_non_saleable_column.js` | Adds/backfills `lots.is_non_saleable`; review the preview and any reported conflicts first. |
+
+`npm run db:setup` is a broader setup/backfill script, not a substitute for reviewing the targeted migrations. Normal API startup does not run schema migrations automatically.
+
+## Verification
+
+Build the frontend:
+
+```bash
+npm run build
+```
+
+Run the backend's database safety integration suite:
+
+```bash
+node back-end/tests/disposable_migration_safety.test.js
+```
+
+The integration suite creates and removes a disposable local MySQL database. It requires a local MySQL account with database-creation privileges; inspect the test's safety checks before running it in a new environment. Do not point it at a production database.
+
+## Deployment notes
+
+- Set the backend `DB_*`, `JWT_SECRET`, `SESSION_SECRET`, and `FRONTEND_URL` values in the hosting environment. Configure email variables only if email delivery is used.
+- Set `REACT_APP_API_URL` for the frontend build when the API is hosted at a different URL. The value is embedded in the built frontend.
+- Apply and verify required database migrations before deploying code that depends on the new columns or tables.
+- Check `/live` for API liveness and `/api/health` for API-plus-database readiness after deployment.
+
+This repository does not currently contain a license file. Contact the project owner before reusing or redistributing its code or assets.
