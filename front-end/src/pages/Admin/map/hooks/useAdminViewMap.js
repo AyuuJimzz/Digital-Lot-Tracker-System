@@ -179,8 +179,8 @@ export const useAdminViewMap = () => {
         return {
           ...lot,
           _bounds: bounds,
-          _statusColor: getStatusColor(lot.status, lot.lot_number, lot.area_sqm),
-          _nonSaleable: isNonSaleableLot(lot.lot_number, lot.area_sqm),
+          _statusColor: getStatusColor(lot.status, lot, lot.area_sqm),
+          _nonSaleable: isNonSaleableLot(lot, lot.area_sqm),
           _centerLat: (bounds.south + bounds.north) / 2,
           _centerLng: (bounds.west + bounds.east) / 2,
         };

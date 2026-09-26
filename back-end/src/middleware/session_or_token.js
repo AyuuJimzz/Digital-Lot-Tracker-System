@@ -63,6 +63,12 @@ const sessionOrToken = ({ roles = [], permission } = {}) => {
         );
       }
 
+      // All employee tokens issued by the current login flow carry a session ID.
+      // Do not let legacy tokens bypass deactivation/session revocation.
+      if (req.user.role === "employee" && !req.user.sessionId) {
+        return handleUnauthorized(401, "Please sign in again to continue.", "access-denied");
+      }
+
       // 3. Single Active Device Session Validation (Kick out older device if logged in elsewhere)
       if (req.user.role && req.user.id && req.user.sessionId) {
         const isCurrentSessionActive = await isValidSession(req.user.role, req.user.id, req.user.sessionId);

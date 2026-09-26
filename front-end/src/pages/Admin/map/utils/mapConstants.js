@@ -10,27 +10,29 @@ export const STATUS_COLORS = {
   NonSaleable: "#64748b",
 };
 
-export const isNonSaleableLot = (lotNumber = "", areaSqm = 0) => {
-  const num = String(lotNumber || "").toLowerCase().trim();
-  return (
-    num.includes("park") ||
-    num.includes("playground") ||
-    num.includes("facility") ||
-    num.includes("clubhouse") ||
-    num.includes("excluded") ||
-    num.includes("open space") ||
-    num.includes("easement") ||
-    num.includes("community") ||
-    num.includes("p & pg") ||
-    num.includes("amenity") ||
-    num.includes("common") ||
-    num.includes("non-saleable") ||
-    num.includes("non saleable")
+export const isNonSaleableLot = (lotOrNumber = "", areaSqm = 0) => {
+  if (lotOrNumber && typeof lotOrNumber === "object") {
+    if (
+      lotOrNumber.is_non_saleable !== undefined &&
+      lotOrNumber.is_non_saleable !== null
+    ) {
+      return Number(lotOrNumber.is_non_saleable) === 1;
+    }
+    if (lotOrNumber.nonSaleable !== undefined && lotOrNumber.nonSaleable !== null) {
+      return Boolean(lotOrNumber.nonSaleable);
+    }
+    if (lotOrNumber._nonSaleable !== undefined && lotOrNumber._nonSaleable !== null) {
+      return Boolean(lotOrNumber._nonSaleable);
+    }
+    lotOrNumber = lotOrNumber.lot_number || "";
+  }
+  return /\b(park|playground|facility|clubhouse|excluded|open\s+space|easement|community|p\s*&\s*pg|amenity|common|non-saleable|non\s+saleable)\b/i.test(
+    String(lotOrNumber || "")
   );
 };
 
-export const getStatusColor = (status, lotNumber = "", areaSqm = 0) => {
-  if (isNonSaleableLot(lotNumber, areaSqm)) {
+export const getStatusColor = (status, lotOrNumber = "", areaSqm = 0) => {
+  if (isNonSaleableLot(lotOrNumber, areaSqm)) {
     return STATUS_COLORS.NonSaleable;
   }
   return STATUS_COLORS[status] || "#94a3b8";

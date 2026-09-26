@@ -1,4 +1,5 @@
 const { LotImportError, validateImport, assertNoExistingDuplicates } = require("../utils/lotImportValidation");
+const { isNonSaleableLot } = require("../utils/lotClassification");
 
 // Dependency injection keeps validation/transaction tests independent of the live DB.
 function createImportLotsHandler({ getPool, logger = console } = {}) {
@@ -28,15 +29,17 @@ function createImportLotsHandler({ getPool, logger = console } = {}) {
 
       const created = [];
       for (const lot of request.lots) {
+        const isNonSaleable = lot.nonSaleable || isNonSaleableLot(lot.lot_number) ? 1 : 0;
         const [result] = await connection.query(
-          "INSERT INTO lots (property_id, lot_number, area_sqm, status, coordinates) VALUES (?, ?, ?, ?, ?)",
-          [request.property_id, lot.lot_number, lot.area_sqm, "Available", JSON.stringify(lot.coordinates)]
+          "INSERT INTO lots (property_id, lot_number, area_sqm, status, is_non_saleable, coordinates) VALUES (?, ?, ?, ?, ?, ?)",
+          [request.property_id, lot.lot_number, lot.area_sqm, "Available", isNonSaleable, JSON.stringify(lot.coordinates)]
         );
         created.push({
           lot_id: result.insertId,
           property_id: request.property_id,
           ...lot,
           status: "Available",
+          is_non_saleable: isNonSaleable,
         });
       }
       await connection.commit();

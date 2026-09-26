@@ -56,6 +56,7 @@ export const LotOffcanvas = ({
     setValidationErrors,
     isAdmin,
     isLockedForUser,
+    canCancelReservation,
     hasSavedClient,
     handleCopyCoords,
     handleSetSaleable,
@@ -96,7 +97,7 @@ export const LotOffcanvas = ({
 
       {/* Offcanvas Drawer Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 md:w-96 bg-white dark:bg-slate-800 shadow-2xl transform transition-transform duration-300 ease-in-out z-[10000] ${
+        className={`fixed top-0 right-0 z-[10000] h-full w-full max-w-[26rem] transform bg-white shadow-2xl transition-transform duration-300 ease-in-out dark:bg-slate-800 ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -105,46 +106,54 @@ export const LotOffcanvas = ({
           <LotOffcanvasHeader onClose={onClose} />
 
           {/* Form Content */}
-          <div className="flex-1 overflow-y-auto px-6 py-2">
-            <div className="space-y-4">
-              <LotMetadataSection
-                lotNumber={lotNumber}
-                setLotNumber={setLotNumber}
-                areaSqm={areaSqm}
-                setAreaSqm={setAreaSqm}
-                isAdmin={isAdmin}
-                isNonSaleable={isNonSaleable}
-                validationErrors={validationErrors}
-                setValidationErrors={setValidationErrors}
-                onLiveLotUpdate={onLiveLotUpdate}
-                selectedLot={selectedLot}
-                status={status}
-              />
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-4 sm:px-6">
+            <div className="space-y-6">
+              <section aria-label="Lot information" className="space-y-4">
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                  Lot information
+                </h3>
+                <LotMetadataSection
+                  lotNumber={lotNumber}
+                  setLotNumber={setLotNumber}
+                  areaSqm={areaSqm}
+                  setAreaSqm={setAreaSqm}
+                  isAdmin={isAdmin}
+                  isNonSaleable={isNonSaleable}
+                  validationErrors={validationErrors}
+                  setValidationErrors={setValidationErrors}
+                  onLiveLotUpdate={onLiveLotUpdate}
+                  selectedLot={selectedLot}
+                  status={status}
+                />
 
-              <LotCoordinatesSection
-                latitude={latitude}
-                longitude={longitude}
-                isAdmin={isAdmin}
-                editMenuRef={editMenuRef}
-                isEditMenuOpen={isEditMenuOpen}
-                setIsEditMenuOpen={setIsEditMenuOpen}
-                isNonSaleable={isNonSaleable}
-                handleSetSaleable={handleSetSaleable}
-                handleSetNonSaleable={handleSetNonSaleable}
-                showCoordinateEdit={showCoordinateEdit}
-                onStartCoordinateEdit={onStartCoordinateEdit}
-                selectedLot={selectedLot}
-                handleCopyCoords={handleCopyCoords}
-                copiedCoords={copiedCoords}
-              />
+                <LotCoordinatesSection
+                  latitude={latitude}
+                  longitude={longitude}
+                  isAdmin={isAdmin}
+                  editMenuRef={editMenuRef}
+                  isEditMenuOpen={isEditMenuOpen}
+                  setIsEditMenuOpen={setIsEditMenuOpen}
+                  isNonSaleable={isNonSaleable}
+                  handleSetSaleable={handleSetSaleable}
+                  handleSetNonSaleable={handleSetNonSaleable}
+                  showCoordinateEdit={showCoordinateEdit}
+                  onStartCoordinateEdit={onStartCoordinateEdit}
+                  selectedLot={selectedLot}
+                  handleCopyCoords={handleCopyCoords}
+                  copiedCoords={copiedCoords}
+                />
+              </section>
 
-              <LotStatusSection
-                isNonSaleable={isNonSaleable}
-                status={status}
-                setStatus={setStatus}
-                isLockedForUser={isLockedForUser}
-                allowedStatuses={allowedStatuses}
-              />
+              <section aria-label="Lot status" className="border-t border-gray-200 pt-5 dark:border-slate-700">
+                <LotStatusSection
+                  isNonSaleable={isNonSaleable}
+                  status={status}
+                  setStatus={setStatus}
+                  isLockedForUser={isLockedForUser}
+                  canCancelReservation={canCancelReservation}
+                  allowedStatuses={allowedStatuses}
+                />
+              </section>
 
               <LotCustomerSection
                 isNonSaleable={isNonSaleable}

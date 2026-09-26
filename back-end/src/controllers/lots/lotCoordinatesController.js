@@ -79,66 +79,71 @@ exports.updateLotCoordinates = async (req, res) => {
 exports.bulkShiftPropertyLots = async (req, res) => {
   const { propertyId } = req.params;
   const { deltaLat, deltaLng } = req.body;
+  let connection;
 
   if (typeof deltaLat !== "number" || typeof deltaLng !== "number") {
     return res.status(400).json({ error: "deltaLat and deltaLng must be numbers" });
   }
 
   try {
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
     // Get all lots for this property with coordinates
-    const [lots] = await db.query(
-      "SELECT lot_id, coordinates FROM lots WHERE property_id = ? AND coordinates IS NOT NULL",
+    const [lots] = await connection.query(
+      "SELECT lot_id, coordinates FROM lots WHERE property_id = ? AND coordinates IS NOT NULL FOR UPDATE",
       [propertyId]
     );
 
     if (lots.length === 0) {
+      await connection.commit();
       return res.json({ message: "No lots with coordinates to shift", updatedCount: 0 });
     }
 
     // Update each lot coordinates by adding delta offset
     for (const lot of lots) {
-      let coords =
+      const coords =
         typeof lot.coordinates === "string" ? JSON.parse(lot.coordinates) : lot.coordinates;
-      if (!Array.isArray(coords)) continue;
+      if (!Array.isArray(coords)) throw new Error(`Invalid coordinates for lot ${lot.lot_id}`);
 
-      const shiftedCoords = coords.map(([lat, lng]) => [lat + deltaLat, lng + deltaLng]);
+      const shiftedCoords = coords.length === 2 && coords.every((value) => typeof value === "number")
+        ? [coords[0] + deltaLat, coords[1] + deltaLng]
+        : coords.map(([lat, lng]) => [lat + deltaLat, lng + deltaLng]);
 
-      await db.query("UPDATE lots SET coordinates = ? WHERE lot_id = ?", [
+      await connection.query("UPDATE lots SET coordinates = ? WHERE lot_id = ?", [
         JSON.stringify(shiftedCoords),
         lot.lot_id,
       ]);
     }
 
     // Also shift any road labels / map annotations stored in the property
-    const [propRows] = await db.query(
-      "SELECT annotations FROM properties WHERE property_id = ?",
+    const [propRows] = await connection.query(
+      "SELECT annotations FROM properties WHERE property_id = ? FOR UPDATE",
       [propertyId]
     );
     if (propRows.length > 0 && propRows[0].annotations) {
-      try {
-        let annots =
-          typeof propRows[0].annotations === "string"
-            ? JSON.parse(propRows[0].annotations)
-            : propRows[0].annotations;
-        if (Array.isArray(annots) && annots.length > 0) {
-          const shiftedAnnots = annots.map((a) => {
-            if (typeof a.lat === "number" && typeof a.lng === "number") {
-              return { ...a, lat: a.lat + deltaLat, lng: a.lng + deltaLng };
-            }
-            return a;
-          });
-          await db.query(
-            "UPDATE properties SET annotations = ? WHERE property_id = ?",
-            [JSON.stringify(shiftedAnnots), propertyId]
-          );
-          console.log(
-            `🗺️ [Bulk Shift Annotations] Property #${propertyId} | Shifted ${shiftedAnnots.length} road labels`
-          );
-        }
-      } catch (e) {
-        console.error(`⚠️ [Bulk Shift Annotations Warning] Property #${propertyId}:`, e);
+      const annots =
+        typeof propRows[0].annotations === "string"
+          ? JSON.parse(propRows[0].annotations)
+          : propRows[0].annotations;
+      if (Array.isArray(annots) && annots.length > 0) {
+        const shiftedAnnots = annots.map((a) => {
+          if (typeof a.lat === "number" && typeof a.lng === "number") {
+            return { ...a, lat: a.lat + deltaLat, lng: a.lng + deltaLng };
+          }
+          return a;
+        });
+        await connection.query(
+          "UPDATE properties SET annotations = ? WHERE property_id = ?",
+          [JSON.stringify(shiftedAnnots), propertyId]
+        );
+        console.log(
+          `🗺️ [Bulk Shift Annotations] Property #${propertyId} | Shifted ${shiftedAnnots.length} road labels`
+        );
       }
     }
+
+    await connection.commit();
 
     console.log(
       `🗺️ [Bulk Shift Lots] Property #${propertyId} | Shifted ${lots.length} lot polygons (ΔLat: ${deltaLat}, ΔLng: ${deltaLng})`
@@ -149,7 +154,14 @@ exports.bulkShiftPropertyLots = async (req, res) => {
       updatedCount: lots.length,
     });
   } catch (err) {
+    if (connection) {
+      try { await connection.rollback(); } catch (rollbackError) {
+        console.error(`Error rolling back bulk shift for property #${propertyId}:`, rollbackError);
+      }
+    }
     console.error(`❌ [Bulk Shift Lots Error] Property #${propertyId}:`, err);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) connection.release();
   }
 };

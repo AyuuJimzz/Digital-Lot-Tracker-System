@@ -43,9 +43,12 @@ app.use(
 );
 
 // ── Strict CORS Policy (OWASP A05) ──
-const configuredFrontendOrigin = process.env.FRONTEND_URL;
+const configuredFrontendOrigin = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.replace(/\/+$/, "")
+  : null;
 const allowedOrigins = [
   "https://goldendragonestate.onrender.com",
+  "https://golden-dragon-estate.vercel.app",
   configuredFrontendOrigin && (!isProduction || !/^https?:\/\/localhost(?::\d+)?$/.test(configuredFrontendOrigin))
     ? configuredFrontendOrigin
     : null,
@@ -60,7 +63,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes(origin) || /^https:\/\/golden-dragon-estate(-[a-z0-9-]+)?\.vercel\.app$/.test(origin)) {
         return callback(null, true);
       }
       const error = new Error("CORS Policy: Origin not allowed");

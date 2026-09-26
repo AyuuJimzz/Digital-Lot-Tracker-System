@@ -4,7 +4,7 @@ const router = express.Router();
 const rateLimit = require("express-rate-limit");
 const { login, logout, checkSession } = require("../controllers/authController");
 const { forgotPassword, resetPassword } = require("../controllers/passwordResetController");
-const { getProfile, updateProfile, changePassword } = require("../controllers/profileController");
+const { getProfile, updateProfile, changePassword, getLoginHistory } = require("../controllers/profileController");
 const sessionOrToken = require("../middleware/session_or_token");
 
 const requireAuth = sessionOrToken({ roles: ["admin", "employee"] });
@@ -43,6 +43,7 @@ router.post("/reset-password", requireAuth, resetPassword);
 
 // Profile & Settings
 router.get("/profile", requireAuth, getProfile);
+router.get("/login-history", requireAuth, getLoginHistory);
 router.put("/profile", requireAuth, updateProfile);
 router.put("/change-password", requireAuth, changePassword);
 

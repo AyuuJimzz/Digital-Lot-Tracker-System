@@ -6,6 +6,7 @@ const EmployeeDeleteModal = ({
   isDeleting,
   deleteError,
   onConfirm,
+  onDeactivateInstead,
   onClose,
 }) => {
   if (!employee) return null;
@@ -71,7 +72,7 @@ const EmployeeDeleteModal = ({
         </div>
 
         {/* Warning Message */}
-        <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3.5 mb-4 text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+        <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl p-3.5 mb-4 text-xs text-rose-700 dark:text-rose-300 leading-relaxed space-y-1">
           <p className="font-semibold mb-1 flex items-center gap-1.5 text-rose-800 dark:text-rose-200">
             <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
             Warning
@@ -79,11 +80,14 @@ const EmployeeDeleteModal = ({
           <p>
             Deleting this employee will remove their employee account/access.
           </p>
-          <p className="mt-1">
-            Existing transaction/sales history should remain preserved according to the current backend behavior.
+          <p>
+            Accounts with client or sales history cannot be deleted. Deactivate them instead to preserve attribution.
           </p>
-          <p className="mt-1 font-semibold text-rose-800 dark:text-rose-200">
+          <p className="font-semibold text-rose-800 dark:text-rose-200">
             This action cannot be undone.
+          </p>
+          <p className="pt-1 text-[11px] text-amber-800 dark:text-amber-300 font-medium border-t border-rose-200/60 dark:border-rose-900/40">
+            💡 Tip: If you only want to disable login without deleting their record, consider Deactivating the account instead.
           </p>
         </div>
 
@@ -96,7 +100,20 @@ const EmployeeDeleteModal = ({
         )}
 
         {/* Modal Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+          {onDeactivateInstead && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onDeactivateInstead(employee);
+              }}
+              disabled={isDeleting}
+              className="px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-300 dark:border-amber-800 rounded-lg transition-colors cursor-pointer mr-auto"
+            >
+              Deactivate Instead
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

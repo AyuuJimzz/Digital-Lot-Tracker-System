@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
@@ -10,6 +10,8 @@ import {
   EmployeeAddEditModal,
   EmployeeDeleteModal,
   EmployeeActivityModal,
+  EmployeeHandoverModal,
+  EmployeeDeactivateModal,
 } from "../../components/admin/employees";
 
 const ManageEmployees = () => {
@@ -37,6 +39,7 @@ const ManageEmployees = () => {
   const error = employeesQuery.error?.message;
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isSubmittingEmployee, setIsSubmittingEmployee] = useState(false);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -47,11 +50,17 @@ const ManageEmployees = () => {
   const [activityEmployee, setActivityEmployee] = useState(null);
   const [activities, setActivities] = useState([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
+  const [activityError, setActivityError] = useState("");
+  const activityRequestId = useRef(0);
 
   const [employeePendingDelete, setEmployeePendingDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState("");
+
+  const [handoverEmployee, setHandoverEmployee] = useState(null);
+  const [employeePendingDeactivate, setEmployeePendingDeactivate] = useState(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   const navigate = useNavigate();
 
@@ -69,9 +78,11 @@ const ManageEmployees = () => {
   }, [employeesQuery.error, navigate]);
 
   const handleViewActivity = async (employee) => {
+    const requestId = ++activityRequestId.current;
     setActivityEmployee(employee);
     setLoadingActivities(true);
     setActivities([]);
+    setActivityError("");
     try {
       const token = localStorage.getItem("authToken");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -79,11 +90,14 @@ const ManageEmployees = () => {
         `${API_BASE_URL}/api/employees/${employee.employee_id}/activities`,
         { withCredentials: true, headers }
       );
-      setActivities(res.data.activities || []);
+      if (requestId === activityRequestId.current) setActivities(res.data.activities || []);
     } catch (err) {
       console.error("Failed to fetch employee activity history:", err);
+      if (requestId === activityRequestId.current) {
+        setActivityError(err.response?.data?.error || err.message || "Could not load activity history.");
+      }
     } finally {
-      setLoadingActivities(false);
+      if (requestId === activityRequestId.current) setLoadingActivities(false);
     }
   };
 
@@ -105,6 +119,8 @@ const ManageEmployees = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmittingEmployee) return;
+    setIsSubmittingEmployee(true);
     try {
       const token = localStorage.getItem("authToken");
       const authConfig = {
@@ -130,6 +146,8 @@ const ManageEmployees = () => {
       resetForm();
     } catch (err) {
       showToast(err.response?.data?.error || err.message || "Failed to save employee", "error");
+    } finally {
+      setIsSubmittingEmployee(false);
     }
   };
 
@@ -142,6 +160,60 @@ const ManageEmployees = () => {
       password: "",
     });
     setShowForm(true);
+  };
+
+  const handleToggleStatus = async (employee, targetStatus) => {
+    if (targetStatus === "inactive") {
+      setEmployeePendingDeactivate(employee);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("authToken");
+      await axios.patch(
+        `${API_BASE_URL}/api/employees/${employee.employee_id}/status`,
+        { status: "active" },
+        {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      showToast(
+        `${employee.first_name} ${employee.last_name || ""} reactivated successfully!`,
+        "success"
+      );
+      employeesQuery.refetch();
+    } catch (err) {
+      console.error("Failed to reactivate employee:", err);
+      showToast(err.response?.data?.error || "Failed to reactivate employee.", "error");
+    }
+  };
+
+  const confirmDeactivate = async () => {
+    if (!employeePendingDeactivate) return;
+    setIsDeactivating(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      await axios.patch(
+        `${API_BASE_URL}/api/employees/${employeePendingDeactivate.employee_id}/status`,
+        { status: "inactive" },
+        {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+      showToast(
+        `${employeePendingDeactivate.first_name} has been deactivated. Login access is disabled.`,
+        "info"
+      );
+      setEmployeePendingDeactivate(null);
+      employeesQuery.refetch();
+    } catch (err) {
+      console.error("Failed to deactivate employee:", err);
+      showToast(err.response?.data?.error || "Failed to deactivate employee.", "error");
+    } finally {
+      setIsDeactivating(false);
+    }
   };
 
   const openDeleteModal = (employee) => {
@@ -207,17 +279,9 @@ const ManageEmployees = () => {
 
   return (
     <div className="space-y-6 p-6">
-      {/* ── In-App Delete Confirmation Modal ── */}
-      <EmployeeDeleteModal
-        employee={employeePendingDelete}
-        isDeleting={isDeleting}
-        deleteError={deleteError}
-        onConfirm={confirmDeleteEmployee}
-        onClose={closeDeleteModal}
-      />
 
       {/* ── Page Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Employees</h1>
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
@@ -228,7 +292,7 @@ const ManageEmployees = () => {
           <button
             type="button"
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center px-4 py-2 rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-500/20 transition-all cursor-pointer"
+            className="inline-flex w-full sm:w-auto items-center justify-center px-4 py-2 rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-500/20 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add New Employee
@@ -241,6 +305,7 @@ const ManageEmployees = () => {
         isOpen={showForm}
         editingEmployee={editingEmployee}
         formData={formData}
+        isSubmitting={isSubmittingEmployee}
         onChange={handleInputChange}
         onSubmit={handleSubmit}
         onClose={resetForm}
@@ -275,6 +340,8 @@ const ManageEmployees = () => {
         onViewActivity={handleViewActivity}
         onEdit={handleEdit}
         onDelete={openDeleteModal}
+        onHandover={(emp) => setHandoverEmployee(emp)}
+        onToggleStatus={handleToggleStatus}
       />
 
       {/* ── Activity History Modal (Audit Log) ── */}
@@ -282,7 +349,43 @@ const ManageEmployees = () => {
         employee={activityEmployee}
         activities={activities}
         loadingActivities={loadingActivities}
-        onClose={() => setActivityEmployee(null)}
+        error={activityError}
+        onRetry={() => handleViewActivity(activityEmployee)}
+        onClose={() => {
+          activityRequestId.current += 1;
+          setActivityEmployee(null);
+        }}
+      />
+
+      {/* ── Turnover / Reassign Pending Reservations Modal ── */}
+      <EmployeeHandoverModal
+        isOpen={Boolean(handoverEmployee)}
+        employee={handoverEmployee}
+        allEmployees={employees}
+        onClose={() => setHandoverEmployee(null)}
+        onSuccess={() => {
+          employeesQuery.refetch();
+        }}
+      />
+
+      {/* ── Deactivate Employee Confirmation Modal ── */}
+      <EmployeeDeactivateModal
+        isOpen={Boolean(employeePendingDeactivate)}
+        employee={employeePendingDeactivate}
+        isSubmitting={isDeactivating}
+        onConfirm={confirmDeactivate}
+        onOpenTurnover={(emp) => setHandoverEmployee(emp)}
+        onClose={() => setEmployeePendingDeactivate(null)}
+      />
+
+      {/* ── Delete Employee Modal ── */}
+      <EmployeeDeleteModal
+        employee={employeePendingDelete}
+        isDeleting={isDeleting}
+        deleteError={deleteError}
+        onConfirm={confirmDeleteEmployee}
+        onDeactivateInstead={(emp) => setEmployeePendingDeactivate(emp)}
+        onClose={closeDeleteModal}
       />
     </div>
   );

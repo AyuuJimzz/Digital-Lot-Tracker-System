@@ -2,8 +2,8 @@ import React from "react";
 
 export const LotOffcanvasHeader = ({ onClose }) => {
   return (
-    <div className="flex items-center justify-between px-6 pt-5 pb-2">
-      <h2 className="text-xl font-bold text-gray-800 dark:text-white">Lot Details</h2>
+    <div className="flex items-center justify-between px-5 py-3 sm:px-6">
+      <h2 className="text-lg font-bold text-gray-800 dark:text-white">Lot Details</h2>
       <button
         onClick={onClose}
         className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300 transition-colors duration-200 cursor-pointer"

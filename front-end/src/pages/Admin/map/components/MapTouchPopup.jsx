@@ -44,7 +44,7 @@ export const MapTouchPopup = ({
                 : "8px",
           }}
         >
-          {activePopupLot.status}
+          {activePopupLot._nonSaleable || activePopupLot.statusColor === "#64748b" ? "Non-Saleable" : activePopupLot.status}
         </div>
 
         {(activePopupLot.status === "Pending" || activePopupLot.status === "Sold") &&

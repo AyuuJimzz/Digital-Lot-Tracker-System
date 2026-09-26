@@ -1,5 +1,5 @@
-// controllers/lotsController.js
 const db = require("../../config/database_connection");
+const { isNonSaleableLot, parseNonSaleableFlag } = require("../utils/lotClassification");
 
 // Sub-controllers
 const lotAnalytics = require("./lots/lotAnalyticsController");
@@ -15,7 +15,7 @@ exports.getAllLots = async (req, res) => {
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 5000, 1), 5000);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
     const [rows] = await db.query(
-      "SELECT lot_id, property_id, lot_number, area_sqm, status, pending_since FROM lots ORDER BY property_id, lot_number LIMIT ? OFFSET ?",
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, pending_since FROM lots ORDER BY property_id, lot_number LIMIT ? OFFSET ?",
       [limit, offset]
     );
     res.json(rows);
@@ -30,7 +30,7 @@ exports.getLotsByProperty = async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      "SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates, pending_since, last_reminder_sent FROM lots WHERE property_id = ? ORDER BY lot_number",
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, coordinates, pending_since, last_reminder_sent FROM lots WHERE property_id = ? ORDER BY lot_number",
       [propertyId]
     );
     res.json(rows);
@@ -45,7 +45,7 @@ exports.getLotById = async (req, res) => {
 
   try {
     const [lotRows] = await db.query(
-      "SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates, pending_since, last_reminder_sent FROM lots WHERE lot_id = ?",
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, coordinates, pending_since, last_reminder_sent FROM lots WHERE lot_id = ?",
       [id]
     );
 
@@ -57,7 +57,7 @@ exports.getLotById = async (req, res) => {
 
     // Get customer information if exists
     const [customerRows] = await db.query(
-      "SELECT customer_id, lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at FROM customers WHERE lot_id = ?",
+      "SELECT customer_id, lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at FROM customers WHERE lot_id = ? ORDER BY updated_at DESC, customer_id DESC LIMIT 1",
       [id]
     );
 
@@ -72,9 +72,9 @@ exports.getLotById = async (req, res) => {
               COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') AS agent_name
        FROM transactions t
        LEFT JOIN employees e ON t.employee_id = e.employee_id
-       WHERE t.lot_id = ? 
+       WHERE t.lot_id = ? AND t.customer_id = ?
        ORDER BY t.transaction_date DESC, t.transaction_id DESC LIMIT 1`,
-      [id]
+      [id, lot.customer?.customer_id || 0]
     );
 
     if (transactionRows.length > 0) {
@@ -107,26 +107,48 @@ exports.getMapData = async (req, res) => {
     );
 
     const [rows] = await db.query(
-      `SELECT l.lot_id, l.property_id, l.lot_number, l.area_sqm, l.status, l.coordinates,
-              c.full_name AS customer_name, c.email AS customer_email, c.contact_number AS customer_contact
+      `SELECT l.lot_id, l.property_id, l.lot_number, l.area_sqm, l.status, l.is_non_saleable, l.coordinates,
+              c.full_name AS customer_name, c.email AS customer_email, c.contact_number AS customer_contact,
+              COALESCE(t.employee_id, c.employee_id) AS employee_id,
+              COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') AS agent_name
        FROM lots l
        LEFT JOIN (
-         SELECT customer_id, lot_id, full_name, email, contact_number,
+         SELECT customer_id, lot_id, full_name, email, contact_number, employee_id,
                 ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY updated_at DESC, customer_id DESC) AS rn
          FROM customers
          WHERE lot_id IS NOT NULL
        ) c ON l.lot_id = c.lot_id AND c.rn = 1
+       LEFT JOIN (
+         SELECT customer_id, employee_id, agent_name,
+                ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY transaction_date DESC, transaction_id DESC) AS rn
+         FROM transactions
+         WHERE customer_id IS NOT NULL
+       ) t ON c.customer_id = t.customer_id AND t.rn = 1
+       LEFT JOIN employees e ON COALESCE(t.employee_id, c.employee_id) = e.employee_id
        WHERE l.coordinates IS NOT NULL 
        ORDER BY l.property_id, l.lot_number`
     );
 
-    // Format the data similar to the original lotData structure
+    // Estate-wide lot summary (authoritative across all lots, independent of coordinate plotting)
+    const [allLotRows] = await db.query(
+      `SELECT lot_id, lot_number, status, is_non_saleable, (coordinates IS NOT NULL) AS has_coordinates FROM lots`
+    );
+    const nonSaleableLots = allLotRows.filter((lot) => isNonSaleableLot(lot)).length;
+    const totalSaleableLots = allLotRows.length - nonSaleableLots;
+    const availableLots = allLotRows.filter((lot) => lot.status === "Available" && !isNonSaleableLot(lot)).length;
+    const pendingLots = allLotRows.filter((lot) => lot.status === "Pending" && !isNonSaleableLot(lot)).length;
+    const soldLots = allLotRows.filter((lot) => lot.status === "Sold" && !isNonSaleableLot(lot)).length;
+    const plottedLots = allLotRows.filter((lot) => lot.has_coordinates).length;
+
     const mapData = {
       summary: {
-        totalLots: rows.length,
-        availableLots: rows.filter((lot) => lot.status === "Available").length,
-        pendingLots: rows.filter((lot) => lot.status === "Pending").length,
-        soldLots: rows.filter((lot) => lot.status === "Sold").length,
+        totalLots: totalSaleableLots,
+        totalParcels: allLotRows.length,
+        availableLots,
+        pendingLots,
+        soldLots,
+        nonSaleableLots,
+        plottedLots,
       },
       properties: propertyRows,
       lots: rows.map((lot) => {
@@ -146,11 +168,15 @@ exports.getMapData = async (req, res) => {
           lot_number: lot.lot_number,
           area_sqm: lot.area_sqm,
           status: lot.status,
+          is_non_saleable: isNonSaleableLot(lot) ? 1 : 0,
+          employee_id: lot.employee_id,
+          agent_name: lot.agent_name,
           customer: hasCustomer
             ? {
                 full_name: lot.customer_name || "",
                 email: lot.customer_email || "",
                 contact_number: lot.customer_contact || "",
+                employee_id: lot.employee_id,
               }
             : null,
           coordinates: parsedCoordinates,
@@ -176,14 +202,30 @@ exports.createLot = async (req, res) => {
       return res.status(400).json({ error: "Property ID, Lot Number, and Area are required" });
     }
 
+    let isNonSaleable;
+    try {
+      isNonSaleable = parseNonSaleableFlag(req.body.is_non_saleable, lot_number);
+    } catch (parseErr) {
+      return res.status(400).json({ error: parseErr.message });
+    }
+
+    const initialStatus = status || "Available";
+
+    // Guard: Non-saleable lots can NEVER be created with Pending or Sold status
+    if (isNonSaleable && initialStatus !== "Available") {
+      return res.status(400).json({
+        error: "Non-saleable lots (parks, amenities, facilities, and excluded areas) cannot be created with Pending or Sold status.",
+      });
+    }
+
     const [result] = await db.query(
-      `INSERT INTO lots (property_id, lot_number, area_sqm, status, coordinates) 
-       VALUES (?, ?, ?, ?, NULL)`,
-      [property_id, lot_number, area_sqm, status || "Available"]
+      `INSERT INTO lots (property_id, lot_number, area_sqm, status, is_non_saleable, coordinates)
+       VALUES (?, ?, ?, ?, ?, NULL)`,
+      [property_id, lot_number, area_sqm, initialStatus, isNonSaleable]
     );
 
     console.log(
-      `📐 [New Lot Created] ID #${result.insertId} | Lot ${lot_number} (Property #${property_id}) | Area: ${area_sqm} sqm | Status: ${status || "Available"}`
+      `📐 [New Lot Created] ID #${result.insertId} | Lot ${lot_number} (Property #${property_id}) | Area: ${area_sqm} sqm | Status: ${initialStatus} | Non-Saleable: ${isNonSaleable}`
     );
 
     res.status(201).json({
@@ -192,7 +234,8 @@ exports.createLot = async (req, res) => {
       property_id,
       lot_number,
       area_sqm,
-      status: status || "Available",
+      status: initialStatus,
+      is_non_saleable: isNonSaleable,
       coordinates: null,
     });
   } catch (err) {
@@ -229,27 +272,58 @@ exports.deleteLot = async (req, res) => {
 exports.updateLotDetails = async (req, res) => {
   const { id } = req.params;
   const { lot_number, area_sqm } = req.body;
+  const dbToUse = req?.db || db;
+  let connection;
 
   try {
     if (!lot_number || !area_sqm) {
       return res.status(400).json({ error: "Lot Number and Area (SQM) are required" });
     }
 
-    // Check if lot exists
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+    connection = await dbToUse.getConnection();
+    await connection.beginTransaction();
+
+    // Concurrency Lock: Read and validate lot status inside transaction with row lock
+    const [lotRows] = await connection.query(
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable FROM lots WHERE lot_id = ? FOR UPDATE",
+      [id]
+    );
     if (lotRows.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ error: "Lot not found" });
     }
 
-    // Update lot details
-    await db.query("UPDATE lots SET lot_number = ?, area_sqm = ? WHERE lot_id = ?", [
-      lot_number.trim(),
-      parseFloat(area_sqm),
-      id,
-    ]);
+    const existingLot = lotRows[0];
+    let isNonSaleable;
+    try {
+      isNonSaleable = req.body.is_non_saleable !== undefined
+        ? parseNonSaleableFlag(req.body.is_non_saleable)
+        : (existingLot.is_non_saleable !== undefined && existingLot.is_non_saleable !== null
+            ? (Number(existingLot.is_non_saleable) === 1 ? 1 : 0)
+            : parseNonSaleableFlag(undefined, lot_number));
+    } catch (parseErr) {
+      await connection.rollback();
+      return res.status(400).json({ error: parseErr.message });
+    }
+
+    // Guard under lock: Cannot re-classify an existing lot as non-saleable if it is currently reserved or sold
+    if (isNonSaleable && existingLot.status !== "Available") {
+      await connection.rollback();
+      return res.status(400).json({
+        error: `Cannot classify lot as non-saleable while its status is '${existingLot.status}'. Cancel reservation or change status to Available first.`,
+      });
+    }
+
+    // Update lot details under active row lock
+    await connection.query(
+      "UPDATE lots SET lot_number = ?, area_sqm = ?, is_non_saleable = ? WHERE lot_id = ?",
+      [lot_number.trim(), parseFloat(area_sqm), isNonSaleable, id]
+    );
+
+    await connection.commit();
 
     console.log(
-      `📐 [Lot Details Updated] ID #${id} | Number: ${lot_number.trim()} | Area: ${area_sqm} sqm`
+      `📐 [Lot Details Updated] ID #${id} | Number: ${lot_number.trim()} | Area: ${area_sqm} sqm | Non-Saleable: ${isNonSaleable}`
     );
 
     res.json({
@@ -257,10 +331,18 @@ exports.updateLotDetails = async (req, res) => {
       lot_id: Number(id),
       lot_number: lot_number.trim(),
       area_sqm: parseFloat(area_sqm),
+      is_non_saleable: isNonSaleable,
     });
   } catch (err) {
+    if (connection) {
+      try { await connection.rollback(); } catch (rbErr) {
+        console.error("Error rolling back lot details update:", rbErr);
+      }
+    }
     console.error(`❌ [Update Lot Details Error] Lot #${id}:`, err);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) connection.release();
   }
 };
 

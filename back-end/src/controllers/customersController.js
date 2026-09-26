@@ -1,6 +1,7 @@
 // controllers/customersController.js
 const db = require("../../config/database_connection");
 const { sanitizeText, sanitizeEmail, sanitizePhone, sanitizeNotes } = require("../utils/sanitizer");
+const { isNonSaleableLot } = require("../utils/lotClassification");
 
 // =======================
 // GET ALL CUSTOMERS (For Map/Dashboard — unfiltered, all employees)
@@ -185,6 +186,10 @@ exports.updateCustomer = async (req, res) => {
       return res.status(404).json({ error: "Customer not found" });
     }
 
+    if (existing[0].employee_id && req.user?.role !== "admin" && Number(existing[0].employee_id) !== Number(req.user?.id)) {
+      return res.status(403).json({ error: "Only the reserving agent or an Admin can update this customer's details." });
+    }
+
     await db.query(
       `UPDATE customers SET
         full_name = ?,
@@ -239,6 +244,8 @@ exports.deleteCustomer = async (req, res) => {
 exports.createOrUpdateCustomer = async (req, res) => {
   const { id } = req.params;
   const { full_name, contact_number, email, address } = req.body;
+  const dbToUse = req?.db || db;
+  let connection;
 
   try {
     // Validate required fields
@@ -255,133 +262,171 @@ exports.createOrUpdateCustomer = async (req, res) => {
       return res.status(400).json({ error: "Address is required" });
     }
 
-    // Check if lot exists
-    const [lotRows] = await db.query(
-      "SELECT lot_id, property_id, lot_number, area_sqm, status, coordinates, pending_since, last_reminder_sent FROM lots WHERE lot_id = ?",
+    // Atomic transaction across all branches
+    connection = await dbToUse.getConnection();
+    await connection.beginTransaction();
+    const query = (...args) => connection.query(...args);
+
+    // Row-lock target lot and validate saleability inside transaction
+    const [lotRows] = await query(
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, coordinates, pending_since, last_reminder_sent FROM lots WHERE lot_id = ? FOR UPDATE",
       [id]
     );
     if (lotRows.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ error: "Lot not found" });
     }
 
+    const lot = lotRows[0];
+
+    // Zero-Trust Guard: Customers can NEVER be assigned to non-saleable lots
+    if (isNonSaleableLot(lot)) {
+      await connection.rollback();
+      return res.status(400).json({
+        error: "Customers cannot be assigned to non-saleable lots (parks, amenities, facilities, or excluded areas).",
+      });
+    }
+
+    if (lot.status === "Sold" && req.user?.role !== "admin") {
+      await connection.rollback();
+      return res.status(403).json({ error: "Only Admins can modify customer details on a sold lot." });
+    }
+
     // Check if customer already exists for this specific lot
-    const [existingCustomerForLot] = await db.query(
+    const [existingCustomerForLot] = await query(
       `SELECT c.customer_id, c.lot_id, c.full_name, c.contact_number, c.email, c.address,
               c.employee_id, c.customer_status, c.created_at, c.updated_at, l.status as lot_status
        FROM customers c 
        JOIN lots l ON c.lot_id = l.lot_id 
-       WHERE c.lot_id = ?`,
+       WHERE c.lot_id = ?
+         AND (l.status = 'Available' OR c.customer_status = l.status
+              OR (l.status = 'Pending' AND c.customer_status IS NULL))
+       ORDER BY CASE
+         WHEN c.customer_status = l.status OR (l.status = 'Pending' AND c.customer_status IS NULL) THEN 0
+         ELSE 1
+       END, c.updated_at DESC, c.customer_id DESC
+       LIMIT 1 FOR UPDATE`,
       [id]
     );
 
-    // If customer exists for this lot AND lot is still Pending/Sold → update in place
-    // If lot was Available (cancelled) — fall through to INSERT a new record
+    // Branch 1: If customer exists for this lot AND lot is still Pending/Sold → update in place under lock
     if (existingCustomerForLot.length > 0) {
       const lotStatus = existingCustomerForLot[0].lot_status;
       if (lotStatus === "Pending" || lotStatus === "Sold") {
-        await db.query(
+        if (lotStatus === "Sold" && req.user?.role !== "admin") {
+          await connection.rollback();
+          return res.status(403).json({ error: "Only Admins can modify customer details on a sold lot." });
+        }
+        if (req.user?.role !== "admin" && Number(existingCustomerForLot[0].employee_id) !== Number(req.user?.id)) {
+          await connection.rollback();
+          return res.status(403).json({ error: "Only the reserving agent or an Admin can update this customer's details." });
+        }
+        await query(
           `UPDATE customers SET 
            full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
            WHERE lot_id = ? AND customer_id = ?`,
           [full_name.trim(), contact_number.trim(), email.trim(), address.trim(), id, existingCustomerForLot[0].customer_id]
         );
+        await connection.commit();
         console.log(`👤 [Customer Record Updated] Cust #${existingCustomerForLot[0].customer_id} (${full_name}) for Lot #${id}`);
-        res.json({ message: "Customer information updated successfully" });
-        return;
+        return res.json({ message: "Customer information updated successfully" });
       }
     }
 
-    // Check if customer with same email exists (for different lot)
-    const [existingCustomerByEmail] = await db.query(
+    // Only an active reservation on another lot can be transferred. Historical
+    // Sold/Cancelled customer rows must stay attached to their original lots.
+    const [existingCustomerByEmail] = await query(
       `SELECT c.customer_id, c.lot_id, c.full_name, c.contact_number, c.email, c.address,
               c.employee_id, c.customer_status, c.created_at, c.updated_at, l.status as lot_status
        FROM customers c 
        JOIN lots l ON c.lot_id = l.lot_id 
-       WHERE c.email = ?`,
-      [email.trim()]
+       WHERE c.email = ? AND c.lot_id <> ? AND l.status = 'Pending'
+         AND (c.customer_status = 'Pending' OR c.customer_status IS NULL)
+       ORDER BY c.updated_at DESC, c.customer_id DESC
+       LIMIT 1 FOR UPDATE`,
+      [email.trim(), id]
     );
 
     if (existingCustomerByEmail.length > 0) {
       const existingCustomer = existingCustomerByEmail[0];
 
-      // If the existing customer's lot is sold, create a new customer record
-      if (existingCustomer.lot_status === "Sold") {
-        const employeeId = (req.user && req.user.role === "employee") ? req.user.id : null;
-        await db.query(
-          `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, created_at, updated_at) 
-           VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [id, full_name.trim(), contact_number.trim(), email.trim(), address.trim(), employeeId]
-        );
-        res.json({ message: "New customer record created (previous lot is sold)" });
-      } else {
-        // Start transaction to handle both customer update and lot status changes
-        const connection = await db.getConnection();
-
-        try {
-          await connection.beginTransaction();
-          const oldLotId = existingCustomer.lot_id;
-
-          // Update the old lot status back to Available
-          await connection.query(
-            `UPDATE lots SET status = 'Available', pending_since = NULL WHERE lot_id = ?`,
-            [oldLotId]
-          );
-
-          // Delete old transaction for the previous lot
-          await connection.query(`DELETE FROM transactions WHERE lot_id = ?`, [oldLotId]);
-
-          // Update customer to the new lot
-          await connection.query(
-            `UPDATE customers SET 
-             lot_id = ?, full_name = ?, contact_number = ?, email = ?, address = ?, updated_at = NOW() 
-             WHERE customer_id = ?`,
-            [
-              id,
-              full_name.trim(),
-              contact_number.trim(),
-              email.trim(),
-              address.trim(),
-              existingCustomer.customer_id,
-            ]
-          );
-
-          // Create new transaction for the new lot
-          await connection.query(
-            `INSERT INTO transactions (lot_id, customer_id, payment_type, notes)
-             VALUES (?, ?, 'No Downpayment', NULL)`,
-            [id, existingCustomer.customer_id]
-          );
-
-          // Update the new lot status to Pending
-          await connection.query(
-            `UPDATE lots SET status = 'Pending', pending_since = NOW() WHERE lot_id = ?`,
-            [id]
-          );
-
-          await connection.commit();
-          res.json({ message: "Customer updated to new lot with transaction" });
-        } catch (error) {
-          try {
-            await connection.rollback();
-          } catch (rollbackError) {
-            console.error("Error rolling back customer update:", rollbackError);
-          }
-          throw error;
-        } finally {
-          connection.release();
-        }
+      if (req.user?.role !== "admin" && Number(existingCustomer.employee_id) !== Number(req.user?.id)) {
+        await connection.rollback();
+        return res.status(403).json({ error: "Only the reserving agent or an Admin can transfer this customer." });
       }
-    } else {
-      // No existing customer with this email, create new customer
-      await db.query(
-        `INSERT INTO customers (lot_id, full_name, contact_number, email, address, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-        [id, full_name.trim(), contact_number.trim(), email.trim(), address.trim()]
+
+      if (lot.status !== "Available") {
+        await connection.rollback();
+        return res.status(400).json({ error: "Target lot must be Available for a reservation transfer." });
+      }
+
+      const oldLotId = existingCustomer.lot_id;
+      const [oldLotRows] = await query("SELECT status FROM lots WHERE lot_id = ? FOR UPDATE", [oldLotId]);
+      if (oldLotRows[0]?.status !== "Pending") {
+        await connection.rollback();
+        return res.status(409).json({ error: "The previous reservation is no longer Pending." });
+      }
+
+      const [oldTransactionRows] = await query(
+        "SELECT agent_name FROM transactions WHERE customer_id = ? ORDER BY transaction_date DESC, transaction_id DESC LIMIT 1",
+        [existingCustomer.customer_id]
       );
-      res.json({ message: "Customer created successfully" });
+
+      // Preserve the old customer and transaction rows as cancelled history.
+      const [cancelled] = await query(
+        "UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE customer_id = ? AND (customer_status = 'Pending' OR customer_status IS NULL)",
+        [existingCustomer.customer_id]
+      );
+      if (cancelled.affectedRows !== 1) {
+        await connection.rollback();
+        return res.status(409).json({ error: "The previous reservation has already changed." });
+      }
+      await query("UPDATE lots SET status = 'Available', pending_since = NULL WHERE lot_id = ?", [oldLotId]);
+
+      const [newCustomer] = await query(
+        `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'Pending', NOW(), NOW())`,
+        [id, full_name.trim(), contact_number.trim(), email.trim(), address.trim(), existingCustomer.employee_id]
+      );
+      await query(
+        `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name)
+         VALUES (?, ?, 'No Downpayment', ?, ?, ?)`,
+        [id, newCustomer.insertId, `Reservation transferred from lot #${oldLotId}`, existingCustomer.employee_id, oldTransactionRows[0]?.agent_name || null]
+      );
+
+      // Update the new lot status to Pending
+      await query(
+        "UPDATE lots SET status = 'Pending', pending_since = NOW() WHERE lot_id = ?",
+        [id]
+      );
+
+      await connection.commit();
+      return res.json({ message: "Customer updated to new lot with transaction" });
     }
+
+    // No active reservation to move: create a fresh customer record. Sold and
+    // cancelled records with the same email remain untouched as history.
+    const employeeId = req.user?.role === "employee" ? req.user.id : null;
+    await query(
+      `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [id, full_name.trim(), contact_number.trim(), email.trim(), address.trim(), employeeId, lot.status === "Sold" ? "Sold" : "Pending"]
+    );
+    await connection.commit();
+    res.json({ message: "Customer created successfully" });
   } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Error rolling back customer operation:", rollbackError);
+      }
+    }
     console.error("Error in createOrUpdateCustomer:", err);
     res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 };

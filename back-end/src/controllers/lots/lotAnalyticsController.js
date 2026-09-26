@@ -1,18 +1,21 @@
 // controllers/lots/lotAnalyticsController.js
 const db = require("../../../config/database_connection");
+const { isNonSaleableLot, NON_SALEABLE_SQL_CONDITION } = require("../../utils/lotClassification");
 
 // =======================
 // DASHBOARD STATISTICS
 // =======================
 exports.getDashboardStats = async (req, res) => {
   try {
-    // Get all lots statistics
-    const [allLots] = await db.query(`SELECT status FROM lots`);
+    // Get all lots statistics with is_non_saleable and lot_number to isolate saleable inventory
+    const [allLots] = await db.query(`SELECT lot_id, lot_number, status, is_non_saleable FROM lots`);
 
-    const totalLots = allLots.length;
-    const availableLots = allLots.filter((lot) => lot.status === "Available").length;
-    const pendingLots = allLots.filter((lot) => lot.status === "Pending").length;
-    const soldLots = allLots.filter((lot) => lot.status === "Sold").length;
+    const totalParcels = allLots.length;
+    const nonSaleableLots = allLots.filter((lot) => isNonSaleableLot(lot)).length;
+    const totalLots = totalParcels - nonSaleableLots; // Saleable inventory
+    const availableLots = allLots.filter((lot) => lot.status === "Available" && !isNonSaleableLot(lot)).length;
+    const pendingLots = allLots.filter((lot) => lot.status === "Pending" && !isNonSaleableLot(lot)).length;
+    const soldLots = allLots.filter((lot) => lot.status === "Sold" && !isNonSaleableLot(lot)).length;
 
     // Get total customers (distinct by email)
     const [customers] = await db.query(`
@@ -22,10 +25,12 @@ exports.getDashboardStats = async (req, res) => {
     const totalClients = customers[0].count;
 
     const stats = {
-      totalLots,
+      totalLots, // Saleable lots (Available + Pending + Sold) -> Exact math match!
       availableLots,
       pendingLots,
       soldLots,
+      totalParcels, // Cadastral parcel count (including parks, open spaces, excluded lots)
+      nonSaleableLots,
       totalClients,
     };
     res.json(stats);
@@ -40,16 +45,17 @@ exports.getDashboardStats = async (req, res) => {
 // =======================
 exports.getPropertyLotStats = async (req, res) => {
   try {
-    // Get all properties with their lot statistics
+    // Get all properties with their lot statistics, excluding non-saleable areas from available_lots
     const query = `
       SELECT 
         p.property_id,
         p.property_name,
         p.total_lots,
         COUNT(l.lot_id) as actual_lots,
-        SUM(CASE WHEN l.status = 'Sold' THEN 1 ELSE 0 END) as sold_lots,
-        SUM(CASE WHEN l.status = 'Available' THEN 1 ELSE 0 END) as available_lots,
-        SUM(CASE WHEN l.status = 'Pending' THEN 1 ELSE 0 END) as pending_lots
+        SUM(CASE WHEN l.status = 'Sold' AND NOT ${NON_SALEABLE_SQL_CONDITION} THEN 1 ELSE 0 END) as sold_lots,
+        SUM(CASE WHEN l.status = 'Available' AND NOT ${NON_SALEABLE_SQL_CONDITION} THEN 1 ELSE 0 END) as available_lots,
+        SUM(CASE WHEN l.status = 'Pending' AND NOT ${NON_SALEABLE_SQL_CONDITION} THEN 1 ELSE 0 END) as pending_lots,
+        SUM(CASE WHEN ${NON_SALEABLE_SQL_CONDITION} THEN 1 ELSE 0 END) as non_saleable_lots
       FROM properties p
       LEFT JOIN lots l ON p.property_id = l.property_id
       WHERE p.status = 'active'
@@ -70,14 +76,18 @@ exports.getPropertyLotStats = async (req, res) => {
     ];
 
     const propertyStats = rows.map((property, index) => {
-      const total = property.actual_lots || property.total_lots;
-      const sold = property.sold_lots || 0;
+      const totalCadastral = property.actual_lots || property.total_lots;
+      const nonSaleable = Number(property.non_saleable_lots || 0);
+      const saleableTotal = Math.max(totalCadastral - nonSaleable, 0);
+      const sold = Number(property.sold_lots || 0);
 
       return {
         property_id: property.property_id,
         name: property.property_name,
         sold: sold,
-        total: total,
+        total: saleableTotal > 0 ? saleableTotal : totalCadastral,
+        total_parcels: totalCadastral,
+        non_saleable: nonSaleable,
         color: colors[index % colors.length],
       };
     });
@@ -180,9 +190,10 @@ exports.getTimeBasedPropertySales = async (req, res) => {
         p.property_name,
         p.total_lots,
         COUNT(l.lot_id) as actual_lots,
-        SUM(CASE WHEN l.status = 'Sold' AND EXISTS (
+        SUM(CASE WHEN l.status = 'Sold' AND NOT ${NON_SALEABLE_SQL_CONDITION} AND EXISTS (
           SELECT 1 FROM transactions t WHERE t.lot_id = l.lot_id AND ${dateFilter}
-        ) THEN 1 ELSE 0 END) as sold_lots
+        ) THEN 1 ELSE 0 END) as sold_lots,
+        SUM(CASE WHEN ${NON_SALEABLE_SQL_CONDITION} THEN 1 ELSE 0 END) as non_saleable_lots
       FROM properties p
       LEFT JOIN lots l ON p.property_id = l.property_id
       WHERE p.status = 'active'
@@ -203,14 +214,18 @@ exports.getTimeBasedPropertySales = async (req, res) => {
     ];
 
     const propertyStats = rows.map((property, index) => {
-      const total = property.actual_lots || property.total_lots;
-      const sold = property.sold_lots || 0;
+      const totalCadastral = property.actual_lots || property.total_lots;
+      const nonSaleable = Number(property.non_saleable_lots || 0);
+      const saleableTotal = Math.max(totalCadastral - nonSaleable, 0);
+      const sold = Number(property.sold_lots || 0);
 
       return {
         property_id: property.property_id,
         name: property.property_name,
         sold: sold,
-        total: total,
+        total: saleableTotal > 0 ? saleableTotal : totalCadastral,
+        total_parcels: totalCadastral,
+        non_saleable: nonSaleable,
         color: colors[index % colors.length],
       };
     });

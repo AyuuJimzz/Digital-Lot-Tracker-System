@@ -6,6 +6,7 @@ export const LotStatusSection = ({
   status,
   setStatus,
   isLockedForUser,
+  canCancelReservation = true,
   allowedStatuses = ["Available", "Pending", "Sold"],
 }) => {
   if (isNonSaleable) {
@@ -36,7 +37,7 @@ export const LotStatusSection = ({
     <div>
       <label
         htmlFor="lot-offcanvas-status"
-        className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+        className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
       >
         Status
       </label>
@@ -46,28 +47,32 @@ export const LotStatusSection = ({
         value={status}
         onChange={(e) => setStatus(e.target.value)}
         disabled={isLockedForUser}
-        title={isLockedForUser ? "Only Admins can change status of sold lots" : ""}
-        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent ${getStatusColorClasses(
+        title={isLockedForUser ? (status === "Sold" ? "Only Admins can change status of sold lots" : "Only the assigned agent or Admin can modify this reservation") : ""}
+        className={`min-h-11 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent dark:bg-slate-700 ${getStatusColorClasses(
           status
         )} ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
       >
         {["Available", "Pending", "Sold"]
           .filter((s) => allowedStatuses.includes(s))
-          .map((s) => (
-            <option
-              key={s}
-              value={s}
-              className={
-                s === "Available"
-                  ? "text-green-600"
-                  : s === "Pending"
-                  ? "text-amber-500"
-                  : "text-red-600"
-              }
-            >
-              {s}
-            </option>
-          ))}
+          .map((s) => {
+            const isOptionDisabled = s === "Available" && !canCancelReservation && status === "Pending";
+            return (
+              <option
+                key={s}
+                value={s}
+                disabled={isOptionDisabled}
+                className={
+                  s === "Available"
+                    ? "text-green-600"
+                    : s === "Pending"
+                    ? "text-amber-500"
+                    : "text-red-600"
+                }
+              >
+                {s} {isOptionDisabled ? "(Locked - Reserving Agent/Admin only)" : ""}
+              </option>
+            );
+          })}
       </select>
     </div>
   );

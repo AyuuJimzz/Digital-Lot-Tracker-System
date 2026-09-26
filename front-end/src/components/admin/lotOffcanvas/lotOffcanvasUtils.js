@@ -1,20 +1,7 @@
+export const NON_SALEABLE_REGEX = /\b(park|playground|facility|clubhouse|excluded|open\s+space|easement|community|p\s*&\s*pg|amenity|common|non-saleable|non\s+saleable)\b/i;
+
 export const checkIsNonSaleable = (num = "", area = 0) => {
-  const text = String(num || "").toLowerCase().trim();
-  return (
-    text.includes("park") ||
-    text.includes("playground") ||
-    text.includes("facility") ||
-    text.includes("clubhouse") ||
-    text.includes("excluded") ||
-    text.includes("open space") ||
-    text.includes("easement") ||
-    text.includes("community") ||
-    text.includes("p & pg") ||
-    text.includes("amenity") ||
-    text.includes("common") ||
-    text.includes("non-saleable") ||
-    text.includes("non saleable")
-  );
+  return NON_SALEABLE_REGEX.test(String(num || ""));
 };
 
 export const stripNonSaleableTags = (numStr) => {

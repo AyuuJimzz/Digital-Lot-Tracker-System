@@ -79,6 +79,7 @@ const ManageProperties = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setIsSubmitting(true);
     setSubmitStatus(editingProperty ? "Updating property..." : "Creating property in database...");
 
@@ -273,7 +274,7 @@ const ManageProperties = () => {
       />
 
       {/* ── Page Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Manage Properties</h1>
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
@@ -284,7 +285,7 @@ const ManageProperties = () => {
           <button
             type="button"
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center px-4 py-2 rounded-lg shadow-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-500/20 transition-all cursor-pointer"
+            className="inline-flex w-full items-center justify-center px-4 py-2 rounded-lg bg-blue-600 text-sm font-medium text-white shadow-md shadow-blue-500/20 transition-colors hover:bg-blue-700 sm:w-auto dark:hover:bg-blue-500"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add New Property

@@ -10,19 +10,20 @@ export const LotOffcanvasFooter = ({
   openDeleteModal,
   selectedLot,
 }) => {
+  if (isLockedForUser && !isAdmin) return null;
+
   return (
-    <div className="p-6 border-t border-gray-200 dark:border-slate-700">
+    <div className="border-t border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-800 sm:px-6">
       <div className="flex flex-col gap-2">
-        {!isLockedForUser ? (
-          <button
-            className={`w-full py-2 px-4 rounded-lg transition-colors duration-200 font-medium cursor-pointer ${
-              isSaving
-                ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                : "bg-blue-600 text-white hover:bg-blue-700"
-            }`}
-            onClick={handleSave}
-            disabled={isSaving || isDeleting}
-          >
+        <button
+          className={`min-h-11 w-full rounded-xl px-4 py-2 font-semibold transition-colors duration-200 ${
+            isSaving
+              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+              : "bg-blue-600 text-white hover:bg-blue-700"
+          }`}
+          onClick={handleSave}
+          disabled={isSaving || isDeleting}
+        >
             {isSaving ? (
               <span className="flex items-center justify-center">
                 <svg
@@ -48,18 +49,13 @@ export const LotOffcanvasFooter = ({
                 Saving...
               </span>
             ) : (
-              "Save"
+              "Save changes"
             )}
-          </button>
-        ) : (
-          <div className="w-full py-2.5 px-4 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 text-xs font-medium text-center border border-gray-200 dark:border-slate-700">
-            🔒 Sold Lot — View Only (Only Admins can modify)
-          </div>
-        )}
+        </button>
 
         {isAdmin && (
           <button
-            className={`w-full py-2 px-4 rounded-lg border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors duration-200 font-medium cursor-pointer ${
+            className={`min-h-11 w-full rounded-xl border border-red-200 px-4 py-2 font-medium text-red-600 transition-colors duration-200 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30 ${
               isDeleting ? "cursor-not-allowed opacity-50" : ""
             }`}
             onClick={() => openDeleteModal(selectedLot)}

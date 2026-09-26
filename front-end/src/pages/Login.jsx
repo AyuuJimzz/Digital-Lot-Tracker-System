@@ -92,6 +92,9 @@ function Login({ setRole }) {
         axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
       }
       localStorage.setItem("role", userRole);
+      if (response.data.user) {
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+      }
       localStorage.setItem("password_reset_required", passwordResetRequired ? "true" : "false");
       setRole(userRole);
       if (userRole === "admin") navigate("/admin-panel");

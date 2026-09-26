@@ -2,22 +2,24 @@ import { API_BASE_URL } from "../../config/api";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
+import { isNonSaleableLot } from "../Admin/map/utils/mapConstants";
 
 const ROWS_PER_PAGE = 10;
 const EMPTY_LOTS = [];
 
 const getStatusColor = (status) => {
   switch (status) {
-    case "Available": return "text-green-600 dark:text-green-400 font-semibold";
-    case "Pending":   return "text-amber-500 dark:text-amber-400 font-semibold";
-    case "Sold":      return "text-red-600 dark:text-red-400 font-semibold";
-    case "Cancelled": return "text-purple-500 dark:text-purple-400 font-semibold";
-    default:          return "text-gray-600 dark:text-slate-400 font-semibold";
+    case "Available":    return "text-green-600 dark:text-green-400 font-semibold";
+    case "Pending":      return "text-amber-500 dark:text-amber-400 font-semibold";
+    case "Sold":         return "text-red-600 dark:text-red-400 font-semibold";
+    case "Non-Saleable": return "text-slate-500 dark:text-slate-400 font-semibold";
+    case "Cancelled":    return "text-purple-500 dark:text-purple-400 font-semibold";
+    default:             return "text-gray-600 dark:text-slate-400 font-semibold";
   }
 };
 
 const inputCls = "w-full md:max-w-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
-const selectCls = "w-full md:w-40 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 transition-colors";
+const selectCls = "w-full md:w-44 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 transition-colors";
 const paginBtnCls = "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
 const MyProperties = () => {
@@ -41,10 +43,15 @@ const MyProperties = () => {
       );
       return fetchedLots
         .filter((lot) => activePropertyIds.has(Number(lot.property_id)))
-        .map((lot) => ({
-          ...lot,
-          property_name: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
-        }));
+        .map((lot) => {
+          const nonSaleable = isNonSaleableLot(lot, lot.area_sqm);
+          return {
+            ...lot,
+            property_name: propNameMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
+            is_non_saleable: nonSaleable,
+            effective_status: nonSaleable ? "Non-Saleable" : (lot.status || "Available"),
+          };
+        });
     },
   });
   const lots = lotsQuery.data || EMPTY_LOTS;
@@ -57,9 +64,13 @@ const MyProperties = () => {
   const filteredLots = useMemo(() => {
     return lots.filter((lot) => {
       const propText = `${lot.property_name || ""} Property ${lot.property_id || ""}`.toLowerCase();
-      const searchText = `${lot.lot_number} ${propText} ${lot.area_sqm} ${lot.status}`.toLowerCase();
+      const statusToDisplay = lot.effective_status || lot.status || "";
+      const searchText = `${lot.lot_number} ${propText} ${lot.area_sqm} ${statusToDisplay}`.toLowerCase();
       const matchesSearch = searchTerm.trim() ? searchText.includes(searchTerm.trim().toLowerCase()) : true;
-      const matchesStatus = statusFilter === "all" ? true : String(lot.status || "").toLowerCase() === statusFilter;
+      const matchesStatus =
+        statusFilter === "all"
+          ? true
+          : statusToDisplay.toLowerCase() === statusFilter.toLowerCase();
       return matchesSearch && matchesStatus;
     });
   }, [lots, searchTerm, statusFilter]);
@@ -115,6 +126,7 @@ const MyProperties = () => {
               <option value="available">Available</option>
               <option value="pending">Pending</option>
               <option value="sold">Sold</option>
+              <option value="non-saleable">Non-Saleable</option>
             </select>
           </div>
 
@@ -138,7 +150,9 @@ const MyProperties = () => {
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-800 dark:text-slate-200">{lot.property_name || `Property ${lot.property_id}`}</td>
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-slate-300">{lot.area_sqm ? `${lot.area_sqm} sqm` : "-"}</td>
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
-                          <span className={`text-xs ${getStatusColor(lot.status)}`}>{lot.status ?? "Unknown"}</span>
+                          <span className={`text-xs ${getStatusColor(lot.effective_status || lot.status)}`}>
+                            {lot.effective_status || lot.status || "Unknown"}
+                          </span>
                         </td>
                       </tr>
                     ))}

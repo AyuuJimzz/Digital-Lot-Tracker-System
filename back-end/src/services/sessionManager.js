@@ -20,7 +20,7 @@ async function createSession(role, userId) {
   // apparently valid session that disappears after a restart.
   const [result] = role.toLowerCase() === "admin"
     ? await db.query("UPDATE admins SET active_session_id = ? WHERE admin_id = ?", [sessionId, userId])
-    : await db.query("UPDATE employees SET active_session_id = ? WHERE employee_id = ?", [sessionId, userId]);
+    : await db.query("UPDATE employees SET active_session_id = ? WHERE employee_id = ? AND status = 'active'", [sessionId, userId]);
   if (result.affectedRows !== 1) throw new Error("Unable to create an active session");
   activeSessionMap.set(key, sessionId);
 
@@ -38,7 +38,23 @@ async function createSession(role, userId) {
 async function isValidSession(role, userId, tokenSessionId) {
   if (!tokenSessionId) return true; // Graceful fallback if no session ID in legacy token
 
-  const key = `${role.toLowerCase()}_${userId}`;
+  const normalizedRole = role.toLowerCase();
+  const key = `${normalizedRole}_${userId}`;
+
+  // Employee deactivation must take effect even if another process changed the
+  // database; an in-memory hit alone cannot prove that the account is active.
+  if (normalizedRole === "employee") {
+    try {
+      const [rows] = await db.query(
+        "SELECT active_session_id, status FROM employees WHERE employee_id = ?",
+        [userId]
+      );
+      return rows.length > 0 && rows[0].status === "active" && rows[0].active_session_id === tokenSessionId;
+    } catch (err) {
+      console.warn("Employee session validation DB query notice:", err.message);
+      return false;
+    }
+  }
 
   // 1. Fast in-memory check
   if (activeSessionMap.has(key)) {
@@ -83,8 +99,13 @@ async function invalidateSession(role, userId) {
   } catch (err) {}
 }
 
+function clearCachedSession(role, userId) {
+  activeSessionMap.delete(`${role.toLowerCase()}_${userId}`);
+}
+
 module.exports = {
   createSession,
   isValidSession,
   invalidateSession,
+  clearCachedSession,
 };

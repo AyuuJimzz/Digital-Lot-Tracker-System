@@ -5,6 +5,8 @@
  * against the intended database before starting a new deployment.
  */
 const db = require("../config/database_connection");
+const { migrateNonSaleableColumn } = require("./migrate_non_saleable_column");
+const { migrateLoginHistory } = require("./migrate_login_history");
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS system_state (
@@ -20,13 +22,16 @@ const statements = [
   "ALTER TABLE customers ADD COLUMN employee_id INT NULL",
   "ALTER TABLE transactions ADD COLUMN employee_id INT NULL",
   "ALTER TABLE customers ADD COLUMN customer_status VARCHAR(20) NULL DEFAULT 'Pending'",
+  "ALTER TABLE lots ADD COLUMN is_non_saleable TINYINT(1) DEFAULT 0",
 ];
 
 async function setupSchema() {
+  let isNonSaleableNewlyAdded = false;
   for (const statement of statements) {
     try {
       await db.query(statement);
       console.log(`Applied: ${statement}`);
+      if (statement.includes("is_non_saleable")) isNonSaleableNewlyAdded = true;
     } catch (error) {
       if (error.code === "ER_DUP_FIELDNAME") {
         console.log(`Already present: ${statement}`);
@@ -35,6 +40,8 @@ async function setupSchema() {
       }
     }
   }
+
+  await migrateLoginHistory({ db });
 
   await db.query(`
     UPDATE customers c
@@ -70,6 +77,17 @@ async function setupSchema() {
     LEFT JOIN transactions t ON l.lot_id = t.lot_id
     WHERE t.transaction_id IS NULL AND l.status IN ('Sold', 'Pending')
   `);
+
+  // Initial backfill uses the guarded migration and its saved exclusion list.
+  // Never reclassify existing manually edited flags on subsequent setup runs.
+  if (isNonSaleableNewlyAdded) {
+    const migration = await migrateNonSaleableColumn({ db });
+    if (!migration.completedWithoutConflicts) {
+      throw new Error(`Non-saleable migration has ${migration.totalUnresolved} unresolved status conflict(s).`);
+    }
+  } else {
+    console.log("Preserved existing lot classifications; run the dedicated migration explicitly if needed.");
+  }
 }
 
 setupSchema()

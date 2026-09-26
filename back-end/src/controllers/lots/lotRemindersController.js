@@ -14,7 +14,11 @@ exports.sendPendingLotReminders = async (req, res) => {
              c.customer_id, c.email
       FROM lots l
       LEFT JOIN properties p ON l.property_id = p.property_id
-      LEFT JOIN customers c ON l.lot_id = c.lot_id
+      LEFT JOIN customers c ON c.customer_id = (
+        SELECT latest.customer_id FROM customers latest
+        WHERE latest.lot_id = l.lot_id
+        ORDER BY latest.updated_at DESC, latest.customer_id DESC LIMIT 1
+      ) AND (c.customer_status = 'Pending' OR c.customer_status IS NULL)
       WHERE l.status = 'Pending' 
         AND l.pending_since IS NOT NULL
         AND l.pending_since < DATE_SUB(NOW(), INTERVAL 12 HOUR)
@@ -29,7 +33,11 @@ exports.sendPendingLotReminders = async (req, res) => {
              c.customer_id, c.email
       FROM lots l
       LEFT JOIN properties p ON l.property_id = p.property_id
-      LEFT JOIN customers c ON l.lot_id = c.lot_id
+      LEFT JOIN customers c ON c.customer_id = (
+        SELECT latest.customer_id FROM customers latest
+        WHERE latest.lot_id = l.lot_id
+        ORDER BY latest.updated_at DESC, latest.customer_id DESC LIMIT 1
+      ) AND (c.customer_status = 'Pending' OR c.customer_status IS NULL)
       WHERE l.status = 'Pending' 
         AND l.pending_since IS NOT NULL
         AND l.pending_since < DATE_SUB(NOW(), INTERVAL 24 HOUR)

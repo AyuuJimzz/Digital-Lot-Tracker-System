@@ -1,5 +1,6 @@
 // controllers/profileController.js
 const db = require("../../config/database_connection");
+const { getLoginHistory } = require("../services/loginHistoryService");
 
 exports.getProfile = async (req, res) => {
   const user = req.user; // set by sessionOrToken middleware (supports session + JWT)
@@ -50,7 +51,7 @@ exports.updateProfile = async (req, res) => {
   const user = req.user; // set by sessionOrToken middleware (supports session + JWT)
   if (!user) return res.status(401).json({ message: "Not authenticated" });
 
-  const { email, first_name, last_name, phone_number } = req.body;
+  const { email, first_name, last_name } = req.body;
 
   try {
     // Whitelist for table and column names to prevent SQL injection
@@ -78,9 +79,8 @@ exports.updateProfile = async (req, res) => {
         updates.push("full_name = ?");
         values.push(fullName);
       }
-      // Note: We don't push phone_number since it's not in the admins table schema yet
     } else {
-      // Employees table uses 'first_name', 'last_name', 'phone_number'
+      // Employees have their own name fields.
       if (first_name !== undefined) {
         updates.push("first_name = ?");
         values.push(first_name);
@@ -88,10 +88,6 @@ exports.updateProfile = async (req, res) => {
       if (last_name !== undefined) {
         updates.push("last_name = ?");
         values.push(last_name);
-      }
-      if (phone_number !== undefined) {
-        updates.push("phone_number = ?");
-        values.push(phone_number);
       }
     }
 
@@ -113,6 +109,16 @@ exports.updateProfile = async (req, res) => {
   } catch (err) {
     console.error("Error updating profile:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getLoginHistory = async (req, res) => {
+  try {
+    const history = await getLoginHistory(req.user);
+    res.json({ history });
+  } catch (error) {
+    console.error("Error loading login history:", error);
+    res.status(503).json({ message: "Login history is unavailable. Please try again later." });
   }
 };
 

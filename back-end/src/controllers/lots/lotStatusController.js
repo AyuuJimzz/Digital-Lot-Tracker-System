@@ -2,6 +2,7 @@
 const schedule = require("node-schedule");
 const db = require("../../../config/database_connection");
 const { sendEmail } = require("../../services/emailService");
+const { isNonSaleableLot } = require("../../utils/lotClassification");
 
 // =======================
 // UPDATE LOT STATUS
@@ -10,6 +11,7 @@ exports.updateLotStatus = async (req, res) => {
   const { id } = req.params;
   const { status, email, fullName, contactNumber, address, paymentMethod } = req.body;
   let connection;
+  const dbToUse = req.db || db;
   const postCommitTasks = [];
 
   // Determine acting agent/admin automatically from authenticated user
@@ -19,7 +21,7 @@ exports.updateLotStatus = async (req, res) => {
   if (req.user && req.user.role === "employee") {
     employeeId = req.user.id;
     try {
-      const [empRows] = await db.query(
+      const [empRows] = await dbToUse.query(
         "SELECT first_name, last_name FROM employees WHERE employee_id = ?",
         [employeeId]
       );
@@ -33,9 +35,29 @@ exports.updateLotStatus = async (req, res) => {
     }
   } else {
     // Admin is performing the action!
-    employeeId = null;
-    agentName = "Admin";
+    const targetEmpId = req.body.assigned_employee_id !== undefined ? req.body.assigned_employee_id : req.body.employee_id;
+    if (targetEmpId) {
+      try {
+        const [empRows] = await dbToUse.query(
+          "SELECT employee_id, first_name, last_name FROM employees WHERE employee_id = ?",
+          [targetEmpId]
+        );
+        if (empRows.length > 0) {
+          employeeId = empRows[0].employee_id;
+          agentName = `${empRows[0].first_name} ${empRows[0].last_name || ""}`.trim() || "Agent";
+        }
+      } catch (_) {
+        employeeId = null;
+        agentName = "Admin";
+      }
+    } else {
+      employeeId = null;
+      agentName = "Admin";
+    }
   }
+
+  const isAdmin = req.user?.role === "admin";
+  const isAdminExplicitAssignment = isAdmin && (req.body.assigned_employee_id !== undefined || req.body.employee_id !== undefined);
 
   try {
     // Validate status
@@ -52,17 +74,53 @@ exports.updateLotStatus = async (req, res) => {
       });
     }
 
-    // Check if lot exists
-    const [lotRows] = await db.query("SELECT * FROM lots WHERE lot_id = ?", [id]);
+    connection = await dbToUse.getConnection();
+    await connection.beginTransaction();
+    const query = (...args) => connection.query(...args);
+
+    // Concurrency Lock: Read and validate lot inside transaction with row lock
+    const [lotRows] = await query("SELECT * FROM lots WHERE lot_id = ? FOR UPDATE", [id]);
 
     if (lotRows.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ error: "Lot not found" });
     }
 
     const lot = lotRows[0];
-    connection = await db.getConnection();
-    await connection.beginTransaction();
-    const query = (...args) => connection.query(...args);
+
+    // Zero-Trust Guard: Non-saleable lots (parks, playgrounds, facilities, excluded lots) can NEVER be reserved or sold
+    if (isNonSaleableLot(lot) && status !== "Available") {
+      await connection.rollback();
+      return res.status(400).json({
+        error: "Non-saleable lots (parks, amenities, facilities, and excluded areas) cannot be reserved or marked as Sold.",
+      });
+    }
+
+    // Only Admins can modify a sold lot
+    if (lot.status === "Sold" && req.user?.role !== "admin") {
+      await connection.rollback();
+      return res.status(403).json({ error: "Only Admins can modify a sold lot." });
+    }
+
+    // A completed sale must not be silently converted back into a reservation
+    // or availability: doing so would rewrite its customer and commission history.
+    if (lot.status === "Sold" && status !== "Sold") {
+      await connection.rollback();
+      return res.status(409).json({ error: "A sold lot requires a separate sale reversal before its status can change." });
+    }
+
+    // Only the reserving agent or an Admin can modify a Pending reservation
+    if (lot.status === "Pending" && req.user?.role !== "admin") {
+      const [pendingCust] = await query(
+        "SELECT employee_id FROM customers WHERE lot_id = ? AND (customer_status = 'Pending' OR customer_status IS NULL) ORDER BY updated_at DESC, customer_id DESC LIMIT 1",
+        [id]
+      );
+      if (!pendingCust.length || pendingCust[0].employee_id == null ||
+          Number(pendingCust[0].employee_id) !== Number(req.user?.id)) {
+        await connection.rollback();
+        return res.status(403).json({ error: "Only the reserving agent or an Admin can modify this pending reservation." });
+      }
+    }
 
     // Update lot status
     await query("UPDATE lots SET status = ? WHERE lot_id = ?", [status, id]);
@@ -70,7 +128,12 @@ exports.updateLotStatus = async (req, res) => {
     // Handle customer information update if provided
     if (email) {
       // Check if customer already exists for this lot
-      const [existingCustomer] = await query("SELECT * FROM customers WHERE lot_id = ?", [id]);
+      const [existingCustomer] = await query(
+        `SELECT * FROM customers WHERE lot_id = ?
+         AND (customer_status != 'Cancelled' OR customer_status IS NULL)
+         ORDER BY updated_at DESC, customer_id DESC LIMIT 1`,
+        [id]
+      );
 
       // If lot was previously Available (cancelled) and now getting a new Pending customer,
       // INSERT a new record to preserve the cancelled customer's history
@@ -81,10 +144,17 @@ exports.updateLotStatus = async (req, res) => {
         if (status === "Pending") {
           await query(
             `UPDATE customers SET 
-             full_name = ?, contact_number = ?, email = ?, address = ?, employee_id = COALESCE(employee_id, ?), customer_status = 'Pending', updated_at = NOW() 
+             full_name = ?, contact_number = ?, email = ?, address = ?, employee_id = ${isAdminExplicitAssignment ? '?' : 'COALESCE(employee_id, ?)'}, customer_status = 'Pending', updated_at = NOW()
              WHERE lot_id = ? AND customer_id = ?`,
             [fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), employeeId, id, existingCustomer[0].customer_id]
           );
+
+          if (isAdminExplicitAssignment) {
+            await query(
+              "UPDATE transactions SET employee_id = ?, agent_name = ? WHERE lot_id = ? AND customer_id = ?",
+              [employeeId, agentName, id, existingCustomer[0].customer_id]
+            );
+          }
         } else if (status === "Sold") {
           await query("UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
             id, existingCustomer[0].customer_id,
@@ -97,8 +167,11 @@ exports.updateLotStatus = async (req, res) => {
       } else {
         // INSERT: either no existing customer, or lot was Available (history must be preserved)
         if (lotWasCancelled && existingCustomer.length > 0) {
-          // Mark ALL previous customers for this lot as Cancelled
-          await query("UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ?", [id]);
+          // Preserve any completed sale history; only open reservations are cancelled.
+          await query(
+            "UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ? AND (customer_status = 'Pending' OR customer_status IS NULL)",
+            [id]
+          );
         }
         if (fullName?.trim() && contactNumber?.trim() && address?.trim()) {
           await query(
@@ -137,9 +210,12 @@ exports.updateLotStatus = async (req, res) => {
         );
 
         if (existingTransaction.length > 0) {
-          // Update existing transaction for this customer with current reserver
+          // Update existing transaction for this customer while preserving original reserving agent (unless Admin explicitly reassigns)
           await query(
-            "UPDATE transactions SET payment_type = 'No Downpayment', notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW() WHERE transaction_id = ?",
+            `UPDATE transactions SET payment_type = 'No Downpayment', notes = ?,
+             employee_id = ${isAdminExplicitAssignment ? '?' : 'COALESCE(employee_id, ?)'},
+             agent_name = ${isAdminExplicitAssignment ? '?' : 'COALESCE(agent_name, ?)'},
+             transaction_date = NOW() WHERE transaction_id = ?`,
             [`Transaction updated for lot ${lot.lot_number} - Pending status`, employeeId, agentName, existingTransaction[0].transaction_id]
           );
         } else {
@@ -219,29 +295,53 @@ exports.updateLotStatus = async (req, res) => {
       }
     } else if (status === "Sold" && lot.status !== "Sold") {
       // Setting to Sold - create/update transaction record
-      const customerResult = await query("SELECT customer_id FROM customers WHERE lot_id = ?", [
-        id,
-      ]);
+      const customerResult = await query(
+        `SELECT customer_id, employee_id FROM customers
+         WHERE lot_id = ? AND (customer_status IN ('Pending', 'Sold') OR customer_status IS NULL)
+         ORDER BY updated_at DESC, customer_id DESC LIMIT 1`,
+        [id]
+      );
 
       if (customerResult[0].length > 0) {
         const customerId = customerResult[0][0].customer_id;
+        const originalEmpId = customerResult[0][0].employee_id;
+        let creditEmpId = originalEmpId || employeeId;
+        let creditAgentName = agentName;
+        if (originalEmpId && originalEmpId !== employeeId) {
+          try {
+            const [origEmpRows] = await dbToUse.query(
+              "SELECT first_name, last_name FROM employees WHERE employee_id = ?",
+              [originalEmpId]
+            );
+            if (origEmpRows.length > 0) {
+              creditAgentName = `${origEmpRows[0].first_name} ${origEmpRows[0].last_name || ""}`.trim() || "Agent";
+            }
+          } catch (_) {}
+        }
+
+        await query(
+          "UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE customer_id = ?",
+          [customerId]
+        );
 
         // Check if transaction already exists
         const existingTransaction = await query(
-          "SELECT transaction_id FROM transactions WHERE lot_id = ?",
-          [id]
+          `SELECT transaction_id FROM transactions
+           WHERE lot_id = ? AND customer_id = ?
+           ORDER BY transaction_date DESC, transaction_id DESC LIMIT 1`,
+          [id, customerId]
         );
 
         if (existingTransaction[0].length > 0) {
-          // Update existing transaction to Sold with whoever is currently finalizing the sale
+          // Update existing transaction to Sold while preserving original reserver credit
           await query(
-            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW() WHERE lot_id = ?",
+            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW() WHERE transaction_id = ?",
             [
               paymentMethod || "Cash",
               `Transaction updated for lot ${lot.lot_number} - Sold status`,
-              employeeId,
-              agentName,
-              id,
+              creditEmpId,
+              creditAgentName,
+              existingTransaction[0][0].transaction_id,
             ]
           );
         } else {
@@ -266,16 +366,16 @@ exports.updateLotStatus = async (req, res) => {
           postCommitTasks.push(() => schedule.scheduleJob(emailDate, async () => {
             try {
               // Get lot and customer details for email
-              const [lotDetails] = await db.query(
+              const [lotDetails] = await dbToUse.query(
                 `
                 SELECT l.lot_number, l.property_id, p.property_name, p.location,
                        c.full_name, c.email
                 FROM lots l
                 LEFT JOIN properties p ON l.property_id = p.property_id
                 LEFT JOIN customers c ON l.lot_id = c.lot_id
-                WHERE l.lot_id = ?
+                WHERE l.lot_id = ? AND c.customer_id = ?
               `,
-                [id]
+                [id, customerId]
               );
 
               if (lotDetails.length > 0) {

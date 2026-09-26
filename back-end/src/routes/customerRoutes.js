@@ -15,6 +15,7 @@ const {
 
 // All routes require login as employee or admin
 const requireAuth = sessionOrToken({ roles: ["employee", "admin"] });
+const requireAdmin = sessionOrToken({ roles: ["admin"] });
 
 router.get("/", requireAuth, getAllCustomers);
 router.get("/all-for-map", requireAuth, getAllCustomersForMap);
@@ -23,6 +24,6 @@ router.get("/lot/:id/with-customer", requireAuth, getLotWithCustomer);
 router.post("/", requireAuth, createCustomer);
 router.post("/lot/:id/customer", requireAuth, createOrUpdateCustomer);
 router.put("/:id", requireAuth, updateCustomer);
-router.delete("/:id", requireAuth, deleteCustomer);
+router.delete("/:id", requireAdmin, deleteCustomer);
 
 module.exports = router;

@@ -7,7 +7,10 @@ const {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  toggleEmployeeStatus,
   getEmployeeActivities,
+  getEmployeePendingLots,
+  reassignPendingLots,
 } = require("../controllers/Employee/employeeController");
 
 // GET all employees
@@ -24,11 +27,28 @@ router.get(
   getEmployeeActivities,
 );
 
+// GET employee pending lots (for handover)
+router.get(
+  "/:id/pending-lots",
+  sessionOrToken({ roles: ["admin"] }),
+  getEmployeePendingLots,
+);
+
+// REASSIGN employee pending lots
+router.post(
+  "/:id/reassign-pending",
+  sessionOrToken({ roles: ["admin"] }),
+  reassignPendingLots,
+);
+
 // CREATE employee
 router.post("/", sessionOrToken({ roles: ["admin"] }), createEmployee);
 
 // UPDATE employee
 router.put("/:id", sessionOrToken({ roles: ["admin"] }), updateEmployee);
+
+// TOGGLE employee status (active / inactive)
+router.patch("/:id/status", sessionOrToken({ roles: ["admin"] }), toggleEmployeeStatus);
 
 // DELETE employee
 router.delete(

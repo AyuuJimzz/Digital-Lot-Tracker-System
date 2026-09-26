@@ -49,7 +49,7 @@ const MySales = () => {
         axios.get(`${API_BASE_URL}/api/lots/all`, authConfig),
         axios.get(`${API_BASE_URL}/api/customers`, authConfig),
         axios.get(`${API_BASE_URL}/api/properties`, authConfig),
-        axios.get(`${API_BASE_URL}/api/transactions?scope=personal`, authConfig).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE_URL}/api/transactions?scope=personal`, authConfig),
       ]);
 
       const fetchedLots = Array.isArray(lotsResponse.data) ? lotsResponse.data : [];
@@ -95,7 +95,10 @@ const MySales = () => {
       fetchedCustomers.forEach((c) => {
         if (c.lot_id && !seenLotIds.has(Number(c.lot_id))) {
           const lot = lotMap.get(Number(c.lot_id));
-          if (lot && ["sold", "pending"].includes(String(lot.status || "").toLowerCase())) {
+          // Sold lots are credited by their transaction's finalizing agent,
+          // not by the customer record's original reservation agent.
+          if (lot && String(lot.status || "").toLowerCase() === "pending" &&
+              String(c.lot_status || "").toLowerCase() === "pending") {
             sales.push({
               lot_id: lot.lot_id,
               sale_ref: `TXN-${String(lot.lot_id).padStart(4, "0")}`,

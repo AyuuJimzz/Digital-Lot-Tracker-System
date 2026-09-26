@@ -18,10 +18,54 @@ const persistentKeys = new Set([
   "runtimeDeveloperPin",
   "authRevocationTimestamp",
 ]);
+const isProduction = process.env.NODE_ENV === "production" || !!process.env.RENDER ||
+  process.env.DB_HOST?.includes("aivencloud.com");
 
 let state = { ...defaultState };
 let writeQueue = Promise.resolve();
 let durableQueue = Promise.resolve();
+let retryTimer = null;
+
+async function syncStateFromDatabase() {
+  // Acquiring a connection also detects when MySQL comes online after startup.
+  const connection = await db.getConnection();
+  try {
+    const [rows] = await connection.query("SELECT state_key, state_value FROM system_state");
+    const durableState = {
+      maintenanceMode: false,
+      developerPin: null,
+      developerPinHash: null,
+      runtimeDeveloperPin: null,
+      authRevocationTimestamp: null,
+    };
+    for (const row of rows) {
+      if (!persistentKeys.has(row.state_key)) continue;
+      try {
+        durableState[row.state_key] = JSON.parse(row.state_value);
+      } catch (_) {
+        durableState[row.state_key] = row.state_value;
+      }
+    }
+    state = { ...state, ...durableState };
+    return state;
+  } finally {
+    connection.release();
+  }
+}
+
+function scheduleSyncRetry() {
+  if (retryTimer) return;
+  retryTimer = setTimeout(async () => {
+    retryTimer = null;
+    try {
+      await syncStateFromDatabase();
+      console.log("Persistent system state synchronized from MySQL.");
+    } catch (error) {
+      scheduleSyncRetry();
+    }
+  }, 2000);
+  retryTimer.unref?.();
+}
 
 async function loadSystemState() {
   try {
@@ -31,23 +75,26 @@ async function loadSystemState() {
     state = { ...defaultState };
   }
 
-  // Database state is authoritative for durable control/security settings.
-  // This is best-effort so the server can still boot before setup_schema runs.
+  // Production must not serve requests with stale maintenance/revocation state.
+  // In local development, keep the previous startup behavior and retry in the background.
   try {
-    const [rows] = await db.query("SELECT state_key, state_value FROM system_state");
-    for (const row of rows) {
-      if (!persistentKeys.has(row.state_key)) continue;
-      try {
-        state[row.state_key] = JSON.parse(row.state_value);
-      } catch (_) {
-        state[row.state_key] = row.state_value;
-      }
+    return await syncStateFromDatabase();
+  } catch (error) {
+    console.warn("Initial MySQL system-state sync failed:", error.message);
+    if (!isProduction) {
+      scheduleSyncRetry();
+      return state;
     }
-
-  } catch (_) {
-    // The table may not exist until the explicit setup step is run.
   }
-  return state;
+
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      return await syncStateFromDatabase();
+    } catch (error) {
+      console.warn("Waiting for MySQL system-state sync:", error.message);
+    }
+  }
 }
 
 function getSystemState() {
@@ -130,6 +177,7 @@ module.exports = {
   configPath,
   ready,
   loadSystemState,
+  syncStateFromDatabase,
   getSystemState,
   updateSystemState,
   updateDurableSystemState,

@@ -1,8 +1,9 @@
 import React from "react";
-import { X } from "lucide-react";
+import { Building2, MapPin, X } from "lucide-react";
 
 const inputCls =
-  "w-full px-3.5 py-2.5 text-sm border border-gray-300 dark:border-slate-700 rounded-lg shadow-sm bg-white dark:bg-slate-800/90 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:focus:border-blue-500 transition-all";
+  "mt-1.5 block w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500";
+const labelCls = "block text-sm font-medium text-slate-700 dark:text-slate-200";
 
 const PropertyAddEditModal = ({
   isOpen,
@@ -16,99 +17,101 @@ const PropertyAddEditModal = ({
 }) => {
   if (!isOpen) return null;
 
+  const isEditing = Boolean(editingProperty);
+
   return (
-    <div className="bg-white dark:bg-slate-900 shadow-xl rounded-xl border border-gray-200 dark:border-slate-800 p-6 max-w-3xl mx-auto transition-all">
-      <div className="flex items-center justify-between pb-4 mb-5 border-b border-gray-100 dark:border-slate-800">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-            {editingProperty ? "Edit Property Details" : "Add New Property"}
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-            Provide property details and address for automatic GPS pin locating
-          </p>
+    <section className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900" aria-labelledby="property-form-title">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6 dark:border-slate-700">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+            <Building2 className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 id="property-form-title" className="text-base font-semibold text-slate-900 dark:text-white">
+              {isEditing ? "Edit property" : "Add property"}
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+              {isEditing ? "Update the property name and location." : "Add a subdivision or cadastre to the estate list."}
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          title="Close"
+          disabled={isSubmitting}
+          aria-label="Close property form"
+          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-white"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="manage-property-name"
-              className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5"
-            >
-              Property Name *
-            </label>
-            <input
-              id="manage-property-name"
-              type="text"
-              name="property_name"
-              value={formData.property_name || ""}
-              onChange={onChange}
-              placeholder="e.g. Lot-3847 Pagsanga-an"
-              required
-              className={inputCls}
-            />
+      <form onSubmit={onSubmit} aria-busy={isSubmitting}>
+        <div className="grid gap-6 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="min-w-0 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Property details</h3>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Fields marked * are required.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="manage-property-name" className={labelCls}>Property name *</label>
+                <input
+                  id="manage-property-name"
+                  type="text"
+                  name="property_name"
+                  value={formData.property_name || ""}
+                  onChange={onChange}
+                  placeholder="e.g. Lot-3847 Pagsanga-an"
+                  required
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label htmlFor="manage-property-location" className={labelCls}>Location / address *</label>
+                <input
+                  id="manage-property-location"
+                  type="text"
+                  name="location"
+                  value={formData.location || ""}
+                  onChange={onChange}
+                  placeholder="e.g. Pagsanga-an, Pavia, Iloilo"
+                  required
+                  className={inputCls}
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <label
-              htmlFor="manage-property-location"
-              className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5"
-            >
-              Location / Address *
-            </label>
-            <input
-              id="manage-property-location"
-              type="text"
-              name="location"
-              value={formData.location || ""}
-              onChange={onChange}
-              placeholder="e.g. Pagsanga-an, Pavia, Iloilo"
-              required
-              className={inputCls}
-            />
-          </div>
+
+          <aside className="h-fit rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+            <MapPin className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+            <h3 className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">Map placement</h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+              Enter a specific address to help locate the property. Verify its position in Map View after saving.
+            </p>
+          </aside>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-6 dark:border-slate-700 dark:bg-slate-800/40">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg shadow-md transition-all cursor-pointer ${
-              isSubmitting
-                ? "bg-blue-500/80 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 shadow-blue-500/25 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            }`}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-wait disabled:opacity-60"
           >
-            {isSubmitting && (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            )}
-            <span>
-              {isSubmitting
-                ? submitStatus || "Processing..."
-                : editingProperty
-                  ? "Save Changes"
-                  : "Create & Locate on Map"}
-            </span>
+            {isSubmitting && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" aria-hidden="true" />}
+            {isSubmitting ? submitStatus || "Saving..." : isEditing ? "Save changes" : "Create & locate on map"}
           </button>
         </div>
       </form>
-    </div>
+    </section>
   );
 };
 

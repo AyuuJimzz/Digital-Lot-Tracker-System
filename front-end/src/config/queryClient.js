@@ -24,6 +24,9 @@ export function invalidateEstateMutation(path) {
   }
   if (/\/api\/employees(\/|$|\?)/.test(path)) {
     affected.push(["employees"], ["recent-transactions"]);
+    if (/\/reassign-pending(?:\/|$|\?)/.test(path)) {
+      affected.push(["map-data"], ["customers"], ["employee-lots"], ["my-sales"]);
+    }
   }
   affected.forEach((queryKey) => queryClient.invalidateQueries({ queryKey, refetchType: "none" }));
 }

@@ -3,6 +3,17 @@ import { API_BASE_URL } from "../../../config/api";
 import { invalidateEstateMutation } from "../../../config/queryClient";
 import { showToast } from "../../GlobalToast";
 import { checkIsNonSaleable, stripNonSaleableTags } from "./lotOffcanvasUtils";
+import { getCurrentUser } from "../../../utils/authStorage";
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export function useLotOffcanvasState({
   selectedLot,
@@ -30,6 +41,7 @@ export function useLotOffcanvasState({
   const [deleteLotError, setDeleteLotError] = useState("");
   const isDeleting = isDeletingLot;
   const [agentName, setAgentName] = useState("Admin");
+  const [assignedEmployeeId, setAssignedEmployeeId] = useState(null);
 
   // Editable Lot Metadata details
   const [lotNumber, setLotNumber] = useState("");
@@ -40,8 +52,16 @@ export function useLotOffcanvasState({
 
   const userRole = (localStorage.getItem("role") || "").toLowerCase();
   const isAdmin = isAdminProp !== undefined ? isAdminProp : userRole === "admin";
+
+  const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.id || currentUser?.employee_id;
+  const reservingEmployeeId = selectedLot?.customer?.employee_id || selectedLot?.employee_id;
+  const isReservingAgent = isAdmin || Boolean(currentUserId && reservingEmployeeId && Number(currentUserId) === Number(reservingEmployeeId));
+
   const isExistingSoldLot = selectedLot?.status === "Sold";
-  const isLockedForUser = !isAdmin && isExistingSoldLot;
+  const isPendingLockedForOther = selectedLot?.status === "Pending" && !isReservingAgent;
+  const isLockedForUser = !isAdmin && (isExistingSoldLot || isPendingLockedForOther);
+  const canCancelReservation = isAdmin || isReservingAgent;
   const hasSavedClient = Boolean(
     (selectedLot?.status === "Pending" || selectedLot?.status === "Sold") &&
     selectedLot?.customer &&
@@ -82,10 +102,9 @@ export function useLotOffcanvasState({
       setIsDeletingLot(false);
       setValidationErrors({});
       const nonSaleableInitial =
-        checkIsNonSaleable(selectedLot.lot_number, selectedLot.area_sqm) ||
-        selectedLot.is_non_saleable === 1 ||
-        selectedLot.is_non_saleable === true ||
-        selectedLot.status === "NonSaleable";
+        selectedLot.is_non_saleable !== undefined && selectedLot.is_non_saleable !== null
+          ? Number(selectedLot.is_non_saleable) === 1
+          : checkIsNonSaleable(selectedLot.lot_number, selectedLot.area_sqm);
       setIsNonSaleable(Boolean(nonSaleableInitial));
       setStatus(selectedLot.status);
       setLotNumber(selectedLot.lot_number || "");
@@ -141,8 +160,9 @@ export function useLotOffcanvasState({
         setPaymentMethod("Cash");
       }
 
-      // Initialize assigned agent name
+      // Initialize assigned agent name & ID
       setAgentName(selectedLot.agent_name || (selectedLot.employee_id ? "Agent" : "Admin"));
+      setAssignedEmployeeId(selectedLot.employee_id ?? selectedLot.customer?.employee_id ?? null);
 
       // Fetch latest lot details (including persistent agent_name & payment_method)
       if (selectedLot?.lot_id && (selectedLot.status === "Pending" || selectedLot.status === "Sold")) {
@@ -150,7 +170,7 @@ export function useLotOffcanvasState({
           localStorage.getItem("authToken") ||
           localStorage.getItem("token") ||
           sessionStorage.getItem("authToken");
-        fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}`, {
+        fetchWithTimeout(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}`, {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
@@ -161,6 +181,9 @@ export function useLotOffcanvasState({
             if (!details) return;
             if (details.agent_name) {
               setAgentName(details.agent_name);
+            }
+            if (details.employee_id !== undefined) {
+              setAssignedEmployeeId(details.employee_id);
             }
             if (details.payment_method) {
               setPaymentMethod(details.payment_method);
@@ -282,7 +305,7 @@ export function useLotOffcanvasState({
 
       // Only Admins can modify core lot metadata (lot_number, area_sqm)
       if (isAdmin) {
-        const detailsResponse = await fetch(
+        const detailsResponse = await fetchWithTimeout(
           `${API_BASE_URL}/api/lots/${selectedLot.lot_id}/details`,
           {
             method: "PUT",
@@ -291,6 +314,7 @@ export function useLotOffcanvasState({
             body: JSON.stringify({
               lot_number: finalLotNumber,
               area_sqm: areaSqm,
+              is_non_saleable: isNonSaleable ? 1 : 0,
             }),
           }
         );
@@ -303,7 +327,7 @@ export function useLotOffcanvasState({
 
       // 2. Update lot status with customer information
       const finalStatus = isNonSaleable ? "Available" : status;
-      const response = await fetch(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/status`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/status`, {
         method: "PUT",
         headers: getAuthHeaders(),
         credentials: "include",
@@ -314,6 +338,7 @@ export function useLotOffcanvasState({
           contactNumber: isNonSaleable ? null : contactNumber,
           address: isNonSaleable ? null : address,
           paymentMethod: !isNonSaleable && status === "Sold" ? paymentMethod : null,
+          assigned_employee_id: isAdmin && status === "Pending" ? assignedEmployeeId : undefined,
         }),
       });
 
@@ -337,6 +362,8 @@ export function useLotOffcanvasState({
           selectedLot.area_sqm = areaSqm;
         }
         selectedLot.status = finalStatus;
+        selectedLot.is_non_saleable = isNonSaleable ? 1 : 0;
+        selectedLot._nonSaleable = isNonSaleable;
       }
 
       showToast("Lot saved successfully!", "success");
@@ -350,7 +377,9 @@ export function useLotOffcanvasState({
       }, 1500);
     } catch (error) {
       console.error("Error saving lot:", error);
-      const errMsg = error.message || "Failed to save lot. Please try again.";
+      const errMsg = error.name === "AbortError"
+        ? "Connection timed out. Please try again."
+        : error.message || "Failed to save lot. Please try again.";
       showToast(errMsg, "error");
     } finally {
       setIsSaving(false);
@@ -380,7 +409,7 @@ export function useLotOffcanvasState({
 
     try {
       const token = localStorage.getItem("authToken");
-      const response = await fetch(`${API_BASE_URL}/api/lots/${lotToDelete.lot_id}`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/lots/${lotToDelete.lot_id}`, {
         method: "DELETE",
         credentials: "include",
         headers: {
@@ -411,11 +440,12 @@ export function useLotOffcanvasState({
       }, 1500);
     } catch (error) {
       console.error("Error deleting lot:", error);
-      const errorMsg =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to delete lot. Please try again.";
+      const errorMsg = error.name === "AbortError"
+        ? "Connection timed out. Please try again."
+        : error.response?.data?.error ||
+          error.response?.data?.message ||
+          error.message ||
+          "Failed to delete lot. Please try again.";
       setDeleteLotError(errorMsg);
       showToast(errorMsg, "error");
     } finally {
@@ -457,6 +487,9 @@ export function useLotOffcanvasState({
     setValidationErrors,
     isAdmin,
     isLockedForUser,
+    canCancelReservation,
+    assignedEmployeeId,
+    setAssignedEmployeeId,
     hasSavedClient,
     handleCopyCoords,
     handleSetSaleable,

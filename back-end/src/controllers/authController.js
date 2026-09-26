@@ -3,6 +3,7 @@ const { loginAdmin } = require("./Admin/adminAuth");
 const { loginEmployee } = require("./Employee/employeeAuth");
 const { logAuthEvent } = require("../services/loggerService");
 const { createSession, isValidSession, invalidateSession } = require("../services/sessionManager");
+const { recordLogin } = require("../services/loginHistoryService");
 
 // Helper: Generate JWT with unique sessionId
 const generateToken = (user, sessionId) => {
@@ -76,6 +77,12 @@ const login = async (req, res) => {
 			user: user.email,
 			role: user.role,
 		});
+		try {
+			await recordLogin(req, user);
+		} catch (historyError) {
+			// A missing migration or temporary history outage must not block sign-in.
+			console.warn("Unable to record login history:", historyError.message);
+		}
 
 		return res.json({
 			message: "Login successful",
@@ -171,6 +178,9 @@ const checkSession = async (req, res) => {
 
 		const user = req.session?.user;
 		if (user) {
+			if (user.role === "employee" && !user.sessionId) {
+				return res.status(401).json({ authenticated: false, message: "Please sign in again to continue." });
+			}
 			const sessionCreatedAt = req.session.createdAt ? new Date(req.session.createdAt).getTime() : 0;
 			if (revocationMs > 0 && sessionCreatedAt < revocationMs) {
 				req.session.destroy();
@@ -204,6 +214,9 @@ const checkSession = async (req, res) => {
 		if (authHeader && authHeader.startsWith("Bearer ")) {
 			const token = authHeader.split(" ")[1];
 			const decoded = jwt.verify(token, process.env.JWT_SECRET);
+			if (decoded.role === "employee" && !decoded.sessionId) {
+				return res.status(401).json({ authenticated: false, message: "Please sign in again to continue." });
+			}
 			
 			const tokenIssuedMs = (decoded.iat || 0) * 1000;
 			if (revocationMs > 0 && tokenIssuedMs < revocationMs) {

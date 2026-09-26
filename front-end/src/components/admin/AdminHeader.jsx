@@ -1,9 +1,10 @@
 import { API_BASE_URL } from "../../config/api";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { User, LogOut, UserCircle, MapPin, Edit, Moon, Sun, Plus, Type, Move, Layers } from "lucide-react";
+import { User, MapPin, Edit, Moon, Sun, Plus, Type, Move, Layers } from "lucide-react";
 import axios from "axios";
 import { clearStoredAuth } from "../../utils/authStorage";
+import { AccountMenu } from "../AccountMenu";
 import {
   geocodeAddress,
   getPropertyFallbackCoordinates,
@@ -196,11 +197,7 @@ export function AdminHeader({ sidebarCollapsed }) {
   }, []);
 
   useEffect(() => {
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
   const handleToggleTheme = () => {
@@ -394,6 +391,8 @@ export function AdminHeader({ sidebarCollapsed }) {
                   : "bg-gray-100 hover:bg-gray-200"
             }`}
             aria-label="User profile"
+            aria-expanded={isOpen}
+            aria-haspopup="true"
           >
             {profileInitials ? (
               <span className="text-white text-xs font-bold tracking-wider">{profileInitials}</span>
@@ -404,28 +403,13 @@ export function AdminHeader({ sidebarCollapsed }) {
 
           {/* Dropdown Menu */}
           {isOpen && (
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-md shadow-lg py-1 z-[9999]">
-              <button
-                className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
-                onClick={() => {
-                  setIsOpen(false);
-                  navigate("/settings");
-                }}
-              >
-                <UserCircle className="mr-2 h-4 w-4 text-gray-400" />
-                Profile & Settings
-              </button>
-
-              <div className="border-t border-gray-100 dark:border-slate-700 my-1"></div>
-
-              <button
-                className="flex w-full items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-left"
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </button>
-            </div>
+            <AccountMenu
+              onSettings={() => {
+                setIsOpen(false);
+                navigate("/settings");
+              }}
+              onLogout={handleLogout}
+            />
           )}
         </div>
       </div>
