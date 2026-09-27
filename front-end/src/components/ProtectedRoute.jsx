@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "../config/api";
 import React, { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import axios from "axios";
 import AccessDenied from "../view/AccessDenied";
 import { clearStoredAuth, getStoredToken } from "../utils/authStorage";
@@ -19,6 +20,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 			loading: !isLocallyAuthorized,
 			isAuthorized: isLocallyAuthorized,
 			isAuthenticated: Boolean(initialToken),
+			isMaintenance: false,
 		};
 	});
 
@@ -48,10 +50,10 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 					localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
 					const roles = rolesKey ? rolesKey.split(",") : [];
 					const hasRole = roles.length > 0 ? roles.includes(response.data.role) : true;
-					setAuth({ loading: false, isAuthorized: hasRole, isAuthenticated: true });
+					setAuth({ loading: false, isAuthorized: hasRole, isAuthenticated: true, isMaintenance: false });
 				} else {
 					clearStoredAuth(savedToken);
-					setAuth({ loading: false, isAuthorized: false, isAuthenticated: false });
+					setAuth({ loading: false, isAuthorized: false, isAuthenticated: false, isMaintenance: false });
 				}
 			})
 			.catch((error) => {
@@ -60,24 +62,26 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 					setRetryCount((current) => current + 1);
 					return;
 				}
-				if (error.response?.status === 401 || error.response?.status === 403) {
-					clearStoredAuth(savedToken);
-					setAuth({ loading: false, isAuthorized: false, isAuthenticated: false });
+
+				// If system is in maintenance mode, redirect smoothly to /maintenance
+				if (error.response?.status === 503 && error.response?.data?.maintenance) {
+					setAuth({
+						loading: false,
+						isAuthorized: false,
+						isAuthenticated: false,
+						isMaintenance: true,
+					});
 					return;
 				}
 
-				let friendlyError = "Session verification failed. Please try again or sign in.";
-				if (error.code === "ECONNABORTED" || error.message?.toLowerCase().includes("timeout")) {
-					friendlyError = "Connection timed out. The server is taking longer than expected to respond. Please check your internet or click Retry.";
-				} else if (error.code === "ERR_NETWORK" || !error.response) {
-					friendlyError = "Unable to reach the server. Please check your internet connection.";
-				}
-
+				// Any other error (unauthorized, expired session, network drop):
+				// Cleanly clear stored auth and redirect to login page without ugly error screens
+				clearStoredAuth(savedToken);
 				setAuth({
 					loading: false,
 					isAuthorized: false,
-					isAuthenticated: Boolean(savedToken),
-					error: friendlyError,
+					isAuthenticated: false,
+					isMaintenance: false,
 				});
 			});
 		return () => { cancelled = true; };
@@ -92,22 +96,17 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 		);
 	}
 
-	if (auth.error) {
-		return (
-			<div className="flex h-screen items-center justify-center bg-gray-50 p-6">
-				<div className="max-w-md text-center">
-					<p className="font-medium text-red-700">{auth.error}</p>
-					<button className="mt-4 rounded bg-blue-600 px-4 py-2 text-white" onClick={() => {
-						setAuth((current) => ({ ...current, loading: true, error: null }));
-						setRetryCount((current) => current + 1);
-					}}>
-						Retry
-					</button>
-				</div>
-			</div>
-		);
+	// 1. If maintenance mode is active, smoothly navigate to /maintenance
+	if (auth.isMaintenance) {
+		return <Navigate to="/maintenance" replace />;
 	}
 
+	// 2. If unauthenticated visitor directly browses to a protected route, smoothly redirect to login
+	if (!auth.isAuthenticated) {
+		return <Navigate to="/" replace />;
+	}
+
+	// 3. If authenticated user tries to visit a route outside their permitted role, show Access Denied
 	if (!auth.isAuthorized) {
 		return <AccessDenied />;
 	}
