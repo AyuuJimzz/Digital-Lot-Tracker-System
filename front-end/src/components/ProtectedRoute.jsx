@@ -1,3 +1,4 @@
+// Protected Route Guard: Smooth redirect for unauthenticated visitors and maintenance mode
 import { API_BASE_URL } from "../config/api";
 import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
