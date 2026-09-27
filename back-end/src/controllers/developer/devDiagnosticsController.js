@@ -51,7 +51,7 @@ exports.getApiHealth = async (req, res) => {
       name: "Admin Dashboard KPI Engine",
       path: "/api/lots/dashboard-stats",
       method: "GET",
-      domain: "Admin",
+      domain: "Analytics",
       description: "Aggregates revenue, available inventory, and monthly sales stats",
       check: async () => {
         const [rows] = await db.query("SELECT COUNT(*) as total FROM lots");
@@ -62,7 +62,7 @@ exports.getApiHealth = async (req, res) => {
       name: "Employee Activity & Sales Logs",
       path: "/api/employee/my-sales",
       method: "GET",
-      domain: "Employee",
+      domain: "Analytics",
       description: "Retrieves staff commissions, reservations, and buyer history",
       check: async () => {
         const [rows] = await db.query("SELECT employee_id FROM employees LIMIT 1");
@@ -73,7 +73,7 @@ exports.getApiHealth = async (req, res) => {
       name: "Developer Audit Trail Logs",
       path: "/api/developer/system-state",
       method: "GET",
-      domain: "Developer / Root",
+      domain: "Developer Core",
       description: "Developer console audit trails, logs, and maintenance flags",
       check: async () => {
         return { status: "Online" };
@@ -83,7 +83,7 @@ exports.getApiHealth = async (req, res) => {
       name: "Live Database Inspector & Schema",
       path: "/api/developer/db-inspector",
       method: "GET",
-      domain: "Developer / Root",
+      domain: "Developer Core",
       description: "Calculates live database table row counts, latency, and schema metrics",
       check: async () => {
         const [rows] = await db.query("SELECT 1 as ping");
@@ -94,7 +94,7 @@ exports.getApiHealth = async (req, res) => {
       name: "Authentication & Session Guardian",
       path: "/api/auth/me",
       method: "GET",
-      domain: "Auth & Security",
+      domain: "Infrastructure",
       description: "Validates active JWT tokens, cookies, and user permissions",
       check: async () => {
         const [rows] = await db.query("SELECT admin_id FROM admins LIMIT 1");
@@ -128,8 +128,9 @@ exports.getApiHealth = async (req, res) => {
         method: item.method,
         domain: item.domain,
         description: item.description,
-        status: "HEALTHY",
+        status: "200 OK",
         statusCode: 200,
+        isHealthy: true,
         latencyMs,
         details,
       });
@@ -140,24 +141,32 @@ exports.getApiHealth = async (req, res) => {
         method: item.method,
         domain: item.domain,
         description: item.description,
-        status: "DEGRADED",
+        status: "500 Error",
         statusCode: 500,
+        isHealthy: false,
         latencyMs: 0,
         error: err.message,
       });
     }
   }
 
-  const healthyCount = results.filter((r) => r.status === "HEALTHY").length;
+  const healthyCount = results.filter((r) => r.isHealthy).length;
   const overallStatus = healthyCount === results.length ? "OPERATIONAL" : "DEGRADED";
+  const totalLatency = results.reduce((acc, r) => acc + (r.latencyMs || 0), 0);
+  const avgLatencyMs = results.length > 0 ? Math.round(totalLatency / results.length) : 0;
+  const now = new Date().toISOString();
 
   res.json({
     success: true,
     overallStatus,
     healthyCount,
     totalCount: results.length,
-    scannedAt: new Date().toISOString(),
+    totalEndpoints: results.length,
+    avgLatencyMs,
+    scannedAt: now,
+    timestamp: now,
     routes: results,
+    endpoints: results,
   });
 };
 
