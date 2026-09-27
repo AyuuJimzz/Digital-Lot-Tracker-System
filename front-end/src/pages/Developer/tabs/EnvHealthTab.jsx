@@ -34,18 +34,16 @@ const EnvHealthTab = ({
       {/* Header Bar */}
       <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-slate-800/70 border border-slate-700 text-slate-300 flex items-center justify-center shrink-0">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
           </div>
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              Environment Variables (.env) Health Inspector
-            </h2>
+            <h2 className="text-base font-semibold text-white">Environment</h2>
             <p className="text-xs text-slate-400">
-              Audit backend deployment environment variables, verify required keys, and safely inspect masked configurations
+              Review required variables and masked configuration values.
             </p>
           </div>
         </div>
@@ -55,11 +53,11 @@ const EnvHealthTab = ({
           {envHealthData && (
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border ${
               allRequiredSet
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                ? "bg-slate-800/70 text-slate-300 border-slate-700"
                 : "bg-rose-500/10 text-rose-400 border-rose-500/20"
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${allRequiredSet ? "bg-emerald-400 animate-pulse" : "bg-rose-400"}`} />
-              {allRequiredSet ? "🟢 All Required Configs Set" : "⚠️ Missing Required Variables"}
+              <span className={`w-1.5 h-1.5 rounded-full ${allRequiredSet ? "bg-slate-400 animate-pulse" : "bg-rose-400"}`} />
+              {allRequiredSet ? "All required variables set" : "Missing required variables"}
             </span>
           )}
 
@@ -76,7 +74,7 @@ const EnvHealthTab = ({
               fill="none"
               stroke="currentColor"
               strokeWidth="2.2"
-              className={envHealthLoading ? "animate-spin text-amber-400" : ""}
+              className={envHealthLoading ? "animate-spin text-slate-300" : ""}
             >
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
             </svg>
@@ -185,7 +183,7 @@ const EnvHealthTab = ({
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold text-slate-200">{v.key}</span>
                             {v.required && (
-                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20 font-bold">
+                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700 font-bold">
                                 req
                               </span>
                             )}
@@ -201,10 +199,8 @@ const EnvHealthTab = ({
                         <td className="py-3 px-4 text-center">
                           <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-300">
                             <span className={`w-1.5 h-1.5 rounded-full ${
-                              v.status === "CONFIGURED"
-                                ? "bg-emerald-400"
-                                : v.status === "USING_DEFAULT"
-                                ? "bg-sky-400"
+                              ["CONFIGURED", "USING_DEFAULT"].includes(v.status)
+                                ? "bg-slate-400"
                                 : v.status === "MISSING_REQUIRED"
                                 ? "bg-rose-500"
                                 : "bg-slate-600"

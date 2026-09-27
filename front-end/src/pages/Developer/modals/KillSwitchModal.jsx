@@ -39,7 +39,7 @@ export default function KillSwitchModal({
         )}
 
         {killSwitchSuccessMsg && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl font-medium">
+          <div className="p-3 bg-slate-800/70 border border-slate-700 text-slate-300 text-xs rounded-xl font-medium">
             🎉 {killSwitchSuccessMsg}
           </div>
         )}
@@ -57,7 +57,7 @@ export default function KillSwitchModal({
             type="button"
             onClick={handleTriggerKillSwitch}
             disabled={killSwitchLoading}
-            className="px-5 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-rose-600/30 disabled:opacity-50 cursor-pointer"
+            className="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {killSwitchLoading ? "Revoking All Sessions..." : "🛑 Yes, Force Logout All"}
           </button>

@@ -102,6 +102,18 @@ exports.getApiHealth = async (req, res) => {
       },
     },
     {
+      name: "Keep-Alive & Uptime Heartbeat",
+      path: "/api/health",
+      method: "GET",
+      domain: "Infrastructure",
+      description: "Queried every 5m by UptimeRobot to keep Render server awake and ping Aiven Cloud DB",
+      check: async () => {
+        const start = Date.now();
+        await db.query("SELECT 1");
+        return { ping: "PONG", dbLatencyMs: Date.now() - start };
+      },
+    },
+    {
       name: "Map Coordinate Diagnostics Engine",
       path: "/api/developer/map-diagnostics",
       method: "GET",

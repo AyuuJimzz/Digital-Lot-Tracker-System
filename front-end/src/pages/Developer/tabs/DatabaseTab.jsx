@@ -1,4 +1,5 @@
 import React from "react";
+import { Database } from "lucide-react";
 
 const DatabaseTab = ({
   dbStats,
@@ -16,12 +17,12 @@ const DatabaseTab = ({
       {/* Header Bar */}
       <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-sky-400 flex items-center justify-center text-lg shrink-0">
-            🗄️
+          <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center shrink-0">
+            <Database size={18} aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white">Database Tables & Storage Inspector</h2>
-            <p className="text-[11px] text-slate-400">Live breakdown of tables, record counts, storage footprint, and cloud response latency.</p>
+            <h2 className="text-base font-semibold text-white">Database & storage</h2>
+            <p className="text-xs text-slate-400">Table records, storage, and connection latency.</p>
           </div>
         </div>
 
@@ -29,7 +30,7 @@ const DatabaseTab = ({
           {/* Latency badge */}
           {dbStats && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
               {dbStats.latencyMs}ms ({dbStats.status})
             </span>
           )}
@@ -47,7 +48,7 @@ const DatabaseTab = ({
               fill="none"
               stroke="currentColor"
               strokeWidth="2.2"
-              className={dbStatsLoading ? "animate-spin text-sky-400" : ""}
+              className={dbStatsLoading ? "animate-spin text-slate-300" : ""}
             >
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
             </svg>
@@ -65,7 +66,6 @@ const DatabaseTab = ({
             className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
             title="Generate realistic demo buyers and transactions for presentations"
           >
-            <span>🎲</span>
             <span>Demo Data</span>
           </button>
 
@@ -195,7 +195,7 @@ const DatabaseTab = ({
                           {/* Relative Footprint Visual Bar */}
                           <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-emerald-500/80 rounded-full transition-all duration-500"
+                              className="h-full bg-slate-500/80 rounded-full transition-all duration-500"
                               style={{ width: `${pctOfLargest}%` }}
                             />
                           </div>

@@ -32,7 +32,7 @@ const DeveloperPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans selection:bg-emerald-500/30 selection:text-emerald-200">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans selection:bg-slate-700 selection:text-white">
       {/* ── Fixed Sidebar Navigation ── */}
       <DeveloperSidebar {...dev} />
 

@@ -28,7 +28,7 @@ const EndpointsTab = ({
       {/* Header Bar */}
       <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/25 text-sky-400 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-slate-800/70 border border-slate-700 text-slate-300 flex items-center justify-center shrink-0">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <circle cx="12" cy="12" r="10" />
               <line x1="2" y1="12" x2="22" y2="12" />
@@ -36,11 +36,9 @@ const EndpointsTab = ({
             </svg>
           </div>
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              API Routes & Endpoint Health Monitor
-            </h2>
+            <h2 className="text-base font-semibold text-white">API health</h2>
             <p className="text-xs text-slate-400">
-              Live availability, HTTP status verification, and response latency monitoring across core platform routes
+              Route availability, response codes, and latency.
             </p>
           </div>
         </div>
@@ -48,9 +46,9 @@ const EndpointsTab = ({
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           {/* Status Badge */}
           {apiHealthData && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              🟢 {healthyCount}/{totalEndpoints || 10} Operational
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-800/70 text-slate-300 border border-slate-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
+              {healthyCount}/{totalEndpoints || endpointsList.length || 11} operational
             </span>
           )}
 
@@ -67,7 +65,7 @@ const EndpointsTab = ({
               fill="none"
               stroke="currentColor"
               strokeWidth="2.2"
-              className={apiHealthLoading ? "animate-spin text-sky-400" : ""}
+              className={apiHealthLoading ? "animate-spin text-slate-300" : ""}
             >
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
             </svg>
@@ -108,7 +106,7 @@ const EndpointsTab = ({
               Monitored Routes
             </div>
             <div className="text-lg font-bold font-mono text-slate-200">
-              {totalEndpoints ? `${totalEndpoints} Endpoints` : "10 Endpoints"}
+              {totalEndpoints ? `${totalEndpoints} Endpoints` : `${endpointsList.length || 11} Endpoints`}
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
               Public, Admin, & DB APIs
@@ -188,10 +186,10 @@ const EndpointsTab = ({
                           <td className="py-3 px-4 text-center">
                             <span className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
                               ep.method === "GET"
-                                ? "bg-slate-800 text-emerald-300 border border-slate-700"
+                                ? "bg-slate-800 text-slate-300 border border-slate-700"
                                 : ep.method === "POST"
-                                ? "bg-slate-800 text-sky-300 border border-slate-700"
-                                : "bg-slate-800 text-purple-300 border border-slate-700"
+                                ? "bg-slate-800 text-slate-300 border border-slate-700"
+                                : "bg-slate-800 text-slate-300 border border-slate-700"
                             }`}>
                               {ep.method}
                             </span>
@@ -228,7 +226,7 @@ const EndpointsTab = ({
                           {/* Health */}
                           <td className="py-3 px-4 text-right">
                             <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-300">
-                              <span className={`w-1.5 h-1.5 rounded-full ${isHealthy ? "bg-emerald-400" : "bg-rose-500"}`} />
+                              <span className={`w-1.5 h-1.5 rounded-full ${isHealthy ? "bg-slate-400" : "bg-rose-500"}`} />
                               <span>{isHealthy ? "Healthy" : "Failed"}</span>
                             </span>
                           </td>

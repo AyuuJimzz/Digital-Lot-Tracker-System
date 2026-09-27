@@ -33,7 +33,7 @@ export default function EmployeeDetailModal({
         {/* Modal Header */}
         <div className="flex justify-between items-center bg-slate-950/90 px-6 py-4 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2 text-white font-bold text-sm">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" strokeWidth="2.2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-slate-300">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <circle cx="12" cy="16" r="1" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -134,7 +134,7 @@ export default function EmployeeDetailModal({
                     type="text"
                     value={editEmpFirstName}
                     onChange={(e) => setEditEmpFirstName(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-teal-500 outline-none transition text-white"
+                    className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-700 outline-none transition text-white"
                   />
                 </div>
                 <div>
@@ -143,7 +143,7 @@ export default function EmployeeDetailModal({
                     type="text"
                     value={editEmpLastName}
                     onChange={(e) => setEditEmpLastName(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-teal-500 outline-none transition text-white"
+                    className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-700 outline-none transition text-white"
                   />
                 </div>
               </div>
@@ -154,12 +154,12 @@ export default function EmployeeDetailModal({
                   type="email"
                   value={editEmpEmail}
                   onChange={(e) => setEditEmpEmail(e.target.value)}
-                  className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-teal-500 outline-none transition text-white"
+                  className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-700 outline-none transition text-white"
                 />
               </div>
 
               {empModalMsg.text && (
-                <div className={`text-xs font-medium p-2.5 rounded-xl border ${empModalMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-teal-300 bg-teal-500/10 border-teal-500/20"}`}>
+                <div className={`text-xs font-medium p-2.5 rounded-xl border ${empModalMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-slate-300 bg-slate-800/70 border-slate-700"}`}>
                   {empModalMsg.text}
                 </div>
               )}
@@ -168,7 +168,7 @@ export default function EmployeeDetailModal({
                 <button
                   type="submit"
                   disabled={empModalLoading}
-                  className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/10 disabled:opacity-50 cursor-pointer"
                 >
                   {empModalLoading ? "Saving Changes..." : "Save Changes"}
                 </button>
@@ -185,15 +185,15 @@ export default function EmployeeDetailModal({
             <>
               {/* Employee Profile Header Card */}
               <div className="flex items-center gap-4 p-4 bg-slate-950/60 border border-slate-800 rounded-xl">
-                <div className="w-13 h-13 rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
+                <div className="w-13 h-13 rounded-2xl bg-slate-800/70 text-slate-300 border border-slate-700 flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
                   {(selectedEmployee.first_name || "E").charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-base font-bold text-white truncate">
                     {selectedEmployee.first_name} {selectedEmployee.last_name}
                   </h4>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-500/10 text-teal-300 border border-teal-500/20 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800/70 text-slate-300 border border-slate-700 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                     Role: Employee / Agent
                   </span>
                 </div>
@@ -218,7 +218,7 @@ export default function EmployeeDetailModal({
               <div className="pt-3 border-t border-slate-800/80">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14b8a6" strokeWidth="2.2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-slate-300">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                       <circle cx="12" cy="16" r="1" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -228,7 +228,7 @@ export default function EmployeeDetailModal({
                   <button
                     type="button"
                     onClick={handleGenerateRandomEmpPassword}
-                    className="text-[10px] font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-1 underline transition cursor-pointer"
+                    className="text-[10px] font-semibold text-slate-300 hover:text-slate-300 flex items-center gap-1 underline transition cursor-pointer"
                   >
                     ⚡ Generate Random PIN
                   </button>
@@ -242,7 +242,7 @@ export default function EmployeeDetailModal({
                       onChange={(e) => setEmpNewPassword(e.target.value)}
                       placeholder="Enter new password (min 6 chars)"
                       autoComplete="new-password"
-                      className="w-full text-xs px-3 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition text-white placeholder-slate-500 pr-10 font-mono"
+                      className="w-full text-xs px-3 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500 pr-10 font-mono"
                     />
                     <button
                       type="button"
@@ -264,7 +264,7 @@ export default function EmployeeDetailModal({
                   </div>
 
                   {empModalMsg.text && (
-                    <div className={`text-xs font-medium p-2.5 rounded-xl border ${empModalMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-teal-300 bg-teal-500/10 border-teal-500/20"}`}>
+                    <div className={`text-xs font-medium p-2.5 rounded-xl border ${empModalMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-slate-300 bg-slate-800/70 border-slate-700"}`}>
                       {empModalMsg.text}
                     </div>
                   )}
@@ -272,7 +272,7 @@ export default function EmployeeDetailModal({
                   <button
                     type="submit"
                     disabled={empModalLoading || !empNewPassword.trim()}
-                    className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-teal-500/10 disabled:opacity-40 cursor-pointer"
+                    className="w-full py-2.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-black/10 disabled:opacity-40 cursor-pointer"
                   >
                     {empModalLoading ? "Applying New Password..." : "Override & Set New Password"}
                   </button>

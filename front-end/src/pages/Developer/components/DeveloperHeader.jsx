@@ -29,12 +29,12 @@ const DeveloperHeader = ({
             <span>Developer Console</span>
             <span className="text-slate-600">/</span>
             <span className="text-white font-bold">
-              {activeSidebarTab === "SYSTEM" && "System Controls & Logs"}
-              {activeSidebarTab === "DATABASE" && "Database & Storage"}
-              {activeSidebarTab === "MAP" && "Map & Lot Diagnostics"}
-              {activeSidebarTab === "ACCOUNTS" && "Accounts & Credentials"}
-              {activeSidebarTab === "ENDPOINTS" && "API Routes & Health"}
-              {activeSidebarTab === "ENV" && "Environment (.env) Inspector"}
+              {activeSidebarTab === "SYSTEM" && "System & logs"}
+              {activeSidebarTab === "DATABASE" && "Database"}
+              {activeSidebarTab === "MAP" && "Map diagnostics"}
+              {activeSidebarTab === "ACCOUNTS" && "Accounts"}
+              {activeSidebarTab === "ENDPOINTS" && "API health"}
+              {activeSidebarTab === "ENV" && "Environment"}
             </span>
           </div>
         </div>
@@ -43,9 +43,9 @@ const DeveloperHeader = ({
       <div className="flex items-center gap-3">
         {/* Quick Ping / Refresh */}
         {dbStats && (
-          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            ⚡ {dbStats.latencyMs}ms Aiven
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold bg-slate-800/70 text-slate-300 border border-slate-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" />
+            DB {dbStats.latencyMs}ms
           </span>
         )}
 

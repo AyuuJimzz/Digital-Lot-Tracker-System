@@ -3,14 +3,14 @@ import React from "react";
 // Helper to get table icon and badge color
 export const getTableIcon = (tableName) => {
   const t = (tableName || "").toLowerCase();
-  if (t.includes("propert")) return { icon: "🏡", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" };
-  if (t.includes("lot")) return { icon: "📍", color: "bg-teal-500/10 text-teal-400 border-teal-500/25" };
-  if (t.includes("customer") || t.includes("user")) return { icon: "👥", color: "bg-blue-500/10 text-blue-400 border-blue-500/25" };
-  if (t.includes("transaction") || t.includes("payment")) return { icon: "💳", color: "bg-cyan-500/10 text-cyan-400 border-cyan-500/25" };
-  if (t.includes("receipt")) return { icon: "🧾", color: "bg-amber-500/10 text-amber-400 border-amber-500/25" };
-  if (t.includes("employee") || t.includes("staff")) return { icon: "👔", color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/25" };
-  if (t.includes("admin")) return { icon: "🛡️", color: "bg-purple-500/10 text-purple-400 border-purple-500/25" };
-  if (t.includes("inquir") || t.includes("message")) return { icon: "💬", color: "bg-sky-500/10 text-sky-400 border-sky-500/25" };
+  if (t.includes("propert")) return { icon: "🏡", color: "bg-slate-800/70 text-slate-300 border-slate-700" };
+  if (t.includes("lot")) return { icon: "📍", color: "bg-slate-800/70 text-slate-300 border-slate-700" };
+  if (t.includes("customer") || t.includes("user")) return { icon: "👥", color: "bg-slate-800/70 text-slate-300 border-slate-700" };
+  if (t.includes("transaction") || t.includes("payment")) return { icon: "💳", color: "bg-slate-800/70 text-slate-300 border-slate-700" };
+  if (t.includes("receipt")) return { icon: "🧾", color: "bg-slate-800/70 text-slate-300 border-slate-700" };
+  if (t.includes("employee") || t.includes("staff")) return { icon: "👔", color: "bg-slate-800/70 text-slate-300 border-slate-700" };
+  if (t.includes("admin")) return { icon: "🛡️", color: "bg-slate-800/70 text-slate-300 border-slate-700" };
+  if (t.includes("inquir") || t.includes("message")) return { icon: "💬", color: "bg-slate-800/70 text-slate-300 border-slate-700" };
   return { icon: "🗄️", color: "bg-slate-800 text-slate-300 border-slate-700" };
 };
 
@@ -28,7 +28,7 @@ export const renderTableExplorerCell = (col, val) => {
     const isTrue = val === true || val === 1;
     return (
       <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider font-mono border ${
-        isTrue ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-slate-800 text-slate-400 border-slate-700"
+        isTrue ? "bg-slate-800/70 text-slate-300 border-slate-700" : "bg-slate-800 text-slate-400 border-slate-700"
       }`}>
         {isTrue ? "TRUE" : "FALSE"}
       </span>
@@ -38,7 +38,7 @@ export const renderTableExplorerCell = (col, val) => {
   // Passwords (already masked from backend)
   if (colName.includes("password")) {
     return (
-      <span className="font-mono text-xs text-amber-400/90 font-medium tracking-wider">
+      <span className="font-mono text-xs text-slate-300 font-medium tracking-wider">
         •••••••• <span className="text-[9px] text-slate-500 font-normal">[Bcrypt]</span>
       </span>
     );
@@ -49,11 +49,11 @@ export const renderTableExplorerCell = (col, val) => {
     let badgeStyle = "bg-slate-900 text-slate-300 border-slate-800";
     const lower = valStr.toLowerCase();
     if (lower === "available" || lower === "cash" || lower === "admin" || lower === "active" || lower === "paid") {
-      badgeStyle = "bg-slate-900 text-emerald-300 border-emerald-500/30";
+      badgeStyle = "bg-slate-900 text-slate-300 border-slate-700";
     } else if (lower === "reserved" || lower === "installment" || lower === "employee") {
-      badgeStyle = "bg-slate-900 text-sky-300 border-sky-500/30";
+      badgeStyle = "bg-slate-900 text-slate-300 border-slate-700";
     } else if (lower === "sold" || lower === "no downpayment" || lower === "pending") {
-      badgeStyle = "bg-slate-900 text-amber-300 border-amber-500/30";
+      badgeStyle = "bg-slate-900 text-slate-300 border-slate-700";
     } else if (lower === "cancelled" || lower === "inactive" || lower === "failed") {
       badgeStyle = "bg-slate-900 text-rose-300 border-rose-500/30";
     }
@@ -182,7 +182,7 @@ export default function TableDataExplorerModal({
                   <h3 className="text-base font-bold text-white tracking-tight">
                     {selectedTable}
                   </h3>
-                  <span className="text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <span className="text-[10px] font-mono font-semibold px-2.5 py-0.5 rounded-full bg-slate-800/70 text-slate-300 border border-slate-700">
                     {tableData ? `${tableData.totalRows.toLocaleString()} Records` : "Loading..."}
                   </span>
                 </div>
@@ -205,7 +205,7 @@ export default function TableDataExplorerModal({
                     value={tableSearchQuery}
                     onChange={(e) => setTableSearchQuery(e.target.value)}
                     placeholder="Filter rows..."
-                    className="text-xs pl-8 pr-7 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-slate-200 placeholder-slate-500 w-48 sm:w-64 transition"
+                    className="text-xs pl-8 pr-7 py-2 bg-slate-900/90 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none text-slate-200 placeholder-slate-500 w-48 sm:w-64 transition"
                   />
                   {tableSearchQuery && (
                     <button
@@ -254,7 +254,7 @@ export default function TableDataExplorerModal({
           <div className="flex-1 overflow-auto bg-[#070b14] p-4 sm:p-6">
             {tableDataLoading ? (
               <div className="flex flex-col items-center justify-center py-28 text-slate-500 gap-3">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="animate-spin text-emerald-400">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="animate-spin text-slate-300">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                 </svg>
                 <span className="text-xs font-mono text-slate-400">Loading records from '{selectedTable}'...</span>
@@ -280,7 +280,7 @@ export default function TableDataExplorerModal({
                       <button
                         type="button"
                         onClick={() => setTableSearchQuery("")}
-                        className="mt-2 text-xs text-emerald-400 hover:underline cursor-pointer"
+                        className="mt-2 text-xs text-slate-300 hover:underline cursor-pointer"
                       >
                         Clear search filter
                       </button>
@@ -307,7 +307,7 @@ export default function TableDataExplorerModal({
                               >
                                 <div className="flex items-center gap-1.5">
                                   {col.isPrimary && (
-                                    <span title="Primary Key" className="text-amber-400 text-xs">🔑</span>
+                                    <span title="Primary Key" className="text-slate-300 text-xs">🔑</span>
                                   )}
                                   <span className="font-semibold text-slate-200 tracking-tight text-xs">{col.name}</span>
                                 </div>
@@ -381,7 +381,7 @@ export default function TableDataExplorerModal({
                 {tableData ? `${tableData.rows?.length || 0} rows` : ""}
               </span>
               {tableSearchQuery && (
-                <span className="text-emerald-400 font-mono text-[11px]">
+                <span className="text-slate-300 font-mono text-[11px]">
                   (Filtered query active)
                 </span>
               )}
@@ -425,7 +425,7 @@ export default function TableDataExplorerModal({
             </div>
 
             {rowToDelete.tableName && rowToDelete.tableName.toLowerCase() === "customers" && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-300">
+              <div className="p-3 bg-slate-800/70 border border-slate-700 rounded-xl text-[11px] text-slate-300">
                 ⚠️ Deleting this customer will also delete their related transactions in the transaction history and reset lot status if applicable.
               </div>
             )}

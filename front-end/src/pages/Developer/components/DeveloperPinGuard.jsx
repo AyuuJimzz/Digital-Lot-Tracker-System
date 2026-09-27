@@ -13,9 +13,9 @@ const DeveloperPinGuard = ({
 }) => {
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#090d16] text-white font-sans">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-slate-950 font-sans text-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#10b981] border-t-transparent rounded-full animate-spin" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />
           <p className="text-xs text-gray-400 font-mono">Authenticating Developer Session...</p>
         </div>
       </div>
@@ -24,12 +24,10 @@ const DeveloperPinGuard = ({
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#090d16] text-white relative font-sans">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#10b981]/5 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="w-full max-w-sm mx-4 bg-[#111827]/60 border border-white/10 rounded-2xl p-8 shadow-2xl backdrop-blur-md">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-slate-950 px-4 font-sans text-white">
+        <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl shadow-black/20">
           <div className="text-center mb-6">
-            <div className="inline-flex p-3 bg-[#10b981]/15 text-[#10b981] rounded-2xl border border-[#10b981]/25 mb-4">
+            <div className="mb-4 inline-flex rounded-xl border border-slate-700 bg-slate-800 p-3 text-slate-200">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
@@ -46,12 +44,13 @@ const DeveloperPinGuard = ({
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="••••"
-                className="w-full tracking-[1.5em] text-center text-xl font-bold py-3.5 bg-[#030712]/50 border border-white/10 rounded-xl focus:border-[#10b981] focus:ring-1 focus:ring-[#10b981] outline-none transition pr-12"
+                className="w-full tracking-[1.5em] text-center text-xl font-bold py-3.5 bg-slate-950 border border-slate-700 rounded-xl focus:border-slate-400 focus:ring-1 focus:ring-slate-400 outline-none transition pr-12"
                 autoFocus
               />
               <button
                 type="button"
                 onClick={() => setShowPin(!showPin)}
+                aria-label={showPin ? "Hide PIN" : "Show PIN"}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition flex items-center justify-center"
               >
                 {showPin ? (
@@ -73,7 +72,7 @@ const DeveloperPinGuard = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-[#10b981] hover:bg-[#059669] text-white text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-[#10b981]/20 disabled:opacity-50"
+              className="w-full py-3 bg-slate-200 hover:bg-white text-slate-950 text-sm font-semibold rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? "Authenticating..." : "Access Console"}
             </button>

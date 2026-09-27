@@ -26,11 +26,11 @@ export default function DemoDataModal({
 
   return (
     <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-slate-900 border border-emerald-500/40 max-w-xl w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 space-y-4 max-h-[90vh]">
+      <div className="bg-slate-900 border border-slate-700 max-w-xl w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col p-6 space-y-4 max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0 text-xl">
+            <div className="w-11 h-11 rounded-xl bg-slate-800/70 text-slate-300 border border-slate-700 flex items-center justify-center shrink-0 text-xl">
               🎲
             </div>
             <div>
@@ -58,7 +58,7 @@ export default function DemoDataModal({
             onClick={() => setDemoModalTab("transactions")}
             className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition flex items-center gap-2 cursor-pointer ${
               demoModalTab === "transactions"
-                ? "border-emerald-500 text-emerald-400"
+                ? "border-slate-700 text-slate-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -72,12 +72,12 @@ export default function DemoDataModal({
             }}
             className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition flex items-center gap-2 cursor-pointer ${
               demoModalTab === "employees"
-                ? "border-teal-500 text-teal-400"
+                ? "border-slate-700 text-slate-300"
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
             <span>👥</span> Demo Staff Accounts
-            <span className="px-1.5 py-0.2 bg-teal-500/20 text-teal-300 rounded-full text-[10px]">
+            <span className="px-1.5 py-0.2 bg-slate-800/70 text-slate-300 rounded-full text-[10px]">
               {demoEmployeesList?.length || 0}
             </span>
           </button>
@@ -103,7 +103,7 @@ export default function DemoDataModal({
                     onClick={() => setDemoDataCount(num)}
                     className={`py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                       demoDataCount === num
-                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50 shadow-sm"
+                        ? "bg-slate-800/70 text-slate-300 border-slate-700 shadow-sm"
                         : "bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700"
                     }`}
                   >
@@ -114,19 +114,19 @@ export default function DemoDataModal({
             </div>
 
             <div className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-[11px] text-slate-400 space-y-1">
-              <div className="text-emerald-400 font-semibold flex items-center gap-1.5">
+              <div className="text-slate-300 font-semibold flex items-center gap-1.5">
                 <span>✓</span> Auto-generates:
               </div>
               <p>• Realistic Filipino buyer names, emails, contact numbers, & addresses.</p>
               <p>• Mix of Cash, Installment, and No Downpayment transactions.</p>
               <p>• Lots will update to <strong>Sold</strong>, <strong>Pending</strong>, or <strong>Cancelled</strong> with past timestamps.</p>
-              <p className="pt-1 text-teal-400 font-medium flex items-center gap-1">
+              <p className="pt-1 text-slate-300 font-medium flex items-center gap-1">
                 <span>👥</span> Transactions are distributed across currently active Staff Accounts and Admin (never creates staff accounts).
               </p>
             </div>
 
             {demoDataSuccessMsg && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl font-medium">
+              <div className="p-3 bg-slate-800/70 border border-slate-700 text-slate-300 text-xs rounded-xl font-medium">
                 🎉 {demoDataSuccessMsg}
               </div>
             )}
@@ -144,7 +144,7 @@ export default function DemoDataModal({
                 type="button"
                 onClick={handleGenerateDemoDataConfirm}
                 disabled={demoDataLoading}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-emerald-600/30 disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-lg shadow-black/10 disabled:opacity-50 cursor-pointer"
               >
                 {demoDataLoading ? "Generating Records..." : "🎲 Generate Demo Transactions"}
               </button>
@@ -160,7 +160,7 @@ export default function DemoDataModal({
               <button
                 type="button"
                 onClick={() => setShowDemoPasswords(!showDemoPasswords)}
-                className="text-[11px] text-teal-400 hover:text-teal-300 font-semibold px-2 py-1 rounded bg-teal-500/10 border border-teal-500/20 shrink-0 transition cursor-pointer"
+                className="text-[11px] text-slate-300 hover:text-slate-300 font-semibold px-2 py-1 rounded bg-slate-800/70 border border-slate-700 shrink-0 transition cursor-pointer"
               >
                 {showDemoPasswords ? "👁️ Hide Passwords" : "🔒 Reveal Passwords"}
               </button>
@@ -175,14 +175,14 @@ export default function DemoDataModal({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-xs shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-slate-800/70 text-slate-300 border border-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
                         {(emp.name || "E").charAt(0)}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <h4 className="text-xs font-bold text-white truncate">{emp.name}</h4>
                           {emp.isActive ? (
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-slate-800/70 text-slate-300 border border-slate-700">
                               Active
                             </span>
                           ) : (
@@ -191,7 +191,7 @@ export default function DemoDataModal({
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-teal-400 font-medium">Role: {emp.role || "Staff / Employee"}</span>
+                        <span className="text-[10px] text-slate-300 font-medium">Role: {emp.role || "Staff / Employee"}</span>
                       </div>
                     </div>
 
@@ -218,7 +218,7 @@ export default function DemoDataModal({
                           type="button"
                           onClick={() => handleToggleDemoEmployee(emp.email, "activate")}
                           disabled={demoEmpLoading}
-                          className="text-[10px] px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white transition font-bold shadow-sm shadow-teal-600/30 disabled:opacity-50 cursor-pointer"
+                          className="text-[10px] px-2.5 py-1 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition font-bold shadow-sm shadow-black/10 disabled:opacity-50 cursor-pointer"
                         >
                           ⚡ Activate
                         </button>
@@ -246,7 +246,7 @@ export default function DemoDataModal({
                     <div className="p-2 bg-slate-900 border border-slate-800 rounded-lg flex items-center justify-between">
                       <div className="min-w-0">
                         <span className="text-[10px] text-slate-500 block uppercase font-mono font-semibold">Password</span>
-                        <span className="text-emerald-400 font-mono text-[11px] font-bold tracking-wider block">
+                        <span className="text-slate-300 font-mono text-[11px] font-bold tracking-wider block">
                           {showDemoPasswords ? emp.password : "••••••••••••"}
                         </span>
                       </div>
@@ -265,7 +265,7 @@ export default function DemoDataModal({
             </div>
 
             {demoEmpSuccessMsg && (
-              <div className="p-3 bg-teal-500/10 border border-teal-500/20 text-teal-300 text-xs rounded-xl font-medium">
+              <div className="p-3 bg-slate-800/70 border border-slate-700 text-slate-300 text-xs rounded-xl font-medium">
                 🎉 {demoEmpSuccessMsg}
               </div>
             )}
@@ -298,7 +298,7 @@ export default function DemoDataModal({
                   type="button"
                   onClick={handleGenerateDemoEmployees}
                   disabled={demoEmpLoading}
-                  className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-teal-600/30 disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-black/10 disabled:opacity-50 cursor-pointer"
                 >
                   {demoEmpLoading ? "Updating..." : "⚡ Activate All Staff"}
                 </button>

@@ -46,16 +46,16 @@ const AccountsTab = ({
       {/* Header & Tabs */}
       <div className="border-b border-slate-800/80 px-6 py-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 bg-slate-900/60">
         <div>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.2">
+          <h2 className="text-base font-semibold text-white flex items-center gap-2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-slate-300">
               <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="8.5" cy="7" r="4" />
               <line x1="20" y1="8" x2="20" y2="14" />
               <line x1="23" y1="11" x2="17" y2="11" />
             </svg>
-            Account Directory & Credentials Override
+            Accounts & credentials
           </h2>
-          <p className="text-xs text-slate-400">Manage administrator & employee accounts, provision access, and perform instant password overrides</p>
+          <p className="text-xs text-slate-400">Manage staff access and account credentials.</p>
         </div>
 
         {/* Tab Switcher */}
@@ -65,11 +65,10 @@ const AccountsTab = ({
             onClick={() => setAccountTab("ADMINS")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
               accountTab === "ADMINS"
-                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm"
+                ? "bg-slate-800/70 text-slate-300 border border-slate-700 shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            <span>🛡️</span>
             <span>Admins</span>
             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-slate-300">
               {admins.length}
@@ -81,11 +80,10 @@ const AccountsTab = ({
             onClick={() => setAccountTab("EMPLOYEES")}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
               accountTab === "EMPLOYEES"
-                ? "bg-teal-500/20 text-teal-300 border border-teal-500/30 shadow-sm"
+                ? "bg-slate-800/70 text-slate-300 border border-slate-700 shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            <span>👔</span>
             <span>Employees / Agents</span>
             <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-900 text-slate-300">
               {employees.length}
@@ -111,7 +109,7 @@ const AccountsTab = ({
                   onChange={(e) => setAdminFullName(e.target.value)}
                   placeholder="e.g. John Doe"
                   autoComplete="off"
-                  className="w-full text-xs px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-white placeholder-slate-500"
+                  className="w-full text-xs px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500"
                 />
               </div>
 
@@ -123,7 +121,7 @@ const AccountsTab = ({
                   onChange={(e) => setAdminEmail(e.target.value)}
                   placeholder="admin@goldendragon.com"
                   autoComplete="off"
-                  className="w-full text-xs px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-white placeholder-slate-500"
+                  className="w-full text-xs px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500"
                 />
               </div>
 
@@ -136,7 +134,7 @@ const AccountsTab = ({
                     onChange={(e) => setAdminPassword(e.target.value)}
                     placeholder="Minimum 6 characters"
                     autoComplete="new-password"
-                    className="w-full text-xs px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-white placeholder-slate-500 pr-10"
+                    className="w-full text-xs px-3.5 py-2.5 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500 pr-10"
                   />
                   <button
                     type="button"
@@ -159,12 +157,12 @@ const AccountsTab = ({
               </div>
 
               {adminError && <div className="text-red-400 text-xs font-medium bg-red-500/10 p-2.5 rounded-xl border border-red-500/20">{adminError}</div>}
-              {adminSuccess && <div className="text-emerald-400 text-xs font-medium bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">{adminSuccess}</div>}
+              {adminSuccess && <div className="text-slate-300 text-xs font-medium bg-slate-800/70 p-2.5 rounded-xl border border-slate-700">{adminSuccess}</div>}
 
               <button
                 type="submit"
                 disabled={adminLoading}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                className="w-full py-2.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/10 disabled:opacity-50"
               >
                 {adminLoading ? "Registering Admin..." : "Create Admin Account"}
               </button>
@@ -189,7 +187,7 @@ const AccountsTab = ({
                       className="p-3.5 bg-slate-950/40 border border-slate-800 hover:border-slate-700/80 rounded-xl flex items-center justify-between gap-3 transition group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                        <div className="w-9 h-9 rounded-xl bg-slate-800/70 text-slate-300 border border-slate-700 flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
                           {(adm.full_name || "A").charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -254,7 +252,7 @@ const AccountsTab = ({
                     onChange={(e) => setEmpFirstName(e.target.value)}
                     placeholder="Juan"
                     autoComplete="off"
-                    className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition text-white placeholder-slate-500"
+                    className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500"
                   />
                 </div>
                 <div>
@@ -265,7 +263,7 @@ const AccountsTab = ({
                     onChange={(e) => setEmpLastName(e.target.value)}
                     placeholder="Dela Cruz"
                     autoComplete="off"
-                    className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition text-white placeholder-slate-500"
+                    className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500"
                   />
                 </div>
               </div>
@@ -278,7 +276,7 @@ const AccountsTab = ({
                   onChange={(e) => setEmpEmail(e.target.value)}
                   placeholder="employee@goldendragon.com"
                   autoComplete="off"
-                  className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition text-white placeholder-slate-500"
+                  className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500"
                 />
               </div>
 
@@ -291,7 +289,7 @@ const AccountsTab = ({
                     onChange={(e) => setEmpPassword(e.target.value)}
                     placeholder="Minimum 6 characters"
                     autoComplete="new-password"
-                    className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition text-white placeholder-slate-500 pr-10"
+                    className="w-full text-xs px-3 py-2 bg-slate-900 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500 pr-10"
                   />
                   <button
                     type="button"
@@ -314,12 +312,12 @@ const AccountsTab = ({
               </div>
 
               {empFormError && <div className="text-red-400 text-xs font-medium bg-red-500/10 p-2.5 rounded-xl border border-red-500/20">{empFormError}</div>}
-              {empFormSuccess && <div className="text-teal-300 text-xs font-medium bg-teal-500/10 p-2.5 rounded-xl border border-teal-500/20">{empFormSuccess}</div>}
+              {empFormSuccess && <div className="text-slate-300 text-xs font-medium bg-slate-800/70 p-2.5 rounded-xl border border-slate-700">{empFormSuccess}</div>}
 
               <button
                 type="submit"
                 disabled={empFormLoading}
-                className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 disabled:opacity-50"
+                className="w-full py-2.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/10 disabled:opacity-50"
               >
                 {empFormLoading ? "Registering Employee..." : "Create Employee Account"}
               </button>
@@ -343,7 +341,7 @@ const AccountsTab = ({
                   value={employeeSearchQuery}
                   onChange={(e) => setEmployeeSearchQuery(e.target.value)}
                   placeholder="Search employees by name, email, or phone..."
-                  className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl focus:border-teal-500 outline-none transition text-white placeholder-slate-500"
+                  className="w-full text-xs px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl focus:border-slate-700 outline-none transition text-white placeholder-slate-500"
                 />
               </div>
 
@@ -367,7 +365,7 @@ const AccountsTab = ({
                         className="p-3.5 bg-slate-950/40 border border-slate-800 hover:border-slate-700/80 rounded-xl flex items-center justify-between gap-3 transition group"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+                          <div className="w-9 h-9 rounded-xl bg-slate-800/70 text-slate-300 border border-slate-700 flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
                             {(emp.first_name || "E").charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">

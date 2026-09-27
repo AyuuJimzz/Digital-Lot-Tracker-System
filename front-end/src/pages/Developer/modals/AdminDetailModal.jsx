@@ -45,7 +45,7 @@ export default function AdminDetailModal({
         {/* Modal Header */}
         <div className="flex justify-between items-center bg-slate-950/90 px-6 py-4 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2 text-white font-bold text-sm">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-slate-300">
               <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="8.5" cy="7" r="4" />
               <line x1="20" y1="8" x2="20" y2="14" />
@@ -145,7 +145,7 @@ export default function AdminDetailModal({
                   onChange={(e) => setEditFullName(e.target.value)}
                   placeholder="e.g. John Doe"
                   autoComplete="off"
-                  className="w-full text-xs px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-white placeholder-slate-500"
+                  className="w-full text-xs px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500"
                 />
               </div>
 
@@ -157,12 +157,12 @@ export default function AdminDetailModal({
                   onChange={(e) => setEditEmail(e.target.value)}
                   placeholder="admin@goldendragon.com"
                   autoComplete="off"
-                  className="w-full text-xs px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-white placeholder-slate-500"
+                  className="w-full text-xs px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500"
                 />
               </div>
 
               {editMsg.text && (
-                <div className={`text-xs font-medium p-2.5 rounded-xl border ${editMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"}`}>
+                <div className={`text-xs font-medium p-2.5 rounded-xl border ${editMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-slate-300 bg-slate-800/70 border-slate-700"}`}>
                   {editMsg.text}
                 </div>
               )}
@@ -171,7 +171,7 @@ export default function AdminDetailModal({
                 <button
                   type="submit"
                   disabled={editLoading}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-2.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-black/10 disabled:opacity-50 cursor-pointer"
                 >
                   {editLoading ? "Saving Changes..." : "Save Changes"}
                 </button>
@@ -188,13 +188,13 @@ export default function AdminDetailModal({
             <>
               {/* Admin Header Card */}
               <div className="flex items-center gap-4 p-4 bg-slate-950/60 border border-slate-800 rounded-xl">
-                <div className="w-13 h-13 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
+                <div className="w-13 h-13 rounded-2xl bg-slate-800/70 text-slate-300 border border-slate-700 flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
                   {(selectedAdmin.full_name || "A").charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-base font-bold text-white truncate">{selectedAdmin.full_name || "System Administrator"}</h4>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800/70 text-slate-300 border border-slate-700 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                     Role: Admin
                   </span>
                 </div>
@@ -237,7 +237,7 @@ export default function AdminDetailModal({
               <div className="pt-3 border-t border-slate-800/80">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="text-slate-300">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
@@ -254,7 +254,7 @@ export default function AdminDetailModal({
                       onChange={(e) => setResetPasswordVal(e.target.value)}
                       placeholder="Enter new password (min 6 chars)"
                       autoComplete="new-password"
-                      className="w-full text-xs px-3 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition text-white placeholder-slate-500 pr-10"
+                      className="w-full text-xs px-3 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl focus:border-slate-700 focus:ring-1 focus:ring-slate-400 outline-none transition text-white placeholder-slate-500 pr-10"
                     />
                     <button
                       type="button"
@@ -276,7 +276,7 @@ export default function AdminDetailModal({
                   </div>
 
                   {resetMsg.text && (
-                    <div className={`text-xs font-medium p-2 rounded-lg border ${resetMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"}`}>
+                    <div className={`text-xs font-medium p-2 rounded-lg border ${resetMsg.isError ? "text-rose-400 bg-rose-500/10 border-rose-500/20" : "text-slate-300 bg-slate-800/70 border-slate-700"}`}>
                       {resetMsg.text}
                     </div>
                   )}
@@ -284,7 +284,7 @@ export default function AdminDetailModal({
                   <button
                     type="submit"
                     disabled={resetLoading || !resetPasswordVal.trim()}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/10 disabled:opacity-40 cursor-pointer"
+                    className="w-full py-2.5 bg-slate-600 hover:bg-slate-500 text-white text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1.5 shadow-md shadow-black/10 disabled:opacity-40 cursor-pointer"
                   >
                     {resetLoading ? "Updating Password..." : "Update Password"}
                   </button>

@@ -33,10 +33,10 @@ export default function PurgeDataModal({
           <ul className="text-slate-400 list-disc list-inside space-y-1 text-[11px]">
             <li>Only generated demo transactions (<strong className="text-slate-200 font-mono">is_demo = 1</strong>)</li>
             <li>Only generated demo customers (<strong className="text-slate-200 font-mono">is_demo = 1</strong>)</li>
-            <li>Subdivision lots tied to demo inquiries will reset back to <strong className="text-emerald-400">Available</strong></li>
+            <li>Subdivision lots tied to demo inquiries will reset back to <strong className="text-slate-300">Available</strong></li>
           </ul>
 
-          <div className="text-emerald-400 font-semibold flex items-center gap-2 pt-2 border-t border-slate-800/80">
+          <div className="text-slate-300 font-semibold flex items-center gap-2 pt-2 border-t border-slate-800/80">
             <span>🛡️</span> What will be PROTECTED & KEPT:
           </div>
           <ul className="text-slate-400 list-disc list-inside space-y-1 text-[11px]">
@@ -47,7 +47,7 @@ export default function PurgeDataModal({
         </div>
 
         {purgeSuccessMsg && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs rounded-xl font-medium">
+          <div className="p-3 bg-slate-800/70 border border-slate-700 text-slate-300 text-xs rounded-xl font-medium">
             {purgeSuccessMsg}
           </div>
         )}
