@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>You're offline | Golden Dragon Estate</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: #020617;
+        color: #f8fafc;
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+      main {
+        width: min(100%, 440px);
+        padding: 32px;
+        border: 1px solid #334155;
+        border-radius: 16px;
+        background: #0f172a;
+      }
+      h1 { margin: 0 0 8px; font-size: 24px; }
+      p { margin: 0 0 24px; color: #94a3b8; }
+      a {
+        display: inline-block;
+        padding: 10px 18px;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      a:focus-visible { outline: 2px solid #93c5fd; outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You're offline</h1>
+      <p>Connect to the internet to load current lot and customer information.</p>
+      <a href="/">Try again</a>
+    </main>
+  </body>
+</html>

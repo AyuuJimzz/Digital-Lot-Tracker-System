@@ -1,8 +1,15 @@
-// Golden Dragon Estate Service Worker for Chrome/Edge/Android PWA Installation
-const CACHE_NAME = "golden-dragon-pwa-v2";
+// Show an offline notice without storing private lot, customer, or auth data.
+const CACHE_PREFIX = "golden-dragon-pwa-";
+const CACHE_NAME = `${CACHE_PREFIX}v3`;
+const OFFLINE_URL = "/offline.html";
 
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.add(OFFLINE_URL))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -10,32 +17,35 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
       )
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
+  const request = event.request;
+  if (request.method !== "GET" || request.mode !== "navigate") return;
 
-  // 1. NEVER intercept non-GET requests (POST, PUT, DELETE), API requests, or cross-origin backend URLs
+  const url = new URL(request.url);
   if (
-    event.request.method !== "GET" ||
-    url.pathname.startsWith("/api") ||
-    url.hostname !== self.location.hostname ||
-    url.href.includes("onrender.com")
+    url.origin !== self.location.origin ||
+    url.pathname === "/api" ||
+    url.pathname.startsWith("/api/")
   ) {
-    // Return early so browser handles API calls directly with zero SW interference
     return;
   }
 
-  // 2. For static frontend assets: network-first with safe cache fallback
+  // Always fetch the current page. Only the generic offline page is cached;
+  // API calls, map tiles, and static assets keep their normal browser behavior.
   event.respondWith(
-    fetch(event.request).catch(async () => {
-      const cached = await caches.match(event.request);
-      if (cached) return cached;
-      return Response.error();
+    fetch(request).catch(async () => {
+      const offlinePage = await caches.match(OFFLINE_URL);
+      return offlinePage || Response.error();
     })
   );
 });
