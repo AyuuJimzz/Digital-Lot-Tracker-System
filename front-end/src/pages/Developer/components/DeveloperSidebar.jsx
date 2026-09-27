@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { FlaskConical, Trash2 } from "lucide-react";
 
 const DeveloperSidebar = ({
   mobileSidebarOpen,
@@ -6,7 +7,16 @@ const DeveloperSidebar = ({
   activeSidebarTab,
   setActiveSidebarTab,
   maintenanceMode,
+  setDemoDataSuccessMsg,
+  setDemoEmpSuccessMsg,
+  fetchDemoStaffStatus,
+  setShowDemoDataModal,
+  setShowPurgeModal,
 }) => {
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
+  const devDataToolsEnabled =
+    process.env.NODE_ENV === "development" && process.env.REACT_APP_ENABLE_DEV_DATA_TOOLS === "true";
+
   return (
     <>
       {/* ── LEFT FIXED SIDEBAR NAVIGATION ── */}
@@ -14,7 +24,7 @@ const DeveloperSidebar = ({
         mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}>
         {/* Sidebar Brand Header */}
-        <div className="p-5 border-b border-slate-800/80">
+        <div className="relative z-50 p-4 border-b border-slate-800/80">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-slate-200">
@@ -32,17 +42,93 @@ const DeveloperSidebar = ({
               </div>
             </div>
 
-            {/* Mobile close button */}
-            <button
-              onClick={() => setMobileSidebarOpen(false)}
-              className="lg:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDevToolsOpen((open) => !open)}
+                aria-label="Open development tools"
+                aria-expanded={devToolsOpen}
+                aria-controls="developer-tools-popover"
+                title="Development tools"
+                className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
+                  devToolsOpen
+                    ? "border-slate-500 bg-slate-800 text-slate-200"
+                    : "border-slate-700 bg-slate-900 text-slate-500 hover:border-slate-600 hover:bg-slate-800 hover:text-slate-300"
+                }`}
+              >
+                <FlaskConical size={14} aria-hidden="true" />
+              </button>
+
+              {/* Mobile close button */}
+              <button
+                onClick={() => setMobileSidebarOpen(false)}
+                aria-label="Close navigation"
+                className="lg:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
           </div>
+
+          {devToolsOpen && (
+            <div
+              id="developer-tools-popover"
+              role="dialog"
+              aria-label="Development test tools"
+              className="absolute left-4 right-4 top-full mt-2 rounded-xl border border-slate-700 bg-slate-950 p-3 shadow-2xl shadow-black/30"
+            >
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  Development tools
+                </span>
+                <span className="text-[9px] text-slate-600">Local QA</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDemoDataSuccessMsg("");
+                    setDemoEmpSuccessMsg("");
+                    fetchDemoStaffStatus();
+                    setShowDemoDataModal(true);
+                    setDevToolsOpen(false);
+                  }}
+                  disabled={!devDataToolsEnabled}
+                  aria-disabled={!devDataToolsEnabled}
+                  title={devDataToolsEnabled ? "Generate demo data" : "Enable only in local development"}
+                  className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border px-2 py-2 text-[10px] font-medium transition ${
+                    devDataToolsEnabled
+                      ? "border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                      : "cursor-not-allowed border-slate-700 bg-slate-900 text-slate-500 opacity-80"
+                  }`}
+                >
+                  <FlaskConical size={12} aria-hidden="true" />
+                  <span className="truncate">Demo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPurgeModal(true);
+                    setDevToolsOpen(false);
+                  }}
+                  disabled={!devDataToolsEnabled}
+                  aria-disabled={!devDataToolsEnabled}
+                  title={devDataToolsEnabled ? "Purge demo data" : "Enable only in local development"}
+                  className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border px-2 py-2 text-[10px] font-medium transition ${
+                    devDataToolsEnabled
+                      ? "border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                      : "cursor-not-allowed border-slate-700 bg-slate-900 text-slate-500 opacity-80"
+                  }`}
+                >
+                  <Trash2 size={12} aria-hidden="true" />
+                  <span className="truncate">Purge</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sidebar Navigation Links */}

@@ -5,11 +5,6 @@ const DatabaseTab = ({
   dbStats,
   fetchDbStats,
   dbStatsLoading,
-  setDemoDataSuccessMsg,
-  setDemoEmpSuccessMsg,
-  fetchDemoStaffStatus,
-  setShowDemoDataModal,
-  setShowPurgeModal,
   handleOpenTableData,
 }) => {
   return (
@@ -55,31 +50,6 @@ const DatabaseTab = ({
             <span>{dbStatsLoading ? "Pinging..." : "Refresh"}</span>
           </button>
 
-          {/* Seed Demo Data Button */}
-          <button
-            onClick={() => {
-              setDemoDataSuccessMsg("");
-              setDemoEmpSuccessMsg("");
-              fetchDemoStaffStatus();
-              setShowDemoDataModal(true);
-            }}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
-            title="Generate realistic demo buyers and transactions for presentations"
-          >
-            <span>Demo Data</span>
-          </button>
-
-          {/* Purge Test Data Button */}
-          <button
-            onClick={() => setShowPurgeModal(true)}
-            className="px-3 py-1.5 bg-rose-950/30 hover:bg-rose-950/60 text-rose-300 hover:text-rose-200 text-xs rounded-xl border border-rose-500/30 transition flex items-center gap-1.5"
-            title="Purge test inquiries, customers, and transactions"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-            <span>Purge Data</span>
-          </button>
         </div>
       </div>
 
