@@ -48,7 +48,7 @@ const configuredFrontendOrigin = process.env.FRONTEND_URL
   : null;
 const allowedOrigins = [
   "https://goldendragonestate.onrender.com",
-  "https://golden-dragon-estate.vercel.app",
+  "https://goldendragonestate.vercel.app",
   configuredFrontendOrigin && (!isProduction || !/^https?:\/\/localhost(?::\d+)?$/.test(configuredFrontendOrigin))
     ? configuredFrontendOrigin
     : null,
@@ -63,7 +63,10 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin) || /^https:\/\/golden-dragon-estate(-[a-z0-9-]+)?\.vercel\.app$/.test(origin)) {
+      if (
+        allowedOrigins.includes(origin) ||
+        /^https:\/\/goldendragonestate(-[a-z0-9-]+)?\.vercel\.app$/.test(origin)
+      ) {
         return callback(null, true);
       }
       const error = new Error("CORS Policy: Origin not allowed");
