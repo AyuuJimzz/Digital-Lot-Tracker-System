@@ -239,6 +239,12 @@ const ProfileSettings = () => {
     e.preventDefault();
     setMessage({ type: "", text: "" });
 
+    if (passwords.newPassword.length < 6) {
+      setMessage({ type: "error", text: "New password must be at least 6 characters long." });
+      showToast("New password must be at least 6 characters long.", "warning");
+      return;
+    }
+
     if (passwords.newPassword !== passwords.confirmPassword) {
       setMessage({ type: "error", text: "New passwords do not match." });
       showToast("New passwords do not match.", "warning");

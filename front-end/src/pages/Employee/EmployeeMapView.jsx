@@ -31,14 +31,33 @@ function EmployeeMapView() {
   const mapState = useEmployeeMapView();
 
   if (!mapState.mapData) {
-    return <div className="p-5 text-gray-600 dark:text-slate-400 text-sm">
-      {mapState.mapError ? (
-        <div role="alert">
-          <p>Unable to load Estate Map. Please check your connection.</p>
-          <button type="button" onClick={() => mapState.retryMapData()} className="mt-2 text-blue-500 underline">Retry</button>
-        </div>
-      ) : "Loading Estate Map..."}
-    </div>;
+    return (
+      <div
+        className="w-full flex flex-col items-center justify-center bg-gray-50 dark:bg-slate-950 text-gray-600 dark:text-slate-400"
+        style={{ height: "calc(100vh - 3.5rem)" }}
+      >
+        {mapState.mapError ? (
+          <div role="alert" className="text-center p-6 max-w-sm rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 shadow-sm">
+            <p className="text-sm font-medium">Unable to load Estate Map. Please check your connection.</p>
+            <button
+              type="button"
+              onClick={() => mapState.retryMapData()}
+              className="mt-3 px-4 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 transition"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <div role="status" className="flex flex-col items-center gap-3">
+            <svg className="animate-spin h-8 w-8 text-blue-500" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            <span className="text-sm font-medium text-gray-600 dark:text-slate-400">Loading Estate Map...</span>
+          </div>
+        )}
+      </div>
+    );
   }
 
   const {

@@ -168,9 +168,9 @@ const Customers = () => {
                           <span className="text-gray-400 dark:text-slate-500 font-normal">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <td className="px-3 py-3 whitespace-nowrap text-sm">
                         {(customer.lot_status === "Available" || customer.lot_status === "Cancelled") ? (
-                          <span className="text-xs font-semibold text-purple-500 dark:text-purple-400">
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                             Cancelled
                           </span>
                         ) : customer.lot_status === "Pending" ? (

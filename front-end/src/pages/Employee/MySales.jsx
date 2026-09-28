@@ -15,7 +15,7 @@ const getStatusColor = (status) => {
     case "sold":
       return "text-red-600 dark:text-red-400 font-semibold";
     case "cancelled":
-      return "text-purple-500 dark:text-purple-400 font-semibold";
+      return "text-slate-500 dark:text-slate-400 font-semibold";
     default:
       return "text-gray-600 dark:text-slate-400 font-semibold";
   }

@@ -5,7 +5,7 @@ const STATUS_STYLES = {
   Available: "text-green-600 dark:text-green-400 font-semibold",
   Pending: "text-amber-500 dark:text-amber-400 font-semibold",
   Sold: "text-red-600 dark:text-red-400 font-semibold",
-  Cancelled: "text-purple-500 dark:text-purple-400 font-semibold",
+  Cancelled: "text-slate-500 dark:text-slate-400 font-semibold",
 };
 
 const RecentTransactions = () => {
@@ -246,7 +246,7 @@ const RecentTransactions = () => {
               <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[18%]">
                 Txn ID / Date
               </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[20%]">
                 Client
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[24%]">
@@ -255,7 +255,7 @@ const RecentTransactions = () => {
               <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[14%]">
                 Agent
               </th>
-              <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[14%]">
+              <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
                 Payment
               </th>
               <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">

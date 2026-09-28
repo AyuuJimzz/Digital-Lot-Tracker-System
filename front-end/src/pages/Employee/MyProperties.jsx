@@ -13,7 +13,7 @@ const getStatusColor = (status) => {
     case "Pending":      return "text-amber-500 dark:text-amber-400 font-semibold";
     case "Sold":         return "text-red-600 dark:text-red-400 font-semibold";
     case "Non-Saleable": return "text-slate-500 dark:text-slate-400 font-semibold";
-    case "Cancelled":    return "text-purple-500 dark:text-purple-400 font-semibold";
+    case "Cancelled":    return "text-slate-500 dark:text-slate-400 font-semibold";
     default:             return "text-gray-600 dark:text-slate-400 font-semibold";
   }
 };
