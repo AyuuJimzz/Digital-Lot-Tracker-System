@@ -65,6 +65,8 @@ export const LotOffcanvas = ({
     handleSave,
     customSoldOn,
     setCustomSoldOn,
+    isLegacyUndated,
+    setIsLegacyUndated,
     openDeleteModal,
     closeDeleteModal,
     confirmDeleteLot,
@@ -194,6 +196,8 @@ export const LotOffcanvas = ({
                   soldOn={selectedLot.sold_on}
                   customSoldOn={customSoldOn}
                   setCustomSoldOn={setCustomSoldOn}
+                  isLegacyUndated={isLegacyUndated}
+                  setIsLegacyUndated={setIsLegacyUndated}
                   isAdmin={isAdmin}
                   isSaving={isSaving}
                 />

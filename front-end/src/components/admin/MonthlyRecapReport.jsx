@@ -9,8 +9,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const MonthlyRecapReport = ({ data }) => {
+const MonthlyRecapReport = ({ data, selectedYear, availableYears = [], onYearChange, isLoading = false, hasError = false }) => {
   const chartData = Array.isArray(data) ? data : data?.monthlyData || [];
+  const currentYear = new Date().getFullYear();
+  const activeYear = Number(selectedYear || data?.year || currentYear);
   const undatedCount = Array.isArray(data)
     ? 0
     : Number(data?.undatedSoldLots ?? data?.unverifiedSoldLots ?? 0);
@@ -18,6 +20,13 @@ const MonthlyRecapReport = ({ data }) => {
     (sum, item) => sum + (Number(item.lotsSold) || 0),
     0
   );
+
+  // Derive distinct selectable years: prioritize passed list or data list, ensuring activeYear & currentYear exist
+  const rawYears = availableYears.length > 0
+    ? availableYears
+    : data?.availableYears || [currentYear];
+  const yearSet = new Set([currentYear, activeYear, ...rawYears]);
+  const yearOptions = Array.from(yearSet).sort((a, b) => b - a);
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 transition-colors duration-300">
@@ -27,17 +36,37 @@ const MonthlyRecapReport = ({ data }) => {
             Monthly Recap Report
           </h3>
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-            Year {new Date().getFullYear()} sales volume trend
+            Year {activeYear} sales volume trend
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full text-xs font-mono font-semibold">
-            📈 {totalYearSold} Verified Sales (YTD)
-          </span>
-          {undatedCount > 0 && (
+          {/* Year Selector Dropdown */}
+          <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-800/90 border border-gray-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs shadow-sm">
+            <span className="text-gray-400 dark:text-slate-400 font-medium text-[11px]">Year:</span>
+            <select
+              id="monthly-recap-year-select"
+              aria-label="Select year for monthly recap report"
+              value={activeYear}
+              onChange={(e) => onYearChange && onYearChange(Number(e.target.value))}
+              className="bg-transparent text-xs font-semibold text-gray-900 dark:text-white focus:outline-none cursor-pointer pr-1"
+            >
+              {yearOptions.map((yr) => (
+                <option key={yr} value={yr} className="bg-white dark:bg-slate-900 text-gray-900 dark:text-white">
+                  {yr} {yr === currentYear ? "(Current)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {!isLoading && !hasError && (
+            <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full text-xs font-mono font-semibold">
+              📈 {totalYearSold} Verified Sales ({activeYear})
+            </span>
+          )}
+          {!isLoading && !hasError && undatedCount > 0 && (
             <span
               className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full text-xs font-mono font-semibold"
-              title="Historical sales with unverified dates. Counted in inventory, excluded from dated monthly trends until verified."
+              title="Old sales with unverified dates. Counted in inventory, excluded from dated monthly trends until verified."
             >
               📋 {undatedCount} Sold — date unverified
             </span>
@@ -45,6 +74,16 @@ const MonthlyRecapReport = ({ data }) => {
         </div>
       </div>
 
+      {isLoading ? (
+        <div role="status" className="h-[300px] flex items-center justify-center text-sm text-gray-500 dark:text-slate-400">
+          Loading sales for {activeYear}...
+        </div>
+      ) : hasError ? (
+        <div role="alert" className="h-[300px] flex items-center justify-center text-sm text-red-600 dark:text-red-400">
+          Unable to load sales for {activeYear}. Please refresh the page.
+        </div>
+      ) : (
+      <>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={chartData}>
           <defs>
@@ -93,6 +132,15 @@ const MonthlyRecapReport = ({ data }) => {
           />
         </AreaChart>
       </ResponsiveContainer>
+      {chartData.length > 0 && chartData.every((item) => Number(item.lotsSold) === 0) && (
+        <div className="mt-3 text-center py-2.5 px-3 rounded-lg bg-gray-50 dark:bg-slate-800/60 border border-dashed border-gray-200 dark:border-slate-700/80">
+          <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+            No verified sales recorded for {activeYear}.
+          </p>
+        </div>
+      )}
+      </>
+      )}
     </div>
   );
 };

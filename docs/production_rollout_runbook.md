@@ -17,7 +17,7 @@ This runbook defines a data-preserving rollout procedure for migrating the produ
 ### Core Objectives:
 1. Prevent unverified or synthetic backfill dates from falsely inflating monthly dated sales charts.
 2. Prevent unmigrated schemas from silently completing sales without explicit provenance tracking.
-3. Preserve historical sales audit records across reversals, resales, and migration reruns without mutating original `transaction_date` timestamps.
+3. Preserve prior sale-date values in correction audit rows; reversals, resales, and migration reruns must not rewrite earlier sale transactions.
 4. Establish defensive, non-destructive incident protocols (no blind restores, no automatic column drops).
 
 ---
@@ -113,6 +113,7 @@ Once Phase 3 counts are approved by the team, apply the additive migration:
 ```bash
 cd back-end
 node scripts/migrate_date_provenance.js
+node scripts/migrate_sale_date_audit.js
 ```
 
 **Actions Executed**:
@@ -120,11 +121,13 @@ node scripts/migrate_date_provenance.js
 2. Checks if `date_provenance` exists on `transactions`; if not, adds `VARCHAR(50) NOT NULL DEFAULT 'unknown_requires_review'`.
 3. Populates provenance categories according to verified criteria.
 4. Leaves `transaction_date` and audit logs completely intact (zero timestamp mutations).
+5. Creates the empty `sale_date_audit` table for future staff date corrections. Application code only inserts audit rows; database administrators must still protect this table from manual updates/deletes. The migration does not infer or backfill corrections made before this rollout.
 
 **Idempotency Verification**:
 Run the script a second time:
 ```bash
 node scripts/migrate_date_provenance.js
+node scripts/migrate_sale_date_audit.js
 ```
 - It must report: `✅ Conservative migration applied successfully` with 0 duplicate column errors.
 
@@ -154,9 +157,13 @@ SELECT COUNT(*) as invalid_count
 FROM transactions
 WHERE is_date_verified = 1 AND date_provenance IN ('unverified_backfill', 'unknown_requires_review');
 -- EXPECTED: exactly 0.
+
+-- 4. Verify the correction audit table is available before deploying the new backend
+SHOW TABLES LIKE 'sale_date_audit';
+-- EXPECTED: exactly 1 row. The table can be empty before the first correction.
 ```
 
-- **STOP CONDITION 3**: If `invalid_count > 0` or columns are missing, **STOP AND FREEZE WRITES**. Do NOT drop columns or perform blind restore. Proceed to Incident Protocol (Section 8).
+- **STOP CONDITION 3**: If `invalid_count > 0`, columns are missing, or `sale_date_audit` is missing, **STOP AND FREEZE WRITES**. Do NOT drop columns or perform blind restore. Proceed to Incident Protocol (Section 8).
 
 ---
 
@@ -168,7 +175,8 @@ Deploy the updated backend services to production (e.g. Render, Railway, VPS):
    - `back-end/src/controllers/lots/lotStatusController.js` (Zero-Trust schema guard, 409 migration-required error)
    - `back-end/src/controllers/transactionsController.js` (Zero-Trust schema guard, 409 migration-required error)
    - `back-end/src/controllers/lots/lotAnalyticsController.js` (conservative fallback `0=1` when unmigrated, strict reversal exclusion)
-   - `back-end/scripts/migrate_date_provenance.js` (additive idempotency)
+    - `back-end/scripts/migrate_date_provenance.js` (additive idempotency)
+    - `back-end/scripts/migrate_sale_date_audit.js` (additive correction audit storage)
 2. Monitor deployment build logs for successful service boot.
 
 ---

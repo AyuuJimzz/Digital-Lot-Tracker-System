@@ -133,7 +133,13 @@ exports.getMonthlySalesData = async (req, res) => {
 
     const verificationCondition = hasDateVerified ? "t.is_date_verified = 1" : "0=1";
 
-    // Get monthly sales data for the current year
+    const currentYear = new Date().getFullYear();
+    const queryYear = req.query?.year;
+    const targetYear = queryYear && /^\d{4}$/.test(String(queryYear))
+      ? parseInt(queryYear, 10)
+      : currentYear;
+
+    // Get monthly sales data for the selected target year
     /**
      * Reporting Rule for Sales Analytics:
      * 1. Count physical lots with current status = 'Sold'.
@@ -142,7 +148,7 @@ exports.getMonthlySalesData = async (req, res) => {
      * 4. Exclude historical sales that were subsequent to a reversal (rev.transaction_id > t.transaction_id).
      * 5. Never allow unverified backfills into dated charts via (sold_on OR is_date_verified).
      */
-    // 1. Dated Verified Sales query (current year YTD)
+    // 1. Dated Verified Sales query (for targetYear)
     const verifiedQuery = `
       SELECT 
         MONTH(COALESCE(l.sold_on, t.transaction_date)) as month,
@@ -150,7 +156,7 @@ exports.getMonthlySalesData = async (req, res) => {
       FROM transactions t
       INNER JOIN lots l ON t.lot_id = l.lot_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
-      WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURRENT_DATE)
+      WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) = ?
         AND l.status = 'Sold'
         AND NOT ${NON_SALEABLE_SQL_CONDITION}
         AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
@@ -165,7 +171,7 @@ exports.getMonthlySalesData = async (req, res) => {
       GROUP BY MONTH(COALESCE(l.sold_on, t.transaction_date))
       ORDER BY MONTH(COALESCE(l.sold_on, t.transaction_date))
     `;
-    const [rows] = await dbToUse.query(verifiedQuery);
+    const [rows] = await dbToUse.query(verifiedQuery, [targetYear]);
 
     // 2. Prior Years Verified Sales query
     const priorYearsQuery = `
@@ -173,7 +179,7 @@ exports.getMonthlySalesData = async (req, res) => {
       FROM transactions t
       INNER JOIN lots l ON t.lot_id = l.lot_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
-      WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) < YEAR(CURRENT_DATE)
+      WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) < ?
         AND l.status = 'Sold'
         AND NOT ${NON_SALEABLE_SQL_CONDITION}
         AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
@@ -186,7 +192,7 @@ exports.getMonthlySalesData = async (req, res) => {
             AND rev.transaction_id > t.transaction_id
         )
     `;
-    const [priorRows] = await dbToUse.query(priorYearsQuery);
+    const [priorRows] = await dbToUse.query(priorYearsQuery, [currentYear]);
     const priorYearsVerifiedSoldLots = Number(priorRows[0]?.count || 0);
 
     // 3. Undated / Unverified Legacy Sold lots query
@@ -222,6 +228,26 @@ exports.getMonthlySalesData = async (req, res) => {
     `);
     const allTimeSoldLots = Number(allTimeRows[0]?.count || 0);
 
+    // 5. Discover all available years from recorded verified transactions
+    const [yearRows] = await dbToUse.query(`
+      SELECT DISTINCT YEAR(COALESCE(l.sold_on, t.transaction_date)) as year
+      FROM transactions t
+      INNER JOIN lots l ON t.lot_id = l.lot_id
+      LEFT JOIN customers c ON t.customer_id = c.customer_id
+      WHERE l.status = 'Sold'
+        AND NOT ${NON_SALEABLE_SQL_CONDITION}
+        AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
+        AND t.payment_type NOT IN ('Reversal', 'Cancelled')
+        AND ${verificationCondition}
+        AND COALESCE(l.sold_on, t.transaction_date) IS NOT NULL
+      ORDER BY year DESC
+    `);
+    const distinctYears = yearRows.map((r) => Number(r.year)).filter((y) => Boolean(y) && !isNaN(y));
+    if (!distinctYears.includes(currentYear)) {
+      distinctYears.push(currentYear);
+    }
+    distinctYears.sort((a, b) => b - a);
+
     // Create array for all 12 months
     const monthNames = [
       "Jan",
@@ -245,12 +271,15 @@ exports.getMonthlySalesData = async (req, res) => {
       };
     });
 
-    const ytdVerifiedSoldLots = monthlyData.reduce((sum, item) => sum + item.lotsSold, 0);
+    const totalYearSold = monthlyData.reduce((sum, item) => sum + item.lotsSold, 0);
 
     res.json({
+      year: targetYear,
+      availableYears: distinctYears,
       monthlyData,
-      ytdVerifiedSoldLots,
-      verifiedSoldLots: ytdVerifiedSoldLots, // backward-compatibility alias
+      totalYearSold,
+      ytdVerifiedSoldLots: totalYearSold,
+      verifiedSoldLots: totalYearSold, // backward-compatibility alias
       priorYearsVerifiedSoldLots,
       undatedSoldLots,
       allTimeSoldLots,
@@ -268,35 +297,57 @@ exports.getMonthlySalesData = async (req, res) => {
 exports.getTimeBasedPropertySales = async (req, res) => {
   try {
     const dbToUse = req.db || db;
-    const { period } = req.query; // today, week, month, year
+    const { period, date } = req.query || {};
 
     let dateFilter = "";
-    const isAllTime = !period || period?.toLowerCase() === "all" || period?.toLowerCase() === "all time";
+    const queryParams = [];
+    const hasValidDate = typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date);
+    const isAllTime = !hasValidDate && ["all", "all time"].includes(String(period || "").toLowerCase().trim());
 
-    switch (period?.toLowerCase()) {
-      case "today":
-        dateFilter = "DATE(COALESCE(l.sold_on, t.transaction_date)) = CURDATE()";
-        break;
-      case "week":
-      case "this week":
-        dateFilter = "YEARWEEK(COALESCE(l.sold_on, t.transaction_date), 1) = YEARWEEK(CURDATE(), 1)";
-        break;
-      case "month":
-      case "this month":
-        dateFilter =
-          "MONTH(COALESCE(l.sold_on, t.transaction_date)) = MONTH(CURDATE()) AND YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
-        break;
-      case "year":
-      case "this year":
-        dateFilter = "YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
-        break;
-      case "all":
-      case "all time":
-        dateFilter = "1=1";
-        break;
-      default:
-        dateFilter =
-          "MONTH(COALESCE(l.sold_on, t.transaction_date)) = MONTH(CURDATE()) AND YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
+    if (hasValidDate) {
+      dateFilter = "DATE(COALESCE(l.sold_on, t.transaction_date)) = ?";
+      queryParams.push(date);
+    } else {
+      const p = (period || "month").toLowerCase().trim();
+      switch (p) {
+        case "today":
+          dateFilter = "DATE(COALESCE(l.sold_on, t.transaction_date)) = CURDATE()";
+          break;
+        case "week":
+        case "this week":
+          dateFilter = "YEARWEEK(COALESCE(l.sold_on, t.transaction_date), 1) = YEARWEEK(CURDATE(), 1)";
+          break;
+        case "month":
+        case "this month":
+          dateFilter =
+            "MONTH(COALESCE(l.sold_on, t.transaction_date)) = MONTH(CURDATE()) AND YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
+          break;
+        case "year":
+        case "this year":
+          dateFilter = "YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
+          break;
+        case "last year":
+          dateFilter = "YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE()) - 1";
+          break;
+        case "all":
+        case "all time":
+          dateFilter = "1=1";
+          break;
+        default:
+          if (/^\d{4}$/.test(p)) {
+            dateFilter = "YEAR(COALESCE(l.sold_on, t.transaction_date)) = ?";
+            queryParams.push(parseInt(p, 10));
+          } else if (/^\d{4}-\d{2}$/.test(p)) {
+            dateFilter = "DATE_FORMAT(COALESCE(l.sold_on, t.transaction_date), '%Y-%m') = ?";
+            queryParams.push(p);
+          } else if (/^\d{4}-\d{2}-\d{2}$/.test(p)) {
+            dateFilter = "DATE(COALESCE(l.sold_on, t.transaction_date)) = ?";
+            queryParams.push(p);
+          } else {
+            dateFilter =
+              "MONTH(COALESCE(l.sold_on, t.transaction_date)) = MONTH(CURDATE()) AND YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
+          }
+      }
     }
 
     const hasDateVerified = await checkDateVerifiedColumn(dbToUse);
@@ -335,7 +386,7 @@ exports.getTimeBasedPropertySales = async (req, res) => {
       ORDER BY p.property_name
     `;
 
-    const [rows] = await dbToUse.query(query);
+    const [rows] = await dbToUse.query(query, queryParams);
 
     // Transform data for frontend
     const colors = [

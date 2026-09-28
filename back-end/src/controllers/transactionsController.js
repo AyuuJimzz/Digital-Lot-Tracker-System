@@ -25,9 +25,14 @@ const getTransactions = async (req, res) => {
         COALESCE(c.full_name, 'No customer assigned') as customer_name,
         l.lot_number,
         p.property_name,
-        DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
+        DATE_FORMAT(COALESCE(t.transaction_date, l.sold_on), '%Y-%m-%d') as transaction_date,
         t.payment_type,
         CASE 
+          WHEN l.status = 'Sold' AND (l.sold_on IS NULL OR CAST(l.sold_on AS CHAR) IN ('', '0000-00-00')) THEN 1
+          WHEN YEAR(COALESCE(t.transaction_date, l.sold_on)) < YEAR(CURRENT_DATE) THEN 1
+          ELSE 0
+        END as is_historical,
+        CASE
           WHEN t.payment_type IN ('Reversal', 'Cancelled') THEN 'Cancelled'
           WHEN c.customer_status = 'Cancelled' THEN 'Cancelled'
           WHEN EXISTS (
@@ -52,7 +57,7 @@ const getTransactions = async (req, res) => {
       )
     `;
     const params = [];
-    if (req.user && req.user.role === "employee" && req.query.scope === "personal") {
+    if (req.user && req.user.role === "employee") {
       query += ` AND (t.employee_id = ? OR
         (t.employee_id IS NULL AND t.agent_name IS NULL AND c.employee_id = ?)) `;
       params.push(req.user.id, req.user.id);

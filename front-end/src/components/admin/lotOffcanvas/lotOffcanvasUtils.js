@@ -20,12 +20,12 @@ export const stripNonSaleableTags = (numStr) => {
 export const getStatusColorClasses = (status) => {
   switch (status) {
     case "Available":
-      return "border-green-500 text-green-600 focus:border-green-500 focus:ring-green-500";
+      return "border-emerald-500 text-emerald-600 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/25 hover:border-emerald-400";
     case "Pending":
-      return "border-amber-500 text-amber-500 focus:border-amber-500 focus:ring-amber-500";
+      return "border-amber-500 text-amber-500 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/25 hover:border-amber-400";
     case "Sold":
-      return "border-red-500 text-red-600 focus:border-red-500 focus:ring-red-500";
+      return "border-red-500 text-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500/25 hover:border-red-400";
     default:
-      return "border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-blue-500";
+      return "border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/25 hover:border-gray-400";
   }
 };

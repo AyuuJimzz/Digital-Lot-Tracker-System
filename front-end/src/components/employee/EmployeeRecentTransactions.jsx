@@ -21,6 +21,12 @@ const EmployeeRecentTransactions = () => {
   const [pageSize, setPageSize] = useState(5);
   // Filter transactions by status, search query, and date
   const filtered = transactions.filter((t) => {
+    // Exclude old historical / legacy records from recent feed by default;
+    // allow searching them if the employee explicitly searches or selects a date filter.
+    const isOldRecord = Boolean(Number(t.is_historical) === 1);
+    const isExplicitSearch = Boolean(selectedDate || searchQuery.trim());
+    if (!isExplicitSearch && isOldRecord) return false;
+
     // 1. Status filter
     if (filter !== "All" && t.status !== filter) return false;
 

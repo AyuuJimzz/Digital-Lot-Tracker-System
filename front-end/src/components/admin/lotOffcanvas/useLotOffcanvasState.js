@@ -58,6 +58,7 @@ export function useLotOffcanvasState({
   const [agentName, setAgentName] = useState("Admin");
   const [assignedEmployeeId, setAssignedEmployeeId] = useState(null);
   const [customSoldOn, setCustomSoldOn] = useState("");
+  const [isLegacyUndated, setIsLegacyUndated] = useState(false);
 
   // Editable Lot Metadata details
   const [lotNumber, setLotNumber] = useState("");
@@ -131,6 +132,10 @@ export function useLotOffcanvasState({
 
     if (!dirtyFieldsRef.current.status && data.status) {
       setStatus(data.status);
+    }
+
+    if (!dirtyFieldsRef.current.isLegacyUndated && data.status === "Sold") {
+      setIsLegacyUndated(!data.sold_on);
     }
 
     if (!dirtyFieldsRef.current.isNonSaleable && data.is_non_saleable !== undefined) {
@@ -225,6 +230,20 @@ export function useLotOffcanvasState({
   const handleCustomSoldOnChange = (val) => {
     dirtyFieldsRef.current.customSoldOn = true;
     setCustomSoldOn(val);
+    if (val) {
+      setIsLegacyUndated(false);
+      dirtyFieldsRef.current.isLegacyUndated = true;
+    }
+  };
+
+  const handleLegacyUndatedChange = (val) => {
+    const nextVal = Boolean(val);
+    dirtyFieldsRef.current.isLegacyUndated = true;
+    setIsLegacyUndated(nextVal);
+    if (nextVal) {
+      setCustomSoldOn("");
+      dirtyFieldsRef.current.customSoldOn = false;
+    }
   };
 
   const handleStatusChange = (newStatusVal) => {
@@ -233,6 +252,8 @@ export function useLotOffcanvasState({
     if (nextStatus !== "Sold") {
       setCustomSoldOn("");
       dirtyFieldsRef.current.customSoldOn = false;
+      setIsLegacyUndated(false);
+      dirtyFieldsRef.current.isLegacyUndated = false;
     }
     // When explicitly switching to Available, clear customer details once.
     if (nextStatus === "Available" && status !== "Available") {
@@ -405,6 +426,7 @@ export function useLotOffcanvasState({
     setAgentName(selectedLot.agent_name || (selectedLot.employee_id ? "Agent" : "Admin"));
     setAssignedEmployeeId(selectedLot.employee_id ?? selectedLot.customer?.employee_id ?? null);
     setCustomSoldOn(selectedLot.sold_on ? String(selectedLot.sold_on).slice(0, 10) : "");
+    setIsLegacyUndated(Boolean(selectedLot.status === "Sold" && !selectedLot.sold_on));
 
     // Fetch latest lot details from server
     if (currentLotId) {
@@ -576,7 +598,8 @@ export function useLotOffcanvasState({
           address: isNonSaleable ? null : address,
           paymentMethod: !isNonSaleable && status === "Sold" ? paymentMethod : null,
           assigned_employee_id: isAdmin && status === "Pending" ? assignedEmployeeId : undefined,
-          sold_on: !isNonSaleable && finalStatus === "Sold" && dirtyFieldsRef.current.customSoldOn && customSoldOn
+          is_legacy_undated: isAdmin && finalStatus === "Sold" ? Boolean(isLegacyUndated) : false,
+          sold_on: !isNonSaleable && finalStatus === "Sold" && !isLegacyUndated && dirtyFieldsRef.current.customSoldOn && customSoldOn
             ? customSoldOn
             : undefined,
         }),
@@ -604,6 +627,13 @@ export function useLotOffcanvasState({
         selectedLot.status = finalStatus;
         selectedLot.is_non_saleable = isNonSaleable ? 1 : 0;
         selectedLot._nonSaleable = isNonSaleable;
+        if (finalStatus === "Sold") {
+          if (isLegacyUndated) {
+            selectedLot.sold_on = null;
+          } else if (customSoldOn) {
+            selectedLot.sold_on = customSoldOn;
+          }
+        }
       }
 
       // Clear dirty tracking on successful save
@@ -741,6 +771,8 @@ export function useLotOffcanvasState({
     setAssignedEmployeeId,
     customSoldOn,
     setCustomSoldOn: handleCustomSoldOnChange,
+    isLegacyUndated,
+    setIsLegacyUndated: handleLegacyUndatedChange,
     hasSavedClient,
     handleCopyCoords,
     handleSetSaleable,

@@ -10,7 +10,8 @@ import { API_BASE_URL } from "../../config/api";
 
 const AdminDashboard = () => {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState("Month");
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [stats, setStats] = useState(() => {
     try {
       const cached = sessionStorage.getItem("adminStatsCache");
@@ -25,10 +26,9 @@ const AdminDashboard = () => {
       return { totalLots: 0, soldLots: 0, availableLots: 0, pendingLots: 0, totalClients: 0 };
     }
   });
-  const [propertiesData, setPropertiesData] = useState([]);
-  const [monthlyData, setMonthlyData] = useState([]);
-
-  const periods = ["Today", "Week", "Month", "This Year"];
+  const [propertiesResult, setPropertiesResult] = useState({ year: null, data: null, loading: true, error: false });
+  const [monthlyResult, setMonthlyResult] = useState({ year: null, data: null, loading: true, error: false });
+  const [availableYears, setAvailableYears] = useState([currentYear]);
 
   useEffect(() => {
     const passwordResetRequired = localStorage.getItem("password_reset_required");
@@ -67,41 +67,69 @@ const AdminDashboard = () => {
   }, []);
 
   useEffect(() => {
+    let isCancelled = false;
+    setPropertiesResult({ year: selectedYear, data: null, loading: true, error: false });
     const fetchPropertyStats = async () => {
       try {
         const token = localStorage.getItem("authToken");
         const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+
         const response = await axios.get(`${API_BASE_URL}/api/lots/time-based-sales`, {
           ...authConfig,
-          params: { period: selectedPeriod.toLowerCase() },
+          params: { period: String(selectedYear) },
         });
 
-        console.log("Time-based property stats fetched:", response.data);
-        setPropertiesData(response.data);
+        if (!isCancelled) {
+          setPropertiesResult({ year: selectedYear, data: response.data, loading: false, error: false });
+        }
       } catch (error) {
-        console.error("Error fetching time-based property stats:", error);
+        if (!isCancelled) {
+          console.error("Error fetching time-based property stats:", error);
+          setPropertiesResult({ year: selectedYear, data: null, loading: false, error: true });
+        }
       }
     };
 
     fetchPropertyStats();
-  }, [selectedPeriod]);
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedYear]);
 
   useEffect(() => {
+    let isCancelled = false;
+    setMonthlyResult({ year: selectedYear, data: null, loading: true, error: false });
     const fetchMonthlySalesData = async () => {
       try {
         const token = localStorage.getItem("authToken");
         const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
-        const response = await axios.get(`${API_BASE_URL}/api/lots/monthly-sales`, authConfig);
+        const response = await axios.get(`${API_BASE_URL}/api/lots/monthly-sales`, {
+          ...authConfig,
+          params: { year: selectedYear },
+        });
 
-        console.log("Monthly sales data fetched:", response.data);
-        setMonthlyData(response.data);
+        if (!isCancelled) {
+          setMonthlyResult({ year: selectedYear, data: response.data, loading: false, error: false });
+          if (Array.isArray(response.data?.availableYears)) {
+            setAvailableYears(response.data.availableYears);
+          }
+        }
       } catch (error) {
-        console.error("Error fetching monthly sales data:", error);
+        if (!isCancelled) {
+          console.error("Error fetching monthly sales data:", error);
+          setMonthlyResult({ year: selectedYear, data: null, loading: false, error: true });
+        }
       }
     };
 
     fetchMonthlySalesData();
-  }, []);
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedYear]);
+
+  const visibleMonthly = monthlyResult.year === selectedYear ? monthlyResult : null;
+  const visibleProperties = propertiesResult.year === selectedYear ? propertiesResult : null;
 
   const handlePasswordChanged = () => {
     localStorage.setItem("password_reset_required", "false");
@@ -134,14 +162,21 @@ const AdminDashboard = () => {
       {/* Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
         <div className="lg:col-span-7 min-w-0">
-          <MonthlyRecapReport data={monthlyData} />
+          <MonthlyRecapReport
+            data={visibleMonthly?.data}
+            selectedYear={selectedYear}
+            availableYears={availableYears}
+            onYearChange={setSelectedYear}
+            isLoading={!visibleMonthly || visibleMonthly.loading}
+            hasError={Boolean(visibleMonthly?.error)}
+          />
         </div>
         <div className="lg:col-span-3 min-w-0">
           <LotsSoldProperties
-            properties={propertiesData}
-            selectedMonth={selectedPeriod}
-            months={periods}
-            onMonthChange={(e) => setSelectedPeriod(e.target.value)}
+            properties={visibleProperties?.data}
+            selectedYear={selectedYear}
+            isLoading={!visibleProperties || visibleProperties.loading}
+            hasError={Boolean(visibleProperties?.error)}
           />
         </div>
       </div>

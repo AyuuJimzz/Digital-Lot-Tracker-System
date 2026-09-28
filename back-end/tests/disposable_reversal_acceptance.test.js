@@ -40,6 +40,7 @@ const {
   getDashboardStats,
 } = require("../src/controllers/lots/lotAnalyticsController");
 const { migrateDateProvenance, computeMigrationPlan } = require("../scripts/migrate_date_provenance");
+const { migrateSaleDateAudit } = require("../scripts/migrate_sale_date_audit");
 
 const DISPOSABLE_TEST_PREFIX = "disposable_test_safeguard_";
 const ALLOWED_TEST_HOSTS = ["localhost", "127.0.0.1"];
@@ -418,6 +419,18 @@ async function runAcceptanceTests() {
     // Rerun migration on migrated DB to verify idempotency (zero errors, zero duplicate columns)
     const rerunResult = await migrateDateProvenance({ db: disposablePool });
     assert.equal(rerunResult.applied, true, "Rerun must succeed cleanly without throwing duplicate column errors");
+    const missingAuditRes = createMockResponse();
+    await updateLotStatus({
+      params: { id: "1" },
+      body: { status: "Sold", sold_on: `${currentYear}-03-25` },
+      user: { role: "admin", id: 1 },
+      db: disposablePool,
+    }, missingAuditRes);
+    assert.equal(missingAuditRes.getStatusCode(), 409, "Manual review must be blocked until the audit table exists");
+    const [[unmodifiedLot1]] = await disposablePool.query("SELECT sold_on FROM lots WHERE lot_id = 1");
+    assert.equal(unmodifiedLot1.sold_on, null, "Missing audit storage must roll back the date change");
+    await migrateSaleDateAudit({ db: disposablePool });
+    await migrateSaleDateAudit({ db: disposablePool });
     console.log("✅ TEST 3 PASSED: migrateDateProvenance() executed directly on true old schema, added columns, and rerun was idempotent.\n");
 
     // -------------------------------------------------------------------------
@@ -574,6 +587,77 @@ async function runAcceptanceTests() {
     assert.equal(lot1TxnVerified.is_date_verified, 1);
     assert.equal(lot1TxnVerified.date_provenance, "manual_audit", "Must be marked manual_audit");
     const verifiedTxnId = lot1TxnVerified.transaction_id;
+    const [initialAuditRows] = await disposablePool.query(
+      "SELECT transaction_id, action, previous_sold_on, new_sold_on, previous_transaction_date, new_transaction_date FROM sale_date_audit WHERE lot_id = 1 ORDER BY audit_id"
+    );
+    assert.equal(initialAuditRows.length, 1, "Initial manual verification must write a separate audit row");
+    assert.equal(initialAuditRows[0].transaction_id, verifiedTxnId);
+    assert.equal(initialAuditRows[0].action, "verify_date");
+    assert.equal(initialAuditRows[0].previous_sold_on, null);
+    assert.equal(initialAuditRows[0].new_sold_on, `${currentYear}-03-25`);
+
+    const correctionRes = createMockResponse();
+    await updateLotStatus({
+      params: { id: "1" },
+      body: { status: "Sold", sold_on: `${currentYear}-03-26` },
+      user: { role: "admin", id: 1 },
+      db: disposablePool,
+    }, correctionRes);
+    assert.equal(correctionRes.getStatusCode(), 200, "Correcting a verified date must succeed");
+    const [correctedAuditRows] = await disposablePool.query(
+      "SELECT previous_sold_on, new_sold_on, previous_transaction_date, new_transaction_date FROM sale_date_audit WHERE lot_id = 1 ORDER BY audit_id"
+    );
+    assert.equal(correctedAuditRows.length, 2, "Date correction must append, not overwrite, its audit row");
+    assert.equal(correctedAuditRows[0].new_sold_on, `${currentYear}-03-25`, "Original audit row must remain unchanged");
+    assert.equal(correctedAuditRows[1].previous_sold_on, `${currentYear}-03-25`);
+    assert.equal(correctedAuditRows[1].new_sold_on, `${currentYear}-03-26`);
+    assert.match(correctedAuditRows[1].previous_transaction_date, new RegExp(`^${currentYear}-03-25`));
+    assert.match(correctedAuditRows[1].new_transaction_date, new RegExp(`^${currentYear}-03-26`));
+
+    const markUndatedRes = createMockResponse();
+    await updateLotStatus({
+      params: { id: "1" },
+      body: { status: "Sold", is_legacy_undated: true },
+      user: { role: "admin", id: 1 },
+      db: disposablePool,
+    }, markUndatedRes);
+    assert.equal(markUndatedRes.getStatusCode(), 200, "Marking a sold lot undated must succeed with an audit row");
+    const [[undatedAudit]] = await disposablePool.query(
+      "SELECT action, previous_sold_on, new_sold_on, new_is_date_verified FROM sale_date_audit WHERE lot_id = 1 ORDER BY audit_id DESC LIMIT 1"
+    );
+    assert.equal(undatedAudit.action, "mark_undated");
+    assert.equal(undatedAudit.previous_sold_on, `${currentYear}-03-26`);
+    assert.equal(undatedAudit.new_sold_on, null);
+    assert.equal(undatedAudit.new_is_date_verified, 0);
+    await updateLotStatus({
+      params: { id: "1" },
+      body: { status: "Sold", is_legacy_undated: true },
+      user: { role: "admin", id: 1 },
+      db: disposablePool,
+    }, createMockResponse());
+    const [[undatedAuditCount]] = await disposablePool.query(
+      "SELECT COUNT(*) AS count FROM sale_date_audit WHERE lot_id = 1"
+    );
+    assert.equal(undatedAuditCount.count, 3, "Saving an unchanged undated sale must not create audit noise");
+
+    const restoreDateRes = createMockResponse();
+    await updateLotStatus({
+      params: { id: "1" },
+      body: { status: "Sold", sold_on: `${currentYear}-03-25` },
+      user: { role: "admin", id: 1 },
+      db: disposablePool,
+    }, restoreDateRes);
+    assert.equal(restoreDateRes.getStatusCode(), 200, "Restoring the original date must succeed");
+    await updateLotStatus({
+      params: { id: "1" },
+      body: { status: "Sold", sold_on: `${currentYear}-03-25` },
+      user: { role: "admin", id: 1 },
+      db: disposablePool,
+    }, createMockResponse());
+    const [[finalAuditCount]] = await disposablePool.query(
+      "SELECT COUNT(*) AS count FROM sale_date_audit WHERE lot_id = 1"
+    );
+    assert.equal(finalAuditCount.count, 4, "Saving an unchanged verified date must not append an audit row");
 
     // Step 5.2: Admin reverts Lot 1 from Sold to Available
     const revertRes = createMockResponse();
@@ -747,6 +831,20 @@ async function runAcceptanceTests() {
       await getTimeBasedPropertySales({ query: { period }, db: disposablePool }, resPeriod);
       assert.equal(resPeriod.getStatusCode(), 200, `getTimeBasedPropertySales for ${period} must return 200`);
     }
+    const datedAllRes = createMockResponse();
+    await getTimeBasedPropertySales({
+      query: { period: "all", date: `${currentYear}-03-10` },
+      db: disposablePool,
+    }, datedAllRes);
+    assert.equal(datedAllRes.getStatusCode(), 200);
+    assert.equal(datedAllRes.getData()[0].sold, 0, "A date-constrained all-time request must exclude unverified Lot 2");
+    const datedDefaultRes = createMockResponse();
+    await getTimeBasedPropertySales({
+      query: { date: `${currentYear}-03-10` },
+      db: disposablePool,
+    }, datedDefaultRes);
+    assert.equal(datedDefaultRes.getStatusCode(), 200);
+    assert.equal(datedDefaultRes.getData()[0].sold, 0, "A date-only request must exclude unverified Lot 2");
     console.log("✅ TEST 7 PASSED: Multi-year analytics accurately separates YTD, prior years, undated, and all-time inventory.\n");
 
     // -------------------------------------------------------------------------

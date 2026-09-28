@@ -15,6 +15,8 @@
  *    Can be run multiple times safely without duplicate column errors or state corruption.
  */
 
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 const defaultDb = require("../config/database_connection");
 
 async function computeMigrationPlan(database) {
@@ -237,7 +239,8 @@ function getCustomPool(uriString) {
 if (require.main === module) {
   const uriArg = process.argv.find(
     (a) => a.startsWith("mysql://") || a.startsWith("mysqls://") || a.includes("aivencloud.com")
-  );
+  ) || (process.argv.includes("--cloud") && process.env.AIVEN_SERVICE_URI ? process.env.AIVEN_SERVICE_URI : null);
+  console.log("Target Database:", uriArg ? "Aiven Cloud Database" : "Local Default Database");
   const targetDb = uriArg ? getCustomPool(uriArg) : defaultDb;
 
   migrateDateProvenance({ db: targetDb })

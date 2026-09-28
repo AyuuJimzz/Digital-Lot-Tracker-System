@@ -28,7 +28,10 @@ const COLOR_PALETTES = [
   },
 ];
 
-const LotsSoldProperties = ({ properties, selectedMonth, months, onMonthChange }) => {
+const LotsSoldProperties = ({ properties, selectedYear, isLoading = false, hasError = false }) => {
+  const currentYear = new Date().getFullYear();
+  const yearDisplay = selectedYear || currentYear;
+
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 flex flex-col justify-between h-full transition-colors duration-300">
       <div>
@@ -39,27 +42,21 @@ const LotsSoldProperties = ({ properties, selectedMonth, months, onMonthChange }
               by Subdivision
             </span>
           </div>
-          <label htmlFor="lots-sold-period-select" className="sr-only">
-            Filter lots sold by period
-          </label>
-          <select
-            id="lots-sold-period-select"
-            name="lots_sold_period"
-            aria-label="Filter lots sold by period"
-            value={selectedMonth}
-            onChange={onMonthChange}
-            className="px-3 py-1.5 text-xs font-semibold border border-gray-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-          >
-            {months.map((month) => (
-              <option key={month} value={month}>
-                {month}
-              </option>
-            ))}
-          </select>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-300 shadow-sm">
+            Year {yearDisplay}
+          </span>
         </div>
 
         <div className="space-y-4">
-          {!properties || properties.length === 0 ? (
+          {isLoading ? (
+            <div role="status" className="text-center py-8 text-xs text-gray-500 dark:text-slate-400">
+              Loading subdivision sales for {yearDisplay}...
+            </div>
+          ) : hasError ? (
+            <div role="alert" className="text-center py-8 text-xs text-red-600 dark:text-red-400">
+              Unable to load subdivision sales. Please refresh the page.
+            </div>
+          ) : !properties || properties.length === 0 ? (
             <div className="text-center py-8 text-xs text-gray-400">
               No subdivision property data available.
             </div>

@@ -154,6 +154,7 @@ async function run() {
         '05_golden_dragon_corp_employees.sql',
         '06_golden_dragon_corp_transactions.sql',
         '07_password_reset_columns.sql',
+        '08_golden_dragon_corp_sale_date_audit.sql',
       ];
 
       for (const file of sqlFiles) {

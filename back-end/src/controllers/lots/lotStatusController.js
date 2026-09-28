@@ -5,6 +5,7 @@ const { isNonSaleableLot } = require("../../utils/lotClassification");
 const { isValidStrictDate } = require("../../utils/dateValidation");
 
 let dateVerifiedColumnCached = null;
+let saleDateAuditTableCached = null;
 
 async function checkDateVerifiedColumn(database) {
   if (dateVerifiedColumnCached === true && database === db) {
@@ -22,8 +23,25 @@ async function checkDateVerifiedColumn(database) {
   }
 }
 
+async function checkSaleDateAuditTable(database) {
+  if (saleDateAuditTableCached === true && database === db) {
+    return true;
+  }
+  try {
+    const [rows] = await database.query(
+      "SELECT COUNT(*) AS table_count FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sale_date_audit'"
+    );
+    const exists = Number(rows[0]?.table_count) === 1;
+    if (exists && database === db) saleDateAuditTableCached = true;
+    return exists;
+  } catch (_) {
+    return false;
+  }
+}
+
 function resetDateVerifiedColumnCache() {
   dateVerifiedColumnCached = null;
+  saleDateAuditTableCached = null;
 }
 
 // =======================
@@ -339,9 +357,10 @@ exports.updateLotStatus = async (req, res) => {
       }
 
       // Setting to Sold - create/update transaction record
-      // Store the verified Philippine calendar date once; allow Admin to provide an explicit verified historical date if reviewing legacy record.
+      // Store the verified Philippine calendar date once; allow Admin to provide an explicit verified historical date or mark as legacy undated.
+      const isLegacyUndated = Boolean(req.body.is_legacy_undated || req.body.leave_undated) && isAdmin;
       let verifiedDateInput = null;
-      if (req.body.sold_on && isAdmin) {
+      if (req.body.sold_on && isAdmin && !isLegacyUndated) {
         if (!isValidStrictDate(req.body.sold_on)) {
           await connection.rollback();
           return res.status(400).json({
@@ -350,10 +369,19 @@ exports.updateLotStatus = async (req, res) => {
         }
         verifiedDateInput = req.body.sold_on.trim();
       }
-      await query(
-        "UPDATE lots SET sold_on = COALESCE(?, DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)), pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
-        [verifiedDateInput, id]
-      );
+
+      if (isLegacyUndated) {
+        await query(
+          "UPDATE lots SET sold_on = NULL, pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
+          [id]
+        );
+      } else {
+        await query(
+          "UPDATE lots SET sold_on = COALESCE(?, DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)), pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
+          [verifiedDateInput, id]
+        );
+      }
+      let customerId = null;
       const customerResult = await query(
         `SELECT customer_id, employee_id FROM customers
          WHERE lot_id = ? AND (customer_status IN ('Pending', 'Sold') OR customer_status IS NULL)
@@ -362,7 +390,7 @@ exports.updateLotStatus = async (req, res) => {
       );
 
       if (customerResult[0].length > 0) {
-        const customerId = customerResult[0][0].customer_id;
+        customerId = customerResult[0][0].customer_id;
         const originalEmpId = customerResult[0][0].employee_id;
         let creditEmpId = originalEmpId || employeeId;
         let creditAgentName = agentName;
@@ -391,17 +419,31 @@ exports.updateLotStatus = async (req, res) => {
           [id, customerId]
         );
 
-        const provenanceToSet = verifiedDateInput ? "manual_audit" : "system_recorded";
+        let isDateVerified = 1;
+        let provenanceToSet = "system_recorded";
+        if (isLegacyUndated) {
+          isDateVerified = 0;
+          provenanceToSet = "unknown_requires_review";
+        } else if (verifiedDateInput) {
+          isDateVerified = 1;
+          provenanceToSet = "manual_audit";
+        }
+
+        const txnNotes = isLegacyUndated
+          ? `Legacy sold record for lot ${lot.lot_number} without verified sale date`
+          : `Transaction updated for lot ${lot.lot_number} - Sold status`;
 
         if (existingTransaction[0].length > 0) {
           // Update existing transaction to Sold while preserving original reserver credit
           await query(
-            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW(), is_date_verified = 1, date_provenance = ? WHERE transaction_id = ?",
+            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = COALESCE(?, NOW()), is_date_verified = ?, date_provenance = ? WHERE transaction_id = ?",
             [
               paymentMethod || "Cash",
-              `Transaction updated for lot ${lot.lot_number} - Sold status`,
+              txnNotes,
               creditEmpId,
               creditAgentName,
+              verifiedDateInput || null,
+              isDateVerified,
               provenanceToSet,
               existingTransaction[0][0].transaction_id,
             ]
@@ -409,22 +451,26 @@ exports.updateLotStatus = async (req, res) => {
         } else {
           // Create new transaction for Sold with persistent agent_name
           await query(
-            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance) VALUES (?, ?, ?, ?, ?, ?, NOW(), 1, ?)",
+            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NOW()), ?, ?)",
             [
               id,
               customerId,
               paymentMethod || "Cash",
-              `Transaction created for lot ${lot.lot_number} - Sold status`,
+              isLegacyUndated
+                ? `Legacy sold record for lot ${lot.lot_number} without verified sale date`
+                : `Transaction created for lot ${lot.lot_number} - Sold status`,
               employeeId,
               agentName,
+              verifiedDateInput || null,
+              isDateVerified,
               provenanceToSet,
             ]
           );
         }
       }
 
-        // Schedule email to be sent after 5 minutes for Sold status
-        if (email) {
+        // Schedule email to be sent after 5 minutes for real-time Sold status (suppress for old/historical sales)
+        if (email && customerId && !isLegacyUndated && !verifiedDateInput) {
           const emailDate = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
 
           postCommitTasks.push(() => schedule.scheduleJob(emailDate, async () => {
@@ -542,41 +588,103 @@ exports.updateLotStatus = async (req, res) => {
       }
     }
 
-    // Staff review path: Allow Admins to enter or verify a historical sale date for an already Sold lot
-    if (status === "Sold" && lot.status === "Sold" && req.body.sold_on && isAdmin) {
-      if (!isValidStrictDate(req.body.sold_on)) {
-        await connection.rollback();
-        return res.status(400).json({
-          error: "Invalid sale date. Must be a valid calendar date in YYYY-MM-DD format.",
-        });
-      }
+    // Staff review path: keep the correction and its audit record in the same transaction.
+    if (status === "Sold" && lot.status === "Sold" && isAdmin) {
+      const isLegacyUndated = Boolean(req.body.is_legacy_undated || req.body.leave_undated);
+      if (isLegacyUndated || req.body.sold_on) {
+        if (!isLegacyUndated && !isValidStrictDate(req.body.sold_on)) {
+          await connection.rollback();
+          return res.status(400).json({
+            error: "Invalid sale date. Must be a valid calendar date in YYYY-MM-DD format.",
+          });
+        }
 
-      const hasDateVerified = await checkDateVerifiedColumn(dbToUse);
-      if (!hasDateVerified) {
-        await connection.rollback();
-        return res.status(409).json({
-          error: "Cannot verify sale date: database schema is missing date provenance columns. Please run migration first.",
-        });
-      }
-
-      const verifiedDateString = req.body.sold_on.trim();
-      await query(
-        "UPDATE lots SET sold_on = ? WHERE lot_id = ?",
-        [verifiedDateString, id]
-      );
-      const [txnUpdate] = await query(
-        `UPDATE transactions
-         SET is_date_verified = 1, date_provenance = 'manual_audit'
-         WHERE lot_id = ? AND payment_type NOT IN ('Reversal', 'Cancelled')
-         ORDER BY transaction_id DESC LIMIT 1`,
-        [id]
-      );
-      if (txnUpdate.affectedRows === 0) {
-        await query(
-          `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance)
-           VALUES (?, NULL, 'Cash', 'Verified historical sale record via manual audit', ?, ?, ?, 1, 'manual_audit')`,
-          [id, employeeId, agentName, `${verifiedDateString} 12:00:00`]
+        const hasDateVerified = await checkDateVerifiedColumn(dbToUse);
+        if (!hasDateVerified) {
+          await connection.rollback();
+          return res.status(409).json({
+            error: "Cannot review sale date: database schema is missing date provenance columns. Please run migration first.",
+          });
+        }
+        const [[previousLot]] = await query(
+          "SELECT DATE_FORMAT(sold_on, '%Y-%m-%d') AS sold_on FROM lots WHERE lot_id = ?",
+          [id]
         );
+        const [transactionRows] = await query(
+          `SELECT transaction_id,
+                   DATE_FORMAT(transaction_date, '%Y-%m-%d %H:%i:%s.%f') AS transaction_date,
+                  is_date_verified, date_provenance
+           FROM transactions
+           WHERE lot_id = ? AND payment_type NOT IN ('Reversal', 'Cancelled')
+           ORDER BY transaction_id DESC LIMIT 1 FOR UPDATE`,
+          [id]
+        );
+        const previousTransaction = transactionRows[0] || null;
+        const newSoldOn = isLegacyUndated ? null : req.body.sold_on.trim();
+        const newVerified = isLegacyUndated ? 0 : 1;
+        const newProvenance = isLegacyUndated ? "unknown_requires_review" : "manual_audit";
+        const needsDateReview = previousLot.sold_on !== newSoldOn ||
+          (previousTransaction
+            ? Number(previousTransaction.is_date_verified) !== newVerified || previousTransaction.date_provenance !== newProvenance
+            : !isLegacyUndated);
+
+        if (needsDateReview) {
+          if (!(await checkSaleDateAuditTable(dbToUse))) {
+            await connection.rollback();
+            return res.status(409).json({
+              error: "Cannot review sale date: sale-date audit table is missing. Run the sale-date audit migration first.",
+            });
+          }
+          let transactionId = previousTransaction?.transaction_id || null;
+
+          await query("UPDATE lots SET sold_on = ? WHERE lot_id = ?", [newSoldOn, id]);
+          if (previousTransaction) {
+            if (isLegacyUndated) {
+              await query(
+                "UPDATE transactions SET is_date_verified = 0, date_provenance = ? WHERE transaction_id = ?",
+                [newProvenance, transactionId]
+              );
+            } else {
+              await query(
+                "UPDATE transactions SET transaction_date = ?, is_date_verified = 1, date_provenance = ? WHERE transaction_id = ?",
+                [newSoldOn, newProvenance, transactionId]
+              );
+            }
+          } else if (!isLegacyUndated) {
+            const [inserted] = await query(
+              `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance)
+               VALUES (?, NULL, 'Cash', ?, ?, ?, ?, 1, 'manual_audit')`,
+              [id, "Verified past sale record via manual audit", employeeId, agentName, `${newSoldOn} 12:00:00`]
+            );
+            transactionId = inserted.insertId;
+          }
+
+          let newTransactionDate = previousTransaction?.transaction_date || null;
+          if (transactionId) {
+            const [[updatedTransaction]] = await query(
+              "SELECT DATE_FORMAT(transaction_date, '%Y-%m-%d %H:%i:%s.%f') AS transaction_date FROM transactions WHERE transaction_id = ?",
+              [transactionId]
+            );
+            newTransactionDate = updatedTransaction.transaction_date;
+          }
+          await query(
+            `INSERT INTO sale_date_audit
+               (lot_id, transaction_id, action, previous_sold_on, new_sold_on,
+                previous_transaction_date, new_transaction_date,
+                previous_is_date_verified, new_is_date_verified,
+                previous_date_provenance, new_date_provenance,
+                changed_by_role, changed_by_user_id, changed_by_email)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              id, transactionId, isLegacyUndated ? "mark_undated" : "verify_date",
+              previousLot.sold_on, newSoldOn,
+              previousTransaction?.transaction_date || null, newTransactionDate,
+              previousTransaction?.is_date_verified ?? null, newVerified,
+              previousTransaction?.date_provenance || null, newProvenance,
+              req.user.role, req.user.id || null, req.user.email || null,
+            ]
+          );
+        }
       }
     }
 

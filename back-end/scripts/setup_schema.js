@@ -4,9 +4,10 @@
  * This is intentionally not imported by the web server. Run it deliberately
  * against the intended database before starting a new deployment.
  */
-const db = require("../config/database_connection");
+const defaultDb = require("../config/database_connection");
 const { migrateNonSaleableColumn } = require("./migrate_non_saleable_column");
 const { migrateLoginHistory } = require("./migrate_login_history");
+const { migrateSaleDateAudit } = require("./migrate_sale_date_audit");
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS system_state (
@@ -65,6 +66,7 @@ async function setupSchema(options = {}) {
   }
 
   await migrateLoginHistory({ db: database });
+  await migrateSaleDateAudit({ db: database });
 
   await database.query(`
     UPDATE customers c
