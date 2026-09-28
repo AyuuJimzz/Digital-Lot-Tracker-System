@@ -152,6 +152,9 @@ export const LotOffcanvas = ({
                   isLockedForUser={isLockedForUser}
                   canCancelReservation={canCancelReservation}
                   allowedStatuses={allowedStatuses}
+                  originalStatus={selectedLot.status}
+                  pendingSince={selectedLot.pending_since}
+                  soldOn={selectedLot.sold_on}
                 />
               </section>
 

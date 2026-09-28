@@ -212,11 +212,11 @@ const updateTransactionStatus = async (req, res) => {
       throw requestError(403, "Only the assigned agent or an Admin can complete this sale.");
     }
 
-    await connection.query("UPDATE transactions SET payment_type = ? WHERE transaction_id = ?", [
+    await connection.query("UPDATE transactions SET payment_type = ?, transaction_date = NOW() WHERE transaction_id = ?", [
       payment_type || "Cash", transactionId,
     ]);
     await connection.query("UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE customer_id = ?", [customer.customer_id]);
-    await connection.query("UPDATE lots SET status = 'Sold', pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?", [lot_id]);
+    await connection.query("UPDATE lots SET status = 'Sold', sold_on = DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR), pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?", [lot_id]);
     await connection.commit();
 
     res.json({ message: "Transaction updated successfully" });

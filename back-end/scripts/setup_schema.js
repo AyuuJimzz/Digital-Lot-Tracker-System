@@ -23,6 +23,8 @@ const statements = [
   "ALTER TABLE transactions ADD COLUMN employee_id INT NULL",
   "ALTER TABLE customers ADD COLUMN customer_status VARCHAR(20) NULL DEFAULT 'Pending'",
   "ALTER TABLE lots ADD COLUMN is_non_saleable TINYINT(1) DEFAULT 0",
+  // Existing sold lots stay NULL: a reservation/transaction date is not proof of the sale date.
+  "ALTER TABLE lots ADD COLUMN sold_on DATE NULL DEFAULT NULL",
 ];
 
 async function setupSchema() {

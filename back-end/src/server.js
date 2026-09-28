@@ -4,11 +4,19 @@ require("dotenv").config();
 const app = require("./app");
 const { sendPendingLotReminders } = require("./controllers/lotsController");
 const { ready: systemStateReady } = require("./services/systemStateStore");
+const { migrateLotStatusDates } = require("../scripts/migrate_lot_status_dates");
 
 const PORT = process.env.PORT || 5000;
 
 let server;
-systemStateReady.then(() => {
+systemStateReady.then(async () => {
+  try {
+    const migrated = await migrateLotStatusDates();
+    if (migrated) console.log("🗄️  [Database Schema]: Successfully ensured lots.sold_on column exists.");
+  } catch (migErr) {
+    console.warn("⚠️  [Database Migration Warning]:", migErr.message);
+  }
+
   server = app.listen(PORT, () => {
     console.log(`\n==============================================`);
     console.log(`🚀 SYSTEM IS RUNNING SUCCESSFULLY!`);

@@ -15,7 +15,7 @@ exports.getAllLots = async (req, res) => {
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 5000, 1), 5000);
     const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
     const [rows] = await db.query(
-      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, pending_since FROM lots ORDER BY property_id, lot_number LIMIT ? OFFSET ?",
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, pending_since, DATE_FORMAT(sold_on, '%Y-%m-%d') AS sold_on FROM lots ORDER BY property_id, lot_number LIMIT ? OFFSET ?",
       [limit, offset]
     );
     res.json(rows);
@@ -30,7 +30,7 @@ exports.getLotsByProperty = async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, coordinates, pending_since, last_reminder_sent FROM lots WHERE property_id = ? ORDER BY lot_number",
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, coordinates, pending_since, DATE_FORMAT(sold_on, '%Y-%m-%d') AS sold_on, last_reminder_sent FROM lots WHERE property_id = ? ORDER BY lot_number",
       [propertyId]
     );
     res.json(rows);
@@ -45,7 +45,7 @@ exports.getLotById = async (req, res) => {
 
   try {
     const [lotRows] = await db.query(
-      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, coordinates, pending_since, last_reminder_sent FROM lots WHERE lot_id = ?",
+      "SELECT lot_id, property_id, lot_number, area_sqm, status, is_non_saleable, coordinates, pending_since, DATE_FORMAT(sold_on, '%Y-%m-%d') AS sold_on, last_reminder_sent FROM lots WHERE lot_id = ?",
       [id]
     );
 
@@ -108,6 +108,7 @@ exports.getMapData = async (req, res) => {
 
     const [rows] = await db.query(
       `SELECT l.lot_id, l.property_id, l.lot_number, l.area_sqm, l.status, l.is_non_saleable, l.coordinates,
+              l.pending_since, DATE_FORMAT(l.sold_on, '%Y-%m-%d') AS sold_on,
               c.full_name AS customer_name, c.email AS customer_email, c.contact_number AS customer_contact,
               COALESCE(t.employee_id, c.employee_id) AS employee_id,
               COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') AS agent_name
@@ -168,6 +169,8 @@ exports.getMapData = async (req, res) => {
           lot_number: lot.lot_number,
           area_sqm: lot.area_sqm,
           status: lot.status,
+          pending_since: lot.pending_since,
+          sold_on: lot.sold_on,
           is_non_saleable: isNonSaleableLot(lot) ? 1 : 0,
           employee_id: lot.employee_id,
           agent_name: lot.agent_name,

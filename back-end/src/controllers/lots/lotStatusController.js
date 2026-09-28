@@ -295,6 +295,11 @@ exports.updateLotStatus = async (req, res) => {
       }
     } else if (status === "Sold" && lot.status !== "Sold") {
       // Setting to Sold - create/update transaction record
+      // Store the Philippine calendar date once; subsequent edits must not move it.
+      await query(
+        "UPDATE lots SET sold_on = DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR), pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
+        [id]
+      );
       const customerResult = await query(
         `SELECT customer_id, employee_id FROM customers
          WHERE lot_id = ? AND (customer_status IN ('Pending', 'Sold') OR customer_status IS NULL)
@@ -433,7 +438,7 @@ exports.updateLotStatus = async (req, res) => {
     } else if (status === "Available" || (lot.status === "Pending" && status !== "Pending")) {
       // Changing from Pending to Available/another status - clear timestamps & mark customer as Cancelled if Available
       await query(
-        "UPDATE lots SET pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
+        `UPDATE lots SET pending_since = NULL, last_reminder_sent = NULL${status === 'Available' ? ', sold_on = NULL' : ''} WHERE lot_id = ?`,
         [id]
       );
       if (status === "Available") {

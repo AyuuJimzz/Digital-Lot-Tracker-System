@@ -304,7 +304,7 @@ exports.purgeTestData = async (req, res) => {
 
       if (realTxns.length === 0 && realCusts.length === 0) {
         await db.query(
-          "UPDATE lots SET status = 'Available', pending_since = NULL WHERE lot_id = ?",
+          "UPDATE lots SET status = 'Available', pending_since = NULL, sold_on = NULL WHERE lot_id = ?",
           [row.lot_id]
         );
         lotsResetCount++;
@@ -417,8 +417,8 @@ exports.generateDemoData = async (req, res) => {
       // 3. Update lot status (if Cancelled, lot remains Available for new buyers)
       const lotNewStatus = targetStatus === "Cancelled" ? "Available" : targetStatus;
       await db.query(
-        "UPDATE lots SET status = ?, pending_since = ? WHERE lot_id = ?",
-        [lotNewStatus, targetStatus === "Pending" ? isoTransDate : null, lot.lot_id]
+        "UPDATE lots SET status = ?, pending_since = ?, sold_on = ? WHERE lot_id = ?",
+        [lotNewStatus, targetStatus === "Pending" ? isoTransDate : null, targetStatus === "Sold" ? new Date(transDate.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10) : null, lot.lot_id]
       );
 
       createdRecords.push({
