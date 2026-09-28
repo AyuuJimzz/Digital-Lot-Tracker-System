@@ -122,60 +122,78 @@ function App() {
 
   return (
     <>
-      <DesktopOnlyGuard>
-        <QueryClientProvider client={queryClient}>
-          <Router>
-            <React.Suspense
-              fallback={
-                <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-slate-950">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
-                </div>
-              }
-            >
-              <Routes>
-                <Route path="/" element={<Login setRole={setRole} />} />
-                <Route path="/login" element={<Login setRole={setRole} />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/access-denied" element={<AccessDenied />} />
-                <Route path="/forbidden" element={<Forbidden />} />
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <React.Suspense
+            fallback={
+              <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-slate-950">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+              </div>
+            }
+          >
+            <Routes>
+              <Route
+                path="/"
+                element={<DesktopOnlyGuard><Login setRole={setRole} /></DesktopOnlyGuard>}
+              />
+              <Route
+                path="/login"
+                element={<DesktopOnlyGuard><Login setRole={setRole} /></DesktopOnlyGuard>}
+              />
+              <Route
+                path="/forgot-password"
+                element={<DesktopOnlyGuard><ForgotPassword /></DesktopOnlyGuard>}
+              />
+              <Route path="/access-denied" element={<AccessDenied />} />
+              <Route path="/forbidden" element={<Forbidden />} />
 
-                <Route
-                  element={
-                    <ProtectedRoute allowedRoles={["admin"]}>
+              <Route
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]}>
+                    <DesktopOnlyGuard>
                       <AdminLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="/admin-panel" element={<AdminDashboard />} />
-                  <Route path="/manage-employees" element={<ManageEmployees />} />
-                  <Route path="/manage-properties" element={<ManageProperties />} />
-                  <Route path="/manage-lots" element={<EstateMap />} />
-                  <Route path="/settings" element={<ProfileSettings />} />
-                </Route>
+                    </DesktopOnlyGuard>
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/admin-panel" element={<AdminDashboard />} />
+                <Route path="/manage-employees" element={<ManageEmployees />} />
+                <Route path="/manage-properties" element={<ManageProperties />} />
+                <Route path="/manage-lots" element={<EstateMap />} />
+                <Route path="/settings" element={<ProfileSettings />} />
+              </Route>
 
-                <Route
-                  element={
-                    <ProtectedRoute allowedRoles={["employee", "admin"]}>
+              <Route
+                element={
+                  <ProtectedRoute allowedRoles={["employee", "admin"]}>
+                    <DesktopOnlyGuard>
                       <EmployeeLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="/employee-panel" element={<EmployeeDashboard />} />
-                  <Route path="/employee/my-properties" element={<MyProperties />} />
-                  <Route path="/employee/my-sales" element={<MySales />} />
-                  <Route path="/employee/my-clients" element={<Customers />} />
-                  <Route path="/employee/map-view" element={<EmployeeMapView />} />
-                  <Route path="/employee/settings" element={<ProfileSettings />} />
-                </Route>
+                    </DesktopOnlyGuard>
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/employee-panel" element={<EmployeeDashboard />} />
+                <Route path="/employee/my-properties" element={<MyProperties />} />
+                <Route path="/employee/my-sales" element={<MySales />} />
+                <Route path="/employee/my-clients" element={<Customers />} />
+                <Route path="/employee/map-view" element={<EmployeeMapView />} />
+                <Route path="/employee/settings" element={<ProfileSettings />} />
+              </Route>
 
-                <Route path="/dev-panel" element={<DeveloperPanel />} />
-                <Route path="/maintenance" element={<MaintenancePage />} />
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-            </React.Suspense>
-          </Router>
-        </QueryClientProvider>
-      </DesktopOnlyGuard>
+              <Route
+                path="/dev-panel"
+                element={
+                  <DesktopOnlyGuard>
+                    <DeveloperPanel />
+                  </DesktopOnlyGuard>
+                }
+              />
+              <Route path="/maintenance" element={<MaintenancePage />} />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </React.Suspense>
+        </Router>
+      </QueryClientProvider>
 
       {/* Automated 1-Click Install App Banner — outside guard so it shows on tablet too */}
       <PWAInstallPrompt />

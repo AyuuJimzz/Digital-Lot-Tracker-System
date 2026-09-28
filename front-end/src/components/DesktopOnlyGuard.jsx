@@ -1,215 +1,120 @@
-import React, { useState, useEffect } from "react";
-import { Monitor, Maximize2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Maximize2, Monitor, RotateCw } from "lucide-react";
+import estateLogo from "../assets/image/golden-dragon-logo.png";
+
+export const getGuardState = () => {
+  if (typeof window === "undefined") {
+    return { isPhone: false, isPortraitTablet: false, isNarrowDesktop: false };
+  }
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const isTouchOnly = window.matchMedia
+    ? window.matchMedia("(hover: none) and (pointer: coarse)").matches
+    : "ontouchstart" in window && window.navigator.maxTouchPoints > 0;
+  const isPortrait = height > width;
+  const minDimension = Math.min(width, height);
+  const isPhone = isTouchOnly && minDimension < 500;
+  const isPortraitTablet = !isPhone && isTouchOnly && isPortrait;
+  const isNarrowDesktop = !isTouchOnly && (width < 768 || (isPortrait && width < 900));
+
+  return { isPhone, isPortraitTablet, isNarrowDesktop };
+};
 
 const DesktopOnlyGuard = ({ children }) => {
-  const [guardState, setGuardState] = useState({
-    isPhone: false,
-    isPortraitTablet: false,
-    isNarrowDesktop: false,
-  });
+  const [guardState, setGuardState] = useState(getGuardState);
 
   useEffect(() => {
     const checkOrientationAndDevice = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-
-      // Detect if the device is a true touch/mobile/tablet (no mouse hover)
-      const isTouchOnly =
-        window.matchMedia("(hover: none) and (pointer: coarse)").matches ||
-        ("ontouchstart" in window && navigator.maxTouchPoints > 1 && width < 1200);
-
-      const isPortrait = height > width;
-      const minDimension = Math.min(width, height);
-
-      // 1. Phone check: very small screen (< 500px in smallest dimension)
-      const isPhone = minDimension < 500;
-
-      // 2. Tablet check: touchscreen tablet held in portrait (nakatayo)
-      const isPortraitTablet = !isPhone && isTouchOnly && isPortrait;
-
-      // 3. Desktop / Laptop check: browser window resized/snapped too small on PC
-      const isNarrowDesktop = !isPhone && !isTouchOnly && (width < 768 || (isPortrait && width < 900));
-
-      setGuardState({
-        isPhone,
-        isPortraitTablet,
-        isNarrowDesktop,
-      });
+      setGuardState(getGuardState());
     };
 
     checkOrientationAndDevice();
     window.addEventListener("resize", checkOrientationAndDevice);
     window.addEventListener("orientationchange", checkOrientationAndDevice);
 
-    const mql = window.matchMedia("(orientation: portrait)");
-    if (mql?.addEventListener) {
-      mql.addEventListener("change", checkOrientationAndDevice);
-    }
+    const orientationQuery = window.matchMedia?.("(orientation: portrait)");
+    orientationQuery?.addEventListener?.("change", checkOrientationAndDevice);
+    const pointerQuery = window.matchMedia?.("(hover: none) and (pointer: coarse)");
+    pointerQuery?.addEventListener?.("change", checkOrientationAndDevice);
 
     return () => {
       window.removeEventListener("resize", checkOrientationAndDevice);
       window.removeEventListener("orientationchange", checkOrientationAndDevice);
-      if (mql?.removeEventListener) {
-        mql.removeEventListener("change", checkOrientationAndDevice);
-      }
+      orientationQuery?.removeEventListener?.("change", checkOrientationAndDevice);
+      pointerQuery?.removeEventListener?.("change", checkOrientationAndDevice);
     };
   }, []);
 
-  // ── Screen Notice 1: Phone Device (Screen too small) ─────────────────────
-  if (guardState.isPhone) {
-    return (
-      <main role="main" className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
-        <div className="bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 max-w-md w-full text-center border border-slate-700/60">
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-amber-400/10 border border-amber-500/30 flex items-center justify-center shadow-lg shadow-amber-500/10">
-              <Monitor className="w-10 h-10 text-amber-400" />
-            </div>
-          </div>
+  const notice = guardState.isPhone
+    ? {
+        icon: Monitor,
+        category: "Display requirements",
+        title: "A larger screen is needed",
+        description: "The estate map and management tools need more space than a phone-sized screen provides.",
+        instruction: "Open this page on a tablet in landscape or on a computer.",
+      }
+    : guardState.isNarrowDesktop
+      ? {
+          icon: Maximize2,
+          category: "Window size",
+          title: "Make your window wider",
+          description: "The current browser window is too narrow to display the full workspace.",
+          instruction: "Maximize the window or drag its edge to widen it.",
+        }
+      : guardState.isPortraitTablet
+        ? {
+            icon: RotateCw,
+            category: "Tablet orientation",
+            title: "Rotate to landscape",
+            description: "The estate map and management tools are designed for a horizontal tablet display.",
+            instruction: "Turn your tablet sideways. If the screen does not rotate, turn off orientation lock.",
+          }
+        : null;
 
-          <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">
-            Tablet or Desktop Required
-          </h1>
+  if (!notice) return children;
 
-          <p className="text-slate-300 text-sm leading-relaxed mb-6">
-            This platform is designed for{" "}
-            <span className="text-amber-400 font-semibold">Tablets (Landscape)</span> and{" "}
-            <span className="text-emerald-400 font-semibold">Desktop PCs</span>.
-          </p>
+  const NoticeIcon = notice.icon;
 
-          <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 mb-6">
-            <p className="text-xs text-slate-400 mb-1">
-              📱 Minimum Resolution: <span className="text-white font-medium">768 × 600</span>
-            </p>
-            <p className="text-xs text-slate-400">
-              📏 Detected:{" "}
-              <span className="text-rose-400 font-semibold">
-                {window.innerWidth} × {window.innerHeight} px
-              </span>
-            </p>
-          </div>
+  return (
+    <main className="relative isolate flex min-h-screen min-h-[100dvh] items-center justify-center bg-slate-950 px-4 py-8 text-slate-100">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-amber-500/[0.06] to-transparent" />
 
-          <div className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-            Golden Dragon Estate Corporation
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  // ── Screen Notice 2: PC / Laptop Window Resized Too Small (Prompt to Maximize) ──
-  if (guardState.isNarrowDesktop) {
-    return (
-      <main role="main" className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
-        <div className="bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 sm:p-10 max-w-md w-full text-center border border-blue-500/30 ring-1 ring-blue-500/20">
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-500/20 to-cyan-500/10 border border-blue-500/40 flex items-center justify-center shadow-xl shadow-blue-500/20">
-              <Maximize2 className="w-10 h-10 text-blue-400" />
-            </div>
-          </div>
-
-          <span className="inline-block px-3 py-1 bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-semibold rounded-full mb-3 tracking-wide">
-            Window Size Notice
+      <section aria-labelledby="display-notice-title" className="relative w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:p-8">
+        <div className="flex items-center gap-3 border-b border-white/10 pb-5">
+          <img src={estateLogo} alt="" className="h-9 w-9 shrink-0 object-contain" />
+          <span className="text-sm font-semibold tracking-wide text-slate-200">
+            Golden Dragon Estate
           </span>
+        </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-3 tracking-tight">
-            Please Maximize Your Window
+        <div className="pt-8">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300">
+            <NoticeIcon aria-hidden="true" className="h-7 w-7" strokeWidth={1.7} />
+          </div>
+
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">
+            {notice.category}
+          </p>
+          <h1 id="display-notice-title" className="mt-2 text-2xl font-semibold leading-tight tracking-tight text-white sm:text-[28px]">
+            {notice.title}
           </h1>
-
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
-            Your browser window is currently resized too narrow. Please{" "}
-            <span className="text-blue-400 font-bold underline decoration-blue-500/50 underline-offset-4">
-              Maximize or Widen
-            </span>{" "}
-            your browser window to view the full estate map and control panel.
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            {notice.description}
           </p>
 
-          <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 mb-6 text-xs text-slate-400 flex items-center justify-center gap-3">
-            <div className="w-5 h-5 border-2 border-blue-400 rounded-sm flex items-center justify-center font-bold text-blue-300 text-[10px]">
-              ⬜
-            </div>
-            <span>Click Maximize (⬜) on the top-right of your browser</span>
-          </div>
-
-          <div className="text-xs font-medium tracking-wider text-slate-500 uppercase">
-            Golden Dragon Estate Corporation
+          <div className="mt-8 border-t border-white/10 pt-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              What to do
+            </p>
+            <p className="mt-2 text-sm font-medium leading-6 text-slate-200">
+              {notice.instruction}
+            </p>
           </div>
         </div>
-      </main>
-    );
-  }
-
-  // ── Screen Notice 3: Tablet in Portrait Mode (Prompt user to Rotate to Landscape) ──
-  if (guardState.isPortraitTablet) {
-    return (
-      <main role="main" className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white select-none">
-        <div className="bg-slate-900/90 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 sm:p-10 max-w-md w-full text-center border border-emerald-500/30 ring-1 ring-emerald-500/20">
-          {/* Animated Rotate Tablet Visual Cue */}
-          <div className="flex justify-center mb-6">
-            <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/10 border border-emerald-500/40 flex items-center justify-center shadow-xl shadow-emerald-500/20">
-              <div className="animate-pulse absolute inset-0 rounded-3xl bg-emerald-500/10"></div>
-
-              {/* Rotating tablet icon animation */}
-              <svg
-                className="w-12 h-12 text-emerald-400 transition-transform duration-700"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
-                <line x1="12" y1="18" x2="12.01" y2="18" />
-              </svg>
-
-              {/* Rotation Arrow Badge */}
-              <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-slate-950 p-1.5 rounded-full shadow-lg border-2 border-slate-900 font-bold">
-                <svg
-                  className="w-4 h-4 animate-spin"
-                  style={{ animationDuration: "3s" }}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                >
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <span className="inline-block px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold rounded-full mb-3 tracking-wide">
-            Orientation Notice
-          </span>
-
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-3 tracking-tight">
-            Please Rotate Your Tablet
-          </h1>
-
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
-            To use the system and view the interactive estate map properly, please rotate your iPad or tablet to{" "}
-            <span className="text-emerald-400 font-bold underline decoration-emerald-500/50 underline-offset-4">
-              Landscape Mode (Pahiga)
-            </span>
-            .
-          </p>
-
-          <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 mb-6 text-xs text-slate-400 flex items-center justify-center gap-3">
-            <div className="w-7 h-4 border-2 border-emerald-400 rounded-sm bg-emerald-400/20"></div>
-            <span>Rotate to horizontal for the full control panel</span>
-          </div>
-
-          <div className="text-xs font-medium tracking-wider text-slate-500 uppercase">
-            Golden Dragon Estate Corporation
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  return children;
+      </section>
+    </main>
+  );
 };
 
 export default DesktopOnlyGuard;
-
-
