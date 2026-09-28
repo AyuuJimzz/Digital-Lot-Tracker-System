@@ -75,8 +75,12 @@ const MonthlyRecapReport = ({ data, selectedYear, availableYears = [], onYearCha
       </div>
 
       {isLoading ? (
-        <div role="status" className="h-[300px] flex items-center justify-center text-sm text-gray-500 dark:text-slate-400">
-          Loading sales for {activeYear}...
+        <div role="status" className="h-[300px] flex flex-col items-center justify-center gap-2 text-sm text-gray-500 dark:text-slate-400">
+          <svg className="animate-spin h-6 w-6 text-blue-500" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+          </svg>
+          <span className="text-xs font-medium">Loading sales for {activeYear}...</span>
         </div>
       ) : hasError ? (
         <div role="alert" className="h-[300px] flex items-center justify-center text-sm text-red-600 dark:text-red-400">

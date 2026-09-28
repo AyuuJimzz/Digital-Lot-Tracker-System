@@ -49,8 +49,12 @@ const LotsSoldProperties = ({ properties, selectedYear, isLoading = false, hasEr
 
         <div className="space-y-4">
           {isLoading ? (
-            <div role="status" className="text-center py-8 text-xs text-gray-500 dark:text-slate-400">
-              Loading subdivision sales for {yearDisplay}...
+            <div role="status" className="flex flex-col items-center justify-center py-8 gap-2 text-xs text-gray-500 dark:text-slate-400">
+              <svg className="animate-spin h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+              <span>Loading subdivision sales for {yearDisplay}...</span>
             </div>
           ) : hasError ? (
             <div role="alert" className="text-center py-8 text-xs text-red-600 dark:text-red-400">
@@ -100,6 +104,13 @@ const LotsSoldProperties = ({ properties, selectedYear, isLoading = false, hasEr
                 </div>
               );
             })
+          )}
+          {!isLoading && !hasError && properties && properties.length > 0 && properties.every((p) => (Number(p.sold) || 0) === 0) && (
+            <div className="mt-2 text-center py-2 px-3 rounded-lg bg-gray-50 dark:bg-slate-800/60 border border-dashed border-gray-200 dark:border-slate-700/80">
+              <p className="text-[11px] text-gray-500 dark:text-slate-400 font-medium">
+                No lots sold recorded for {yearDisplay} across subdivisions.
+              </p>
+            </div>
           )}
         </div>
       </div>

@@ -190,6 +190,13 @@ export const LotStatusSection = ({
                       type="date"
                       value={customSoldOn || ""}
                       onChange={(e) => setCustomSoldOn && setCustomSoldOn(e.target.value)}
+                      max={(() => {
+                        try {
+                          return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+                        } catch {
+                          return new Date().toISOString().slice(0, 10);
+                        }
+                      })()}
                       disabled={isSaving}
                       className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                     />

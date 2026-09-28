@@ -19,16 +19,25 @@ const EmployeeRecentTransactions = () => {
   const error = transactionsQuery.error ? "Failed to load transactions" : null;
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
-  // Filter transactions by status, search query, and date
+  // Filter transactions by status, search query, date, and old records isolation
   const filtered = transactions.filter((t) => {
-    // Exclude old historical / legacy records from recent feed by default;
-    // allow searching them if the employee explicitly searches or selects a date filter.
     const isOldRecord = Boolean(Number(t.is_historical) === 1);
-    const isExplicitSearch = Boolean(selectedDate || searchQuery.trim());
-    if (!isExplicitSearch && isOldRecord) return false;
+
+    // 0. Old records isolation:
+    // Recent Transactions feed strictly displays recent/current year activity by default.
+    // Old records only display when explicitly filtering by "Old Records"
+    // or when the user enters a specific search term or date filter.
+    if (filter === "Old Records") {
+      if (!isOldRecord) return false;
+    } else {
+      const isExplicitSearch = Boolean(selectedDate || searchQuery.trim());
+      if (!isExplicitSearch && isOldRecord) {
+        return false;
+      }
+    }
 
     // 1. Status filter
-    if (filter !== "All" && t.status !== filter) return false;
+    if (filter !== "All" && filter !== "Old Records" && t.status !== filter) return false;
 
     // 2. Date filter
     if (selectedDate) {
@@ -120,7 +129,7 @@ const EmployeeRecentTransactions = () => {
 
             {/* Filter buttons */}
             <div className="flex gap-1.5">
-              {["All", "Sold", "Pending", "Cancelled"].map((f) => (
+              {["All", "Sold", "Pending", "Cancelled", "Old Records"].map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
