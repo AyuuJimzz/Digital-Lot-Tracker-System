@@ -7,8 +7,9 @@ const { isNonSaleableLot, NON_SALEABLE_SQL_CONDITION } = require("../../utils/lo
 // =======================
 exports.getDashboardStats = async (req, res) => {
   try {
+    const dbToUse = req.db || db;
     // Get all lots statistics with is_non_saleable and lot_number to isolate saleable inventory
-    const [allLots] = await db.query(`SELECT lot_id, lot_number, status, is_non_saleable FROM lots`);
+    const [allLots] = await dbToUse.query(`SELECT lot_id, lot_number, status, is_non_saleable FROM lots`);
 
     const totalParcels = allLots.length;
     const nonSaleableLots = allLots.filter((lot) => isNonSaleableLot(lot)).length;
@@ -18,7 +19,7 @@ exports.getDashboardStats = async (req, res) => {
     const soldLots = allLots.filter((lot) => lot.status === "Sold" && !isNonSaleableLot(lot)).length;
 
     // Get total customers (distinct by email)
-    const [customers] = await db.query(`
+    const [customers] = await dbToUse.query(`
       SELECT COUNT(DISTINCT c.email) as count 
       FROM customers c
     `);
@@ -63,7 +64,8 @@ exports.getPropertyLotStats = async (req, res) => {
       ORDER BY p.property_name
     `;
 
-    const [rows] = await db.query(query);
+    const dbToUse = req.db || db;
+    const [rows] = await dbToUse.query(query);
 
     // Transform data for frontend
     const colors = [
@@ -99,25 +101,126 @@ exports.getPropertyLotStats = async (req, res) => {
   }
 };
 
+let dateVerifiedColumnCached = null;
+
+async function checkDateVerifiedColumn(database) {
+  if (dateVerifiedColumnCached === true && database === db) {
+    return true;
+  }
+  try {
+    const [cols] = await database.query(
+      "SHOW COLUMNS FROM transactions WHERE Field IN ('is_date_verified', 'date_provenance')"
+    );
+    const exists = cols.length === 2;
+    if (exists && database === db) dateVerifiedColumnCached = true;
+    return exists;
+  } catch (_) {
+    return false;
+  }
+}
+
+function resetDateVerifiedColumnCache() {
+  dateVerifiedColumnCached = null;
+}
+
 // =======================
 // MONTHLY SALES DATA
 // =======================
 exports.getMonthlySalesData = async (req, res) => {
   try {
+    const dbToUse = req.db || db;
+    const hasDateVerified = await checkDateVerifiedColumn(dbToUse);
+
+    const verificationCondition = hasDateVerified ? "t.is_date_verified = 1" : "0=1";
+
     // Get monthly sales data for the current year
-    const query = `
+    /**
+     * Reporting Rule for Sales Analytics:
+     * 1. Count physical lots with current status = 'Sold'.
+     * 2. Exclude reversal events and cancelled transactions.
+     * 3. Safely include verified active sales and legacy backfilled records (customers with No Downpayment or NULL customer_id backfills).
+     * 4. Exclude historical sales that were subsequent to a reversal (rev.transaction_id > t.transaction_id).
+     * 5. Never allow unverified backfills into dated charts via (sold_on OR is_date_verified).
+     */
+    // 1. Dated Verified Sales query (current year YTD)
+    const verifiedQuery = `
       SELECT 
-        MONTH(t.transaction_date) as month,
-        COUNT(*) as lotsSold
+        MONTH(COALESCE(l.sold_on, t.transaction_date)) as month,
+        COUNT(DISTINCT l.lot_id) as lotsSold
       FROM transactions t
       INNER JOIN lots l ON t.lot_id = l.lot_id
-      WHERE YEAR(t.transaction_date) = YEAR(CURRENT_DATE)
+      LEFT JOIN customers c ON t.customer_id = c.customer_id
+      WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURRENT_DATE)
         AND l.status = 'Sold'
-      GROUP BY MONTH(t.transaction_date)
-      ORDER BY MONTH(t.transaction_date)
+        AND NOT ${NON_SALEABLE_SQL_CONDITION}
+        AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
+        AND t.payment_type NOT IN ('Reversal', 'Cancelled')
+        AND ${verificationCondition}
+        AND NOT EXISTS (
+          SELECT 1 FROM transactions rev
+          WHERE rev.lot_id = l.lot_id
+            AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
+            AND rev.transaction_id > t.transaction_id
+        )
+      GROUP BY MONTH(COALESCE(l.sold_on, t.transaction_date))
+      ORDER BY MONTH(COALESCE(l.sold_on, t.transaction_date))
     `;
+    const [rows] = await dbToUse.query(verifiedQuery);
 
-    const [rows] = await db.query(query);
+    // 2. Prior Years Verified Sales query
+    const priorYearsQuery = `
+      SELECT COUNT(DISTINCT l.lot_id) as count
+      FROM transactions t
+      INNER JOIN lots l ON t.lot_id = l.lot_id
+      LEFT JOIN customers c ON t.customer_id = c.customer_id
+      WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) < YEAR(CURRENT_DATE)
+        AND l.status = 'Sold'
+        AND NOT ${NON_SALEABLE_SQL_CONDITION}
+        AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
+        AND t.payment_type NOT IN ('Reversal', 'Cancelled')
+        AND ${verificationCondition}
+        AND NOT EXISTS (
+          SELECT 1 FROM transactions rev
+          WHERE rev.lot_id = l.lot_id
+            AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
+            AND rev.transaction_id > t.transaction_id
+        )
+    `;
+    const [priorRows] = await dbToUse.query(priorYearsQuery);
+    const priorYearsVerifiedSoldLots = Number(priorRows[0]?.count || 0);
+
+    // 3. Undated / Unverified Legacy Sold lots query
+    // Includes any Sold lot in inventory that lacks an active, verified dated transaction
+    const undatedQuery = `
+      SELECT COUNT(DISTINCT l.lot_id) as count
+      FROM lots l
+      WHERE l.status = 'Sold'
+        AND NOT ${NON_SALEABLE_SQL_CONDITION}
+        AND NOT EXISTS (
+          SELECT 1 FROM transactions t
+          LEFT JOIN customers c ON t.customer_id = c.customer_id
+          WHERE t.lot_id = l.lot_id
+            AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
+            AND t.payment_type NOT IN ('Reversal', 'Cancelled')
+            AND ${verificationCondition}
+            AND NOT EXISTS (
+              SELECT 1 FROM transactions rev
+              WHERE rev.lot_id = l.lot_id
+                AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
+                AND rev.transaction_id > t.transaction_id
+            )
+        )
+    `;
+    const [undatedRows] = await dbToUse.query(undatedQuery);
+    const undatedSoldLots = Number(undatedRows[0]?.count || 0);
+
+    // 4. All-time saleable sold lots in inventory
+    const [allTimeRows] = await dbToUse.query(`
+      SELECT COUNT(*) as count
+      FROM lots l
+      WHERE l.status = 'Sold' AND NOT ${NON_SALEABLE_SQL_CONDITION}
+    `);
+    const allTimeSoldLots = Number(allTimeRows[0]?.count || 0);
 
     // Create array for all 12 months
     const monthNames = [
@@ -142,7 +245,17 @@ exports.getMonthlySalesData = async (req, res) => {
       };
     });
 
-    res.json(monthlyData);
+    const ytdVerifiedSoldLots = monthlyData.reduce((sum, item) => sum + item.lotsSold, 0);
+
+    res.json({
+      monthlyData,
+      ytdVerifiedSoldLots,
+      verifiedSoldLots: ytdVerifiedSoldLots, // backward-compatibility alias
+      priorYearsVerifiedSoldLots,
+      undatedSoldLots,
+      allTimeSoldLots,
+      totalSoldLots: allTimeSoldLots, // true all-time sold lots in inventory
+    });
   } catch (error) {
     console.error("Error fetching monthly sales data:", error);
     res.status(500).json({ error: "Failed to fetch monthly sales data" });
@@ -154,26 +267,28 @@ exports.getMonthlySalesData = async (req, res) => {
 // =======================
 exports.getTimeBasedPropertySales = async (req, res) => {
   try {
+    const dbToUse = req.db || db;
     const { period } = req.query; // today, week, month, year
 
     let dateFilter = "";
+    const isAllTime = !period || period?.toLowerCase() === "all" || period?.toLowerCase() === "all time";
 
     switch (period?.toLowerCase()) {
       case "today":
-        dateFilter = "DATE(t.transaction_date) = CURDATE()";
+        dateFilter = "DATE(COALESCE(l.sold_on, t.transaction_date)) = CURDATE()";
         break;
       case "week":
       case "this week":
-        dateFilter = "YEARWEEK(t.transaction_date, 1) = YEARWEEK(CURDATE(), 1)";
+        dateFilter = "YEARWEEK(COALESCE(l.sold_on, t.transaction_date), 1) = YEARWEEK(CURDATE(), 1)";
         break;
       case "month":
       case "this month":
         dateFilter =
-          "MONTH(t.transaction_date) = MONTH(CURDATE()) AND YEAR(t.transaction_date) = YEAR(CURDATE())";
+          "MONTH(COALESCE(l.sold_on, t.transaction_date)) = MONTH(CURDATE()) AND YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
         break;
       case "year":
       case "this year":
-        dateFilter = "YEAR(t.transaction_date) = YEAR(CURDATE())";
+        dateFilter = "YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
         break;
       case "all":
       case "all time":
@@ -181,8 +296,15 @@ exports.getTimeBasedPropertySales = async (req, res) => {
         break;
       default:
         dateFilter =
-          "MONTH(t.transaction_date) = MONTH(CURDATE()) AND YEAR(t.transaction_date) = YEAR(CURDATE())";
+          "MONTH(COALESCE(l.sold_on, t.transaction_date)) = MONTH(CURDATE()) AND YEAR(COALESCE(l.sold_on, t.transaction_date)) = YEAR(CURDATE())";
     }
+
+    const hasDateVerified = await checkDateVerifiedColumn(dbToUse);
+    const verificationCondition = hasDateVerified ? "t.is_date_verified = 1" : "0=1";
+
+    const verificationFilter = isAllTime
+      ? "1=1"
+      : verificationCondition;
 
     const query = `
       SELECT 
@@ -191,7 +313,19 @@ exports.getTimeBasedPropertySales = async (req, res) => {
         p.total_lots,
         COUNT(l.lot_id) as actual_lots,
         SUM(CASE WHEN l.status = 'Sold' AND NOT ${NON_SALEABLE_SQL_CONDITION} AND EXISTS (
-          SELECT 1 FROM transactions t WHERE t.lot_id = l.lot_id AND ${dateFilter}
+          SELECT 1 FROM transactions t
+          LEFT JOIN customers c ON t.customer_id = c.customer_id
+          WHERE t.lot_id = l.lot_id
+            AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
+            AND t.payment_type NOT IN ('Reversal', 'Cancelled')
+            AND ${verificationFilter}
+            AND NOT EXISTS (
+              SELECT 1 FROM transactions rev
+              WHERE rev.lot_id = l.lot_id
+                AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
+                AND rev.transaction_id > t.transaction_id
+            )
+            AND ${dateFilter}
         ) THEN 1 ELSE 0 END) as sold_lots,
         SUM(CASE WHEN ${NON_SALEABLE_SQL_CONDITION} THEN 1 ELSE 0 END) as non_saleable_lots
       FROM properties p
@@ -201,7 +335,7 @@ exports.getTimeBasedPropertySales = async (req, res) => {
       ORDER BY p.property_name
     `;
 
-    const [rows] = await db.query(query);
+    const [rows] = await dbToUse.query(query);
 
     // Transform data for frontend
     const colors = [
@@ -236,3 +370,5 @@ exports.getTimeBasedPropertySales = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch time-based property sales" });
   }
 };
+
+exports.resetDateVerifiedColumnCache = resetDateVerifiedColumnCache;

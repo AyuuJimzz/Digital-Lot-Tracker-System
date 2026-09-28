@@ -1,8 +1,30 @@
-// controllers/lots/lotStatusController.js
 const schedule = require("node-schedule");
 const db = require("../../../config/database_connection");
 const { sendEmail } = require("../../services/emailService");
 const { isNonSaleableLot } = require("../../utils/lotClassification");
+const { isValidStrictDate } = require("../../utils/dateValidation");
+
+let dateVerifiedColumnCached = null;
+
+async function checkDateVerifiedColumn(database) {
+  if (dateVerifiedColumnCached === true && database === db) {
+    return true;
+  }
+  try {
+    const [cols] = await database.query(
+      "SHOW COLUMNS FROM transactions WHERE Field IN ('is_date_verified', 'date_provenance')"
+    );
+    const exists = cols.length === 2;
+    if (exists && database === db) dateVerifiedColumnCached = true;
+    return exists;
+  } catch (_) {
+    return false;
+  }
+}
+
+function resetDateVerifiedColumnCache() {
+  dateVerifiedColumnCached = null;
+}
 
 // =======================
 // UPDATE LOT STATUS
@@ -96,17 +118,19 @@ exports.updateLotStatus = async (req, res) => {
       });
     }
 
-    // Only Admins can modify a sold lot
+    // Only Admins can modify or revert a sold lot
     if (lot.status === "Sold" && req.user?.role !== "admin") {
       await connection.rollback();
-      return res.status(403).json({ error: "Only Admins can modify a sold lot." });
+      return res.status(403).json({ error: "Only Admins can modify or revert a sold lot." });
     }
 
-    // A completed sale must not be silently converted back into a reservation
-    // or availability: doing so would rewrite its customer and commission history.
-    if (lot.status === "Sold" && status !== "Sold") {
+    // A completed sale must not be converted directly into a pending reservation.
+    // It must first be formally reverted to Available.
+    if (lot.status === "Sold" && status === "Pending") {
       await connection.rollback();
-      return res.status(409).json({ error: "A sold lot requires a separate sale reversal before its status can change." });
+      return res.status(409).json({
+        error: "A sold lot cannot be directly converted to Pending. Please revert the sale to Available first.",
+      });
     }
 
     // Only the reserving agent or an Admin can modify a Pending reservation
@@ -122,11 +146,22 @@ exports.updateLotStatus = async (req, res) => {
       }
     }
 
+    // Zero-Trust Guard: Must have date provenance columns before completing a sale
+    if (status === "Sold" && lot.status !== "Sold") {
+      const hasDateVerified = await checkDateVerifiedColumn(dbToUse);
+      if (!hasDateVerified) {
+        await connection.rollback();
+        return res.status(409).json({
+          error: "Cannot complete sale: database schema is missing date provenance columns. Please run migration first.",
+        });
+      }
+    }
+
     // Update lot status
     await query("UPDATE lots SET status = ? WHERE lot_id = ?", [status, id]);
 
-    // Handle customer information update if provided
-    if (email) {
+    // Handle customer information update if provided (only for Pending or Sold states)
+    if (email && status !== "Available") {
       // Check if customer already exists for this lot
       const [existingCustomer] = await query(
         `SELECT * FROM customers WHERE lot_id = ?
@@ -191,8 +226,8 @@ exports.updateLotStatus = async (req, res) => {
 
     // Handle timestamp logic based on status change
     if (status === "Pending" && lot.status !== "Pending") {
-      // Setting to Pending (from Available or Sold) - record timestamp
-      await query("UPDATE lots SET pending_since = NOW() WHERE lot_id = ?", [id]);
+      // Setting to Pending (from Available or Sold) - record timestamp and clear sold_on
+      await query("UPDATE lots SET pending_since = NOW(), sold_on = NULL WHERE lot_id = ?", [id]);
 
       // Create or update transaction record for this specific customer
       const [latestCustRows] = await query(
@@ -294,11 +329,30 @@ exports.updateLotStatus = async (req, res) => {
         });
       }
     } else if (status === "Sold" && lot.status !== "Sold") {
+      // Zero-Trust Guard: Must have date provenance columns before completing a sale
+      const hasDateVerified = await checkDateVerifiedColumn(dbToUse);
+      if (!hasDateVerified) {
+        await connection.rollback();
+        return res.status(409).json({
+          error: "Cannot complete sale: database schema is missing date provenance columns. Please run migration first.",
+        });
+      }
+
       // Setting to Sold - create/update transaction record
-      // Store the Philippine calendar date once; subsequent edits must not move it.
+      // Store the verified Philippine calendar date once; allow Admin to provide an explicit verified historical date if reviewing legacy record.
+      let verifiedDateInput = null;
+      if (req.body.sold_on && isAdmin) {
+        if (!isValidStrictDate(req.body.sold_on)) {
+          await connection.rollback();
+          return res.status(400).json({
+            error: "Invalid sale date. Must be a valid calendar date in YYYY-MM-DD format.",
+          });
+        }
+        verifiedDateInput = req.body.sold_on.trim();
+      }
       await query(
-        "UPDATE lots SET sold_on = DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR), pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
-        [id]
+        "UPDATE lots SET sold_on = COALESCE(?, DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR)), pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?",
+        [verifiedDateInput, id]
       );
       const customerResult = await query(
         `SELECT customer_id, employee_id FROM customers
@@ -337,22 +391,25 @@ exports.updateLotStatus = async (req, res) => {
           [id, customerId]
         );
 
+        const provenanceToSet = verifiedDateInput ? "manual_audit" : "system_recorded";
+
         if (existingTransaction[0].length > 0) {
           // Update existing transaction to Sold while preserving original reserver credit
           await query(
-            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW() WHERE transaction_id = ?",
+            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = NOW(), is_date_verified = 1, date_provenance = ? WHERE transaction_id = ?",
             [
               paymentMethod || "Cash",
               `Transaction updated for lot ${lot.lot_number} - Sold status`,
               creditEmpId,
               creditAgentName,
+              provenanceToSet,
               existingTransaction[0][0].transaction_id,
             ]
           );
         } else {
           // Create new transaction for Sold with persistent agent_name
           await query(
-            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date) VALUES (?, ?, ?, ?, ?, ?, NOW())",
+            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance) VALUES (?, ?, ?, ?, ?, ?, NOW(), 1, ?)",
             [
               id,
               customerId,
@@ -360,9 +417,11 @@ exports.updateLotStatus = async (req, res) => {
               `Transaction created for lot ${lot.lot_number} - Sold status`,
               employeeId,
               agentName,
+              provenanceToSet,
             ]
           );
         }
+      }
 
         // Schedule email to be sent after 5 minutes for Sold status
         if (email) {
@@ -434,22 +493,98 @@ exports.updateLotStatus = async (req, res) => {
             }
           }));
         }
-      }
     } else if (status === "Available" || (lot.status === "Pending" && status !== "Pending")) {
-      // Changing from Pending to Available/another status - clear timestamps & mark customer as Cancelled if Available
+      // Changing to Available or leaving Pending - clear timestamps & mark customer as Cancelled if Available
       await query(
         `UPDATE lots SET pending_since = NULL, last_reminder_sent = NULL${status === 'Available' ? ', sold_on = NULL' : ''} WHERE lot_id = ?`,
         [id]
       );
       if (status === "Available") {
+        if (lot.status === "Pending") {
+          // Cancel active pending reservation customer records
+          await query(
+            "UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ? AND (customer_status = 'Pending' OR customer_status IS NULL)",
+            [id]
+          );
+        } else if (lot.status === "Sold") {
+          // Retrieve the historical sold customer ID to link the reversal audit record
+          const [soldCustRows] = await query(
+            "SELECT customer_id FROM customers WHERE lot_id = ? AND customer_status = 'Sold' ORDER BY customer_id DESC LIMIT 1",
+            [id]
+          );
+          const soldCustomerId = soldCustRows[0]?.customer_id || null;
+
+          // Mark historical customer record as 'Cancelled' so this sale is formally closed/reversed
+          // and will not be counted as an active sale or cause phantom counts
+          if (soldCustomerId) {
+            await query(
+              "UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE customer_id = ?",
+              [soldCustomerId]
+            );
+          }
+
+          const revertDate = new Intl.DateTimeFormat("en-PH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "Asia/Manila",
+          }).format(new Date());
+          const adminEmail = req.user?.email || "Admin";
+          const revertNote = `Sale Reversal: Reverted to Available by Admin (${adminEmail}) on ${revertDate}`;
+
+          // Insert an explicit Reversal audit transaction record — keeps original sale transaction row untouched
+          await query(
+            `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date)
+             VALUES (?, ?, 'Reversal', ?, ?, ?, NOW())`,
+            [id, soldCustomerId, revertNote, employeeId, agentName]
+          );
+        }
+      }
+    }
+
+    // Staff review path: Allow Admins to enter or verify a historical sale date for an already Sold lot
+    if (status === "Sold" && lot.status === "Sold" && req.body.sold_on && isAdmin) {
+      if (!isValidStrictDate(req.body.sold_on)) {
+        await connection.rollback();
+        return res.status(400).json({
+          error: "Invalid sale date. Must be a valid calendar date in YYYY-MM-DD format.",
+        });
+      }
+
+      const hasDateVerified = await checkDateVerifiedColumn(dbToUse);
+      if (!hasDateVerified) {
+        await connection.rollback();
+        return res.status(409).json({
+          error: "Cannot verify sale date: database schema is missing date provenance columns. Please run migration first.",
+        });
+      }
+
+      const verifiedDateString = req.body.sold_on.trim();
+      await query(
+        "UPDATE lots SET sold_on = ? WHERE lot_id = ?",
+        [verifiedDateString, id]
+      );
+      const [txnUpdate] = await query(
+        `UPDATE transactions
+         SET is_date_verified = 1, date_provenance = 'manual_audit'
+         WHERE lot_id = ? AND payment_type NOT IN ('Reversal', 'Cancelled')
+         ORDER BY transaction_id DESC LIMIT 1`,
+        [id]
+      );
+      if (txnUpdate.affectedRows === 0) {
         await query(
-          "UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE lot_id = ? AND (customer_status = 'Pending' OR customer_status IS NULL)",
-          [id]
+          `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance)
+           VALUES (?, NULL, 'Cash', 'Verified historical sale record via manual audit', ?, ?, ?, 1, 'manual_audit')`,
+          [id, employeeId, agentName, `${verifiedDateString} 12:00:00`]
         );
       }
     }
 
-    console.log(`🏡 [Lot Status Updated] Lot ID #${id} (${lot.lot_number || "Lot"}) | Transition: ${lot.status} → ${status} | Initiator: ${req.user?.email || "Staff"}`);
+    if (lot.status === "Sold" && status !== "Sold") {
+      console.log(`🏡 [Sale Reverted] Lot ID #${id} (${lot.lot_number || "Lot"}) | Sold → ${status} | Reverted by Admin: ${req.user?.email || "Admin"}`);
+    } else {
+      console.log(`🏡 [Lot Status Updated] Lot ID #${id} (${lot.lot_number || "Lot"}) | Transition: ${lot.status} → ${status} | Initiator: ${req.user?.email || "Staff"}`);
+    }
 
     await connection.commit();
     for (const task of postCommitTasks) {
@@ -474,3 +609,5 @@ exports.updateLotStatus = async (req, res) => {
     if (connection) connection.release();
   }
 };
+
+exports.resetDateVerifiedColumnCache = resetDateVerifiedColumnCache;

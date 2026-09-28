@@ -28,6 +28,8 @@ export function useEmployeeMapView() {
   const [isOffcanvasOpen, setIsOffcanvasOpen] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(19);
   const mapWrapperRef = useRef(null);
+  const activeLotFetchIdRef = useRef(null);
+  const activeLotFetchAbortRef = useRef(null);
 
   const [mapLayer, setMapLayer] = useState(() => {
     return localStorage.getItem("preferredMapLayer") || MAP_LAYERS.SATELLITE;
@@ -263,6 +265,15 @@ export function useEmployeeMapView() {
       const statusColor = lot._statusColor;
 
       const openFullLotDetails = async () => {
+        const targetLotId = lot.lot_id ?? lot.id;
+        activeLotFetchIdRef.current = targetLotId;
+
+        if (activeLotFetchAbortRef.current) {
+          activeLotFetchAbortRef.current.abort();
+        }
+        const controller = new AbortController();
+        activeLotFetchAbortRef.current = controller;
+
         const matchingProp = lotDetailsContext.current.properties.find(
           (p) => Number(p.id) === Number(lot.property_id || lotDetailsContext.current.selectedProperty)
         );
@@ -278,15 +289,24 @@ export function useEmployeeMapView() {
 
         try {
           const lotDetails = await axios.get(
-            `${API_BASE_URL}/api/lots/${lot.lot_id}`,
-            getAuthConfig()
+            `${API_BASE_URL}/api/lots/${targetLotId}`,
+            {
+              ...getAuthConfig(),
+              signal: controller.signal,
+            }
           );
+          if (activeLotFetchIdRef.current !== targetLotId) {
+            return;
+          }
           setSelectedLot({
             ...lotDetails.data,
             property_name: lotDetails.data.property_name || propName,
             location: lotDetails.data.location || propLocation,
           });
         } catch (error) {
+          if (axios.isCancel(error) || error.name === "AbortError" || activeLotFetchIdRef.current !== targetLotId) {
+            return;
+          }
           console.error("Error fetching full lot details:", error);
         }
       };

@@ -28,8 +28,16 @@ const getTransactions = async (req, res) => {
         DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
         t.payment_type,
         CASE 
+          WHEN t.payment_type IN ('Reversal', 'Cancelled') THEN 'Cancelled'
           WHEN c.customer_status = 'Cancelled' THEN 'Cancelled'
-          WHEN l.status = 'Sold' OR c.customer_status = 'Sold' THEN 'Sold'
+          WHEN EXISTS (
+            SELECT 1 FROM transactions rev
+            WHERE rev.lot_id = l.lot_id
+              AND rev.payment_type = 'Reversal'
+              AND rev.transaction_id > t.transaction_id
+          ) THEN 'Cancelled'
+          WHEN l.status = 'Sold' AND (c.customer_status = 'Sold' OR c.customer_status IS NULL) THEN 'Sold'
+          WHEN c.customer_status = 'Sold' AND l.status != 'Sold' THEN 'Cancelled'
           ELSE 'Pending'
         END as status
       FROM transactions t
@@ -37,7 +45,11 @@ const getTransactions = async (req, res) => {
       LEFT JOIN customers c ON t.customer_id = c.customer_id
       LEFT JOIN employees e ON COALESCE(t.employee_id, c.employee_id) = e.employee_id
       JOIN properties p ON l.property_id = p.property_id
-      WHERE (l.status IN ('Sold', 'Pending') OR c.customer_status = 'Cancelled')
+      WHERE (
+        l.status IN ('Sold', 'Pending')
+        OR c.customer_status = 'Cancelled'
+        OR t.payment_type IN ('Reversal', 'Cancelled')
+      )
     `;
     const params = [];
     if (req.user && req.user.role === "employee" && req.query.scope === "personal") {
@@ -46,7 +58,8 @@ const getTransactions = async (req, res) => {
       params.push(req.user.id, req.user.id);
     }
     query += ` ORDER BY t.transaction_date DESC, t.transaction_id DESC`;
-    const [transactions] = await db.execute(query, params);
+    const dbToUse = req.db || db;
+    const [transactions] = await dbToUse.execute(query, params);
     res.json(transactions);
   } catch (error) {
     console.error("Error fetching transactions:", error);
@@ -212,9 +225,20 @@ const updateTransactionStatus = async (req, res) => {
       throw requestError(403, "Only the assigned agent or an Admin can complete this sale.");
     }
 
-    await connection.query("UPDATE transactions SET payment_type = ?, transaction_date = NOW() WHERE transaction_id = ?", [
-      payment_type || "Cash", transactionId,
-    ]);
+    const [cols] = await connection.query(
+      "SHOW COLUMNS FROM transactions WHERE Field IN ('is_date_verified', 'date_provenance')"
+    );
+    if (cols.length < 2) {
+      throw requestError(
+        409,
+        "Cannot complete sale: database schema is missing date provenance columns. Please run migration first."
+      );
+    }
+
+    await connection.query(
+      "UPDATE transactions SET payment_type = ?, transaction_date = NOW(), is_date_verified = 1, date_provenance = 'system_recorded' WHERE transaction_id = ?",
+      [payment_type || "Cash", transactionId]
+    );
     await connection.query("UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE customer_id = ?", [customer.customer_id]);
     await connection.query("UPDATE lots SET status = 'Sold', sold_on = DATE(UTC_TIMESTAMP() + INTERVAL 8 HOUR), pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?", [lot_id]);
     await connection.commit();

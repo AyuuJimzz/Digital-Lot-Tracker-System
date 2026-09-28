@@ -27,6 +27,10 @@ export const LotStatusSection = ({
   originalStatus,
   pendingSince,
   soldOn,
+  customSoldOn,
+  setCustomSoldOn,
+  isAdmin,
+  isSaving = false,
 }) => {
   if (isNonSaleable) {
     return (
@@ -68,16 +72,18 @@ export const LotStatusSection = ({
         name="lot_status"
         value={status}
         onChange={(e) => setStatus(e.target.value)}
-        disabled={isLockedForUser}
-        title={isLockedForUser ? (status === "Sold" ? "Only Admins can change status of sold lots" : "Only the assigned agent or Admin can modify this reservation") : ""}
+        disabled={isLockedForUser || isSaving}
+        title={isSaving ? "Saving..." : isLockedForUser ? (status === "Sold" ? "Only Admins can change status of sold lots" : "Only the assigned agent or Admin can modify this reservation") : ""}
         className={`min-h-11 w-full rounded-lg border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent dark:bg-slate-700 ${getStatusColorClasses(
           status
-        )} ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
+        )} ${isLockedForUser || isSaving ? "cursor-not-allowed opacity-75" : ""}`}
       >
         {["Available", "Pending", "Sold"]
           .filter((s) => allowedStatuses.includes(s))
           .map((s) => {
-            const isOptionDisabled = s === "Available" && !canCancelReservation && status === "Pending";
+            const isOptionDisabled =
+              (s === "Available" && !canCancelReservation && status === "Pending") ||
+              (s === "Pending" && originalStatus === "Sold");
             return (
               <option
                 key={s}
@@ -91,21 +97,38 @@ export const LotStatusSection = ({
                     : "text-red-600"
                 }
               >
-                {s} {isOptionDisabled ? "(Locked - Reserving Agent/Admin only)" : ""}
+                {s} {isOptionDisabled
+                  ? s === "Pending" ? "(Revert sale to Available first)" : "(Locked - Reserving Agent/Admin only)"
+                  : ""}
               </option>
             );
           })}
       </select>
       {(status === "Pending" || status === "Sold") && (
-        <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/30">
-          <CalendarDays className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden="true" />
-          <div className="min-w-0">
+        <div className="mt-3 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/30">
+          <CalendarDays className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400 mt-0.5" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
             <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               {status === "Pending" ? "Reserved on" : "Sold on"}
             </p>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {formattedDate || (originalStatus === status ? "Not recorded" : "Recorded when saved")}
-            </p>
+            {status === "Sold" && !soldOn && isAdmin ? (
+              <div className="mt-1 space-y-1">
+                <input
+                  type="date"
+                  value={customSoldOn || ""}
+                  onChange={(e) => setCustomSoldOn && setCustomSoldOn(e.target.value)}
+                  disabled={isSaving}
+                  className="w-full text-xs rounded-lg border border-amber-300 dark:border-amber-600/50 bg-white dark:bg-slate-800 px-2 py-1.5 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                  ⚠️ Date unverified — enter verified historical sale date to include in dated reports
+                </span>
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {formattedDate || (originalStatus === status ? (status === "Sold" ? "Date unverified" : "Not recorded") : "Recorded when saved")}
+              </p>
+            )}
           </div>
         </div>
       )}

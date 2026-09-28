@@ -7,6 +7,7 @@ import { LotStatusSection } from "./lotOffcanvas/LotStatusSection";
 import { LotCustomerSection } from "./lotOffcanvas/LotCustomerSection";
 import { LotOffcanvasFooter } from "./lotOffcanvas/LotOffcanvasFooter";
 import { DeleteLotModal } from "./lotOffcanvas/DeleteLotModal";
+import { UnsavedChangesModal } from "./lotOffcanvas/UnsavedChangesModal";
 
 export const LotOffcanvas = ({
   selectedLot,
@@ -62,9 +63,15 @@ export const LotOffcanvas = ({
     handleSetSaleable,
     handleSetNonSaleable,
     handleSave,
+    customSoldOn,
+    setCustomSoldOn,
     openDeleteModal,
     closeDeleteModal,
     confirmDeleteLot,
+    requestClose,
+    showUnsavedChangesModal,
+    confirmDiscardChanges,
+    cancelDiscardChanges,
   } = useLotOffcanvasState({
     selectedLot,
     isOpen,
@@ -74,6 +81,26 @@ export const LotOffcanvas = ({
     isAdmin: isAdminProp,
   });
 
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && isOpen) {
+        if (showUnsavedChangesModal) {
+          cancelDiscardChanges();
+        } else {
+          requestClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, requestClose, showUnsavedChangesModal, cancelDiscardChanges]);
+
+  const handleStartCoordinateEdit = (lot) => {
+    if (onStartCoordinateEdit) {
+      requestClose(() => onStartCoordinateEdit(lot || selectedLot));
+    }
+  };
+
   if (!isOpen || !selectedLot) return null;
 
   return (
@@ -81,7 +108,7 @@ export const LotOffcanvas = ({
       {/* Overlay Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 z-[9999] transition-opacity duration-300"
-        onClick={onClose}
+        onClick={requestClose}
       />
 
       {/* In-App Delete Confirmation Modal */}
@@ -95,6 +122,14 @@ export const LotOffcanvas = ({
         selectedLot={selectedLot}
       />
 
+      {/* Unsaved Changes Confirmation Modal */}
+      <UnsavedChangesModal
+        isOpen={showUnsavedChangesModal}
+        onKeepEditing={cancelDiscardChanges}
+        onDiscard={confirmDiscardChanges}
+        lotNumber={lotNumber || selectedLot?.lot_number}
+      />
+
       {/* Offcanvas Drawer Panel */}
       <div
         className={`fixed top-0 right-0 z-[10000] h-full w-full max-w-[26rem] transform bg-white shadow-2xl transition-transform duration-300 ease-in-out dark:bg-slate-800 ${
@@ -103,7 +138,7 @@ export const LotOffcanvas = ({
       >
         <div className="h-full flex flex-col">
           {/* Header */}
-          <LotOffcanvasHeader onClose={onClose} />
+          <LotOffcanvasHeader onClose={requestClose} isSaving={isSaving} />
 
           {/* Form Content */}
           <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-4 sm:px-6">
@@ -124,6 +159,7 @@ export const LotOffcanvas = ({
                   onLiveLotUpdate={onLiveLotUpdate}
                   selectedLot={selectedLot}
                   status={status}
+                  isSaving={isSaving}
                 />
 
                 <LotCoordinatesSection
@@ -137,10 +173,11 @@ export const LotOffcanvas = ({
                   handleSetSaleable={handleSetSaleable}
                   handleSetNonSaleable={handleSetNonSaleable}
                   showCoordinateEdit={showCoordinateEdit}
-                  onStartCoordinateEdit={onStartCoordinateEdit}
+                  onStartCoordinateEdit={handleStartCoordinateEdit}
                   selectedLot={selectedLot}
                   handleCopyCoords={handleCopyCoords}
                   copiedCoords={copiedCoords}
+                  isSaving={isSaving}
                 />
               </section>
 
@@ -155,6 +192,10 @@ export const LotOffcanvas = ({
                   originalStatus={selectedLot.status}
                   pendingSince={selectedLot.pending_since}
                   soldOn={selectedLot.sold_on}
+                  customSoldOn={customSoldOn}
+                  setCustomSoldOn={setCustomSoldOn}
+                  isAdmin={isAdmin}
+                  isSaving={isSaving}
                 />
               </section>
 
@@ -180,6 +221,7 @@ export const LotOffcanvas = ({
                 agentName={agentName}
                 propertyName={propertyName}
                 propertyLocation={propertyLocation}
+                isSaving={isSaving}
               />
             </div>
           </div>

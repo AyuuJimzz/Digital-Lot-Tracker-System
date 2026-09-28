@@ -26,7 +26,8 @@ demo-video/
 mapsPDF/
 scratch/
 md/
-docs/
+docs/*
+!docs/production_rollout_runbook.md
 .agents/
 .claude/
 .codex/

@@ -24,12 +24,16 @@ export const LotCustomerSection = ({
   agentName,
   propertyName,
   propertyLocation,
+  isSaving = false,
 }) => {
   if (isNonSaleable || (status !== "Pending" && status !== "Sold")) {
     return null;
   }
 
+  const isFieldDisabled = isLockedForUser || isSaving;
+
   const getFieldTitle = () => {
+    if (isSaving) return "Saving...";
     if (!isLockedForUser) return "";
     if (status === "Sold") return "Only Admins can edit sold lot details";
     return `Only ${agentName || "the assigned agent"} or Admin can edit this reservation`;
@@ -96,13 +100,13 @@ export const LotCustomerSection = ({
               setValidationErrors((prev) => ({ ...prev, fullName: false }));
             }
           }}
-          disabled={isLockedForUser}
+          disabled={isFieldDisabled}
           title={getFieldTitle()}
           className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
             validationErrors.fullName
               ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
               : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-          } ${isLockedForUser ? "cursor-not-allowed bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300" : ""}`}
+          } ${isFieldDisabled ? "cursor-not-allowed bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 opacity-75" : ""}`}
           placeholder="Enter customer's full name"
         />
         {validationErrors.fullName && (
@@ -131,13 +135,13 @@ export const LotCustomerSection = ({
                   setValidationErrors((prev) => ({ ...prev, contactNumber: false }));
                 }
               }}
-              disabled={isLockedForUser}
-              title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
+              disabled={isFieldDisabled}
+              title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
               className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
                 validationErrors.contactNumber
                   ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
                   : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-              } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
+              } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`}
               placeholder="Enter contact number"
             />
             {validationErrors.contactNumber && (
@@ -157,10 +161,10 @@ export const LotCustomerSection = ({
               name="payment_method"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              disabled={isLockedForUser}
-              title={isLockedForUser ? "Only Admins can edit sold lot payment method" : ""}
+              disabled={isFieldDisabled}
+              title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot payment method") : ""}
               className={`min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-700 dark:text-white ${
-                isLockedForUser ? "cursor-not-allowed opacity-75" : ""
+                isFieldDisabled ? "cursor-not-allowed opacity-75" : ""
               }`}
             >
               <option value="Cash">Cash</option>
@@ -187,13 +191,13 @@ export const LotCustomerSection = ({
                 setValidationErrors((prev) => ({ ...prev, contactNumber: false }));
               }
             }}
-            disabled={isLockedForUser}
-            title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
+            disabled={isFieldDisabled}
+            title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
             className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
               validationErrors.contactNumber
                 ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
                 : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-            } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
+            } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`}
             placeholder="Enter contact number"
           />
           {validationErrors.contactNumber && (
@@ -221,13 +225,13 @@ export const LotCustomerSection = ({
               setValidationErrors((prev) => ({ ...prev, email: false }));
             }
           }}
-          disabled={isLockedForUser}
-          title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
+          disabled={isFieldDisabled}
+          title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
           className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
             validationErrors.email
               ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
               : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-          } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
+          } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`}
           placeholder="Enter email address"
         />
         {validationErrors.email && (
@@ -254,13 +258,13 @@ export const LotCustomerSection = ({
               setValidationErrors((prev) => ({ ...prev, address: false }));
             }
           }}
-          disabled={isLockedForUser}
-          title={isLockedForUser ? "Only Admins can edit sold lot details" : ""}
+          disabled={isFieldDisabled}
+          title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
           className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
             validationErrors.address
               ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
               : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-          } ${isLockedForUser ? "cursor-not-allowed opacity-75" : ""}`}
+          } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`}
           placeholder="Enter customer's address"
         />
         {validationErrors.address && (

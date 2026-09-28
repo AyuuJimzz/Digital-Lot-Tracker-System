@@ -10,11 +10,18 @@ import {
 } from "recharts";
 
 const MonthlyRecapReport = ({ data }) => {
-  const totalYearSold = data ? data.reduce((sum, item) => sum + (Number(item.lotsSold) || 0), 0) : 0;
+  const chartData = Array.isArray(data) ? data : data?.monthlyData || [];
+  const undatedCount = Array.isArray(data)
+    ? 0
+    : Number(data?.undatedSoldLots ?? data?.unverifiedSoldLots ?? 0);
+  const totalYearSold = chartData.reduce(
+    (sum, item) => sum + (Number(item.lotsSold) || 0),
+    0
+  );
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 transition-colors duration-300">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Monthly Recap Report
@@ -23,13 +30,23 @@ const MonthlyRecapReport = ({ data }) => {
             Year {new Date().getFullYear()} sales volume trend
           </p>
         </div>
-        <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full text-xs font-mono font-semibold">
-          📈 {totalYearSold} Lots Sold (YTD)
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full text-xs font-mono font-semibold">
+            📈 {totalYearSold} Verified Sales (YTD)
+          </span>
+          {undatedCount > 0 && (
+            <span
+              className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full text-xs font-mono font-semibold"
+              title="Historical sales with unverified dates. Counted in inventory, excluded from dated monthly trends until verified."
+            >
+              📋 {undatedCount} Sold — date unverified
+            </span>
+          )}
+        </div>
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={data}>
+        <AreaChart data={chartData}>
           <defs>
             <linearGradient id="colorLots" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />

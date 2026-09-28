@@ -49,6 +49,8 @@ export const useAdminViewMap = () => {
     return localStorage.getItem("selectedProperty") || "1";
   });
   const [duplicateModalData, setDuplicateModalData] = useState(null);
+  const activeLotFetchIdRef = useRef(null);
+  const activeLotFetchAbortRef = useRef(null);
 
   const triggerArrivalPulse = useCallback((coords) => {
     window.dispatchEvent(
@@ -402,6 +404,15 @@ export const useAdminViewMap = () => {
     const statusColor = lot._statusColor;
 
     const openFullLotDetails = async () => {
+      const targetLotId = lot.lot_id ?? lot.id;
+      activeLotFetchIdRef.current = targetLotId;
+
+      if (activeLotFetchAbortRef.current) {
+        activeLotFetchAbortRef.current.abort();
+      }
+      const controller = new AbortController();
+      activeLotFetchAbortRef.current = controller;
+
       const matchingProp = lotDetailsContext.current.properties.find(
         (p) => Number(p.id) === Number(lot.property_id || lotDetailsContext.current.selectedProperty)
       );
@@ -417,15 +428,25 @@ export const useAdminViewMap = () => {
 
       try {
         const lotDetails = await axios.get(
-          `${API_BASE_URL}/api/lots/${lot.lot_id}`,
-          getAuthConfig()
+          `${API_BASE_URL}/api/lots/${targetLotId}`,
+          {
+            ...getAuthConfig(),
+            signal: controller.signal,
+          }
         );
+        // Stale-response guard: ignore response if user rapidly switched to another lot
+        if (activeLotFetchIdRef.current !== targetLotId) {
+          return;
+        }
         setSelectedLot({
           ...lotDetails.data,
           property_name: lotDetails.data.property_name || propName,
           location: lotDetails.data.location || propLocation,
         });
       } catch (err) {
+        if (axios.isCancel(err) || err.name === "AbortError" || activeLotFetchIdRef.current !== targetLotId) {
+          return;
+        }
         console.error("Lot Details Error:", err);
       }
     };

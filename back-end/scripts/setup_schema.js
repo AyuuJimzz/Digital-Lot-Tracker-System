@@ -25,13 +25,34 @@ const statements = [
   "ALTER TABLE lots ADD COLUMN is_non_saleable TINYINT(1) DEFAULT 0",
   // Existing sold lots stay NULL: a reservation/transaction date is not proof of the sale date.
   "ALTER TABLE lots ADD COLUMN sold_on DATE NULL DEFAULT NULL",
+  "ALTER TABLE transactions ADD COLUMN is_date_verified TINYINT(1) NOT NULL DEFAULT 0",
+  "ALTER TABLE transactions ADD COLUMN date_provenance VARCHAR(50) NOT NULL DEFAULT 'unknown_requires_review'",
 ];
 
-async function setupSchema() {
+function getCustomPool(uriString) {
+  const mysql = require("mysql2");
+  const cleanUri = uriString.trim().replace(/^['"]|['"]$/g, "");
+  const parsed = new URL(cleanUri);
+  return mysql.createPool({
+    host: parsed.hostname,
+    port: parseInt(parsed.port || "3306"),
+    user: decodeURIComponent(parsed.username || "avnadmin"),
+    password: decodeURIComponent(parsed.password || ""),
+    database: parsed.pathname.replace(/^\//, "") || "defaultdb",
+    ssl: (parsed.hostname.includes("aivencloud.com") || cleanUri.includes("ssl-mode") || process.env.DB_SSL === "true")
+      ? { rejectUnauthorized: false }
+      : undefined,
+    waitForConnections: true,
+    connectionLimit: 6,
+  }).promise();
+}
+
+async function setupSchema(options = {}) {
+  const database = options.db || defaultDb;
   let isNonSaleableNewlyAdded = false;
   for (const statement of statements) {
     try {
-      await db.query(statement);
+      await database.query(statement);
       console.log(`Applied: ${statement}`);
       if (statement.includes("is_non_saleable")) isNonSaleableNewlyAdded = true;
     } catch (error) {
@@ -43,9 +64,9 @@ async function setupSchema() {
     }
   }
 
-  await migrateLoginHistory({ db });
+  await migrateLoginHistory({ db: database });
 
-  await db.query(`
+  await database.query(`
     UPDATE customers c
     INNER JOIN (
       SELECT lot_id, MAX(customer_id) AS latest_id
@@ -57,24 +78,24 @@ async function setupSchema() {
     WHERE c.customer_status IS NULL
   `);
 
-  await db.query(`
+  await database.query(`
     UPDATE transactions t
     JOIN employees e ON t.employee_id = e.employee_id
     SET t.agent_name = TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, '')))
     WHERE (t.agent_name IS NULL OR t.agent_name = '') AND t.employee_id IS NOT NULL
   `);
 
-  await db.query(`
-    INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, transaction_date)
-    SELECT c.lot_id, c.customer_id, 'No Downpayment', 'Reservation record', c.employee_id, COALESCE(c.created_at, NOW())
+  await database.query(`
+    INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, transaction_date, is_date_verified, date_provenance)
+    SELECT c.lot_id, c.customer_id, 'No Downpayment', 'Reservation record', c.employee_id, COALESCE(c.created_at, NOW()), 0, 'unverified_backfill'
     FROM customers c
     LEFT JOIN transactions t ON c.customer_id = t.customer_id
     WHERE t.transaction_id IS NULL AND c.lot_id IS NOT NULL
   `);
 
-  await db.query(`
-    INSERT INTO transactions (lot_id, customer_id, payment_type, notes, transaction_date)
-    SELECT l.lot_id, NULL, 'No Downpayment', CONCAT('Direct ', l.status, ' record'), COALESCE(l.pending_since, NOW())
+  await database.query(`
+    INSERT INTO transactions (lot_id, customer_id, payment_type, notes, transaction_date, is_date_verified, date_provenance)
+    SELECT l.lot_id, NULL, 'No Downpayment', CONCAT('Direct ', l.status, ' record'), COALESCE(l.pending_since, NOW()), 0, 'unverified_backfill'
     FROM lots l
     LEFT JOIN transactions t ON l.lot_id = t.lot_id
     WHERE t.transaction_id IS NULL AND l.status IN ('Sold', 'Pending')
@@ -83,7 +104,7 @@ async function setupSchema() {
   // Initial backfill uses the guarded migration and its saved exclusion list.
   // Never reclassify existing manually edited flags on subsequent setup runs.
   if (isNonSaleableNewlyAdded) {
-    const migration = await migrateNonSaleableColumn({ db });
+    const migration = await migrateNonSaleableColumn({ db: database });
     if (!migration.completedWithoutConflicts) {
       throw new Error(`Non-saleable migration has ${migration.totalUnresolved} unresolved status conflict(s).`);
     }
@@ -92,13 +113,33 @@ async function setupSchema() {
   }
 }
 
-setupSchema()
-  .then(async () => {
-    console.log("Database setup completed.");
-    await db.end();
-  })
-  .catch(async (error) => {
-    console.error("Database setup failed:", error.message);
-    await db.end();
-    process.exitCode = 1;
-  });
+if (require.main === module) {
+  const uriArg = process.argv.find(
+    (a) => a.startsWith("mysql://") || a.startsWith("mysqls://") || a.includes("aivencloud.com")
+  );
+  const targetDb = uriArg ? getCustomPool(uriArg) : defaultDb;
+
+  setupSchema({ db: targetDb })
+    .then(async () => {
+      console.log("Database setup completed.");
+      try {
+        if (uriArg && targetDb) await targetDb.end();
+      } catch (_) {}
+      try {
+        await defaultDb.end();
+      } catch (_) {}
+    })
+    .catch(async (error) => {
+      console.error("Database setup failed:", error.message);
+      try {
+        if (uriArg && targetDb) await targetDb.end();
+      } catch (_) {}
+      try {
+        await defaultDb.end();
+      } catch (_) {}
+      process.exitCode = 1;
+    });
+
+}
+
+module.exports = { setupSchema };

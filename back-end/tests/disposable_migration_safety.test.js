@@ -168,7 +168,8 @@ async function runTestSuite() {
         is_non_saleable TINYINT(1) DEFAULT 0,
         coordinates TEXT NULL,
         pending_since DATETIME NULL,
-        last_reminder_sent DATETIME NULL
+        last_reminder_sent DATETIME NULL,
+        sold_on DATE NULL DEFAULT NULL
       ) ENGINE=InnoDB
     `);
 
@@ -196,7 +197,9 @@ async function runTestSuite() {
         notes TEXT NULL,
         employee_id INT NULL,
         agent_name VARCHAR(100) DEFAULT 'Admin',
-        transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP
+        transaction_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_date_verified TINYINT(1) NOT NULL DEFAULT 0,
+        date_provenance VARCHAR(50) NOT NULL DEFAULT 'unknown_requires_review'
       ) ENGINE=InnoDB
     `);
 

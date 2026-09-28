@@ -16,6 +16,7 @@ export const LotCoordinatesSection = ({
   selectedLot,
   handleCopyCoords,
   copiedCoords,
+  isSaving = false,
 }) => {
   const hasCoordinates = latitude !== null && latitude !== undefined && latitude !== "" &&
     longitude !== null && longitude !== undefined && longitude !== "";
@@ -31,13 +32,13 @@ export const LotCoordinatesSection = ({
           <button
             type="button"
             onClick={handleCopyCoords}
-            disabled={!hasCoordinates}
+            disabled={!hasCoordinates || isSaving}
             aria-label="Copy lot coordinates"
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer shadow-xs ${
               copiedCoords
                 ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30"
                 : "bg-gray-50 text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 border-gray-200 dark:border-slate-700"
-            } ${!hasCoordinates ? "cursor-not-allowed opacity-50" : ""}`}
+            } ${!hasCoordinates || isSaving ? "cursor-not-allowed opacity-50" : ""}`}
             title={
               hasCoordinates
                 ? `${latitude}, ${longitude} (Click to copy)`
@@ -62,7 +63,10 @@ export const LotCoordinatesSection = ({
               <button
                 type="button"
                 onClick={() => setIsEditMenuOpen((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 transition-all cursor-pointer shadow-xs"
+                disabled={isSaving}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 transition-all cursor-pointer shadow-xs ${
+                  isSaving ? "opacity-60 cursor-not-allowed pointer-events-none" : ""
+                }`}
                 aria-haspopup="true"
                 aria-expanded={isEditMenuOpen}
               >
@@ -75,7 +79,7 @@ export const LotCoordinatesSection = ({
                 />
               </button>
 
-              {isEditMenuOpen && (
+              {isEditMenuOpen && !isSaving && (
                 <div className="absolute right-0 mt-1.5 w-60 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-xl p-2 z-50 text-xs text-gray-700 dark:text-slate-200">
                   {/* Lot Classification inside Edit menu */}
                   <div className="mb-2">
@@ -85,26 +89,26 @@ export const LotCoordinatesSection = ({
                     <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
                       <button
                         type="button"
-                        disabled={!isAdmin}
-                        onClick={handleSetSaleable}
+                        disabled={!isAdmin || isSaving}
+                        onClick={isSaving ? undefined : handleSetSaleable}
                         className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                           !isNonSaleable
                             ? "bg-emerald-600 text-white shadow-sm"
                             : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                        } ${!isAdmin ? "opacity-60 cursor-not-allowed" : ""}`}
+                        } ${!isAdmin || isSaving ? "opacity-60 cursor-not-allowed pointer-events-none" : ""}`}
                       >
                         <span className="w-2 h-2 rounded-full bg-emerald-300 inline-block" />
                         Saleable
                       </button>
                       <button
                         type="button"
-                        disabled={!isAdmin}
-                        onClick={handleSetNonSaleable}
+                        disabled={!isAdmin || isSaving}
+                        onClick={isSaving ? undefined : handleSetNonSaleable}
                         className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                           isNonSaleable
                             ? "bg-slate-700 text-white shadow-sm ring-1 ring-slate-500/50"
                             : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                        } ${!isAdmin ? "opacity-60 cursor-not-allowed" : ""}`}
+                        } ${!isAdmin || isSaving ? "opacity-60 cursor-not-allowed pointer-events-none" : ""}`}
                       >
                         <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" />
                         Non-Saleable
@@ -117,13 +121,17 @@ export const LotCoordinatesSection = ({
                       <div className="my-1.5 border-t border-gray-100 dark:border-slate-700/80" />
                       <button
                         type="button"
+                        disabled={isSaving}
                         onClick={() => {
+                          if (isSaving) return;
                           setIsEditMenuOpen(false);
                           if (onStartCoordinateEdit) {
                             onStartCoordinateEdit(selectedLot);
                           }
                         }}
-                        className="w-full px-2.5 py-2 rounded-lg text-left flex items-center gap-2.5 hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-medium transition-colors cursor-pointer"
+                        className={`w-full px-2.5 py-2 rounded-lg text-left flex items-center gap-2.5 hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-medium transition-colors cursor-pointer ${
+                          isSaving ? "opacity-60 cursor-not-allowed pointer-events-none" : ""
+                        }`}
                       >
                         <MapPin className="w-4 h-4 shrink-0 text-blue-500" />
                         <div>

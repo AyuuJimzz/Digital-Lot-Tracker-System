@@ -72,7 +72,7 @@ exports.getLotById = async (req, res) => {
               COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') AS agent_name
        FROM transactions t
        LEFT JOIN employees e ON t.employee_id = e.employee_id
-       WHERE t.lot_id = ? AND t.customer_id = ?
+       WHERE t.lot_id = ? AND t.customer_id = ? AND t.payment_type NOT IN ('Reversal', 'Cancelled')
        ORDER BY t.transaction_date DESC, t.transaction_id DESC LIMIT 1`,
       [id, lot.customer?.customer_id || 0]
     );

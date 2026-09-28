@@ -303,7 +303,7 @@ exports.getEmployeeActivities = async (req, res) => {
          JOIN lots l ON t.lot_id = l.lot_id
          JOIN properties p ON l.property_id = p.property_id
          LEFT JOIN customers c ON t.customer_id = c.customer_id
-         WHERE t.employee_id = ? AND (c.customer_status = 'Sold' OR (t.customer_id IS NULL AND l.status = 'Sold'))
+         WHERE t.employee_id = ? AND l.status = 'Sold' AND (c.customer_status = 'Sold' OR t.customer_id IS NULL) AND t.payment_type NOT IN ('Reversal', 'Cancelled', 'No Downpayment')
          ORDER BY t.transaction_date DESC LIMIT 50`,
         [id]
       );

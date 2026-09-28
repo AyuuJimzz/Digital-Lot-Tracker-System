@@ -13,6 +13,7 @@ export const LotMetadataSection = ({
   onLiveLotUpdate,
   selectedLot,
   status,
+  isSaving = false,
 }) => {
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -36,20 +37,20 @@ export const LotMetadataSection = ({
               setValidationErrors((prev) => ({ ...prev, lotNumber: false }));
             }
           }}
-          disabled={!isAdmin}
-          readOnly={!isAdmin}
-          title={!isAdmin ? "Only Admins can edit lot number" : ""}
+          disabled={!isAdmin || isSaving}
+          readOnly={!isAdmin || isSaving}
+          title={!isAdmin ? "Only Admins can edit lot number" : isSaving ? "Saving..." : ""}
           className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm font-semibold text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
             validationErrors.lotNumber
               ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
               : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-          } ${!isAdmin ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""}`}
+          } ${!isAdmin || isSaving ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""}`}
           placeholder="e.g. Block 1 Lot 1"
         />
         {validationErrors.lotNumber && (
           <p className="text-[11px] text-rose-500 mt-0.5 font-medium">Required</p>
         )}
-        {isAdmin && !isNonSaleable && checkIsNonSaleable(lotNumber) && (
+        {isAdmin && !isSaving && !isNonSaleable && checkIsNonSaleable(lotNumber) && (
           <button
             type="button"
             onClick={() => {
@@ -92,14 +93,14 @@ export const LotMetadataSection = ({
               setValidationErrors((prev) => ({ ...prev, areaSqm: false }));
             }
           }}
-          disabled={!isAdmin}
-          readOnly={!isAdmin}
-          title={!isAdmin ? "Only Admins can edit lot area" : ""}
+          disabled={!isAdmin || isSaving}
+          readOnly={!isAdmin || isSaving}
+          title={!isAdmin ? "Only Admins can edit lot area" : isSaving ? "Saving..." : ""}
           className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
             validationErrors.areaSqm
               ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
               : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-          } ${!isAdmin ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""}`}
+          } ${!isAdmin || isSaving ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 opacity-80" : ""}`}
           placeholder="e.g. 200"
         />
         {validationErrors.areaSqm && (
