@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/password_reset_safety.test.js tests/database_ssl.test.js",
     "start": "node --max-old-space-size=450 src/server.js",
     "dev": "nodemon src/server.js",
     "db:setup": "node scripts/setup_schema.js",

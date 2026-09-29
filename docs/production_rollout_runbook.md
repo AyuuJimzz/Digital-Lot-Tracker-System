@@ -27,6 +27,7 @@ This runbook defines a data-preserving rollout procedure for migrating the produ
 Before initiating any step on production, verify the following prerequisites:
 - [ ] MySQL database server is accessible via CLI with necessary DDL privileges (`ALTER TABLE`, `CREATE TABLE`).
 - [ ] Staging/Production connection parameters are verified via `.env`.
+- [ ] The Aiven CA certificate is configured privately as `DB_SSL_CA` or `DB_SSL_CA_PATH` in each backend/migration environment; verify a staging connection with certificate validation before deployment. The application now refuses cloud TLS without a CA.
 - [ ] Adequate disk space for database backup (> 1 GB free).
 - [ ] Low-traffic maintenance window scheduled (no active sales events).
 - [ ] Git working tree state inspected (`git status` reviewed; `git diff --check` passes with zero whitespace/conflict errors).

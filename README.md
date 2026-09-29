@@ -75,7 +75,7 @@ SESSION_SECRET=replace_with_a_different_long_random_secret
 FRONTEND_URL=http://localhost:3000
 ```
 
-The root `.env` is ignored by Git. Do not commit secrets or production database credentials. If email delivery is needed, configure `BREVO_API_KEY` and `EMAIL_USER` in the same file. For a remote MySQL connection, configure the appropriate `DB_HOST`, `DB_PORT`, credentials, and `DB_SSL=true`.
+The root `.env` is ignored by Git. Do not commit secrets or production database credentials. If email delivery is needed, configure `BREVO_API_KEY` and `EMAIL_USER` in the same file. For a remote MySQL connection, configure the appropriate `DB_HOST`, `DB_PORT`, credentials, and `DB_SSL=true`. TLS connections also require Aiven's CA certificate: set `DB_SSL_CA_PATH` to a private PEM file on the server, or set `DB_SSL_CA` to the PEM content in the host's secret environment variables (escaped newlines are accepted). Never commit the certificate or disable certificate verification. Configure the CA **before** deploying backend changes; the backend now refuses TLS connections without it.
 
 The database scripts extend an **existing** schema; they do not create all base tables from an empty database. Review the SQL snapshots in `database_Backup/` before using them, particularly if they contain real records. Once the base tables exist, review `back-end/scripts/setup_schema.js` before running `npm run db:setup`: it performs data backfills as well as schema changes.
 

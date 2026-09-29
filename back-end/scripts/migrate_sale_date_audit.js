@@ -6,6 +6,7 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 const defaultDb = require("../config/database_connection");
+const { getDatabaseSslConfig } = require("../config/database_ssl");
 
 const createSaleDateAuditTable = `
   CREATE TABLE IF NOT EXISTS sale_date_audit (
@@ -44,9 +45,7 @@ function getCustomPool(uriString) {
     user: decodeURIComponent(parsed.username || "avnadmin"),
     password: decodeURIComponent(parsed.password || ""),
     database: parsed.pathname.replace(/^\//, "") || "defaultdb",
-    ssl: (parsed.hostname.includes("aivencloud.com") || cleanUri.includes("ssl-mode") || process.env.DB_SSL === "true")
-      ? { rejectUnauthorized: false }
-      : undefined,
+    ssl: getDatabaseSslConfig(parsed.hostname, cleanUri.includes("ssl-mode") || process.env.DB_SSL === "true"),
     waitForConnections: true,
     connectionLimit: 6,
   }).promise();

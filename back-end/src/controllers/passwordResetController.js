@@ -1,5 +1,6 @@
 const db = require("../../config/database_connection");
 const bcrypt = require("bcryptjs");
+const { randomInt } = require("node:crypto");
 const { sendEmail } = require("../services/emailService");
 
 // =======================
@@ -9,8 +10,8 @@ const generateTempPassword = () => {
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let tempPassword = "";
-  for (let i = 0; i < 10; i++) {
-    tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 16; i++) {
+    tempPassword += chars.charAt(randomInt(chars.length));
   }
   return tempPassword;
 };
@@ -19,6 +20,8 @@ const generateTempPassword = () => {
 // FORGOT PASSWORD
 // =======================
 const forgotPassword = async (req, res) => {
+  let connection;
+  let transactionOpen = false;
   try {
     const { email } = req.body;
 
@@ -65,20 +68,26 @@ const forgotPassword = async (req, res) => {
     const hashedTempPassword = await bcrypt.hash(tempPassword, 10);
     const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
 
-    // Update database
-    if (userType === "admin") {
-      await db.query(
-        "UPDATE admins SET password = ?, password_reset_required = TRUE, temp_password_expiry = ? WHERE admin_id = ?",
-        [hashedTempPassword, expiry, userId],
-      );
-    } else {
-      await db.query(
-        "UPDATE employees SET password = ?, password_reset_required = TRUE, temp_password_expiry = ? WHERE employee_id = ?",
-        [hashedTempPassword, expiry, userId],
-      );
+    // The password update stays uncommitted until the email provider accepts
+    // the message. A failed dispatch rolls back, preserving the old login.
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+    transactionOpen = true;
+    const table = userType === "admin" ? "admins" : "employees";
+    const idColumn = userType === "admin" ? "admin_id" : "employee_id";
+    const [updateResult] = await connection.query(
+      `UPDATE ${table} SET password = ?, password_reset_required = TRUE, temp_password_expiry = ? WHERE ${idColumn} = ?`,
+      [hashedTempPassword, expiry, userId],
+    );
+    if (updateResult.affectedRows !== 1) {
+      await connection.rollback();
+      transactionOpen = false;
+      return res.json({
+        message: "If the email exists, a temporary password has been sent.",
+      });
     }
 
-    // Send email
+    // Send email before committing the password change.
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
         <div style="background-color: #0f172a; color: white; padding: 20px 24px;">
@@ -121,17 +130,30 @@ const forgotPassword = async (req, res) => {
     );
 
     if (!emailResult.success) {
+      await connection.rollback();
+      transactionOpen = false;
       return res.status(500).json({
         message: "Failed to send email. Please try again later.",
       });
     }
 
+    await connection.commit();
+    transactionOpen = false;
     return res.json({
       message: "If the email exists, a temporary password has been sent.",
     });
   } catch (error) {
+    if (transactionOpen) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Password reset rollback error:", rollbackError);
+      }
+    }
     console.error("Forgot password error:", error);
     return res.status(500).json({ message: "Password reset failed" });
+  } finally {
+    connection?.release();
   }
 };
 

@@ -5,6 +5,7 @@
  * against the intended database before starting a new deployment.
  */
 const defaultDb = require("../config/database_connection");
+const { getDatabaseSslConfig } = require("../config/database_ssl");
 const { migrateNonSaleableColumn } = require("./migrate_non_saleable_column");
 const { migrateLoginHistory } = require("./migrate_login_history");
 const { migrateSaleDateAudit } = require("./migrate_sale_date_audit");
@@ -40,9 +41,7 @@ function getCustomPool(uriString) {
     user: decodeURIComponent(parsed.username || "avnadmin"),
     password: decodeURIComponent(parsed.password || ""),
     database: parsed.pathname.replace(/^\//, "") || "defaultdb",
-    ssl: (parsed.hostname.includes("aivencloud.com") || cleanUri.includes("ssl-mode") || process.env.DB_SSL === "true")
-      ? { rejectUnauthorized: false }
-      : undefined,
+    ssl: getDatabaseSslConfig(parsed.hostname, cleanUri.includes("ssl-mode") || process.env.DB_SSL === "true"),
     waitForConnections: true,
     connectionLimit: 6,
   }).promise();

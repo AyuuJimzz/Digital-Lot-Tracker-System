@@ -18,6 +18,7 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", "..", ".env") });
 const defaultDb = require("../config/database_connection");
+const { getDatabaseSslConfig } = require("../config/database_ssl");
 
 async function computeMigrationPlan(database) {
   const [cols] = await database.query("SHOW COLUMNS FROM transactions LIKE 'date_provenance'");
@@ -228,9 +229,7 @@ function getCustomPool(uriString) {
     user: decodeURIComponent(parsed.username || "avnadmin"),
     password: decodeURIComponent(parsed.password || ""),
     database: parsed.pathname.replace(/^\//, "") || "defaultdb",
-    ssl: (parsed.hostname.includes("aivencloud.com") || cleanUri.includes("ssl-mode") || process.env.DB_SSL === "true")
-      ? { rejectUnauthorized: false }
-      : undefined,
+    ssl: getDatabaseSslConfig(parsed.hostname, cleanUri.includes("ssl-mode") || process.env.DB_SSL === "true"),
     waitForConnections: true,
     connectionLimit: 6,
   }).promise();
@@ -261,4 +260,3 @@ if (require.main === module) {
 }
 
 module.exports = { migrateDateProvenance, computeMigrationPlan, getCustomPool };
-

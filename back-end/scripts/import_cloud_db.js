@@ -4,26 +4,28 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const mysql = require('mysql2/promise');
+const { getDatabaseSslConfig } = require('../config/database_ssl');
 
 const envPath = path.join(__dirname, '..', '..', '.env');
 require('dotenv').config({ path: envPath });
 
 function parseUri(uriString) {
+  let parsed;
   try {
     const cleanUri = uriString.trim().replace(/^['"]|['"]$/g, '');
-    const parsed = new URL(cleanUri);
-    return {
-      host: parsed.hostname,
-      port: parseInt(parsed.port || '3306'),
-      user: decodeURIComponent(parsed.username || 'avnadmin'),
-      password: decodeURIComponent(parsed.password || ''),
-      database: parsed.pathname.replace(/^\//, '') || 'defaultdb',
-      multipleStatements: true,
-      ssl: { rejectUnauthorized: false }
-    };
+    parsed = new URL(cleanUri);
   } catch (err) {
     return null;
   }
+  return {
+    host: parsed.hostname,
+    port: parseInt(parsed.port || '3306'),
+    user: decodeURIComponent(parsed.username || 'avnadmin'),
+    password: decodeURIComponent(parsed.password || ''),
+    database: parsed.pathname.replace(/^\//, '') || 'defaultdb',
+    multipleStatements: true,
+    ssl: getDatabaseSslConfig(parsed.hostname, true)
+  };
 }
 
 async function promptUser(query) {
@@ -88,7 +90,7 @@ async function run() {
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'defaultdb',
       multipleStatements: true,
-      ssl: { rejectUnauthorized: false }
+      ssl: getDatabaseSslConfig(process.env.DB_HOST, true)
     };
     console.log('🔍 Gagamitin ang Aiven credentials mula sa .env (DB_HOST).');
   }
