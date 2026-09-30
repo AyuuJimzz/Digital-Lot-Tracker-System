@@ -4,13 +4,14 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "test": "node --test tests/password_reset_safety.test.js tests/database_ssl.test.js",
+    "test": "node --test tests/password_reset_safety.test.js tests/database_ssl.test.js tests/production_preflight.test.js",
     "start": "node --max-old-space-size=450 src/server.js",
     "dev": "nodemon src/server.js",
     "db:setup": "node scripts/setup_schema.js",
     "db:migrate-login-history": "node scripts/migrate_login_history.js",
     "db:migrate-lot-status-dates": "node scripts/migrate_lot_status_dates.js",
     "db:migrate-sale-date-audit": "node scripts/migrate_sale_date_audit.js",
+    "db:preflight": "node scripts/production_preflight.js",
     "db:export": "node scripts/export_backup.js",
     "db:sync-cloud": "node scripts/import_cloud_db.js"
   },

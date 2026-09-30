@@ -26,12 +26,8 @@ demo-video/
 mapsPDF/
 scratch/
 md/
-docs/*
-!docs/production_rollout_runbook.md
+docs/PDF-LOT-IMPORT-TROUBLESHOOTING.md
 .agents/
-.claude/
-.codex/
-.gemini/
 .vscode/*
 !.vscode/extensions.json
 .idea/
