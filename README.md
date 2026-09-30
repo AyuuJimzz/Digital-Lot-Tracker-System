@@ -16,7 +16,7 @@ From paper subdivision plans and disconnected spreadsheets to a map-centered, au
 ![Aiven TLS](https://img.shields.io/badge/Aiven-Verified%20TLS-5A67D8)
 ![CI](https://img.shields.io/badge/GitHub%20Actions-CI-2088FF?logo=githubactions&logoColor=white)
 
-[Live application](https://goldendragonestate.onrender.com) · [Production runbook](docs/production_rollout_runbook.md) · [Report an issue](https://github.com/goldendragonestate/Digital-Lot-Tracker-System/issues/new)
+[Live application](https://goldendragonestate.onrender.com)
 
 </div>
 
