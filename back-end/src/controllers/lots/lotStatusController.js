@@ -244,8 +244,8 @@ exports.updateLotStatus = async (req, res) => {
 
     // Handle timestamp logic based on status change
     if (status === "Pending" && lot.status !== "Pending") {
-      // Setting to Pending (from Available or Sold) - record timestamp and clear sold_on
-      await query("UPDATE lots SET pending_since = NOW(), sold_on = NULL WHERE lot_id = ?", [id]);
+      // Setting to Pending (from Available or Sold) - record timestamp and clear sold_on & reminder state
+      await query("UPDATE lots SET pending_since = NOW(), sold_on = NULL, last_reminder_sent = NULL WHERE lot_id = ?", [id]);
 
       // Create or update transaction record for this specific customer
       const [latestCustRows] = await query(

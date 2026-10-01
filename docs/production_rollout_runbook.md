@@ -34,6 +34,14 @@ The current [README](../README.md) documents the architecture and local commands
 - [ ] Run backend tests, frontend tests, and the frontend build for the **same commit** intended for release. A passing build is not a production smoke test.
 - [ ] Rehearse this entire sequence against an isolated staging copy before production.
 
+### Pending reservation reminder rollout
+
+The reminder service needs **no new environment variable**. Before the backend starts accepting reservations, it atomically records the database server's current time in the existing `system_state` table as `reminder_cutoff`. All instances read the same stored value on restart. Reservations with `pending_since` at or before that second are excluded without changing their records; later reservations are eligible for the 12-hour and 24-hour reminders. The same-second exclusion favors not emailing a pre-rollout customer over delivering a reminder to a reservation created during that one-second boundary.
+
+The `system_state` table must already exist as part of the approved schema. The reminder job does not create tables. If the cutoff cannot be saved, read, or validated, backend startup stops; an email run also fails closed without querying Pending lots. Inspect the stored `reminder_cutoff` during staging and before production activation. If an earlier version of the reminder code has already initialized it, do not silently overwrite it—review that value and its effect on existing reservations with the project owner.
+
+Reminder delivery is **at most one attempt per stage**, not guaranteed delivery: a crash or ambiguous provider timeout leaves the attempt claimed to avoid duplicate customer emails. Inspect server/email-provider logs and resolve such cases manually. The manual trigger is admin-only `POST /api/lots/send-pending-reminders`; GET no longer sends email.
+
 > [!CAUTION]
 > Stop if the target database is uncertain, the CA is missing, the backup is not restorable, migration classifications are disputed, or staging fails. Do not run `npm run db:setup` as a generic repair: it performs multiple schema changes and data backfills.
 

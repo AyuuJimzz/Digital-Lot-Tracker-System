@@ -41,7 +41,7 @@ router.put("/:id/coordinates", requireAdmin, updateLotCoordinates);
 router.put("/:id/details", requireAdmin, updateLotDetails);
 router.put("/property/:propertyId/bulk-shift", requireAdmin, bulkShiftPropertyLots);
 router.delete("/:id", requireAdmin, deleteLot);
-router.post("/send-pending-reminders", requireAuth, sendPendingLotReminders);
-router.get("/send-pending-reminders", requireAuth, sendPendingLotReminders);
+// Sending emails mutates durable reminder state; never expose it through GET.
+router.post("/send-pending-reminders", requireAdmin, sendPendingLotReminders);
 
 module.exports = router;

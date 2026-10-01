@@ -144,7 +144,7 @@ const createTransaction = async (req, res) => {
     );
 
     await connection.query(
-      "UPDATE lots SET status = 'Pending', pending_since = NOW() WHERE lot_id = ?",
+      "UPDATE lots SET status = 'Pending', pending_since = NOW(), last_reminder_sent = NULL WHERE lot_id = ?",
       [lotId]
     );
     await connection.commit();

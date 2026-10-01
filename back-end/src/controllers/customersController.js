@@ -381,7 +381,7 @@ exports.createOrUpdateCustomer = async (req, res) => {
         await connection.rollback();
         return res.status(409).json({ error: "The previous reservation has already changed." });
       }
-      await query("UPDATE lots SET status = 'Available', pending_since = NULL WHERE lot_id = ?", [oldLotId]);
+      await query("UPDATE lots SET status = 'Available', pending_since = NULL, last_reminder_sent = NULL WHERE lot_id = ?", [oldLotId]);
 
       const [newCustomer] = await query(
         `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at)
@@ -396,7 +396,7 @@ exports.createOrUpdateCustomer = async (req, res) => {
 
       // Update the new lot status to Pending
       await query(
-        "UPDATE lots SET status = 'Pending', pending_since = NOW() WHERE lot_id = ?",
+        "UPDATE lots SET status = 'Pending', pending_since = NOW(), last_reminder_sent = NULL WHERE lot_id = ?",
         [id]
       );
 

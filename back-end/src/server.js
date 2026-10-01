@@ -3,13 +3,21 @@ require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 require("dotenv").config();
 const app = require("./app");
 const { sendPendingLotReminders } = require("./controllers/lotsController");
+const { ensureReminderCutoff } = require("./controllers/lots/lotRemindersController");
 const { ready: systemStateReady } = require("./services/systemStateStore");
 const { migrateLotStatusDates } = require("../scripts/migrate_lot_status_dates");
+const schedule = require("node-schedule");
 
 const PORT = process.env.PORT || 5000;
 
 let server;
+let reminderJob;
 systemStateReady.then(async () => {
+  // Record the immutable DB-time cutoff before the API accepts reservations.
+  // If this fails, fail startup rather than emailing pre-rollout customers.
+  const cutoff = await ensureReminderCutoff();
+  console.log(`[Pending Reminder Service] Cutoff: ${cutoff}`);
+
   try {
     const migrated = await migrateLotStatusDates();
     if (migrated) console.log("🗄️  [Database Schema]: Successfully ensured lots.sold_on column exists.");
@@ -26,24 +34,23 @@ systemStateReady.then(async () => {
     console.log(`🗄️  Database (phpMyAdmin): http://localhost:8080`);
     console.log(`==============================================\n`);
   });
+  reminderJob = schedule.scheduleJob("0 * * * *", runReminderJob);
 }).catch((error) => {
-  console.error("Failed to load system state before startup:", error);
-  process.exitCode = 1;
+  console.error("Failed to initialize required database state before startup:", error);
+  process.exit(1);
 });
 
 // =======================
 // SCHEDULED JOB FOR PENDING LOT REMINDERS
 // =======================
-const schedule = require("node-schedule");
-
-// Runs every hour — checks for lots pending 24+ hours
-const reminderJob = schedule.scheduleJob("0 * * * *", async () => {
+// Runs every hour; the controller applies the 12/24-hour eligibility rules.
+const runReminderJob = async () => {
   try {
     const mockReq = {};
     const mockRes = {
       json: (data) => {
-        if (data && data.emailsSent > 0) {
-          console.log(`Sent ${data.emailsSent} pending lot reminder email(s).`);
+        if (data && data.totalEmailsSent > 0) {
+          console.log(`Sent ${data.totalEmailsSent} pending lot reminder email(s).`);
         }
       },
       status: (code) => ({
@@ -57,7 +64,7 @@ const reminderJob = schedule.scheduleJob("0 * * * *", async () => {
   } catch (error) {
     console.error("Error in scheduled pending lot reminder job:", error);
   }
-});
+};
 
 const { addDeveloperLog } = require("./services/loggerService");
 
