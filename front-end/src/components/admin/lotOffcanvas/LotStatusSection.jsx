@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, Pencil } from "lucide-react";
+import { CalendarDays, Pencil, Lock } from "lucide-react";
 import { getStatusColorClasses } from "./lotOffcanvasUtils";
 
 const dateFormatter = new Intl.DateTimeFormat("en-PH", {
@@ -51,22 +51,25 @@ export const LotStatusSection = ({
   if (isNonSaleable) {
     return (
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
           Status
         </label>
-        <div className="flex items-center justify-between px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600">
-          <div className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-slate-500 inline-block" />
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
-              Non-Saleable (Common / Amenity Area)
+        <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg bg-slate-100 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="h-2.5 w-2.5 rounded-full bg-slate-400 shrink-0 inline-block" />
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide truncate">
+              Non-Saleable Area
             </span>
           </div>
-          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-300 bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded flex items-center gap-1">
-            🔒 Locked
+          <span className="shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-200/90 dark:bg-slate-600/90 border border-slate-300/60 dark:border-slate-500/50 whitespace-nowrap">
+            <Lock className="w-3 h-3 text-amber-500 shrink-0" />
+            Locked
           </span>
         </div>
-        <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-          Common ground / facility. Cannot be reserved or sold to prevent accidental bookings. Switch to "Saleable Lot" above to unlock selling.
+        <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">
+          {isAdmin
+            ? "Park, playground, or facility. Not for sale. You can switch this to 'Saleable Lot' above if needed."
+            : "Park, playground, or facility. This area cannot be reserved or sold."}
         </p>
       </div>
     );
