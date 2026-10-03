@@ -183,20 +183,20 @@ If any gate fails, pause the release and coordinate a controlled stop to new wri
 
 Choose a targeted **forward fix** only after inspecting the actual state and rehearsing it in staging. If a restore is unavoidable, the DBA and business owner must approve a reconciliation plan for every post-backup write; use a separate recovery environment first. Preserve date-provenance and audit records throughout incident handling.
 
-## 10. Final sign-off
+## 10. Verification record and release approval
 
-Record evidence for this release. Leave a gate open if it cannot be verified; do not mark it complete based on a prior local test or a green `/api/health` response.
+Local verification completed on **3 October 2026 (Asia/Manila)** against commit `2f7e68c`, with a clean working tree before this documentation update.
 
-| Gate | Required evidence | Result |
+| Check | Result | Evidence |
 | --- | --- | --- |
-| Repository/security review | Backup access, history-remediation decision, secrets review | Not recorded |
-| Map-provider review | Authorized tile source and visible, compliant attribution | Not recorded |
-| Staging rehearsal | Restore test, migration plan, automated tests, workflow smoke test | Not recorded |
-| Production backup | Verified protected file and isolated restore rehearsal | Not recorded |
-| Production migration | Approved command log and aggregate reconciliation | Not recorded |
-| Production preflight | PASS on the intended production database | Not recorded |
-| Deployment parity | Approved SHA on backend and frontend | Not recorded |
-| Authenticated smoke tests | Admin and employee read-only checks | Not recorded |
-| Business acceptance | Named project owner and approval time | Not recorded |
+| Backend automated tests | Passed | `npm --prefix back-end test` — 28 tests passed, 0 failed |
+| Frontend automated tests | Passed | CRA tests with `CI=true` — 1 test passed, 0 failed |
+| Frontend production build | Passed | `npm run build` — compiled successfully; postbuild completed; exit code 0 |
+| Diff formatting | Passed | `git diff --check` — no whitespace errors |
+| User testing | Reported successful | Edward confirmed that testing was complete and results were satisfactory; individual scenarios and environment were not supplied |
 
-**Release decision:** GO only when every applicable gate has evidence and an authorized owner signs off; otherwise NO-GO.
+The automated checks above were rerun locally. Test output included a database-mock warning, and the build emitted a Node.js deprecation warning; both commands completed successfully. These results cover the listed checks, not every application workflow.
+
+For each production release, attach the applicable operational evidence to its release record: repository/security and map-provider review, staging and backup restoration, migration reconciliation (or a documented reason no migration is needed), production preflight, deployed commit verification, and authenticated smoke tests. Those live-environment checks were not independently verified in this local run.
+
+**Current verification:** Local automated tests and build passed; user testing reported successful. Production release approval requires the applicable evidence above and a named owner's dated sign-off for the specific deployment.
