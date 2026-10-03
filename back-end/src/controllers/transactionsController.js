@@ -69,7 +69,7 @@ const getTransactions = async (req, res) => {
       )
     `;
     const params = [];
-    if (req.user && req.user.role === "employee") {
+    if (req.user && req.user.role === "employee" && req.query.scope === "personal") {
       query += ` AND (t.employee_id = ? OR
         (t.employee_id IS NULL AND t.agent_name IS NULL AND c.employee_id = ?)) `;
       params.push(req.user.id, req.user.id);

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Home, FileText, Settings, Map, Users } from "lucide-react";
+import { LayoutDashboard, Layers, FileText, Settings, Map, Users } from "lucide-react";
 import logo from "../../assets/image/golden-dragon-logo.png";
 
 const navItems = [
   { title: "Dashboard", url: "/employee-panel", icon: LayoutDashboard },
   { title: "Map View", url: "/employee/map-view", icon: Map },
-  { title: "My Properties", url: "/employee/my-properties", icon: Home },
+  { title: "Browse Lots", url: "/employee/browse-lots", icon: Layers },
   { title: "My Sales", url: "/employee/my-sales", icon: FileText },
   { title: "My Clients", url: "/employee/my-clients", icon: Users },
   { title: "Settings", url: "/employee/settings", icon: Settings },

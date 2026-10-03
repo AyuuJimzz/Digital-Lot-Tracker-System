@@ -173,7 +173,8 @@ function App() {
                 }
               >
                 <Route path="/employee-panel" element={<EmployeeDashboard />} />
-                <Route path="/employee/my-properties" element={<MyProperties />} />
+                <Route path="/employee/browse-lots" element={<MyProperties />} />
+                <Route path="/employee/my-properties" element={<Navigate to="/employee/browse-lots" replace />} />
                 <Route path="/employee/my-sales" element={<MySales />} />
                 <Route path="/employee/my-clients" element={<Customers />} />
                 <Route path="/employee/map-view" element={<EmployeeMapView />} />

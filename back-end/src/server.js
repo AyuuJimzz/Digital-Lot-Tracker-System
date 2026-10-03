@@ -5,7 +5,6 @@ const app = require("./app");
 const { sendPendingLotReminders } = require("./controllers/lotsController");
 const { ensureReminderCutoff } = require("./controllers/lots/lotRemindersController");
 const { ready: systemStateReady } = require("./services/systemStateStore");
-const { migrateLotStatusDates } = require("../scripts/migrate_lot_status_dates");
 const schedule = require("node-schedule");
 
 const PORT = process.env.PORT || 5000;
@@ -17,13 +16,6 @@ systemStateReady.then(async () => {
   // If this fails, fail startup rather than emailing pre-rollout customers.
   const cutoff = await ensureReminderCutoff();
   console.log(`[Pending Reminder Service] Cutoff: ${cutoff}`);
-
-  try {
-    const migrated = await migrateLotStatusDates();
-    if (migrated) console.log("🗄️  [Database Schema]: Successfully ensured lots.sold_on column exists.");
-  } catch (migErr) {
-    console.warn("⚠️  [Database Migration Warning]:", migErr.message);
-  }
 
   server = app.listen(PORT, () => {
     console.log(`\n==============================================`);

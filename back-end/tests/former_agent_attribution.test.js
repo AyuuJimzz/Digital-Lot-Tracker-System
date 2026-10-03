@@ -596,6 +596,78 @@ test("updateLotStatus: ordinary save on Sold lot never overwrites agent attribut
   }
 });
 
+test("getTransactions: team transactions visible by default, personal transactions filtered when scope=personal", async () => {
+  const { getTransactions } = require("../src/controllers/transactionsController");
+
+  let executedQuery1 = null;
+  let executedParams1 = null;
+  const mockDb1 = {
+    execute: async (sql, params) => {
+      executedQuery1 = sql;
+      executedParams1 = params;
+      return [[]];
+    }
+  };
+
+  // Case 1: Employee on Dashboard (no scope=personal) -> must NOT filter by employee_id (sees full team activity & Old Records)
+  const reqDashboard = {
+    user: { role: "employee", id: 4 },
+    query: {},
+    db: mockDb1
+  };
+  const resDashboard = {
+    json: () => {}
+  };
+  await getTransactions(reqDashboard, resDashboard);
+  assert.equal(executedParams1.length, 0, "Default employee request must not inject employee_id filter");
+  assert.equal(executedQuery1.includes("t.employee_id = ?"), false, "Default employee request must allow team transactions");
+
+  // Case 2: Employee on My Sales (scope=personal) -> must filter by employee_id
+  let executedQuery2 = null;
+  let executedParams2 = null;
+  const mockDb2 = {
+    execute: async (sql, params) => {
+      executedQuery2 = sql;
+      executedParams2 = params;
+      return [[]];
+    }
+  };
+  const reqMySales = {
+    user: { role: "employee", id: 4 },
+    query: { scope: "personal" },
+    db: mockDb2
+  };
+  const resMySales = {
+    json: () => {}
+  };
+  await getTransactions(reqMySales, resMySales);
+  assert.equal(executedParams2.length, 2, "My Sales request must inject employee_id in params");
+  assert.equal(executedParams2[0], 4);
+  assert.equal(executedQuery2.includes("t.employee_id = ?"), true, "My Sales request must filter by employee_id");
+
+  // Case 3: Admin on Dashboard -> must never filter by employee_id
+  let executedQuery3 = null;
+  let executedParams3 = null;
+  const mockDb3 = {
+    execute: async (sql, params) => {
+      executedQuery3 = sql;
+      executedParams3 = params;
+      return [[]];
+    }
+  };
+  const reqAdmin = {
+    user: { role: "admin", id: 1 },
+    query: {},
+    db: mockDb3
+  };
+  const resAdmin = {
+    json: () => {}
+  };
+  await getTransactions(reqAdmin, resAdmin);
+  assert.equal(executedParams3.length, 0, "Admin request must not inject employee_id filter");
+  assert.equal(executedQuery3.includes("t.employee_id = ?"), false, "Admin request must see all transactions");
+});
+
 
 
 

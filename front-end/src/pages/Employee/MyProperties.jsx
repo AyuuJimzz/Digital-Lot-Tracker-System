@@ -56,7 +56,7 @@ const MyProperties = () => {
   });
   const lots = lotsQuery.data || EMPTY_LOTS;
   const loading = lotsQuery.isPending;
-  const error = lotsQuery.error ? "Unable to load properties. Please try again." : "";
+  const error = lotsQuery.error ? "Unable to load lot inventory. Please try again." : "";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,15 +87,15 @@ const MyProperties = () => {
 
   if (loading) return (
     <div className="space-y-4 p-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">My Properties</h1>
-      <p className="text-sm text-gray-500 dark:text-slate-400">Loading properties...</p>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Browse Lots</h1>
+      <p className="text-sm text-gray-500 dark:text-slate-400">Loading lots...</p>
     </div>
   );
 
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">My Properties</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Browse Lots</h1>
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">Browse and filter lots from the current inventory.</p>
       </div>
 
@@ -105,8 +105,8 @@ const MyProperties = () => {
         <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <input
-              id="employee-properties-search"
-              name="employee_properties_search"
+              id="employee-lots-search"
+              name="employee_lots_search"
               aria-label="Search lot number or property"
               type="text"
               value={searchTerm}
@@ -115,9 +115,9 @@ const MyProperties = () => {
               className={inputCls}
             />
             <select
-              id="employee-properties-status-filter"
-              name="employee_properties_status_filter"
-              aria-label="Filter property status"
+              id="employee-lots-status-filter"
+              name="employee_lots_status_filter"
+              aria-label="Filter lot status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className={selectCls}
@@ -131,7 +131,7 @@ const MyProperties = () => {
           </div>
 
           {filteredLots.length === 0 ? (
-            <div className="text-sm text-gray-500 dark:text-slate-400">No properties match your current filter.</div>
+            <div className="text-sm text-gray-500 dark:text-slate-400">No lots match your current filter.</div>
           ) : (
             <>
               <div className="overflow-x-auto">

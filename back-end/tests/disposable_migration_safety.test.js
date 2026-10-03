@@ -277,13 +277,20 @@ async function runTestSuite() {
     // In parallel, launch the ACTUAL live migration function
     const migrationPromise = (async () => {
       console.log("⏳ Conn 2: Actual migrateNonSaleableColumn() attempting live update on Lots 2, 3, 4...");
-      liveMigrationResult = await migrateNonSaleableColumn({
-        pool: disposablePool,
-        isDryRun: false,
-        logger: testLogger2,
-      });
-      migrationFinished = true;
-      console.log("🔓 Conn 2: migrateNonSaleableColumn() completed.");
+      try {
+        await migrateNonSaleableColumn({
+          pool: disposablePool,
+          isDryRun: false,
+          logger: testLogger2,
+        });
+        throw new Error("TEST 2 FAILED: write-time conflict was reported as success.");
+      } catch (error) {
+        if (error.code !== "ERR_MIGRATION_CONFLICT") throw error;
+        liveMigrationResult = error.result;
+      } finally {
+        migrationFinished = true;
+      }
+      console.log("🔓 Conn 2: migrateNonSaleableColumn() rejected the write-time conflict.");
     })();
 
     // Verify Conn 2 is actually waiting on Conn 1's row lock
@@ -319,7 +326,7 @@ async function runTestSuite() {
     // Invariants to verify:
     // 1. Lot 2: status must remain 'Pending', is_non_saleable MUST remain 0 (skipped due to status guard!)
     // 2. Lot 3 & 4: status 'Available', is_non_saleable updated to 1
-    // 3. Migration result: writeTimeSkipped === 1, completedWithoutConflicts === false (refused to claim success!)
+    // 3. Migration throws, carrying the incomplete result for reconciliation.
     if (
       lot2.status === "Pending" &&
       lot2.is_non_saleable === 0 &&
@@ -410,7 +417,7 @@ async function runTestSuite() {
     await migrateNonSaleableColumn({
       pool: disposablePool,
       isDryRun: false,
-      cliExcludeIds: [3],
+      cliExcludeIds: [2, 3],
       logger: testLogger4,
     });
 
@@ -420,8 +427,8 @@ async function runTestSuite() {
     );
     const storedExclusions = JSON.parse(sysRows[0]?.state_value || "[]");
 
-    if (storedExclusions.includes(3)) {
-      console.log("✅ TEST 4 PASSED: Skip-list successfully persisted [3] in 'system_state'.");
+    if (storedExclusions.includes(2) && storedExclusions.includes(3)) {
+      console.log("✅ TEST 4 PASSED: Reviewed skip-list successfully persisted [2, 3] in 'system_state'.");
       console.log("   - Semantics confirmed: Skip-list acts as a migration filter and does not alter existing data.\n");
     } else {
       throw new Error("TEST 4 FAILED: Skip-list was not persisted in system_state!");

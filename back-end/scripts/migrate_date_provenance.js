@@ -95,10 +95,11 @@ function printPlanSummary(plan, isDryRun = false) {
 async function migrateDateProvenance(options = {}) {
   const database = options.db || options.connection || defaultDb;
   const isDryRun = Boolean(options.dryRun || process.argv.includes("--dry-run") || process.argv.includes("--plan"));
+  const quiet = Boolean(options.quiet);
 
   // 1. Calculate migration plan & affected counts
   const plan = await computeMigrationPlan(database);
-  printPlanSummary(plan, isDryRun);
+  if (!quiet) printPlanSummary(plan, isDryRun);
 
   // Preflight assertion: Mutually exclusive & exhaustive partitioning
   const sumCategories =

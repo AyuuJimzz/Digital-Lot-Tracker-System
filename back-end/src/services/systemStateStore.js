@@ -30,6 +30,7 @@ async function syncStateFromDatabase() {
   // Acquiring a connection also detects when MySQL comes online after startup.
   const connection = await db.getConnection();
   try {
+    // Schema creation is an explicit release migration, never a startup side effect.
     const [rows] = await connection.query("SELECT state_key, state_value FROM system_state");
     const durableState = {
       maintenanceMode: false,

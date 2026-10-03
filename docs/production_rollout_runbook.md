@@ -22,7 +22,7 @@ Complete a release record before opening a change window. Keep credentials, data
 | Staging evidence | Test results, migration plan, and preflight output |
 | Production sign-off | Named approver and time of approval |
 
-The current [README](../README.md) documents the architecture and local commands. This runbook focuses on **release order, evidence, and stop conditions**.
+The [README](../README.md) is the documentation index; [architecture](architecture.md), [local development](local-development.md), and [deployment configuration](deployment.md) have the supporting details. This runbook focuses on **release order, evidence, and stop conditions**.
 
 ## 2. Preconditions and stop/go gates
 
@@ -31,6 +31,8 @@ The current [README](../README.md) documents the architecture and local commands
 - [ ] Ensure a MySQL 8 client can connect with CA and hostname verification, and that the migration account has only the privileges required for the approved steps.
 - [ ] Agree on a low-traffic window and how new reservations/sales will be paused if a stop condition occurs.
 - [ ] Review repository access: tracked `database_Backup/` snapshots include admin and employee rows with password fields. A new `.gitignore` rule does not erase those files from the current tree or Git history. Restrict access and plan reviewed remediation/credential rotation before broader distribution.
+- [ ] Review map-provider authorization and attribution for commercial use; the frontend currently requests direct Google tile URLs with Leaflet attribution controls disabled.
+- [ ] Confirm the intended Git push destination; this development checkout has multiple `origin` push URLs. Verify Render's linked repository, branch, and Auto-Deploy policy rather than assuming that a push waits for CI.
 - [ ] Run backend tests, frontend tests, and the frontend build for the **same commit** intended for release. A passing build is not a production smoke test.
 - [ ] Rehearse this entire sequence against an isolated staging copy before production.
 
@@ -38,7 +40,7 @@ The current [README](../README.md) documents the architecture and local commands
 
 The reminder service needs **no new environment variable**. Before the backend starts accepting reservations, it atomically records the database server's current time in the existing `system_state` table as `reminder_cutoff`. All instances read the same stored value on restart. Reservations with `pending_since` at or before that second are excluded without changing their records; later reservations are eligible for the 12-hour and 24-hour reminders. The same-second exclusion favors not emailing a pre-rollout customer over delivering a reminder to a reservation created during that one-second boundary.
 
-The `system_state` table must already exist as part of the approved schema. The reminder job does not create tables. If the cutoff cannot be saved, read, or validated, backend startup stops; an email run also fails closed without querying Pending lots. Inspect the stored `reminder_cutoff` during staging and before production activation. If an earlier version of the reminder code has already initialized it, do not silently overwrite it—review that value and its effect on existing reservations with the project owner.
+The `system_state` table must already exist as part of the approved schema. If absent, create it with the explicit `db:migrate-system-state` step **after the backup**, before deploying the backend; normal startup and the reminder job do not create tables. If the table is unavailable, production startup waits without accepting traffic. If cutoff initialization fails after state sync, startup exits; an email run also fails closed without querying Pending lots. Inspect the stored `reminder_cutoff` during staging and before production activation. If an earlier version of the reminder code has already initialized it, do not silently overwrite it—review that value and its effect on existing reservations with the project owner.
 
 Reminder delivery is **at most one attempt per stage**, not guaranteed delivery: a crash or ambiguous provider timeout leaves the attempt claimed to avoid duplicate customer emails. Inspect server/email-provider logs and resolve such cases manually. The manual trigger is admin-only `POST /api/lots/send-pending-reminders`; GET no longer sends email.
 
@@ -92,6 +94,7 @@ Inspect the schema first. `migrate_date_provenance.js --plan` relies on `lots.so
 ```sql
 SHOW COLUMNS FROM lots LIKE 'sold_on';
 SHOW COLUMNS FROM transactions WHERE Field IN ('is_date_verified', 'date_provenance');
+SHOW TABLES LIKE 'system_state';
 SHOW TABLES LIKE 'sale_date_audit';
 ```
 
@@ -117,19 +120,20 @@ The commands below **write to the selected database** unless marked preview. Run
 
 | Order | Operation | Command | Expected effect |
 | --- | --- | --- | --- |
+| 0, if missing | Durable system-state table | `npm --prefix back-end run db:migrate-system-state` | Creates `system_state`; required before backend startup |
 | 1, if missing | Lot sale-date column | `npm --prefix back-end run db:migrate-lot-status-dates` | Adds nullable `lots.sold_on`; does not invent old sale dates |
 | 2, if missing | Login-history storage | `npm --prefix back-end run db:migrate-login-history` | Creates `account_login_history` |
 | 3, if missing | Sale-date correction audit | `npm --prefix back-end run db:migrate-sale-date-audit` | Creates `sale_date_audit` |
 | 4, after preview | Non-saleable classification | `node back-end/scripts/migrate_non_saleable_column.js` | Adds/backfills `lots.is_non_saleable`; review conflicts first |
 | 5, after plan approval | Transaction date provenance | `node back-end/scripts/migrate_date_provenance.js` | Adds/backfills verification and provenance columns; default invocation **applies writes** |
 
-Run database migrations before deploying backend code that depends on the new fields. The API currently attempts to add `lots.sold_on` at startup and logs migration errors as warnings; **a running server is not proof of a complete schema**. The provenance migration does not rewrite the original `transaction_date`, and the audit-table migration does not reconstruct corrections that occurred before it existed.
+Run database migrations before deploying backend code that depends on the new fields. Normal web-service startup does not alter database tables or backfill records; it does write the single `reminder_cutoff` key if absent. Migrations must be explicitly executed and verified with `db:preflight` before opening traffic. The provenance migration does not rewrite the original `transaction_date`, and the audit-table migration does not reconstruct corrections that occurred before it existed.
 
 Stop immediately on SQL errors, unresolved classification conflicts, or a mismatch between the approved plan and observed results. Preserve logs and the post-error database state for diagnosis; do not automatically retry a partially completed production migration.
 
 ## 7. Verify database state before deploying
 
-Run the release gate against the **actual migrated target**, not only localhost:
+Run the release gate against the **actual migrated target**, not only localhost. It uses the `DB_*` values in the process environment (falling back to the repository-root `.env`); the command itself does not select Aiven automatically. Verify the target identity without disclosing credentials before running:
 
 ```bash
 npm --prefix back-end run db:preflight
@@ -155,7 +159,7 @@ These counts do not prove every historical date is correct. Compare them with th
 
 1. Confirm the deployed backend has the verified CA environment, correct database target, strong JWT secret, and intended `FRONTEND_URL`. Deploy the approved SHA to the Render web service.
 2. Verify `/live` responds, then `/api/health` returns 200 with database connected. **Health checks only establish reachability and `SELECT 1`; the preflight is the schema gate.**
-3. Build/deploy the React SPA for the intended `REACT_APP_API_URL`; it is embedded at build time. Confirm the deployed frontend corresponds to the same approved SHA.
+3. Build/deploy the React SPA for the intended `REACT_APP_API_URL`; it is embedded at build time. Confirm the deployed frontend corresponds to the same approved SHA. Verify the Render Static Site has a `/*` → `/index.html` Rewrite rule and directly refresh a deep link; the repository's `_redirects` file is not proof of a Render routing rule.
 4. Use authorized admin and employee accounts to inspect the application. Protected endpoints require authentication; an anonymous 401 is expected, not a smoke-test failure.
 
 | Read-only check | Expected evidence |
@@ -184,6 +188,7 @@ Record evidence for this release. Leave a gate open if it cannot be verified; do
 | Gate | Required evidence | Result |
 | --- | --- | --- |
 | Repository/security review | Backup access, history-remediation decision, secrets review | Not recorded |
+| Map-provider review | Authorized tile source and visible, compliant attribution | Not recorded |
 | Staging rehearsal | Restore test, migration plan, automated tests, workflow smoke test | Not recorded |
 | Production backup | Verified protected file and isolated restore rehearsal | Not recorded |
 | Production migration | Approved command log and aggregate reconciliation | Not recorded |

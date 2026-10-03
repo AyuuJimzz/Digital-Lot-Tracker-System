@@ -34,8 +34,6 @@ const formatSaleDate = (dateString) => {
 
 const inputCls =
   "w-full md:max-w-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
-const selectCls =
-  "w-full md:w-40 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
 const paginBtnCls =
   "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
@@ -73,7 +71,8 @@ const MySales = () => {
       const sales = [];
       const seenLotIds = new Set();
       fetchedTransactions.forEach((t) => {
-        if (String(t.status || "").toLowerCase() === "cancelled") return;
+        // Strictly completed / closed sales only
+        if (String(t.status || "").toLowerCase() !== "sold") return;
         const lot = lotMap.get(Number(t.lot_id));
         const cust = custMap.get(Number(t.lot_id));
         if (t.lot_id) seenLotIds.add(Number(t.lot_id));
@@ -85,36 +84,13 @@ const MySales = () => {
           property_id: lot?.property_id,
           property_name: t.property_name || (lot?.property_id ? propMap.get(Number(lot.property_id)) : "—"),
           area_sqm: lot?.area_sqm,
-          status: t.status || lot?.status || "Sold",
+          status: "Sold",
           buyer_name: t.customer_name || cust?.full_name || "—",
           buyer_contact: cust?.contact_number || "",
           buyer_email: cust?.email || "",
         });
       });
 
-      fetchedCustomers.forEach((c) => {
-        if (c.lot_id && !seenLotIds.has(Number(c.lot_id))) {
-          const lot = lotMap.get(Number(c.lot_id));
-          // Sold lots are credited by their transaction's finalizing agent,
-          // not by the customer record's original reservation agent.
-          if (lot && String(lot.status || "").toLowerCase() === "pending" &&
-              String(c.lot_status || "").toLowerCase() === "pending") {
-            sales.push({
-              lot_id: lot.lot_id,
-              sale_ref: `TXN-${String(lot.lot_id).padStart(4, "0")}`,
-              sale_date: formatSaleDate(c.created_at || lot.pending_since),
-              lot_number: lot.lot_number,
-              property_id: lot.property_id,
-              property_name: propMap.get(Number(lot.property_id)) || `Property ${lot.property_id}`,
-              area_sqm: lot.area_sqm,
-              status: lot.status,
-              buyer_name: c.full_name || "—",
-              buyer_contact: c.contact_number || "",
-              buyer_email: c.email || "",
-            });
-          }
-        }
-      });
       return sales;
     },
     staleTime: 60 * 1000,
@@ -123,25 +99,21 @@ const MySales = () => {
   const loading = salesQuery.isPending;
   const error = salesQuery.error ? "Unable to load sales data. Please refresh and try again." : "";
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredSales = useMemo(() => {
     return salesRecords.filter((sale) => {
       const searchText =
         `${sale.sale_ref} ${sale.lot_number} ${sale.buyer_name} ${sale.buyer_contact} ${sale.buyer_email} ${sale.property_name} ${sale.status} ${sale.area_sqm} ${sale.sale_date || ""}`.toLowerCase();
-      const matchesSearch = searchTerm.trim()
+      return searchTerm.trim()
         ? searchText.includes(searchTerm.trim().toLowerCase())
         : true;
-      const matchesStatus =
-        statusFilter === "all" ? true : String(sale.status || "").toLowerCase() === statusFilter;
-      return matchesSearch && matchesStatus;
     });
-  }, [salesRecords, searchTerm, statusFilter]);
+  }, [salesRecords, searchTerm]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filteredSales.length / ROWS_PER_PAGE));
   const paginatedSales = useMemo(() => {
@@ -166,7 +138,7 @@ const MySales = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">My Sales</h1>
         <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
-          Track sold and pending lot transactions.
+          Track your completed lot sales and closed deals.
         </p>
       </div>
 
@@ -179,7 +151,7 @@ const MySales = () => {
 
       {(!error || salesQuery.data) && (
         <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <input
               id="employee-sales-search"
               name="employee_sales_search"
@@ -190,23 +162,14 @@ const MySales = () => {
               placeholder="Search txn id, lot, client name, property..."
               className={inputCls}
             />
-            <select
-              id="employee-sales-status-filter"
-              name="employee_sales_status_filter"
-              aria-label="Filter sales status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={selectCls}
-            >
-              <option value="all">All Status</option>
-              <option value="sold">Sold</option>
-              <option value="pending">Pending</option>
-            </select>
+            <div className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+              {filteredSales.length} {filteredSales.length === 1 ? "completed sale" : "completed sales"}
+            </div>
           </div>
 
           {filteredSales.length === 0 ? (
             <div className="text-sm text-gray-500 dark:text-slate-400">
-              No sales records match your current filter.
+              {searchTerm.trim() ? "No sales match your search." : "No completed sales recorded yet."}
             </div>
           ) : (
             <>

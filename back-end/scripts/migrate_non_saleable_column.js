@@ -31,7 +31,12 @@
  *   node scripts/migrate_non_saleable_column.js --remove-exclude-ids=101  # Remove lot ID from migration skip-list
  *   node scripts/migrate_non_saleable_column.js --clear-exclusions        # Clear migration skip-list
  */
-const defaultDb = require("../config/database_connection");
+// Lazy-load database connection so requiring this file in tests doesn't open live pool
+let defaultDb = null;
+const getDefaultDb = () => {
+  if (!defaultDb) defaultDb = require("../config/database_connection");
+  return defaultDb;
+};
 const { NON_SALEABLE_REGEX } = require("../src/utils/lotClassification");
 
 // Parse CLI exclusion arguments
@@ -110,9 +115,10 @@ async function saveSavedExclusions(db, exclusionIds) {
  * @param {number[]} options.cliRemoveIds - Explicit list of IDs to remove from exclusions
  * @param {boolean} options.isClearExclusions - Explicitly clear all exclusions
  * @param {object} options.logger - Optional custom logger (defaults to console)
+ * @param {boolean} options.throwOnConflict - Also throw for a dry-run preview with conflicts
  */
 async function migrateNonSaleableColumn(options = {}) {
-  const activeDb = options.db || options.pool || defaultDb;
+  const activeDb = options.db || options.pool || getDefaultDb();
   const isDryRun = options.isDryRun !== undefined ? Boolean(options.isDryRun) : process.argv.includes("--dry-run");
   const isClearExclusions = options.isClearExclusions !== undefined ? Boolean(options.isClearExclusions) : process.argv.includes("--clear-exclusions");
   const cliExcludeIds = options.cliExcludeIds || parseIdList("--exclude-ids");
@@ -270,6 +276,14 @@ async function migrateNonSaleableColumn(options = {}) {
     }
     if (statusConflicts.length > 0) {
       logger.log(`⚠️  [UNRESOLVED CONFLICTS]: ${statusConflicts.length} lot(s) cannot be migrated due to active Pending/Sold status.`);
+      if (options.throwOnConflict) {
+        const conflictError = new Error(
+          `Migration conflict: ${statusConflicts.length} candidate lot(s) have active Pending/Sold status.`
+        );
+        conflictError.code = "ERR_MIGRATION_CONFLICT";
+        conflictError.unresolvedCount = statusConflicts.length;
+        throw conflictError;
+      }
     }
     if (pendingMigration.length > 0) {
       logger.log(`👉 To apply these changes live, run without '--dry-run':`);
@@ -298,6 +312,17 @@ async function migrateNonSaleableColumn(options = {}) {
   // ==========================================
   // LIVE EXECUTION ONLY BEYOND THIS POINT
   // ==========================================
+
+  // A known conflict must stop the live migration before it creates a table,
+  // persists exclusions, or updates any lot. Dry-run still reports all rows.
+  if (statusConflicts.length > 0) {
+    const error = new Error(
+      `Migration blocked: ${statusConflicts.length} candidate lot(s) have active Pending/Sold status.`
+    );
+    error.code = "ERR_MIGRATION_CONFLICT";
+    error.unresolvedCount = statusConflicts.length;
+    throw error;
+  }
 
   // 9. Live Execution: Ensure system_state table exists and persist skip-list
   await ensureSystemStateTable(activeDb);
@@ -377,12 +402,11 @@ async function migrateNonSaleableColumn(options = {}) {
     logger.error(`   - Preflight conflicts ('Pending' or 'Sold'): ${statusConflicts.length}`);
     logger.error(`   - Skipped at write-time: ${writeTimeSkipped}`);
     logger.error(`   ❌ Cannot report successful completion until these conflicts are resolved by an administrator.`);
-    process.exitCode = 1;
   } else {
     logger.log("\n🎉 Migration process completed successfully with 0 unresolved conflicts.\n");
   }
 
-  return {
+  const result = {
     isDryRun: false,
     columnExists: true,
     systemStateTableExists: true,
@@ -397,10 +421,30 @@ async function migrateNonSaleableColumn(options = {}) {
     totalUnresolved,
     completedWithoutConflicts: totalUnresolved === 0,
   };
+  if (totalUnresolved > 0) {
+    const error = new Error(`Migration incomplete: ${totalUnresolved} candidate lot(s) have unresolved conflicts.`);
+    error.code = "ERR_MIGRATION_CONFLICT";
+    error.unresolvedCount = totalUnresolved;
+    error.result = result;
+    throw error;
+  }
+  return result;
+}
+
+function assertMigrationSuccess(result) {
+  if (!result || result.completedWithoutConflicts !== true) {
+    const unresolved = result ? result.totalUnresolved : "unknown";
+    const error = new Error(`Migration reported unresolved conflicts (${unresolved} lot(s)).`);
+    error.code = "ERR_MIGRATION_CONFLICT";
+    error.result = result;
+    throw error;
+  }
+  return result;
 }
 
 module.exports = {
   migrateNonSaleableColumn,
+  assertMigrationSuccess,
   checkTableExists,
   ensureSystemStateTable,
   loadSavedExclusions,
@@ -409,12 +453,10 @@ module.exports = {
 
 if (require.main === module) {
   migrateNonSaleableColumn()
-    .then(async () => {
-      await defaultDb.end();
-    })
-    .catch(async (err) => {
+    .then((result) => assertMigrationSuccess(result))
+    .catch((err) => {
       console.error("❌ Migration error:", err.message);
-      await defaultDb.end();
-      process.exit(1);
-    });
+      process.exitCode = 1;
+    })
+    .finally(() => defaultDb?.end());
 }
