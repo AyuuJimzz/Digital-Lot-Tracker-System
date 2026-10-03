@@ -9,8 +9,9 @@ export const LotOffcanvasFooter = ({
   isAdmin,
   openDeleteModal,
   selectedLot,
+  isNonSaleable = false,
 }) => {
-  if (isLockedForUser && !isAdmin) return null;
+  if (!isAdmin && (isLockedForUser || isNonSaleable)) return null;
 
   return (
     <div className="border-t border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-800 sm:px-6">

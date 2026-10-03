@@ -308,7 +308,7 @@ export function useLotOffcanvasState({
 
   const isExistingSoldLot = selectedLot?.status === "Sold";
   const isPendingLockedForOther = selectedLot?.status === "Pending" && !isReservingAgent;
-  const isLockedForUser = !isAdmin && (isExistingSoldLot || isPendingLockedForOther);
+  const isLockedForUser = !isAdmin && (isExistingSoldLot || isPendingLockedForOther || isNonSaleable);
   const canCancelReservation = isAdmin || isReservingAgent;
   const hasSavedClient = Boolean(
     (selectedLot?.status === "Pending" || selectedLot?.status === "Sold") &&

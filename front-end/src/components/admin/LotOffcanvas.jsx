@@ -250,6 +250,7 @@ export const LotOffcanvas = ({
             isAdmin={isAdmin}
             openDeleteModal={openDeleteModal}
             selectedLot={selectedLot}
+            isNonSaleable={isNonSaleable}
           />
         </div>
       </div>
