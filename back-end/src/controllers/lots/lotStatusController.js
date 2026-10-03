@@ -75,24 +75,30 @@ exports.updateLotStatus = async (req, res) => {
     }
   } else {
     // Admin is performing the action!
-    const targetEmpId = req.body.assigned_employee_id !== undefined ? req.body.assigned_employee_id : req.body.employee_id;
-    if (targetEmpId) {
-      try {
-        const [empRows] = await dbToUse.query(
-          "SELECT employee_id, first_name, last_name FROM employees WHERE employee_id = ?",
-          [targetEmpId]
-        );
-        if (empRows.length > 0) {
-          employeeId = empRows[0].employee_id;
-          agentName = `${empRows[0].first_name} ${empRows[0].last_name || ""}`.trim() || "Agent";
+    const isOldRecord = Boolean(req.body.is_old_record) && status === "Sold";
+    if (isOldRecord) {
+      employeeId = null;
+      agentName = "Old Record";
+    } else {
+      const targetEmpId = req.body.assigned_employee_id !== undefined ? req.body.assigned_employee_id : req.body.employee_id;
+      if (targetEmpId) {
+        try {
+          const [empRows] = await dbToUse.query(
+            "SELECT employee_id, first_name, last_name FROM employees WHERE employee_id = ?",
+            [targetEmpId]
+          );
+          if (empRows.length > 0) {
+            employeeId = empRows[0].employee_id;
+            agentName = `${empRows[0].first_name} ${empRows[0].last_name || ""}`.trim() || "Agent";
+          }
+        } catch (_) {
+          employeeId = null;
+          agentName = "Admin";
         }
-      } catch (_) {
+      } else {
         employeeId = null;
         agentName = "Admin";
       }
-    } else {
-      employeeId = null;
-      agentName = "Admin";
     }
   }
 
@@ -394,7 +400,17 @@ exports.updateLotStatus = async (req, res) => {
         const originalEmpId = customerResult[0][0].employee_id;
         let creditEmpId = originalEmpId || employeeId;
         let creditAgentName = agentName;
-        if (originalEmpId && originalEmpId !== employeeId) {
+        const isOldRecordExplicit = Boolean(req.body.is_old_record) && isAdmin;
+        if (isOldRecordExplicit) {
+          if (originalEmpId) {
+            await connection.rollback();
+            return res.status(400).json({
+              error: "Cannot mark as Old Record: This reservation is assigned to an agent. Old Record attribution is only allowed for company/Admin sales.",
+            });
+          }
+          creditEmpId = null;
+          creditAgentName = "Old Record";
+        } else if (originalEmpId && originalEmpId !== employeeId) {
           try {
             const [origEmpRows] = await dbToUse.query(
               "SELECT first_name, last_name FROM employees WHERE employee_id = ?",
@@ -470,7 +486,7 @@ exports.updateLotStatus = async (req, res) => {
       }
 
         // Schedule email to be sent after 5 minutes for real-time Sold status (suppress for old/historical sales)
-        if (email && customerId && !isLegacyUndated && !verifiedDateInput) {
+        if (email && customerId && !isLegacyUndated && !verifiedDateInput && !Boolean(req.body.is_old_record)) {
           const emailDate = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
 
           postCommitTasks.push(() => schedule.scheduleJob(emailDate, async () => {
@@ -683,6 +699,50 @@ exports.updateLotStatus = async (req, res) => {
               previousTransaction?.date_provenance || null, newProvenance,
               req.user.role, req.user.id || null, req.user.email || null,
             ]
+          );
+        }
+      }
+    }
+
+    if (status === "Sold" && lot.status === "Sold" && isAdmin && req.body.is_old_record !== undefined) {
+      const isOldRecordExplicit = Boolean(req.body.is_old_record);
+
+      const [currentTxnRows] = await query(
+        `SELECT transaction_id, employee_id, agent_name FROM transactions
+         WHERE lot_id = ? AND payment_type NOT IN ('Reversal', 'Cancelled')
+         ORDER BY transaction_id DESC LIMIT 1`,
+        [id]
+      );
+
+      const txnList = Array.isArray(currentTxnRows?.[0]) ? currentTxnRows[0] : currentTxnRows;
+      if (txnList && txnList.length > 0) {
+        const currentTxn = txnList[0];
+        const isCurrentAgentSale = currentTxn.employee_id !== null ||
+          (currentTxn.agent_name && !["Admin", "Old Record"].includes(currentTxn.agent_name));
+
+        if (isCurrentAgentSale && isOldRecordExplicit) {
+          // PROTECT AGENT SALE: Never overwrite an existing agent's commission/sale with 'Old Record'
+          await connection.rollback();
+          return res.status(400).json({
+            error: `Cannot mark as Old Record: This lot was sold by an assigned agent (${currentTxn.agent_name || "Agent"}). Old Record attribution is only allowed for company/Admin sales.`,
+          });
+        }
+
+        if (isOldRecordExplicit) {
+          // Admin sale -> Old Record (lossless, safe)
+          await query(
+            `UPDATE transactions
+             SET agent_name = 'Old Record', employee_id = NULL
+             WHERE transaction_id = ?`,
+            [currentTxn.transaction_id]
+          );
+        } else if (currentTxn.agent_name === "Old Record") {
+          // Revert Old Record -> Admin (lossless round-trip!)
+          await query(
+            `UPDATE transactions
+             SET agent_name = 'Admin', employee_id = NULL
+             WHERE transaction_id = ?`,
+            [currentTxn.transaction_id]
           );
         }
       }

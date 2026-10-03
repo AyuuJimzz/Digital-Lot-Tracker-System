@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CalendarDays, History } from "lucide-react";
+import { CalendarDays, Pencil } from "lucide-react";
 import { getStatusColorClasses } from "./lotOffcanvasUtils";
 
 const dateFormatter = new Intl.DateTimeFormat("en-PH", {
@@ -31,10 +31,17 @@ export const LotStatusSection = ({
   setCustomSoldOn,
   isLegacyUndated,
   setIsLegacyUndated,
+  isOldRecord,
+  setIsOldRecord,
+  agentName,
+  assignedEmployeeId,
   isAdmin,
   isSaving = false,
 }) => {
   const [isCustomDateOpen, setIsCustomDateOpen] = useState(false);
+  const isAssignedAgentSale = Boolean(
+    assignedEmployeeId || (agentName && !["admin", "old record"].includes(agentName.toLowerCase().trim()))
+  );
 
   useEffect(() => {
     if (status !== "Sold") {
@@ -128,20 +135,20 @@ export const LotStatusSection = ({
                   onClick={() => setIsCustomDateOpen((prev) => !prev)}
                   title={
                     isCustomDateOpen
-                      ? "Hide past date options"
-                      : "Set past sale date or mark as old record"
+                      ? "Close date editor"
+                      : isAssignedAgentSale
+                      ? "Edit sale date"
+                      : "Edit sale date or mark as old record"
                   }
                   className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium transition-all ${
                     isCustomDateOpen
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 ring-1 ring-blue-400/30"
-                      : isLegacyUndated || customSoldOn
-                      ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/60"
-                      : "text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800"
+                      : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800"
                   }`}
                 >
-                  <History className="h-3 w-3" />
+                  {isCustomDateOpen ? null : <Pencil className="h-3 w-3" />}
                   <span>
-                    {isCustomDateOpen ? "Close" : "Past Date"}
+                    {isCustomDateOpen ? "Close" : "Edit Date"}
                   </span>
                 </button>
               )}
@@ -151,9 +158,9 @@ export const LotStatusSection = ({
             {!(status === "Sold" && isAdmin && isCustomDateOpen) ? (
               <div className="mt-1">
                 {status === "Sold" && isLegacyUndated ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                    ⚠️ Date unverified (Old Record)
-                  </span>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    Undated
+                  </p>
                 ) : status === "Sold" && customSoldOn ? (
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                     {formatStatusDate(customSoldOn, true) || customSoldOn}
@@ -163,28 +170,28 @@ export const LotStatusSection = ({
                     {formattedDate ||
                       (originalStatus === status
                         ? status === "Sold"
-                        ? "Date unverified"
+                        ? "Undated"
                         : "Not recorded"
                         : "Recorded when saved (Today)")}
                   </p>
                 )}
               </div>
             ) : (
-              /* Expanded Custom Past Date / Old Record Panel */
+              /* Expanded Custom Date / Old Record Panel */
               <div className="mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-700/70 space-y-2">
                 {isLegacyUndated ? (
-                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 p-2.5 border border-amber-200 dark:border-amber-800/60">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-200/80 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200 mb-1">
-                      ⚠️ Date unverified (Old Record)
+                  <div className="rounded-lg bg-slate-100 dark:bg-slate-800/80 p-2.5 border border-slate-200 dark:border-slate-700">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200 mb-1">
+                      Undated
                     </span>
-                    <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-snug">
-                      This lot is marked as sold without an exact sale date. It will be cataloged under <em>Old Records</em> and excluded from monthly revenue charts until verified.
+                    <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-snug">
+                      This lot is marked as sold without an exact sale date. It will be cataloged under <em>Old Records</em> and excluded from monthly revenue charts.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-1">
                     <label className="block text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                      Past Sale Date
+                      Sale Date
                     </label>
                     <input
                       type="date"
@@ -208,25 +215,51 @@ export const LotStatusSection = ({
                   </div>
                 )}
 
-                <label className="flex items-center gap-2 pt-1 border-t border-slate-200/80 dark:border-slate-700/80 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    id="legacy-undated-checkbox"
-                    checked={Boolean(isLegacyUndated)}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setIsLegacyUndated && setIsLegacyUndated(checked);
-                      if (checked && setCustomSoldOn) {
-                        setCustomSoldOn("");
-                      }
-                    }}
-                    disabled={isSaving}
-                    className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
-                  />
-                  <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                    Mark as Old Sale without Date (Leave Undated)
-                  </span>
-                </label>
+                {!isAssignedAgentSale && (
+                  <>
+                    <label className="flex items-center gap-2 pt-1 border-t border-slate-200/80 dark:border-slate-700/80 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        id="legacy-undated-checkbox"
+                        checked={Boolean(isLegacyUndated)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setIsLegacyUndated && setIsLegacyUndated(checked);
+                          if (checked && setCustomSoldOn) {
+                            setCustomSoldOn("");
+                          }
+                        }}
+                        disabled={isSaving}
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
+                      />
+                      <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                        Mark as Old Sale without Date (Leave Undated)
+                      </span>
+                    </label>
+
+                    <label className="flex items-start gap-2 pt-1.5 border-t border-slate-200/80 dark:border-slate-700/80 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        id="old-record-attribution-checkbox"
+                        checked={Boolean(isOldRecord)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setIsOldRecord && setIsOldRecord(checked);
+                        }}
+                        disabled={isSaving}
+                        className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 dark:border-slate-600 dark:bg-slate-700"
+                      />
+                      <div className="min-w-0">
+                        <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                          Attribute Seller as "Old Record" (instead of Admin)
+                        </span>
+                        <span className="block text-[10px] text-slate-500 dark:text-slate-400">
+                          Catalog this sale as a company legacy record across map, drawer, and reports.
+                        </span>
+                      </div>
+                    </label>
+                  </>
+                )}
               </div>
             )}
           </div>

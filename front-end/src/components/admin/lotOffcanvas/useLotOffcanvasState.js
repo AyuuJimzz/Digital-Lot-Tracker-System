@@ -56,9 +56,11 @@ export function useLotOffcanvasState({
   const [deleteLotError, setDeleteLotError] = useState("");
   const isDeleting = isDeletingLot;
   const [agentName, setAgentName] = useState("Admin");
+  const [agentStatus, setAgentStatus] = useState("admin");
   const [assignedEmployeeId, setAssignedEmployeeId] = useState(null);
   const [customSoldOn, setCustomSoldOn] = useState("");
   const [isLegacyUndated, setIsLegacyUndated] = useState(false);
+  const [isOldRecord, setIsOldRecordState] = useState(false);
 
   // Editable Lot Metadata details
   const [lotNumber, setLotNumber] = useState("");
@@ -135,7 +137,12 @@ export function useLotOffcanvasState({
     }
 
     if (!dirtyFieldsRef.current.isLegacyUndated && data.status === "Sold") {
-      setIsLegacyUndated(!data.sold_on);
+      const isAgent = Boolean(
+        data.employee_id ||
+        data.customer?.employee_id ||
+        (data.agent_name && !["admin", "old record"].includes(data.agent_name.toLowerCase().trim()))
+      );
+      setIsLegacyUndated(Boolean(!isAgent && !data.sold_on));
     }
 
     if (!dirtyFieldsRef.current.isNonSaleable && data.is_non_saleable !== undefined) {
@@ -154,6 +161,14 @@ export function useLotOffcanvasState({
       setAgentName(data.agent_name || "");
     }
 
+    if (data.agent_status !== undefined) {
+      setAgentStatus(data.agent_status || "admin");
+    }
+
+    if (!dirtyFieldsRef.current.isOldRecord) {
+      setIsOldRecordState(data.agent_name === "Old Record" || data.agent_status === "legacy");
+    }
+
     if (!dirtyFieldsRef.current.assignedEmployeeId && data.employee_id !== undefined) {
       setAssignedEmployeeId(data.employee_id);
     }
@@ -162,7 +177,12 @@ export function useLotOffcanvasState({
       setPaymentMethod(data.payment_method || "");
     }
 
-    if (data.customer) {
+    if (data.status === "Available" || !data.customer || data.customer.customer_status === "Cancelled") {
+      if (!dirtyFieldsRef.current.email) setEmail("");
+      if (!dirtyFieldsRef.current.fullName) setFullName("");
+      if (!dirtyFieldsRef.current.contactNumber) setContactNumber("");
+      if (!dirtyFieldsRef.current.address) setAddress("");
+    } else if (data.customer) {
       if (!dirtyFieldsRef.current.email && data.customer.email !== undefined) {
         setEmail(data.customer.email || "");
       }
@@ -246,6 +266,12 @@ export function useLotOffcanvasState({
     }
   };
 
+  const handleOldRecordChange = (val) => {
+    const nextVal = typeof val === "function" ? val(isOldRecord) : Boolean(val);
+    dirtyFieldsRef.current.isOldRecord = true;
+    setIsOldRecordState(nextVal);
+  };
+
   const handleStatusChange = (newStatusVal) => {
     const nextStatus = typeof newStatusVal === "function" ? newStatusVal(status) : newStatusVal;
     dirtyFieldsRef.current.status = true;
@@ -255,8 +281,11 @@ export function useLotOffcanvasState({
       setIsLegacyUndated(false);
       dirtyFieldsRef.current.isLegacyUndated = false;
     }
-    // When explicitly switching to Available, clear customer details once.
-    if (nextStatus === "Available" && status !== "Available") {
+    // When switching to Available OR when picking Pending/Sold on an Available lot, clear customer details for a fresh form.
+    if (
+      (nextStatus === "Available" && status !== "Available") ||
+      (status === "Available" && nextStatus !== "Available")
+    ) {
       setEmail("");
       setFullName("");
       setContactNumber("");
@@ -284,6 +313,7 @@ export function useLotOffcanvasState({
   const hasSavedClient = Boolean(
     (selectedLot?.status === "Pending" || selectedLot?.status === "Sold") &&
     selectedLot?.customer &&
+    selectedLot.customer.customer_status !== "Cancelled" &&
     selectedLot.customer.full_name &&
     selectedLot.customer.full_name.trim() !== ""
   );
@@ -402,8 +432,8 @@ export function useLotOffcanvasState({
       setLongitude("");
     }
 
-    // If lot has customer data, set the customer information
-    if (selectedLot.customer) {
+    // If lot has customer data, set the customer information (strictly active Pending/Sold lots, never for Available)
+    if (selectedLot.status !== "Available" && selectedLot.customer && selectedLot.customer.customer_status !== "Cancelled") {
       setEmail(selectedLot.customer.email || "");
       setFullName(selectedLot.customer.full_name || "");
       setContactNumber(selectedLot.customer.contact_number || "");
@@ -424,9 +454,16 @@ export function useLotOffcanvasState({
 
     // Initialize assigned agent name & ID
     setAgentName(selectedLot.agent_name || (selectedLot.employee_id ? "Agent" : "Admin"));
+    setAgentStatus(selectedLot.agent_status || (selectedLot.employee_id ? "active" : "admin"));
     setAssignedEmployeeId(selectedLot.employee_id ?? selectedLot.customer?.employee_id ?? null);
     setCustomSoldOn(selectedLot.sold_on ? String(selectedLot.sold_on).slice(0, 10) : "");
-    setIsLegacyUndated(Boolean(selectedLot.status === "Sold" && !selectedLot.sold_on));
+    const isAgent = Boolean(
+      selectedLot.employee_id ??
+      selectedLot.customer?.employee_id ??
+      (selectedLot.agent_name && !["admin", "old record"].includes(selectedLot.agent_name.toLowerCase().trim()))
+    );
+    setIsLegacyUndated(Boolean(!isAgent && selectedLot.status === "Sold" && !selectedLot.sold_on));
+    setIsOldRecordState(selectedLot.agent_name === "Old Record" || selectedLot.agent_status === "legacy");
 
     // Fetch latest lot details from server
     if (currentLotId) {
@@ -586,6 +623,11 @@ export function useLotOffcanvasState({
 
       // 2. Update lot status with customer information
       const finalStatus = isNonSaleable ? "Available" : status;
+      const isAssignedAgentSale = Boolean(
+        assignedEmployeeId ||
+        (agentName && !["admin", "old record"].includes(agentName.toLowerCase().trim())) ||
+        selectedLot?.employee_id
+      );
       const response = await fetchWithTimeout(`${API_BASE_URL}/api/lots/${selectedLot.lot_id}/status`, {
         method: "PUT",
         headers: getAuthHeaders(),
@@ -598,8 +640,9 @@ export function useLotOffcanvasState({
           address: isNonSaleable ? null : address,
           paymentMethod: !isNonSaleable && status === "Sold" ? paymentMethod : null,
           assigned_employee_id: isAdmin && status === "Pending" ? assignedEmployeeId : undefined,
-          is_legacy_undated: isAdmin && finalStatus === "Sold" ? Boolean(isLegacyUndated) : false,
-          sold_on: !isNonSaleable && finalStatus === "Sold" && !isLegacyUndated && dirtyFieldsRef.current.customSoldOn && customSoldOn
+          is_legacy_undated: isAdmin && finalStatus === "Sold" && !isAssignedAgentSale ? Boolean(isLegacyUndated) : false,
+          is_old_record: isAdmin && finalStatus === "Sold" && !isAssignedAgentSale && dirtyFieldsRef.current.isOldRecord ? Boolean(isOldRecord) : undefined,
+          sold_on: !isNonSaleable && finalStatus === "Sold" && (!isLegacyUndated || isAssignedAgentSale) && dirtyFieldsRef.current.customSoldOn && customSoldOn
             ? customSoldOn
             : undefined,
         }),
@@ -632,6 +675,19 @@ export function useLotOffcanvasState({
             selectedLot.sold_on = null;
           } else if (customSoldOn) {
             selectedLot.sold_on = customSoldOn;
+          }
+          if (!isAssignedAgentSale) {
+            if (isOldRecord) {
+              selectedLot.agent_name = "Old Record";
+              selectedLot.agent_status = "legacy";
+              setAgentName("Old Record");
+              setAgentStatus("legacy");
+            } else if (dirtyFieldsRef.current.isOldRecord && !isOldRecord) {
+              selectedLot.agent_name = "Admin";
+              selectedLot.agent_status = "admin";
+              setAgentName("Admin");
+              setAgentStatus("admin");
+            }
           }
         }
       }
@@ -756,6 +812,7 @@ export function useLotOffcanvasState({
     deleteLotError,
     isDeleting,
     agentName,
+    agentStatus,
     lotNumber,
     setLotNumber: handleLotNumberChange,
     areaSqm,
@@ -773,6 +830,8 @@ export function useLotOffcanvasState({
     setCustomSoldOn: handleCustomSoldOnChange,
     isLegacyUndated,
     setIsLegacyUndated: handleLegacyUndatedChange,
+    isOldRecord,
+    setIsOldRecord: handleOldRecordChange,
     hasSavedClient,
     handleCopyCoords,
     handleSetSaleable,

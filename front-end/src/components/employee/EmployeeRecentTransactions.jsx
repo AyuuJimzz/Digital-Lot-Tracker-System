@@ -21,7 +21,7 @@ const EmployeeRecentTransactions = () => {
   const [pageSize, setPageSize] = useState(5);
   // Filter transactions by status, search query, date, and old records isolation
   const filtered = transactions.filter((t) => {
-    const isOldRecord = Boolean(Number(t.is_historical) === 1);
+    const isOldRecord = Boolean(Number(t.is_historical) === 1 || t.agent_status === "legacy" || (t.agent_name || "").toLowerCase() === "old record");
 
     // 0. Old records isolation:
     // Recent Transactions feed strictly displays recent/current year activity by default.
@@ -52,7 +52,10 @@ const EmployeeRecentTransactions = () => {
       const clientStr = (t.customer_name || "").toLowerCase();
       const lotStr = (t.lot_number || "").toLowerCase();
       const propStr = (t.property_name || "").toLowerCase();
-      const agentStr = (t.agent_name || (t.employee_id && empNameMap[t.employee_id]) || "admin").toLowerCase();
+      const agentRaw = t.agent_name || (t.employee_id && empNameMap[t.employee_id]) || "admin";
+      const agentStr = agentRaw.toLowerCase();
+      const isInactiveAgent = t.agent_status === "inactive" && agentRaw.toLowerCase() !== "admin";
+      const isOldRecord = t.agent_status === "legacy" || agentRaw.toLowerCase() === "old record";
       const payStr = (t.payment_type || "").toLowerCase();
 
       const matches =
@@ -62,6 +65,8 @@ const EmployeeRecentTransactions = () => {
         lotStr.includes(q) ||
         propStr.includes(q) ||
         agentStr.includes(q) ||
+        (isInactiveAgent && "inactive agent".includes(q)) ||
+        (isOldRecord && "old record".includes(q)) ||
         payStr.includes(q);
 
       if (!matches) return false;
@@ -296,7 +301,14 @@ const EmployeeRecentTransactions = () => {
                     )}
                   </td>
                   <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
-                    {txn.agent_name || (txn.employee_id && empNameMap[txn.employee_id]) || "Admin"}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span>{txn.agent_name || (txn.employee_id && empNameMap[txn.employee_id]) || "Admin"}</span>
+                      {txn.agent_status === "inactive" && (txn.agent_name || "").toLowerCase() !== "admin" && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-700/60">
+                          Inactive Agent
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3.5 text-center whitespace-nowrap text-xs font-medium text-slate-700 dark:text-slate-300">
                     {txn.payment_type || "No Downpayment"}

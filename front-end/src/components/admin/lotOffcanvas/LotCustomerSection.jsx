@@ -22,6 +22,8 @@ export const LotCustomerSection = ({
   isLockedForUser,
   hasSavedClient,
   agentName,
+  agentStatus = "admin",
+  isOldRecord = false,
   propertyName,
   propertyLocation,
   isSaving = false,
@@ -39,6 +41,8 @@ export const LotCustomerSection = ({
     return `Only ${agentName || "the assigned agent"} or Admin can edit this reservation`;
   };
 
+  const isLegacyRecord = isOldRecord || agentStatus === "legacy" || (agentName || "").toLowerCase() === "old record";
+
   return (
     <section aria-label="Buyer details" className="space-y-4 border-t border-gray-200 pt-5 dark:border-slate-700">
       <div>
@@ -50,7 +54,7 @@ export const LotCustomerSection = ({
         </p>
       </div>
 
-      {(isAdmin || isLockedForUser) && (agentName || hasSavedClient) && (
+      {(isAdmin || isLockedForUser) && (agentName || hasSavedClient || isLegacyRecord) && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-600 dark:bg-slate-900/40">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-600">
@@ -58,11 +62,18 @@ export const LotCustomerSection = ({
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                {status === "Sold" ? "Sale credited to" : "Reservation managed by"}
+                {status === "Sold" ? "Sold by" : "Reserved by"}
               </p>
-              <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100" title={agentName || "Admin"}>
-                {agentName || "Admin"}
-              </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100" title={isLegacyRecord ? "Old Record" : (agentName || "Admin")}>
+                  {isLegacyRecord ? "Old Record" : (agentName || "Admin")}
+                </p>
+                {!isLegacyRecord && agentStatus === "inactive" && agentName && agentName.toLowerCase() !== "admin" && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    Inactive Agent
+                  </span>
+                )}
+              </div>
             </div>
             {isLockedForUser && (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">

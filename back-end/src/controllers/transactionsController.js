@@ -20,14 +20,24 @@ const getTransactions = async (req, res) => {
       SELECT 
         CONCAT('TXN-', LPAD(t.transaction_id, 4, '0')) as transaction_id,
         t.lot_id,
-        COALESCE(t.employee_id, c.employee_id) as employee_id,
+        CASE
+          WHEN t.agent_name = 'Old Record' THEN NULL
+          ELSE COALESCE(t.employee_id, c.employee_id)
+        END as employee_id,
         COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') as agent_name,
+        CASE
+          WHEN t.agent_name = 'Old Record' THEN 'legacy'
+          WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END) IS NULL AND (t.agent_name IS NULL OR t.agent_name = 'Admin') THEN 'admin'
+          WHEN e.status = 'active' THEN 'active'
+          ELSE 'inactive'
+        END as agent_status,
         COALESCE(c.full_name, 'No customer assigned') as customer_name,
         l.lot_number,
         p.property_name,
         DATE_FORMAT(COALESCE(t.transaction_date, l.sold_on), '%Y-%m-%d') as transaction_date,
         t.payment_type,
         CASE 
+          WHEN t.agent_name = 'Old Record' THEN 1
           WHEN l.status = 'Sold' AND (l.sold_on IS NULL OR CAST(l.sold_on AS CHAR) IN ('', '0000-00-00')) THEN 1
           WHEN YEAR(COALESCE(t.transaction_date, l.sold_on)) < YEAR(CURRENT_DATE) THEN 1
           ELSE 0
@@ -48,7 +58,9 @@ const getTransactions = async (req, res) => {
       FROM transactions t
       JOIN lots l ON t.lot_id = l.lot_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
-      LEFT JOIN employees e ON COALESCE(t.employee_id, c.employee_id) = e.employee_id
+      LEFT JOIN employees e ON (
+        CASE WHEN t.agent_name = 'Old Record' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END
+      ) = e.employee_id
       JOIN properties p ON l.property_id = p.property_id
       WHERE (
         l.status IN ('Sold', 'Pending')

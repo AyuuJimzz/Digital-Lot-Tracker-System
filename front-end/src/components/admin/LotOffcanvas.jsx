@@ -47,6 +47,8 @@ export const LotOffcanvas = ({
     deleteLotError,
     isDeleting,
     agentName,
+    agentStatus,
+    assignedEmployeeId,
     lotNumber,
     setLotNumber,
     areaSqm,
@@ -67,6 +69,8 @@ export const LotOffcanvas = ({
     setCustomSoldOn,
     isLegacyUndated,
     setIsLegacyUndated,
+    isOldRecord,
+    setIsOldRecord,
     openDeleteModal,
     closeDeleteModal,
     confirmDeleteLot,
@@ -198,6 +202,10 @@ export const LotOffcanvas = ({
                   setCustomSoldOn={setCustomSoldOn}
                   isLegacyUndated={isLegacyUndated}
                   setIsLegacyUndated={setIsLegacyUndated}
+                  isOldRecord={isOldRecord}
+                  setIsOldRecord={setIsOldRecord}
+                  agentName={agentName}
+                  assignedEmployeeId={assignedEmployeeId}
                   isAdmin={isAdmin}
                   isSaving={isSaving}
                 />
@@ -222,7 +230,9 @@ export const LotOffcanvas = ({
                 setValidationErrors={setValidationErrors}
                 isLockedForUser={isLockedForUser}
                 hasSavedClient={hasSavedClient}
-                agentName={agentName}
+                agentName={isOldRecord ? "Old Record" : agentName}
+                agentStatus={isOldRecord ? "legacy" : agentStatus}
+                isOldRecord={isOldRecord}
                 propertyName={propertyName}
                 propertyLocation={propertyLocation}
                 isSaving={isSaving}

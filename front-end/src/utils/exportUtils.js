@@ -288,7 +288,7 @@ export async function exportSingleLotWordDoc(lot, propertyName = "", propertyLoc
       ${(status === "Pending" || status === "Sold") ? `
       <tr>
         <td class="label-col">Assigned Agent / Sold By:</td>
-        <td class="value-col"><strong>${lot.agent_name || "Admin"}</strong></td>
+        <td class="value-col"><strong>${(lot.agent_status === "legacy" || (lot.agent_name || "").toLowerCase() === "old record") ? "Old Record" : (lot.agent_status === "inactive" && lot.agent_name && lot.agent_name.toLowerCase() !== "admin") ? `${lot.agent_name} (Inactive Agent)` : (lot.agent_name || "Admin")}</strong></td>
       </tr>
       ` : ""}
     </table>

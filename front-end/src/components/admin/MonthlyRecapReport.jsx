@@ -13,13 +13,6 @@ const MonthlyRecapReport = ({ data, selectedYear, availableYears = [], onYearCha
   const chartData = Array.isArray(data) ? data : data?.monthlyData || [];
   const currentYear = new Date().getFullYear();
   const activeYear = Number(selectedYear || data?.year || currentYear);
-  const undatedCount = Array.isArray(data)
-    ? 0
-    : Number(data?.undatedSoldLots ?? data?.unverifiedSoldLots ?? 0);
-  const totalYearSold = chartData.reduce(
-    (sum, item) => sum + (Number(item.lotsSold) || 0),
-    0
-  );
 
   // Derive distinct selectable years: prioritize passed list or data list, ensuring activeYear & currentYear exist
   const rawYears = availableYears.length > 0
@@ -57,20 +50,6 @@ const MonthlyRecapReport = ({ data, selectedYear, availableYears = [], onYearCha
               ))}
             </select>
           </div>
-
-          {!isLoading && !hasError && (
-            <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full text-xs font-mono font-semibold">
-              📈 {totalYearSold} Verified Sales ({activeYear})
-            </span>
-          )}
-          {!isLoading && !hasError && undatedCount > 0 && (
-            <span
-              className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full text-xs font-mono font-semibold"
-              title="Old sales with unverified dates. Counted in inventory, excluded from dated monthly trends until verified."
-            >
-              📋 {undatedCount} Sold — date unverified
-            </span>
-          )}
         </div>
       </div>
 
