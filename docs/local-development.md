@@ -45,7 +45,11 @@ npm run dev
 | API/database readiness | `http://localhost:5000/api/health` |
 | API liveness only | `http://localhost:5000/live` |
 
-`REACT_APP_API_URL` is optional for the local frontend. Set it in an ignored `front-end/.env.local` only when calling a non-default API; Create React App embeds it at build time, so restart or rebuild after changing it.
+When browsing at `localhost` or `127.0.0.1`, the frontend defaults to `http://localhost:5000`. On any other hostname, including a local network IP, it defaults to the live Render backend unless `REACT_APP_API_URL` is set.
+
+For testing on another device on your network, explicitly set `REACT_APP_API_URL=http://<development-computer-IP>:5000` in an ignored `front-end/.env.local`, and set the backend's `FRONTEND_URL=http://<development-computer-IP>:3000`. Replace the placeholders with the actual development computer's IP, confirm the backend uses your development database, and allow the required ports only on the trusted local network. Use a tablet in landscape or a desktop; phone-sized screens are blocked by the display guard.
+
+Create React App embeds `REACT_APP_API_URL` at build time. Restart the development servers after changing these settings, or rebuild for a static deployment.
 
 ## Configuration reference
 

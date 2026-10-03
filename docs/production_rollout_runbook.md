@@ -42,6 +42,8 @@ The reminder service needs **no new environment variable**. Before the backend s
 
 The `system_state` table must already exist as part of the approved schema. If absent, create it with the explicit `db:migrate-system-state` step **after the backup**, before deploying the backend; normal startup and the reminder job do not create tables. If the table is unavailable, production startup waits without accepting traffic. If cutoff initialization fails after state sync, startup exits; an email run also fails closed without querying Pending lots. Inspect the stored `reminder_cutoff` during staging and before production activation. If an earlier version of the reminder code has already initialized it, do not silently overwrite it—review that value and its effect on existing reservations with the project owner.
 
+The scheduler checks once per hour. The first reminder becomes eligible after 12 hours Pending. The final reminder requires both more than 24 hours Pending and more than 12 hours since the first successful send; a delayed first reminder also delays the final reminder. These are eligibility thresholds, not exact delivery times.
+
 Reminder delivery is **at most one attempt per stage**, not guaranteed delivery: a crash or ambiguous provider timeout leaves the attempt claimed to avoid duplicate customer emails. Inspect server/email-provider logs and resolve such cases manually. The manual trigger is admin-only `POST /api/lots/send-pending-reminders`; GET no longer sends email.
 
 > [!CAUTION]
