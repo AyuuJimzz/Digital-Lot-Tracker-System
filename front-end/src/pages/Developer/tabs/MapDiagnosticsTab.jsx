@@ -144,9 +144,9 @@ const MapDiagnosticsTab = ({
                   <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        prop.coveragePct > 0 ? "bg-slate-500/80" : "bg-slate-700"
+                        prop.coveragePct > 0 ? "bg-emerald-500" : "bg-transparent"
                       }`}
-                      style={{ width: `${Math.max(3, prop.coveragePct)}%` }}
+                      style={{ width: `${prop.coveragePct || 0}%` }}
                     />
                   </div>
 

@@ -129,18 +129,18 @@ const DatabaseTab = ({
             </div>
           ) : (
             (() => {
-              const maxBytes = Math.max(...dbStats.tables.map((t) => t.totalBytes || 1), 1);
+              const maxRows = Math.max(...dbStats.tables.map((t) => t.rows || 0), 1);
               return (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {dbStats.tables.map((tbl) => {
-                    const pctOfLargest = Math.max(4, Math.round((tbl.totalBytes / maxBytes) * 100));
+                    const pctOfLargest = tbl.rows === 0 ? 0 : Math.max(3, Math.round((tbl.rows / maxRows) * 100));
 
                     return (
                       <div
                         key={tbl.name}
                         onClick={() => handleOpenTableData(tbl.name)}
                         className="p-3.5 bg-slate-900/60 hover:bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-lg transition flex flex-col justify-between gap-2.5 group cursor-pointer"
-                        title={`Click to inspect records in '${tbl.name}'`}
+                        title={`Click to inspect records in '${tbl.name}' (${tbl.rows.toLocaleString()} rows)`}
                       >
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-2">
@@ -162,10 +162,14 @@ const DatabaseTab = ({
                             </span>
                           </div>
 
-                          {/* Relative Footprint Visual Bar */}
+                          {/* Relative Record Volume Visual Bar */}
                           <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-slate-500/80 rounded-full transition-all duration-500"
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                tbl.rows === 0
+                                  ? "bg-transparent"
+                                  : "bg-emerald-500"
+                              }`}
                               style={{ width: `${pctOfLargest}%` }}
                             />
                           </div>
@@ -173,8 +177,10 @@ const DatabaseTab = ({
 
                         {/* Table Record & Size Details */}
                         <div className="flex items-center justify-between text-[10px] font-mono pt-1 text-slate-400">
-                          <span>{tbl.rows.toLocaleString()} rows</span>
-                          <span className="text-slate-300 group-hover:text-white transition">
+                          <span className={tbl.rows === 0 ? "text-slate-600" : "text-slate-300"}>
+                            {tbl.rows.toLocaleString()} rows
+                          </span>
+                          <span className="text-slate-400 group-hover:text-emerald-400 transition">
                             View Data ↗
                           </span>
                         </div>

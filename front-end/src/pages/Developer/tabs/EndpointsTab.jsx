@@ -82,10 +82,10 @@ const EndpointsTab = ({
               System Availability
             </div>
             <div className="text-lg font-bold font-mono text-slate-200">
-              {apiHealthData ? `${availabilityPercent}%` : "100%"}
+              {apiHealthData ? `${availabilityPercent}%` : "--"}
             </div>
             <div className="text-[10px] text-slate-500 mt-0.5">
-              {apiHealthData ? `${healthyCount} of ${totalEndpoints} routes active` : "All routes responsive"}
+              {apiHealthData ? `${healthyCount} of ${totalEndpoints} routes active` : "Awaiting health check"}
             </div>
           </div>
 

@@ -1,5 +1,19 @@
 import React, { useRef, useState } from "react";
-import { Activity, AlertTriangle, Database, FolderOpen, LogIn, LogOut, Mail, Power, Search, ShieldAlert, UsersRound } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Database,
+  FolderOpen,
+  LogIn,
+  LogOut,
+  Mail,
+  Monitor,
+  Power,
+  Search,
+  ShieldAlert,
+  Smartphone,
+  UsersRound,
+} from "lucide-react";
 import { getCategoryLogs } from "../utils/logCategories";
 
 const PAGE_SIZE = 25;
@@ -19,6 +33,167 @@ const formatDay = (timestamp) => {
     ? date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })
     : "Unknown date";
 };
+
+// Senior-Grade Parser: Strips redundant repetitive texts and extracts clean action types & details
+function parseLogAction(eventStr, logType, category) {
+  const str = typeof eventStr === "string" ? eventStr : typeof eventStr === "object" ? JSON.stringify(eventStr) : String(eventStr || "");
+  const lower = str.toLowerCase();
+
+  // 1. Emergency Kill Switch / Global Revocation
+  if (str.includes("KILL SWITCH") || lower.includes("kill switch") || lower.includes("force-logged out all")) {
+    return {
+      actionLabel: "Kill Switch",
+      badgeClass: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+      iconBg: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+      Icon: Power,
+      detail: "Global Session Revocation",
+      message: str.replace(/🚨\s*EMERGENCY\s*GLOBAL\s*KILL\s*SWITCH:\s*/i, "").trim() || str,
+    };
+  }
+
+  // 2. Login / Sign In
+  if (lower.includes("logged in") || lower.includes("authenticated") || lower.includes("signed in")) {
+    const bracketMatch = str.match(/\[(.*?)\]/);
+    const detail = bracketMatch ? bracketMatch[1] : null;
+    return {
+      actionLabel: "Signed In",
+      badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      iconBg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      Icon: LogIn,
+      detail: detail || null,
+      message: null, // Avoid echoing redundant "User Logged In: email (ROLE)"
+    };
+  }
+
+  // 3. Logout / Sign Out
+  if (lower.includes("logged out") || lower.includes("force logout") || lower.includes("signed out")) {
+    return {
+      actionLabel: "Signed Out",
+      badgeClass: "bg-slate-800 text-slate-300 border-slate-700",
+      iconBg: "bg-slate-800 text-slate-400 border-slate-700",
+      Icon: LogOut,
+      detail: null,
+      message: null, // Avoid echoing redundant "User Logged Out: email (ROLE)"
+    };
+  }
+
+  // 4. Failed Login / Developer PIN Attempt
+  if (lower.includes("failed login") || lower.includes("failed developer pin") || lower.includes("invalid pin")) {
+    return {
+      actionLabel: "Failed Attempt",
+      badgeClass: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+      iconBg: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+      Icon: AlertTriangle,
+      detail: lower.includes("pin") ? "Developer PIN Attempt" : "Invalid Credentials",
+      message: null,
+    };
+  }
+
+  // 5. Developer PIN Change
+  if (lower.includes("pin was successfully changed") || lower.includes("pin changed")) {
+    return {
+      actionLabel: "PIN Changed",
+      badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      iconBg: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      Icon: Activity,
+      detail: "Developer Security PIN Updated",
+      message: null,
+    };
+  }
+
+  // 6. Maintenance Mode Toggle
+  if (lower.includes("maintenance mode")) {
+    const isEnabled = lower.includes("enabled");
+    return {
+      actionLabel: "Maintenance",
+      badgeClass: isEnabled ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      iconBg: isEnabled ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      Icon: Activity,
+      detail: isEnabled ? "Gate Locked (503 Active)" : "Gate Open (Normal Traffic)",
+      message: null,
+    };
+  }
+
+  // 7. System Error or Crash
+  if ((logType || "").toUpperCase() === "ERROR" || (logType || "").toUpperCase() === "CRASH" || lower.includes("system error") || lower.includes("exception")) {
+    return {
+      actionLabel: "System Error",
+      badgeClass: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+      iconBg: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+      Icon: AlertTriangle,
+      detail: null,
+      message: str,
+    };
+  }
+
+  // 8. Email Notifications
+  if ((logType || "").toUpperCase() === "EMAIL" || category === "EMAIL" || lower.includes("email")) {
+    const isFailed = lower.includes("failed") || lower.includes("error");
+    return {
+      actionLabel: isFailed ? "Email Failed" : "Email Sent",
+      badgeClass: isFailed ? "bg-rose-500/10 text-rose-400 border-rose-500/30" : "bg-sky-500/10 text-sky-400 border-sky-500/30",
+      iconBg: isFailed ? "bg-rose-500/10 text-rose-400 border-rose-500/30" : "bg-sky-500/10 text-sky-400 border-sky-500/30",
+      Icon: Mail,
+      detail: null,
+      message: str,
+    };
+  }
+
+  // 9. Database & Demo Seed Operations
+  if (category === "DATABASE" || lower.includes("backup") || lower.includes("purged") || lower.includes("generated") || lower.includes("capstone") || lower.includes("demo")) {
+    const isBackup = lower.includes("backup");
+    const isPurge = lower.includes("purged") || lower.includes("deleted");
+    return {
+      actionLabel: isBackup ? "SQL Backup" : isPurge ? "Demo Purge" : "Demo Seed",
+      badgeClass: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30",
+      iconBg: "bg-indigo-500/10 text-indigo-400 border-indigo-500/30",
+      Icon: Database,
+      detail: null,
+      message: str,
+    };
+  }
+
+  // 10. General Activity Fallback
+  return {
+    actionLabel: logType || category || "Activity",
+    badgeClass: "bg-slate-800 text-slate-300 border-slate-700",
+    iconBg: "bg-slate-800 text-slate-300 border-slate-700",
+    Icon: Activity,
+    detail: null,
+    message: str,
+  };
+}
+
+function getRoleBadge(role, user) {
+  const rawRole = String(role || "").toLowerCase();
+  const rawUser = String(user || "").toLowerCase();
+
+  if (rawRole === "developer" || rawUser.includes("developer")) {
+    return {
+      label: "Developer",
+      className: "bg-amber-500/10 text-amber-300 border-amber-500/30 font-semibold",
+    };
+  }
+  if (rawRole === "admin") {
+    return {
+      label: "Admin",
+      className: "bg-purple-500/10 text-purple-300 border-purple-500/30 font-semibold",
+    };
+  }
+  if (rawRole === "employee") {
+    return {
+      label: "Employee",
+      className: "bg-sky-500/10 text-sky-300 border-sky-500/30 font-semibold",
+    };
+  }
+  if (role && role !== "unknown") {
+    return {
+      label: role.charAt(0).toUpperCase() + role.slice(1),
+      className: "bg-slate-800 text-slate-300 border-slate-700 font-semibold",
+    };
+  }
+  return null;
+}
 
 export default function CategoryLogModal({
   selectedLogCategory,
@@ -59,8 +234,11 @@ export default function CategoryLogModal({
       const role = String(log.role || "").toLowerCase();
       const device = String(log.device || "").toLowerCase();
       const ip = String(log.ip || "").toLowerCase();
+      const action = parseLogAction(eventStr, log.type, selectedLogCategory);
       return (
         eventStr.toLowerCase().includes(q) ||
+        action.actionLabel.toLowerCase().includes(q) ||
+        (action.detail && action.detail.toLowerCase().includes(q)) ||
         user.includes(q) ||
         role.includes(q) ||
         device.includes(q) ||
@@ -77,6 +255,18 @@ export default function CategoryLogModal({
   matchingLogs.forEach((log) => {
     const day = getDayKey(log.timestamp);
     matchingDayCounts.set(day, (matchingDayCounts.get(day) || 0) + 1);
+  });
+
+  // Group visible logs chronologically by day for seamless sticky headers without clipping
+  const groupedVisibleLogs = [];
+  visibleLogs.forEach((log) => {
+    const day = getDayKey(log.timestamp);
+    let group = groupedVisibleLogs.find((g) => g.day === day);
+    if (!group) {
+      group = { day, timestamp: log.timestamp, logs: [] };
+      groupedVisibleLogs.push(group);
+    }
+    group.logs.push(log);
   });
 
   const updateDay = (day) => {
@@ -192,7 +382,7 @@ export default function CategoryLogModal({
               id="log-day-filter"
               value={selectedDay}
               onChange={(e) => updateDay(e.target.value)}
-              className="min-w-0 max-w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="min-w-0 max-w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-slate-400 cursor-pointer"
             >
               <option value="all">All days ({categoryLogs.length})</option>
               {availableDays.map((day) => {
@@ -206,11 +396,14 @@ export default function CategoryLogModal({
           </span>
         </div>
 
-        {/* Modal Body: Scrollable Log List */}
-        <div ref={listRef} className="flex-1 p-5 overflow-y-auto space-y-3 bg-[#030712] [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+        {/* Modal Body: Scrollable Log List with Non-Clipping Sticky Headers */}
+        <div
+          ref={listRef}
+          className="flex-1 overflow-y-auto bg-[#030712] [scrollbar-width:thin] [scrollbar-color:#334155_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-slate-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
+        >
           {matchingLogs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500">
-              <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-2xl mb-3">
+            <div className="flex flex-col items-center justify-center py-16 px-5 text-center text-slate-500">
+              <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-2xl mb-3 text-slate-400">
                 {logModalSearch ? <Search size={22} aria-hidden="true" /> : <FolderOpen size={22} aria-hidden="true" />}
               </div>
               <p className="text-sm font-semibold text-slate-300">
@@ -222,96 +415,126 @@ export default function CategoryLogModal({
             </div>
           ) : (
             <>
-            {visibleLogs.map((log, idx) => {
-              const day = getDayKey(log.timestamp);
-              const startsDay = idx === 0 || getDayKey(visibleLogs[idx - 1].timestamp) !== day;
-              const eventStr = typeof log.event === "string" ? log.event : typeof log.event === "object" ? JSON.stringify(log.event) : String(log.event || "");
-              const isLogin = eventStr.toLowerCase().includes("logged in") || eventStr.toLowerCase().includes("authenticated");
-              const isLogout = eventStr.toLowerCase().includes("logged out") || eventStr.toLowerCase().includes("force logout");
-              const isKillSwitch = eventStr.includes("KILL SWITCH") || eventStr.includes("Force-logged out");
-              const isError = (log.type || "").toUpperCase() === "ERROR" || (log.type || "").toUpperCase() === "CRASH" || eventStr.includes("System Error") || eventStr.includes("Exception");
-              const isEmail = (log.type || "").toUpperCase() === "EMAIL";
-              const rawRole = String(log.role || "").toLowerCase();
-              const rawUser = String(log.user || "").toLowerCase();
-              const EventIcon = isKillSwitch ? Power : isError ? AlertTriangle : isLogin ? LogIn : isLogout ? LogOut : isEmail ? Mail : selectedLogCategory === "DATABASE" ? Database : Activity;
-
-              let roleBadgeColor = "bg-slate-800 text-slate-400 border-slate-700";
-              let roleLabel = "User";
-
-              if (rawRole === "developer" || rawUser.includes("developer")) {
-                roleBadgeColor = "bg-slate-800 text-slate-200 border-slate-700 font-semibold";
-                roleLabel = "Developer";
-              } else if (rawRole === "admin") {
-                roleBadgeColor = "bg-slate-800 text-slate-200 border-slate-700 font-semibold";
-                roleLabel = "Admin";
-              } else if (rawRole === "employee") {
-                roleBadgeColor = "bg-slate-800 text-slate-200 border-slate-700 font-semibold";
-                roleLabel = "Employee";
-              }
-
-              return (
-                <React.Fragment key={`${log.timestamp}-${idx}`}>
-                {startsDay && (
-                  <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-slate-800 bg-[#030712]/95 py-2 backdrop-blur-sm">
-                    <h4 className="text-xs font-semibold text-slate-200">{formatDay(log.timestamp)}</h4>
-                    <span className="text-[11px] tabular-nums text-slate-500">{matchingDayCounts.get(day)} {matchingDayCounts.get(day) === 1 ? "event" : "events"}</span>
-                  </div>
-                )}
-                <div
-                  className="p-4 rounded-xl border border-slate-800/90 hover:border-slate-700 bg-slate-900/60 transition flex items-start gap-3.5"
-                >
-                  {/* Icon */}
-                  <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-sm border bg-slate-800 border-slate-700 text-slate-300 mt-0.5">
-                    <EventIcon size={16} aria-hidden="true" />
+              {groupedVisibleLogs.map((group) => (
+                <div key={group.day} className="relative">
+                  {/* Clean, Non-Clipping Sticky Day Header */}
+                  <div className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-slate-800/80 bg-slate-950/95 px-5 py-2.5 backdrop-blur-md shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                      <h4 className="text-xs font-semibold text-slate-200 tracking-wide">{formatDay(group.timestamp)}</h4>
+                    </div>
+                    <span className="text-[11px] font-mono tabular-nums text-slate-400 bg-slate-900 px-2 py-0.5 rounded-md border border-slate-800">
+                      {matchingDayCounts.get(group.day) || group.logs.length}{" "}
+                      {(matchingDayCounts.get(group.day) || group.logs.length) === 1 ? "event" : "events"}
+                    </span>
                   </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
-                      <div className="flex items-center gap-2">
-                        {log.user ? (
-                          <>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-md border flex items-center gap-1 ${roleBadgeColor}`}>
-                              <span>{roleLabel}</span>
-                            </span>
-                            <span className="text-xs font-bold text-white">
-                              {log.user}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-950 text-slate-300 border border-slate-800">
-                            {log.type || "SYSTEM"}
-                          </span>
-                        )}
-                      </div>
+                  {/* Day Log Cards */}
+                  <div className="p-4 sm:p-5 space-y-2.5">
+                    {group.logs.map((log, idx) => {
+                      const eventStr = typeof log.event === "string" ? log.event : typeof log.event === "object" ? JSON.stringify(log.event) : String(log.event || "");
+                      const action = parseLogAction(eventStr, log.type, selectedLogCategory);
+                      const roleBadge = getRoleBadge(log.role, log.user);
+                      const ActionIcon = action.Icon;
 
-                      <span className="text-[11px] font-mono text-slate-400 shrink-0 font-medium bg-slate-950/80 px-2 py-0.5 rounded border border-slate-800">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </span>
-                    </div>
+                      return (
+                        <div
+                          key={`${log.timestamp}-${idx}`}
+                          className="group rounded-xl border border-slate-800/90 hover:border-slate-700/80 bg-slate-900/50 hover:bg-slate-900/80 p-3.5 transition-all flex items-start gap-3.5 shadow-sm"
+                        >
+                          {/* Action Icon Badge */}
+                          <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center border ${action.iconBg} transition-transform group-hover:scale-105`}>
+                            <ActionIcon size={16} aria-hidden="true" />
+                          </div>
 
-                    <div className="text-xs text-slate-200 font-medium leading-relaxed break-words">
-                      {eventStr}
-                    </div>
+                          {/* Card Main Body */}
+                          <div className="flex-1 min-w-0">
+                            {/* Header row: Action Badge + Role Badge + User Email + Timestamp */}
+                            <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border flex items-center gap-1 ${action.badgeClass}`}>
+                                  {action.actionLabel}
+                                </span>
 
-                    <div className="text-[10px] text-slate-400 font-mono mt-2 pt-2 border-t border-slate-800/60 flex items-center gap-3 flex-wrap">
-                      {log.device && <span>Device: {log.device}</span>}
-                      {log.ip && <span>IP: {log.ip}</span>}
-                    </div>
+                                {roleBadge && (
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-md border ${roleBadge.className}`}>
+                                    {roleBadge.label}
+                                  </span>
+                                )}
+
+                                {log.user ? (
+                                  <span className="text-xs font-semibold text-white tracking-wide truncate max-w-[220px] sm:max-w-xs">
+                                    {log.user}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-medium text-slate-400">
+                                    System Event
+                                  </span>
+                                )}
+                              </div>
+
+                              <span className="text-[11px] font-mono text-slate-400 shrink-0 font-medium bg-slate-950/80 px-2 py-0.5 rounded-md border border-slate-800">
+                                {new Date(log.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+
+                            {/* Secondary Detail (e.g. Single Device Session Active) */}
+                            {action.detail && (
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300 bg-emerald-950/40 border border-emerald-800/40 px-2 py-0.5 rounded-md font-medium">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  {action.detail}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Custom Descriptive Message (if any) */}
+                            {action.message && (
+                              <div className="text-xs text-slate-300 font-normal leading-relaxed mt-1.5 break-words bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60">
+                                {action.message}
+                              </div>
+                            )}
+
+                            {/* Device & IP Metadata Chips */}
+                            {(log.device || log.ip) && (
+                              <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center gap-2 flex-wrap text-[11px]">
+                                {log.device && (
+                                  <span className="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1 rounded-md text-slate-400">
+                                    {/iphone|android|ipad/i.test(log.device) ? (
+                                      <Smartphone size={12} className="text-slate-500 shrink-0" aria-hidden="true" />
+                                    ) : (
+                                      <Monitor size={12} className="text-slate-500 shrink-0" aria-hidden="true" />
+                                    )}
+                                    <span>{log.device}</span>
+                                  </span>
+                                )}
+                                {log.ip && (
+                                  <span className="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800/80 px-2.5 py-1 rounded-md font-mono text-slate-400">
+                                    <span className="text-slate-500 font-sans text-[10px] font-bold uppercase tracking-wider">IP</span>
+                                    <span>{log.ip}</span>
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-                </React.Fragment>
-              );
-            })}
-            {matchingLogs.length > visibleLimit && (
-              <button
-                type="button"
-                onClick={() => setView({ category: selectedLogCategory, day: selectedDay, limit: visibleLimit + PAGE_SIZE })}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
-              >
-                Show more · {matchingLogs.length - visibleLimit} remaining
-              </button>
-            )}
+              ))}
+
+              {matchingLogs.length > visibleLimit && (
+                <div className="p-4 sm:p-5 pt-0">
+                  <button
+                    type="button"
+                    onClick={() => setView({ category: selectedLogCategory, day: selectedDay, limit: visibleLimit + PAGE_SIZE })}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 cursor-pointer"
+                  >
+                    Show more · {matchingLogs.length - visibleLimit} remaining
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
