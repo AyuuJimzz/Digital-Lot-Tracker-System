@@ -250,15 +250,17 @@ export const LotStatusSection = ({
                           setIsOldRecord && setIsOldRecord(checked);
                         }}
                         disabled={isSaving}
-                        className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 dark:border-slate-600 dark:bg-slate-700"
+                        className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
                       />
                       <div className="min-w-0">
                         <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                          Attribute Seller as "Old Record" (instead of Admin)
+                          Attribute Seller as "Old Record"
                         </span>
-                        <span className="block text-[10px] text-slate-500 dark:text-slate-400">
-                          Catalog this sale as a company legacy record across map, drawer, and reports.
-                        </span>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                          {isOldRecord
+                            ? "Seller: Old Record (Old paper sale)"
+                            : "Seller: Admin (Direct sale)"}
+                        </p>
                       </div>
                     </label>
                   </>

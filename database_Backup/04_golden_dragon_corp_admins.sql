@@ -1,6 +1,6 @@
 -- Golden Dragon Corp Database Backup
 -- Table: admins
--- Generated on: 2026-09-23T18:47:59.795Z
+-- Generated on: 2026-10-15T04:23:42.618Z
 
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI_QUOTES' */;
 DROP TABLE IF EXISTS `admins`;
@@ -20,7 +20,7 @@ CREATE TABLE `admins` (
 LOCK TABLES `admins` WRITE;
 /*!40000 ALTER TABLE `admins` DISABLE KEYS */;
 INSERT INTO `admins` (`admin_id`, `email`, `password`, `full_name`, `created_at`, `password_reset_required`, `temp_password_expiry`, `active_session_id`) VALUES
-  (2, 'admin@gmail.com', '$2b$10$tItB.AA02Ln7W7muEmm4wOY4o5sgFZ/th7FHxbRRn0IdOi5dpI1ri', 'My Admin', '2026-02-18 03:37:20', 0, NULL, 'f583628a-b10c-456e-8da4-42e59fe4872a');
+  (2, 'admin@gmail.com', '$2b$10$tItB.AA02Ln7W7muEmm4wOY4o5sgFZ/th7FHxbRRn0IdOi5dpI1ri', 'My Admin', '2026-02-18 03:37:20', 0, NULL, '7856b7bb-d92e-4bf0-bd7f-0b94eb992c93');
 /*!40000 ALTER TABLE `admins` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

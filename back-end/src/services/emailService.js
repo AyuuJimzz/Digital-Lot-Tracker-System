@@ -18,6 +18,10 @@ const sendEmail = async (toOrOptions, subjectParam, htmlParam) => {
 
   const targetEmailStr = Array.isArray(to) ? to.join(", ") : String(to || "");
 
+  if (!targetEmailStr || targetEmailStr.trim() === "To be updated" || !targetEmailStr.includes("@")) {
+    return { success: false, error: "Recipient is a placeholder or not a valid email address." };
+  }
+
   const brevoApiKey = process.env.BREVO_API_KEY;
   if (!brevoApiKey) {
     console.warn("[EmailService] BREVO_API_KEY is not defined in environment variables.");

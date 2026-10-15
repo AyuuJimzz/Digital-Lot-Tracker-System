@@ -1,0 +1,902 @@
+[
+  {
+    "block": 1,
+    "lot": 1,
+    "name": "MARIA THERESA INQUIT"
+  },
+  {
+    "block": 1,
+    "lot": 2,
+    "name": "JAN IVAN J. FUENTES"
+  },
+  {
+    "block": 1,
+    "lot": 3,
+    "name": "JACKIE LOU DALUZ"
+  },
+  {
+    "block": 1,
+    "lot": 4,
+    "name": "SPS LEO GLENN CUBITA & FLORENCE T. CUBITA"
+  },
+  {
+    "block": 1,
+    "lot": 5,
+    "name": "ANNIE LOU S. BANARES-TIBUS"
+  },
+  {
+    "block": 2,
+    "lot": 1,
+    "name": "CARL PATRICK SALVERON"
+  },
+  {
+    "block": 2,
+    "lot": 2,
+    "name": "IAN NIEL A. SALVERON"
+  },
+  {
+    "block": 2,
+    "lot": 3,
+    "name": "ROBERT KENDRICK B. VILLAREAL"
+  },
+  {
+    "block": 2,
+    "lot": 4,
+    "name": "ASANE ALLAN CHRISTOPHER ARIAS"
+  },
+  {
+    "block": 2,
+    "lot": 5,
+    "name": "MIA FLOR G. VEDRA & FRENCH LAR G. GAJO"
+  },
+  {
+    "block": 2,
+    "lot": 8,
+    "name": "SPS EVER G. REGACHO & GIOVANNI A. REGACHO"
+  },
+  {
+    "block": 2,
+    "lot": 12,
+    "name": "JOHN WHITEHOUSE"
+  },
+  {
+    "block": 2,
+    "lot": 14,
+    "name": "SPS MARK ANTHONY S. TING MILKCA MAE L. TING"
+  },
+  {
+    "block": 3,
+    "lot": 1,
+    "name": "CYNTHIA MACARAYA"
+  },
+  {
+    "block": 3,
+    "lot": 2,
+    "name": "CATHERINE GUETA APARRI"
+  },
+  {
+    "block": 3,
+    "lot": 3,
+    "name": "ROSJAN A. CAPALIHAN"
+  },
+  {
+    "block": 3,
+    "lot": 4,
+    "name": "ROSJAN A. CAPALIHAN"
+  },
+  {
+    "block": 3,
+    "lot": 5,
+    "name": "JUVIE GASCON"
+  },
+  {
+    "block": 3,
+    "lot": 6,
+    "name": "Prince John Dayaday"
+  },
+  {
+    "block": 3,
+    "lot": 7,
+    "name": "EIMREH SELIBIO & ALTHEA DELA CRUZ"
+  },
+  {
+    "block": 3,
+    "lot": 8,
+    "name": "RAYMOND CASTRO"
+  },
+  {
+    "block": 3,
+    "lot": 9,
+    "name": "ERNA B. JUANITAS"
+  },
+  {
+    "block": 3,
+    "lot": 10,
+    "name": "ERNA B. JUANITAS"
+  },
+  {
+    "block": 3,
+    "lot": 11,
+    "name": "SPOUSES GILDA F. JUANITAS & JAN ROMMEL B. JUANITAS"
+  },
+  {
+    "block": 3,
+    "lot": 12,
+    "name": "SPOUSES GILDA F. JUANITAS & JAN ROMMEL B. JUANITAS"
+  },
+  {
+    "block": 4,
+    "lot": 1,
+    "name": "MARIA ELENA DOME"
+  },
+  {
+    "block": 4,
+    "lot": 2,
+    "name": "MARIA ELENA DOME"
+  },
+  {
+    "block": 4,
+    "lot": 3,
+    "name": "MARIA ELENA DOME"
+  },
+  {
+    "block": 4,
+    "lot": 4,
+    "name": "MARISSA M. AGUILAR"
+  },
+  {
+    "block": 4,
+    "lot": 5,
+    "name": "MARISSA M. AGUILAR"
+  },
+  {
+    "block": 4,
+    "lot": 6,
+    "name": "ANDREA DHAGNE B. INATE"
+  },
+  {
+    "block": 4,
+    "lot": 7,
+    "name": "ANDREA DHAGNE B. INATE"
+  },
+  {
+    "block": 4,
+    "lot": 8,
+    "name": "AMY BABAS PALAFOX"
+  },
+  {
+    "block": 4,
+    "lot": 9,
+    "name": "John Louie Zaragosa"
+  },
+  {
+    "block": 4,
+    "lot": 10,
+    "name": "DENISSE GADOT"
+  },
+  {
+    "block": 4,
+    "lot": 11,
+    "name": "CHERYL OLADIO CANJA"
+  },
+  {
+    "block": 4,
+    "lot": 12,
+    "name": "JEFFY BIMBAO"
+  },
+  {
+    "block": 5,
+    "lot": 1,
+    "name": "ELLEN MAE SULPICO"
+  },
+  {
+    "block": 5,
+    "lot": 2,
+    "name": "ELLEN MAE SULPICO"
+  },
+  {
+    "block": 5,
+    "lot": 3,
+    "name": "MARY JOY S. SIENA & ELVIS M. MALANUM"
+  },
+  {
+    "block": 5,
+    "lot": 4,
+    "name": "FRENZ JOY S. SIENA"
+  },
+  {
+    "block": 5,
+    "lot": 5,
+    "name": "JENARD KRYZ G. ALDE"
+  },
+  {
+    "block": 5,
+    "lot": 6,
+    "name": "JENARD KRYZ G. ALDE"
+  },
+  {
+    "block": 5,
+    "lot": 7,
+    "name": "JAMAICA ESCOSA"
+  },
+  {
+    "block": 5,
+    "lot": 10,
+    "name": "IAN M. ACELO"
+  },
+  {
+    "block": 5,
+    "lot": 11,
+    "name": "KRISTINE JOY ALMIRA"
+  },
+  {
+    "block": 5,
+    "lot": 12,
+    "name": "KRISTINE JOY ALMIRA"
+  },
+  {
+    "block": 6,
+    "lot": 1,
+    "name": "SANTERO"
+  },
+  {
+    "block": 6,
+    "lot": 2,
+    "name": "NOEMI SAVILLO"
+  },
+  {
+    "block": 6,
+    "lot": 3,
+    "name": "NOEMI SAVILLO"
+  },
+  {
+    "block": 6,
+    "lot": 5,
+    "name": "ELVIE D. CAMPOSAGRADO"
+  },
+  {
+    "block": 6,
+    "lot": 6,
+    "name": "ELVIE D. CAMPOSAGRADO"
+  },
+  {
+    "block": 6,
+    "lot": 7,
+    "name": "SPS. GERALD M. DE PEDRO & LELYBETH G. DE PEDRO"
+  },
+  {
+    "block": 6,
+    "lot": 8,
+    "name": "RUBY ANN D. PARITA & REJILL B. SOLA"
+  },
+  {
+    "block": 6,
+    "lot": 10,
+    "name": "LARRA I. NACION"
+  },
+  {
+    "block": 6,
+    "lot": 11,
+    "name": "LARRA I. NACION"
+  },
+  {
+    "block": 6,
+    "lot": 12,
+    "name": "DENNIS E. HECHANOVA"
+  },
+  {
+    "block": 7,
+    "lot": 1,
+    "name": "IRISH O. BASTIERO & ERWIN BASTIERO"
+  },
+  {
+    "block": 7,
+    "lot": 2,
+    "name": "IRISH O. BASTIERO & ERWIN BASTIERO"
+  },
+  {
+    "block": 7,
+    "lot": 3,
+    "name": "MARY HOPE DELAMAR & RUNDY DELAMAR"
+  },
+  {
+    "block": 7,
+    "lot": 5,
+    "name": "SUNSHINE MARYL F. PAREDES"
+  },
+  {
+    "block": 7,
+    "lot": 6,
+    "name": "CAMELLE ACERO"
+  },
+  {
+    "block": 7,
+    "lot": 7,
+    "name": "WEILYN G. FRANCISCO"
+  },
+  {
+    "block": 9,
+    "lot": 1,
+    "name": "ANTHONY ROBLES"
+  },
+  {
+    "block": 9,
+    "lot": 2,
+    "name": "ANTHONY ROBLES"
+  },
+  {
+    "block": 9,
+    "lot": 3,
+    "name": "DOROTHY JOYCE LEBIN"
+  },
+  {
+    "block": 9,
+    "lot": 4,
+    "name": "DOROTHY JOYCE LEBIN"
+  },
+  {
+    "block": 9,
+    "lot": 6,
+    "name": "BERNADETTE DE ASIS VILLARUEL"
+  },
+  {
+    "block": 10,
+    "lot": 1,
+    "name": "JENEFEN H. TINGSON"
+  },
+  {
+    "block": 10,
+    "lot": 2,
+    "name": "JENEFEN H. TINGSON"
+  },
+  {
+    "block": 10,
+    "lot": 3,
+    "name": "KEISHA KELSEY BARSATAN"
+  },
+  {
+    "block": 10,
+    "lot": 4,
+    "name": "JINKY GAYO"
+  },
+  {
+    "block": 10,
+    "lot": 5,
+    "name": "JINKY GAYO"
+  },
+  {
+    "block": 11,
+    "lot": 1,
+    "name": "ESPIELAGO, KARYL"
+  },
+  {
+    "block": 11,
+    "lot": 2,
+    "name": "KIM JAD SAAD EDROSOLANO"
+  },
+  {
+    "block": 11,
+    "lot": 3,
+    "name": "KIM JAD SAAD EDROSOLANO"
+  },
+  {
+    "block": 11,
+    "lot": 4,
+    "name": "VYNE ALLYSON JAMORA"
+  },
+  {
+    "block": 11,
+    "lot": 5,
+    "name": "CHRISTIAN B. SALLE"
+  },
+  {
+    "block": 11,
+    "lot": 6,
+    "name": "MELANIE N. BABAS"
+  },
+  {
+    "block": 11,
+    "lot": 7,
+    "name": "LORNA BABAS GUILLEN"
+  },
+  {
+    "block": 11,
+    "lot": 8,
+    "name": "JOHN MONTERO"
+  },
+  {
+    "block": 11,
+    "lot": 9,
+    "name": "JOAN CRISTALES"
+  },
+  {
+    "block": 11,
+    "lot": 10,
+    "name": "LORNA BABAS GUILLEN"
+  },
+  {
+    "block": 11,
+    "lot": 11,
+    "name": "JEREMY BAWAAN"
+  },
+  {
+    "block": 11,
+    "lot": 12,
+    "name": "JERBY BERNALES"
+  },
+  {
+    "block": 11,
+    "lot": 17,
+    "name": "MARISOL TOLOSA"
+  },
+  {
+    "block": 11,
+    "lot": 18,
+    "name": "JESSIRY BARTOLOME"
+  },
+  {
+    "block": 11,
+    "lot": 19,
+    "name": "JOCELYN MAPA"
+  },
+  {
+    "block": 11,
+    "lot": 21,
+    "name": "ROMMEL GERONA MENDOZA AND SEMA GRACE MENDOZA"
+  },
+  {
+    "block": 11,
+    "lot": 22,
+    "name": "ROVER T. GLORIA"
+  },
+  {
+    "block": 12,
+    "lot": 1,
+    "name": "MARIA SILVIA APOSTOL"
+  },
+  {
+    "block": 12,
+    "lot": 2,
+    "name": "FERDINAND M. CAPALIHAN"
+  },
+  {
+    "block": 12,
+    "lot": 3,
+    "name": "FERDINAND M. CAPALIHAN"
+  },
+  {
+    "block": 12,
+    "lot": 4,
+    "name": "ROMMEL GERONA MENDOZA AND SEMA GRACE MENDOZA"
+  },
+  {
+    "block": 12,
+    "lot": 5,
+    "name": "ALMAE AM GLORIA PRADO"
+  },
+  {
+    "block": 12,
+    "lot": 6,
+    "name": "JASON TONDO & MARY JOY SUAREZ"
+  },
+  {
+    "block": 12,
+    "lot": 7,
+    "name": "RIZALDE ARCA"
+  },
+  {
+    "block": 12,
+    "lot": 8,
+    "name": "RIZALDE ARCA"
+  },
+  {
+    "block": 12,
+    "lot": 9,
+    "name": "LOURNA LEE TONEL"
+  },
+  {
+    "block": 12,
+    "lot": 10,
+    "name": "LOURNA LEE TONEL"
+  },
+  {
+    "block": 12,
+    "lot": 11,
+    "name": "IRIS D. SORIANO"
+  },
+  {
+    "block": 12,
+    "lot": 12,
+    "name": "IRIS D. SORIANO"
+  },
+  {
+    "block": 12,
+    "lot": 13,
+    "name": "JERRY CANOGORAN"
+  },
+  {
+    "block": 12,
+    "lot": 14,
+    "name": "JERRY CANOGORAN"
+  },
+  {
+    "block": 12,
+    "lot": 15,
+    "name": "ANTHONY KAYO"
+  },
+  {
+    "block": 12,
+    "lot": 16,
+    "name": "JOEMAR DICHOSA"
+  },
+  {
+    "block": 12,
+    "lot": 17,
+    "name": "JASON TONDO & MARY JOY SUAREZ"
+  },
+  {
+    "block": 12,
+    "lot": 18,
+    "name": "ALMAE AM GLORIA PRADO"
+  },
+  {
+    "block": 12,
+    "lot": 19,
+    "name": "FATE DATAR"
+  },
+  {
+    "block": 12,
+    "lot": 20,
+    "name": "MICHELLE HUNGGO"
+  },
+  {
+    "block": 12,
+    "lot": 21,
+    "name": "JOYCE H. BORMAN"
+  },
+  {
+    "block": 12,
+    "lot": 22,
+    "name": "MARIA SILVIA APOSTOL"
+  },
+  {
+    "block": 13,
+    "lot": 1,
+    "name": "SPOUSES ABBY GAYLE LACHICA & JAMBO LORD LACHICA"
+  },
+  {
+    "block": 13,
+    "lot": 4,
+    "name": "SPOUSES ABBY GAYLE LACHICA & JAMBO LORD LACHICA"
+  },
+  {
+    "block": 13,
+    "lot": 7,
+    "name": "MARK JOSEPH NAPILAY"
+  },
+  {
+    "block": 14,
+    "lot": 1,
+    "name": "RITCHELLIE G. PINEDA"
+  },
+  {
+    "block": 14,
+    "lot": 3,
+    "name": "SPS. ALVIN C. PRECILLA & ROSA JOY P. PRECILLA"
+  },
+  {
+    "block": 14,
+    "lot": 4,
+    "name": "SPS. ALVIN C. PRECILLA & ROSA JOY P. PRECILLA"
+  },
+  {
+    "block": 14,
+    "lot": 5,
+    "name": "SPS. ALVIN C. PRECILLA & ROSA JOY P. PRECILLA"
+  },
+  {
+    "block": 14,
+    "lot": 6,
+    "name": "SPS. ALVIN C. PRECILLA & ROSA JOY P. PRECILLA"
+  },
+  {
+    "block": 14,
+    "lot": 8,
+    "name": "AIRENE ROSE G. DE CASTRO"
+  },
+  {
+    "block": 14,
+    "lot": 9,
+    "name": "AIRENE ROSE G. DE CASTRO"
+  },
+  {
+    "block": 14,
+    "lot": 10,
+    "name": "EDEN ROSE TOLENO"
+  },
+  {
+    "block": 15,
+    "lot": 1,
+    "name": "RIC KER BANTON"
+  },
+  {
+    "block": 15,
+    "lot": 2,
+    "name": "BRYAN JAMES BERSAMIN"
+  },
+  {
+    "block": 15,
+    "lot": 3,
+    "name": "REBECCA APOLONIA"
+  },
+  {
+    "block": 15,
+    "lot": 4,
+    "name": "REBECCA APOLONIA"
+  },
+  {
+    "block": 15,
+    "lot": 5,
+    "name": "CARMELIA JANITO"
+  },
+  {
+    "block": 15,
+    "lot": 6,
+    "name": "ROSEMARIE BERSAMIN"
+  },
+  {
+    "block": 15,
+    "lot": 7,
+    "name": "BRYAN JAMES BERSAMIN"
+  },
+  {
+    "block": 15,
+    "lot": 8,
+    "name": "ELY PEARL BERSAMIN"
+  },
+  {
+    "block": 16,
+    "lot": 1,
+    "name": "BENJAMIN JOHN P. LAURON"
+  },
+  {
+    "block": 16,
+    "lot": 2,
+    "name": "PATRICIA P. LAURON"
+  },
+  {
+    "block": 16,
+    "lot": 3,
+    "name": "PATRICIA P. LAURON"
+  },
+  {
+    "block": 16,
+    "lot": 4,
+    "name": "BENJAMIN JOHN P. LAURON"
+  },
+  {
+    "block": 16,
+    "lot": 5,
+    "name": "GLORY ANN D. ERLANO"
+  },
+  {
+    "block": 16,
+    "lot": 6,
+    "name": "GLORY ANN D. ERLANO"
+  },
+  {
+    "block": 17,
+    "lot": 1,
+    "name": "ANNA MAE V. ESPINOSA"
+  },
+  {
+    "block": 17,
+    "lot": 2,
+    "name": "ANNA MAE V. ESPINOSA"
+  },
+  {
+    "block": 17,
+    "lot": 3,
+    "name": "REYNOLD & PHOEBE VILLEGAS"
+  },
+  {
+    "block": 17,
+    "lot": 4,
+    "name": "WARREN P. VILLEGAS & GENNY ROSE VILLEGAS"
+  },
+  {
+    "block": 17,
+    "lot": 5,
+    "name": "ERNA B. JUANITAS"
+  },
+  {
+    "block": 17,
+    "lot": 6,
+    "name": "ERNA B. JUANITAS"
+  },
+  {
+    "block": 17,
+    "lot": 7,
+    "name": "ERNA B. JUANITAS"
+  },
+  {
+    "block": 17,
+    "lot": 8,
+    "name": "ERNA B. JUANITAS"
+  },
+  {
+    "block": 17,
+    "lot": 10,
+    "name": "AIZA JOTEA"
+  },
+  {
+    "block": 17,
+    "lot": 11,
+    "name": "AIZA JOTEA"
+  },
+  {
+    "block": 17,
+    "lot": 12,
+    "name": "GLAIZA JOY T. MARTIZANO"
+  },
+  {
+    "block": 17,
+    "lot": 13,
+    "name": "GLAIZA JOY T. MARTIZANO"
+  },
+  {
+    "block": 17,
+    "lot": 14,
+    "name": "GLAIZA JOY T. MARTIZANO"
+  },
+  {
+    "block": 17,
+    "lot": 15,
+    "name": "MICHAEL RYAN GLORIA"
+  },
+  {
+    "block": 17,
+    "lot": 16,
+    "name": "MICHAEL RYAN GLORIA"
+  },
+  {
+    "block": 17,
+    "lot": 17,
+    "name": "ILUMAR GLORIA"
+  },
+  {
+    "block": 17,
+    "lot": 18,
+    "name": "JOHN MICHAEL GLORIA"
+  },
+  {
+    "block": 17,
+    "lot": 21,
+    "name": "EDWIN DIVINAGRACIA & MA. ELENA DIVINAGRACIA"
+  },
+  {
+    "block": 17,
+    "lot": 23,
+    "name": "ESTHER GRACE SIVAK"
+  },
+  {
+    "block": 17,
+    "lot": 24,
+    "name": "SANTANINA CONCEPCION & RUBEN CONCEPCION"
+  },
+  {
+    "block": 17,
+    "lot": 25,
+    "name": "SANTANINA CONCEPCION & RUBEN CONCEPCION"
+  },
+  {
+    "block": 17,
+    "lot": 26,
+    "name": "CATHERINE LLASUS"
+  },
+  {
+    "block": 17,
+    "lot": 27,
+    "name": "VINCENT GUMBAN"
+  },
+  {
+    "block": 17,
+    "lot": 28,
+    "name": "JONALIE MALATAG"
+  },
+  {
+    "block": 17,
+    "lot": 29,
+    "name": "RECHELLE C. CATALAN"
+  },
+  {
+    "block": 17,
+    "lot": 33,
+    "name": "VINIA LASQUITE"
+  },
+  {
+    "block": 17,
+    "lot": 34,
+    "name": "VINIA LASQUITE"
+  },
+  {
+    "block": 18,
+    "lot": 1,
+    "name": "MA. ARABELLE GAITAN"
+  },
+  {
+    "block": 18,
+    "lot": 4,
+    "name": "MITCHELLE ROJAS DE LOS SANTOS"
+  },
+  {
+    "block": 18,
+    "lot": 6,
+    "name": "HAYDEE E. DEL CASTILLO"
+  },
+  {
+    "block": 18,
+    "lot": 7,
+    "name": "HAYDEE E. DEL CASTILLO"
+  },
+  {
+    "block": 18,
+    "lot": 8,
+    "name": "LYSLIE O. BOLIVAR"
+  },
+  {
+    "block": 18,
+    "lot": 11,
+    "name": "GIERSA CELIZ DEMEGILLO"
+  },
+  {
+    "block": 19,
+    "lot": 1,
+    "name": "LUIGI P. DE LA PAZ"
+  },
+  {
+    "block": 19,
+    "lot": 2,
+    "name": "LUIGI P. DE LA PAZ"
+  },
+  {
+    "block": 19,
+    "lot": 3,
+    "name": "ADABEL DEL CASTILLO"
+  },
+  {
+    "block": 19,
+    "lot": 5,
+    "name": "ABEGAIL BENDECIO"
+  },
+  {
+    "block": 19,
+    "lot": 7,
+    "name": "SHIELLA B. SANTIAGO & MARK WINSTON M. SANTIAGO"
+  },
+  {
+    "block": 19,
+    "lot": 8,
+    "name": "SHIELLA B. SANTIAGO & MARK WINSTON M. SANTIAGO"
+  },
+  {
+    "block": 19,
+    "lot": 9,
+    "name": "NICOLE JAMADRE & JOEMAR DICHOSA"
+  },
+  {
+    "block": 19,
+    "lot": 10,
+    "name": "NICOLE JAMADRE & JOEMAR DICHOSA"
+  },
+  {
+    "block": 19,
+    "lot": 11,
+    "name": "NICOLE JAMADRE & JOEMAR DICHOSA"
+  },
+  {
+    "block": 19,
+    "lot": 12,
+    "name": "GIERSA CELIZ DEMEGILLO"
+  }
+]

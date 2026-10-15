@@ -111,7 +111,7 @@ exports.updateLotStatus = async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status. Must be Available, Pending, or Sold" });
     }
-    if (email && !email.includes("@")) {
+    if (email && email !== "To be updated" && !email.includes("@")) {
       return res.status(400).json({ error: "Valid email is required" });
     }
     if (status === "Pending" && (!email || !fullName?.trim() || !contactNumber?.trim() || !address?.trim())) {

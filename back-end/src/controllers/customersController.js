@@ -143,7 +143,7 @@ exports.createCustomer = async (req, res) => {
   if (!email?.trim()) {
     return res.status(400).json({ message: "Email is required." });
   }
-  if (!email.includes("@")) {
+  if (email.trim() !== "To be updated" && !email.includes("@")) {
     return res.status(400).json({ message: "Please provide a valid email address." });
   }
   if (!address?.trim()) {
@@ -249,7 +249,7 @@ exports.createOrUpdateCustomer = async (req, res) => {
 
   try {
     // Validate required fields
-    if (!email || !email.includes("@")) {
+    if (!email || (email.trim() !== "To be updated" && !email.includes("@"))) {
       return res.status(400).json({ error: "Valid email is required" });
     }
     if (!full_name?.trim()) {

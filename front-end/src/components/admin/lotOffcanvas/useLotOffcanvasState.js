@@ -270,6 +270,13 @@ export function useLotOffcanvasState({
     const nextVal = typeof val === "function" ? val(isOldRecord) : Boolean(val);
     dirtyFieldsRef.current.isOldRecord = true;
     setIsOldRecordState(nextVal);
+    if (nextVal) {
+      setAgentName("Old Record");
+      setAgentStatus("legacy");
+    } else {
+      setAgentName("Admin");
+      setAgentStatus("admin");
+    }
   };
 
   const handleStatusChange = (newStatusVal) => {
@@ -555,16 +562,36 @@ export function useLotOffcanvasState({
     }
 
     // Existing legacy Sold lots may have incomplete buyer records; a date-only audit must remain possible.
+    let effectiveContactNumber = contactNumber;
+    let effectiveEmail = email;
+    let effectiveAddress = address;
+    let effectiveFullName = fullName;
+
+    if (isOldRecord || status === "Sold") {
+      if (!effectiveContactNumber?.trim()) {
+        effectiveContactNumber = "To be updated";
+        setContactNumber("To be updated");
+      }
+      if (!effectiveEmail?.trim()) {
+        effectiveEmail = "To be updated";
+        setEmail("To be updated");
+      }
+      if (!effectiveAddress?.trim()) {
+        effectiveAddress = "To be updated";
+        setAddress("To be updated");
+      }
+    }
+
     const isEditingCustomer = ["fullName", "contactNumber", "email", "address"]
       .some((field) => dirtyFieldsRef.current[field]);
     const requiresCustomerDetails = status === "Pending" ||
       (status === "Sold" && (selectedLot.status !== "Sold" || isEditingCustomer));
     if (!isNonSaleable && requiresCustomerDetails) {
       const errors = {};
-      if (!fullName?.trim()) errors.fullName = true;
-      if (!contactNumber?.trim()) errors.contactNumber = true;
-      if (!email?.trim()) errors.email = true;
-      if (!address?.trim()) errors.address = true;
+      if (!effectiveFullName?.trim()) errors.fullName = true;
+      if (!effectiveContactNumber?.trim()) errors.contactNumber = true;
+      if (!effectiveEmail?.trim()) errors.email = true;
+      if (!effectiveAddress?.trim()) errors.address = true;
 
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
@@ -634,10 +661,10 @@ export function useLotOffcanvasState({
         credentials: "include",
         body: JSON.stringify({
           status: finalStatus,
-          email: isNonSaleable ? null : email,
-          fullName: isNonSaleable ? null : fullName,
-          contactNumber: isNonSaleable ? null : contactNumber,
-          address: isNonSaleable ? null : address,
+          email: isNonSaleable ? null : effectiveEmail,
+          fullName: isNonSaleable ? null : effectiveFullName,
+          contactNumber: isNonSaleable ? null : effectiveContactNumber,
+          address: isNonSaleable ? null : effectiveAddress,
           paymentMethod: !isNonSaleable && status === "Sold" ? paymentMethod : null,
           assigned_employee_id: isAdmin && status === "Pending" ? assignedEmployeeId : undefined,
           is_legacy_undated: isAdmin && finalStatus === "Sold" && !isAssignedAgentSale ? Boolean(isLegacyUndated) : false,

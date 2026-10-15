@@ -230,8 +230,8 @@ export const LotOffcanvas = ({
                 setValidationErrors={setValidationErrors}
                 isLockedForUser={isLockedForUser}
                 hasSavedClient={hasSavedClient}
-                agentName={isOldRecord ? "Old Record" : agentName}
-                agentStatus={isOldRecord ? "legacy" : agentStatus}
+                agentName={isOldRecord ? "Old Record" : (agentName === "Old Record" ? "Admin" : agentName)}
+                agentStatus={isOldRecord ? "legacy" : (agentStatus === "legacy" ? "admin" : agentStatus)}
                 isOldRecord={isOldRecord}
                 propertyName={propertyName}
                 propertyLocation={propertyLocation}

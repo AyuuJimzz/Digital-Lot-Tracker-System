@@ -41,7 +41,34 @@ export const LotCustomerSection = ({
     return `Only ${agentName || "the assigned agent"} or Admin can edit this reservation`;
   };
 
-  const isLegacyRecord = isOldRecord || agentStatus === "legacy" || (agentName || "").toLowerCase() === "old record";
+  const isLegacyRecord = Boolean(isOldRecord);
+
+  const isPlaceholder = (val) => String(val || "").trim().toLowerCase() === "to be updated";
+
+  const handleInputFocus = (setter) => (e) => {
+    if (isPlaceholder(e.target.value)) {
+      setter("");
+    }
+  };
+
+  const handleInputBlur = (setter) => (e) => {
+    if (!e.target.value.trim() && isLegacyRecord) {
+      setter("To be updated");
+    }
+  };
+
+  const getInputClasses = (fieldVal, hasError) => {
+    const isPh = isPlaceholder(fieldVal);
+    return `min-h-11 w-full rounded-lg border px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 ${
+      isPh
+        ? "italic text-gray-400 dark:text-slate-400"
+        : "text-gray-900 dark:text-white"
+    } ${
+      hasError
+        ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
+        : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
+    } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`;
+  };
 
   return (
     <section aria-label="Buyer details" className="space-y-4 border-t border-gray-200 pt-5 dark:border-slate-700">
@@ -65,10 +92,10 @@ export const LotCustomerSection = ({
                 {status === "Sold" ? "Sold by" : "Reserved by"}
               </p>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100" title={isLegacyRecord ? "Old Record" : (agentName || "Admin")}>
-                  {isLegacyRecord ? "Old Record" : (agentName || "Admin")}
+                <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100" title={isOldRecord ? "Old Record" : ((agentName && agentName.toLowerCase() !== "old record") ? agentName : "Admin")}>
+                  {isOldRecord ? "Old Record" : ((agentName && agentName.toLowerCase() !== "old record") ? agentName : "Admin")}
                 </p>
-                {!isLegacyRecord && agentStatus === "inactive" && agentName && agentName.toLowerCase() !== "admin" && (
+                {!isOldRecord && agentStatus === "inactive" && agentName && !["admin", "old record"].includes(agentName.toLowerCase()) && (
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     Inactive Agent
                   </span>
@@ -111,13 +138,11 @@ export const LotCustomerSection = ({
               setValidationErrors((prev) => ({ ...prev, fullName: false }));
             }
           }}
+          onFocus={handleInputFocus(setFullName)}
+          onBlur={handleInputBlur(setFullName)}
           disabled={isFieldDisabled}
           title={getFieldTitle()}
-          className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
-            validationErrors.fullName
-              ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
-              : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-          } ${isFieldDisabled ? "cursor-not-allowed bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 opacity-75" : ""}`}
+          className={getInputClasses(fullName, validationErrors.fullName)}
           placeholder="Enter customer's full name"
         />
         {validationErrors.fullName && (
@@ -146,13 +171,11 @@ export const LotCustomerSection = ({
                   setValidationErrors((prev) => ({ ...prev, contactNumber: false }));
                 }
               }}
+              onFocus={handleInputFocus(setContactNumber)}
+              onBlur={handleInputBlur(setContactNumber)}
               disabled={isFieldDisabled}
               title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
-              className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
-                validationErrors.contactNumber
-                  ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
-                  : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-              } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`}
+              className={getInputClasses(contactNumber, validationErrors.contactNumber)}
               placeholder="Enter contact number"
             />
             {validationErrors.contactNumber && (
@@ -202,13 +225,11 @@ export const LotCustomerSection = ({
                 setValidationErrors((prev) => ({ ...prev, contactNumber: false }));
               }
             }}
+            onFocus={handleInputFocus(setContactNumber)}
+            onBlur={handleInputBlur(setContactNumber)}
             disabled={isFieldDisabled}
             title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
-            className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
-              validationErrors.contactNumber
-                ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
-                : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-            } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`}
+            className={getInputClasses(contactNumber, validationErrors.contactNumber)}
             placeholder="Enter contact number"
           />
           {validationErrors.contactNumber && (
@@ -236,13 +257,11 @@ export const LotCustomerSection = ({
               setValidationErrors((prev) => ({ ...prev, email: false }));
             }
           }}
+          onFocus={handleInputFocus(setEmail)}
+          onBlur={handleInputBlur(setEmail)}
           disabled={isFieldDisabled}
           title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
-          className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
-            validationErrors.email
-              ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
-              : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-          } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`}
+          className={getInputClasses(email, validationErrors.email)}
           placeholder="Enter email address"
         />
         {validationErrors.email && (
@@ -269,13 +288,11 @@ export const LotCustomerSection = ({
               setValidationErrors((prev) => ({ ...prev, address: false }));
             }
           }}
+          onFocus={handleInputFocus(setAddress)}
+          onBlur={handleInputBlur(setAddress)}
           disabled={isFieldDisabled}
           title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
-          className={`min-h-11 w-full rounded-lg border px-3 py-2 text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 dark:bg-slate-700 dark:text-white ${
-            validationErrors.address
-              ? "border-rose-500 focus:ring-rose-500/30 ring-1 ring-rose-500/30"
-              : "border-gray-300 dark:border-slate-600 focus:ring-blue-500 focus:border-transparent"
-          } ${isFieldDisabled ? "cursor-not-allowed opacity-75" : ""}`}
+          className={getInputClasses(address, validationErrors.address)}
           placeholder="Enter customer's address"
         />
         {validationErrors.address && (
