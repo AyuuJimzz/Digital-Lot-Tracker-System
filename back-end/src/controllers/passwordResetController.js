@@ -2,6 +2,7 @@ const db = require("../../config/database_connection");
 const bcrypt = require("bcryptjs");
 const { randomInt } = require("node:crypto");
 const { sendEmail } = require("../services/emailService");
+const { generateToken } = require("../utils/tokenHelper");
 
 // =======================
 // GENERATE TEMPORARY PASSWORD
@@ -202,7 +203,18 @@ const resetPassword = async (req, res) => {
       req.session.user.password_reset_required = false;
     }
 
-    return res.json({ message: "Password successfully reset" });
+    const updatedUser = {
+      ...user,
+      password_reset_required: false,
+    };
+    const token = generateToken(updatedUser, user.sessionId);
+
+    return res.json({
+      message: "Password successfully reset",
+      token,
+      user: updatedUser,
+      password_reset_required: false,
+    });
   } catch (error) {
     console.error("Reset password error:", error);
     return res.status(500).json({ message: "Password reset failed" });

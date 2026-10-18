@@ -169,8 +169,8 @@ export function useMapAnnotationsState({
           text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9);
           white-space: nowrap;
           user-select: none;
-          pointer-events: auto;
-          cursor: ${isEditing ? 'grab' : 'pointer'};
+          pointer-events: ${isEditing ? 'auto' : 'none'};
+          cursor: ${isEditing ? 'grab' : 'default'};
           padding: 2px 4px;
           border: ${isEditing && isSelected ? '1px dashed rgba(255,255,255,0.6)' : 'none'};
           border-radius: 4px;

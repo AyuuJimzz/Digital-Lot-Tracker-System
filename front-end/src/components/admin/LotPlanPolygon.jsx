@@ -15,6 +15,9 @@ const BasePolygon = createPathComponent(
     if (props.positions !== prevProps.positions) {
       layer.setLatLngs(props.positions);
     }
+    if (props.pathOptions && props.pathOptions !== prevProps.pathOptions) {
+      layer.setStyle(props.pathOptions);
+    }
   }
 );
 

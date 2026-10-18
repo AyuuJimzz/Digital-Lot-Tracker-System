@@ -8,7 +8,12 @@ export function ViewportLotLayer({ lots, renderLot, showTooltips, isTouchDevice,
   const map = useMap();
   const renderer = useMemo(() => L.canvas({ padding: 0.5, pane: "lot-plan" }), []);
   const tooltip = useMemo(() => L.tooltip({
-    pane: "tooltipPane", direction: "top", offset: [0, -18], interactive: false, opacity: 0.95,
+    pane: "tooltipPane",
+    direction: "top",
+    offset: [0, -18],
+    interactive: false,
+    opacity: 0.95,
+    className: "pointer-events-none select-none",
   }), []);
   const [bounds, setBounds] = useState(() => map.getBounds().pad(0.5));
   const [hovered, setHovered] = useState(null);
@@ -17,14 +22,24 @@ export function ViewportLotLayer({ lots, renderLot, showTooltips, isTouchDevice,
     const updateBounds = () => setBounds(map.getBounds().pad(0.5));
     const clearHover = () => setHovered(null);
     map.on("moveend zoomend resize", updateBounds);
-    map.on("movestart zoomstart", clearHover);
+    map.on("movestart zoomstart click", clearHover);
+    const container = map.getContainer();
+    container?.addEventListener("mouseleave", clearHover);
     return () => {
       map.off("moveend zoomend resize", updateBounds);
-      map.off("movestart zoomstart", clearHover);
+      map.off("movestart zoomstart click", clearHover);
+      container?.removeEventListener("mouseleave", clearHover);
     };
   }, [map]);
 
   useEffect(() => setHovered(null), [lots]);
+
+  useEffect(() => {
+    if (!showTooltips || isTouchDevice) {
+      setHovered(null);
+      map.closeTooltip(tooltip);
+    }
+  }, [showTooltips, isTouchDevice, map, tooltip]);
 
   useEffect(() => {
     if (!hovered || isTouchDevice || !showTooltips) {

@@ -171,7 +171,7 @@ function EmployeeMapView() {
           <ViewportLotLayer
             lots={filteredLots}
             renderLot={renderLot}
-            showTooltips={showLotTooltips}
+            showTooltips={showLotTooltips && !isOffcanvasOpen}
             isTouchDevice={isTouchDevice}
           />
         </Pane>

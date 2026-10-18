@@ -37,7 +37,7 @@ const Customers = () => {
 
       const lower = searchTerm.trim().toLowerCase();
       const matchesSearch = lower
-        ? `${c.full_name} ${c.email} ${c.contact_number} ${c.lot_number || ""} ${c.property_name || ""}`.toLowerCase().includes(lower)
+        ? `${c.full_name || ""} ${c.email || ""} ${c.contact_number || ""} ${c.lot_number || ""} ${c.property_name || ""}`.toLowerCase().includes(lower)
         : true;
 
       return matchesStatus && matchesSearch;

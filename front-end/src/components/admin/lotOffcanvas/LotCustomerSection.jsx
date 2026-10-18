@@ -1,6 +1,7 @@
 import React from "react";
 import { FileText, LockKeyhole, UserRound } from "lucide-react";
 import { exportSingleLotWordDoc } from "../../../utils/exportUtils";
+import { getCurrentUser } from "../../../utils/authStorage";
 
 export const LotCustomerSection = ({
   isNonSaleable,
@@ -24,10 +25,52 @@ export const LotCustomerSection = ({
   agentName,
   agentStatus = "admin",
   isOldRecord = false,
+  externalAgentName = "",
+  handleExternalAgentNameChange,
+  externalAgentSuggestions = [],
   propertyName,
   propertyLocation,
   isSaving = false,
 }) => {
+  const currentUser = getCurrentUser();
+  const currentEmployeeName = currentUser?.first_name
+    ? `${currentUser.first_name} ${currentUser.last_name || ""}`.trim()
+    : (currentUser?.name || "");
+
+  const displayAgentName = React.useMemo(() => {
+    if (externalAgentName?.trim()) return externalAgentName.trim();
+    if (isOldRecord) return "Old Record";
+    if (agentName && agentName.toLowerCase() !== "old record" && agentName.toLowerCase() !== "agent") {
+      return agentName;
+    }
+    if (agentName === "Agent" && currentEmployeeName) {
+      return currentEmployeeName;
+    }
+    if (agentName && agentName.toLowerCase() !== "old record") {
+      return agentName;
+    }
+    return isAdmin ? "Admin" : (currentEmployeeName || "Agent");
+  }, [externalAgentName, isOldRecord, agentName, currentEmployeeName, isAdmin]);
+
+  const [isExternalAgentChecked, setIsExternalAgentChecked] = React.useState(
+    Boolean(externalAgentName?.trim())
+  );
+
+  const prevExternalAgentRef = React.useRef(externalAgentName);
+  React.useEffect(() => {
+    if (externalAgentName?.trim()) {
+      setIsExternalAgentChecked(true);
+    } else if (prevExternalAgentRef.current?.trim() && !externalAgentName?.trim()) {
+      setIsExternalAgentChecked(false);
+    }
+    prevExternalAgentRef.current = externalAgentName;
+  }, [externalAgentName]);
+
+  React.useEffect(() => {
+    setIsExternalAgentChecked(Boolean(externalAgentName?.trim()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLot?.lot_id, status]);
+
   if (isNonSaleable || (status !== "Pending" && status !== "Sold")) {
     return null;
   }
@@ -81,7 +124,7 @@ export const LotCustomerSection = ({
         </p>
       </div>
 
-      {(isAdmin || isLockedForUser) && (agentName || hasSavedClient || isLegacyRecord) && (
+      {(agentName || hasSavedClient || isLegacyRecord) && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-600 dark:bg-slate-900/40">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-600">
@@ -92,9 +135,14 @@ export const LotCustomerSection = ({
                 {status === "Sold" ? "Sold by" : "Reserved by"}
               </p>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100" title={isOldRecord ? "Old Record" : ((agentName && agentName.toLowerCase() !== "old record") ? agentName : "Admin")}>
-                  {isOldRecord ? "Old Record" : ((agentName && agentName.toLowerCase() !== "old record") ? agentName : "Admin")}
+                <p className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100" title={displayAgentName}>
+                  {displayAgentName}
                 </p>
+                {(externalAgentName?.trim() || agentStatus === "external") && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    Referral
+                  </span>
+                )}
                 {!isOldRecord && agentStatus === "inactive" && agentName && !["admin", "old record"].includes(agentName.toLowerCase()) && (
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     Inactive Agent
@@ -118,6 +166,7 @@ export const LotCustomerSection = ({
           )}
         </div>
       )}
+
 
       {/* Full Name */}
       <div>
@@ -300,12 +349,92 @@ export const LotCustomerSection = ({
         )}
       </div>
 
+      {/* Outside Sales Agent Commission Credit Toggle */}
+      {isFieldDisabled ? (
+        externalAgentName?.trim() ? (
+          <div className="flex items-center justify-between rounded-xl border border-blue-200/70 bg-blue-50/70 px-3 py-2 text-xs text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-300">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Referred by:</span>
+            <span className="font-semibold text-blue-700 dark:text-blue-300">{externalAgentName.trim()}</span>
+          </div>
+        ) : null
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 dark:border-slate-700 dark:bg-slate-900/40 space-y-2">
+          <label className="flex items-center justify-between cursor-pointer select-none">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="lot-offcanvas-external-agent-checkbox"
+                checked={isExternalAgentChecked}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsExternalAgentChecked(checked);
+                  if (!checked && handleExternalAgentNameChange) {
+                    handleExternalAgentNameChange("");
+                  }
+                }}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
+              />
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                Referred by outside sales agent
+              </span>
+            </div>
+            {isExternalAgentChecked && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                Referral Credit
+              </span>
+            )}
+          </label>
+
+          {isExternalAgentChecked && (
+            <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/80 space-y-1.5">
+              <input
+                id="lot-offcanvas-external-agent"
+                name="external_agent_name"
+                type="text"
+                list="external-agents-datalist"
+                value={externalAgentName || ""}
+                onChange={(e) => handleExternalAgentNameChange && handleExternalAgentNameChange(e.target.value)}
+                placeholder="Outside agent full name (e.g. Juan dela Cruz)"
+                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+              <datalist id="external-agents-datalist">
+                {(externalAgentSuggestions || []).map((agent) => (
+                  <option key={agent} value={agent} />
+                ))}
+              </datalist>
+              {externalAgentName?.trim() && (
+                <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">
+                  ✓ Sale & commission assigned to &ldquo;{externalAgentName.trim()}&rdquo;
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {hasSavedClient && (
         <button
           type="button"
           onClick={() =>
             exportSingleLotWordDoc(
-              { ...selectedLot, agent_name: agentName },
+              {
+                ...selectedLot,
+                status: status || selectedLot?.status,
+                agent_name: displayAgentName,
+                agent_status: externalAgentName?.trim()
+                  ? "external"
+                  : isOldRecord
+                  ? "legacy"
+                  : agentStatus,
+                payment_method: paymentMethod || selectedLot?.payment_method,
+                customer: {
+                  ...selectedLot?.customer,
+                  full_name: fullName || selectedLot?.customer?.full_name,
+                  contact_number: contactNumber || selectedLot?.customer?.contact_number,
+                  email: email || selectedLot?.customer?.email,
+                  address: address || selectedLot?.customer?.address,
+                },
+              },
               propertyName || selectedLot?.property_name,
               propertyLocation || selectedLot?.location
             )

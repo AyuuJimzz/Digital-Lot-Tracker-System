@@ -223,7 +223,9 @@ export async function exportSingleLotWordDoc(lot, propertyName = "", propertyLoc
     dateStyle: "long",
   });
 
-  const status = (lot.status || "Available").toUpperCase();
+  const rawStatus = lot.status || "Available";
+  const status = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
+  const isReservedOrSold = ["pending", "sold"].includes(rawStatus.toLowerCase());
   const customer = lot.customer || {};
 
   const logoBase64 = await getLogoBase64Clean();
@@ -231,8 +233,9 @@ export async function exportSingleLotWordDoc(lot, propertyName = "", propertyLoc
   // Reference the embedded MHTML image location directly
   const logoHtml = `<img src="golden-dragon-logo.png" width="56" height="56" style="width:56px; height:56px; display:block; border-radius:50%;" alt="Golden Dragon Logo" />`;
 
+  const isSold = rawStatus.toLowerCase() === "sold";
   const paymentRowHtml =
-    lot.status === "Sold" && lot.payment_method
+    isSold && lot.payment_method
       ? `<tr>
           <td class="label-col">Payment Method:</td>
           <td class="value-col">${lot.payment_method}</td>
@@ -285,10 +288,10 @@ export async function exportSingleLotWordDoc(lot, propertyName = "", propertyLoc
         <td class="value-col"><strong>${status}</strong></td>
       </tr>
       ${paymentRowHtml}
-      ${(status === "Pending" || status === "Sold") ? `
+      ${isReservedOrSold ? `
       <tr>
         <td class="label-col">Assigned Agent / Sold By:</td>
-        <td class="value-col"><strong>${(lot.agent_status === "legacy" || (lot.agent_name || "").toLowerCase() === "old record") ? "Old Record" : (lot.agent_status === "inactive" && lot.agent_name && lot.agent_name.toLowerCase() !== "admin") ? `${lot.agent_name} (Inactive Agent)` : (lot.agent_name || "Admin")}</strong></td>
+        <td class="value-col"><strong>${(lot.agent_status === "legacy" || (lot.agent_name || "").toLowerCase() === "old record") ? "Old Record" : (lot.agent_status === "external" ? `${lot.agent_name} (Referral)` : (lot.agent_status === "inactive" && lot.agent_name && lot.agent_name.toLowerCase() !== "admin") ? `${lot.agent_name} (Inactive Agent)` : (lot.agent_name || "Admin"))}</strong></td>
       </tr>
       ` : ""}
     </table>

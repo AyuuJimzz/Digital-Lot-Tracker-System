@@ -54,6 +54,10 @@ exports.getLotById = async (req, res) => {
     }
 
     const lot = lotRows[0];
+    if (lot.status === "Available") {
+      lot.pending_since = null;
+      lot.sold_on = null;
+    }
 
     // Get customer information if exists (strictly active Pending/Sold lots, never for Available lots)
     let customerRows = [];
@@ -72,58 +76,87 @@ exports.getLotById = async (req, res) => {
       lot.customer = null;
     }
 
-    // Get transaction information (payment method & agent) if exists
-    const customerEmpId = lot.customer?.employee_id || null;
-    const [transactionRows] = await db.query(
-      `SELECT t.payment_type,
-              CASE
-                WHEN t.agent_name = 'Old Record' THEN NULL
-                ELSE COALESCE(t.employee_id, ?)
-              END AS employee_id,
-              COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') AS agent_name,
-              CASE
-                WHEN t.agent_name = 'Old Record' THEN 'legacy'
-                WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL ELSE COALESCE(t.employee_id, ?) END) IS NULL AND (t.agent_name IS NULL OR t.agent_name = 'Admin') THEN 'admin'
-                WHEN e.status = 'active' THEN 'active'
-                ELSE 'inactive'
-              END AS agent_status
-       FROM transactions t
-       LEFT JOIN employees e ON (
-         CASE WHEN t.agent_name = 'Old Record' THEN NULL ELSE COALESCE(t.employee_id, ?) END
-       ) = e.employee_id
-       WHERE t.lot_id = ? AND t.customer_id = ? AND t.payment_type NOT IN ('Reversal', 'Cancelled')
-       ORDER BY t.transaction_date DESC, t.transaction_id DESC LIMIT 1`,
-      [customerEmpId, customerEmpId, customerEmpId, id, lot.customer?.customer_id || 0]
-    );
-
-    if (transactionRows.length > 0) {
-      if (lot.status === "Sold") {
-        lot.payment_method = transactionRows[0].payment_type;
+    if (lot.status === "Available") {
+      lot.customer = null;
+      lot.agent_name = null;
+      lot.agent_status = null;
+      lot.employee_id = null;
+      lot.payment_method = null;
+    } else {
+      // Get transaction information (payment method & agent) if exists
+      const customerEmpId = lot.customer?.employee_id || null;
+      const customerId = lot.customer?.customer_id || null;
+      const customerFilterSql = customerId ? "AND (t.customer_id = ? OR t.customer_id IS NULL)" : "";
+      const queryParams = [
+        customerEmpId,
+        customerEmpId,
+        customerEmpId,
+        customerEmpId,
+        id,
+      ];
+      if (customerId) {
+        queryParams.push(customerId);
       }
-      lot.agent_name = transactionRows[0].agent_name;
-      lot.agent_status = transactionRows[0].agent_status;
-      lot.employee_id = transactionRows[0].employee_id;
-    } else if (lot.customer?.employee_id) {
-      try {
-        const [empRows] = await db.query(
-          "SELECT first_name, last_name, status FROM employees WHERE employee_id = ?",
-          [lot.customer.employee_id]
-        );
-        if (empRows.length > 0) {
-          lot.agent_name = `${empRows[0].first_name || ""} ${empRows[0].last_name || ""}`.trim() || "Agent";
-          lot.agent_status = empRows[0].status === "active" ? "active" : "inactive";
-        } else {
+
+      const [transactionRows] = await db.query(
+        `SELECT t.payment_type,
+                CASE
+                  WHEN t.agent_name = 'Old Record' THEN NULL
+                  WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL
+                  ELSE COALESCE(t.employee_id, ?)
+                END AS employee_id,
+                COALESCE(NULLIF(t.agent_name, 'Agent'), NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), t.agent_name, 'Admin') AS agent_name,
+                CASE
+                  WHEN t.agent_name = 'Old Record' THEN 'legacy'
+                  WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN 'external'
+                  WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL ELSE COALESCE(t.employee_id, ?) END) IS NULL AND (t.agent_name IS NULL OR t.agent_name = 'Admin') THEN 'admin'
+                  WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL ELSE COALESCE(t.employee_id, ?) END) IS NULL AND t.agent_name IS NOT NULL THEN 'external'
+                  WHEN e.status = 'active' THEN 'active'
+                  ELSE 'inactive'
+                END AS agent_status
+         FROM transactions t
+         LEFT JOIN employees e ON (
+           CASE
+             WHEN t.agent_name = 'Old Record' THEN NULL
+             WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL
+             ELSE COALESCE(t.employee_id, ?)
+           END
+         ) = e.employee_id
+         WHERE t.lot_id = ? ${customerFilterSql} AND t.payment_type NOT IN ('Reversal', 'Cancelled')
+         ORDER BY t.transaction_date DESC, t.transaction_id DESC LIMIT 1`,
+        queryParams
+      );
+
+      if (transactionRows.length > 0) {
+        if (lot.status === "Sold") {
+          lot.payment_method = transactionRows[0].payment_type;
+        }
+        lot.agent_name = transactionRows[0].agent_name;
+        lot.agent_status = transactionRows[0].agent_status;
+        lot.employee_id = transactionRows[0].employee_id;
+      } else if (lot.customer?.employee_id) {
+        try {
+          const [empRows] = await db.query(
+            "SELECT first_name, last_name, status FROM employees WHERE employee_id = ?",
+            [lot.customer.employee_id]
+          );
+          if (empRows.length > 0) {
+            lot.agent_name = `${empRows[0].first_name || ""} ${empRows[0].last_name || ""}`.trim() || "Agent";
+            lot.agent_status = empRows[0].status === "active" ? "active" : "inactive";
+          } else {
+            lot.agent_name = "Agent";
+            lot.agent_status = "inactive";
+          }
+        } catch (_) {
           lot.agent_name = "Agent";
           lot.agent_status = "inactive";
         }
-      } catch (_) {
-        lot.agent_name = "Agent";
-        lot.agent_status = "inactive";
+        lot.employee_id = lot.customer.employee_id;
+      } else {
+        lot.agent_name = "Admin";
+        lot.agent_status = "admin";
+        lot.employee_id = null;
       }
-      lot.employee_id = lot.customer.employee_id;
-    } else {
-      lot.agent_name = "Admin";
-      lot.agent_status = "admin";
     }
 
     if (lot.coordinates && typeof lot.coordinates === "string") {
@@ -149,18 +182,27 @@ exports.getMapData = async (req, res) => {
 
     const [rows] = await db.query(
       `SELECT l.lot_id, l.property_id, l.lot_number, l.area_sqm, l.status, l.is_non_saleable, l.coordinates,
-              l.pending_since, DATE_FORMAT(l.sold_on, '%Y-%m-%d') AS sold_on,
+              CASE WHEN l.status = 'Available' THEN NULL ELSE l.pending_since END AS pending_since,
+              CASE WHEN l.status = 'Available' THEN NULL ELSE DATE_FORMAT(l.sold_on, '%Y-%m-%d') END AS sold_on,
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.full_name END AS customer_name,
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.email END AS customer_email,
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.contact_number END AS customer_contact,
               CASE
+                WHEN l.status = 'Available' THEN NULL
                 WHEN t.agent_name = 'Old Record' THEN NULL
+                WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL
                 ELSE COALESCE(t.employee_id, c.employee_id)
               END AS employee_id,
-              COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), CASE WHEN COALESCE(t.employee_id, c.employee_id) IS NOT NULL THEN 'Agent' ELSE 'Admin' END) AS agent_name,
               CASE
+                WHEN l.status = 'Available' THEN NULL
+                ELSE COALESCE(NULLIF(t.agent_name, 'Agent'), NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), t.agent_name, CASE WHEN COALESCE(t.employee_id, c.employee_id) IS NOT NULL THEN 'Agent' ELSE 'Admin' END)
+              END AS agent_name,
+              CASE
+                WHEN l.status = 'Available' THEN NULL
                 WHEN t.agent_name = 'Old Record' THEN 'legacy'
-                WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END) IS NULL AND (t.agent_name IS NULL OR t.agent_name = 'Admin') THEN 'admin'
+                WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN 'external'
+                WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END) IS NULL AND (t.agent_name IS NULL OR t.agent_name = 'Admin') THEN 'admin'
+                WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END) IS NULL AND t.agent_name IS NOT NULL THEN 'external'
                 WHEN e.status = 'active' THEN 'active'
                 ELSE 'inactive'
               END AS agent_status
@@ -178,7 +220,11 @@ exports.getMapData = async (req, res) => {
          WHERE lot_id IS NOT NULL AND customer_id IS NOT NULL AND payment_type NOT IN ('Reversal', 'Cancelled')
        ) t ON l.lot_id = t.lot_id AND c.customer_id = t.customer_id AND t.rn = 1
        LEFT JOIN employees e ON (
-         CASE WHEN t.agent_name = 'Old Record' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END
+         CASE
+           WHEN t.agent_name = 'Old Record' THEN NULL
+           WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL
+           ELSE COALESCE(t.employee_id, c.employee_id)
+         END
        ) = e.employee_id
        WHERE l.coordinates IS NOT NULL
        ORDER BY l.property_id, l.lot_number`

@@ -134,7 +134,6 @@ const AdminDashboard = () => {
   const handlePasswordChanged = () => {
     localStorage.setItem("password_reset_required", "false");
     setShowPasswordChange(false);
-    window.location.reload();
   };
 
   return (

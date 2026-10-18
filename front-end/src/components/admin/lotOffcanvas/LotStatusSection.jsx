@@ -170,12 +170,10 @@ export const LotStatusSection = ({
                   </p>
                 ) : (
                   <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                    {formattedDate ||
-                      (originalStatus === status
-                        ? status === "Sold"
-                        ? "Undated"
-                        : "Not recorded"
-                        : "Recorded when saved (Today)")}
+                    {originalStatus !== status
+                      ? "Recorded when saved (Today)"
+                      : formattedDate ||
+                        (status === "Sold" ? "Undated" : "Not recorded")}
                   </p>
                 )}
               </div>
@@ -254,12 +252,12 @@ export const LotStatusSection = ({
                       />
                       <div className="min-w-0">
                         <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                          Attribute Seller as "Old Record"
+                          Mark seller as "Old Record"
                         </span>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
                           {isOldRecord
-                            ? "Seller: Old Record (Old paper sale)"
-                            : "Seller: Admin (Direct sale)"}
+                            ? "Seller: Old Record (Past paper sale)"
+                            : "Seller: Admin (Direct company sale)"}
                         </p>
                       </div>
                     </label>

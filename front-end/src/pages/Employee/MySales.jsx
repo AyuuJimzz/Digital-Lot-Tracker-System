@@ -104,7 +104,7 @@ const MySales = () => {
   const filteredSales = useMemo(() => {
     return salesRecords.filter((sale) => {
       const searchText =
-        `${sale.sale_ref} ${sale.lot_number} ${sale.buyer_name} ${sale.buyer_contact} ${sale.buyer_email} ${sale.property_name} ${sale.status} ${sale.area_sqm} ${sale.sale_date || ""}`.toLowerCase();
+        `${sale.sale_ref || ""} ${sale.lot_number || ""} ${sale.buyer_name || ""} ${sale.buyer_contact || ""} ${sale.buyer_email || ""} ${sale.property_name || ""} ${sale.status || ""} ${sale.area_sqm || ""} ${sale.sale_date || ""}`.toLowerCase();
       return searchTerm.trim()
         ? searchText.includes(searchTerm.trim().toLowerCase())
         : true;
@@ -196,7 +196,7 @@ const MySales = () => {
                   <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-800">
                     {paginatedSales.map((sale) => (
                       <tr
-                        key={sale.lot_id}
+                        key={sale.sale_ref || sale.lot_id}
                         className="hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
                       >
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm">

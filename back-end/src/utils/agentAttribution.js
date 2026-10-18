@@ -21,6 +21,9 @@ function classifyAgentStatus({ employeeId, agentName, employeeStatus }) {
   if (isExplicitAdmin) {
     return "admin";
   }
+  if (isNoEmployee) {
+    return "external";
+  }
   if (employeeStatus && String(employeeStatus).trim().toLowerCase() === "active") {
     return "active";
   }

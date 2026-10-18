@@ -22,6 +22,14 @@ const sendEmail = async (toOrOptions, subjectParam, htmlParam) => {
     return { success: false, error: "Recipient is a placeholder or not a valid email address." };
   }
 
+  if (!process.env.BREVO_API_KEY) {
+    try {
+      const path = require("path");
+      require("dotenv").config({ path: path.resolve(__dirname, "../../../.env") });
+      require("dotenv").config();
+    } catch (_) {}
+  }
+
   const brevoApiKey = process.env.BREVO_API_KEY;
   if (!brevoApiKey) {
     console.warn("[EmailService] BREVO_API_KEY is not defined in environment variables.");

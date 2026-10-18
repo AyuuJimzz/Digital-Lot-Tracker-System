@@ -38,6 +38,64 @@ export function useLotOffcanvasState({
   onLiveLotUpdate,
   isAdmin: isAdminProp,
 }) {
+  const userRole = (typeof localStorage !== "undefined" ? localStorage.getItem("role") || "" : "").toLowerCase();
+  const isAdmin = isAdminProp !== undefined ? isAdminProp : userRole === "admin";
+  const [employeeProfile, setEmployeeProfile] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("userProfileCache");
+      return cached ? JSON.parse(cached) : null;
+    } catch (_) {
+      return null;
+    }
+  });
+
+  const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.id || currentUser?.employee_id;
+  const resolvedCurrentUserName =
+    (currentUser?.first_name ? `${currentUser.first_name} ${currentUser.last_name || ""}`.trim() : null) ||
+    (employeeProfile?.first_name ? `${employeeProfile.first_name} ${employeeProfile.last_name || ""}`.trim() : null) ||
+    currentUser?.name ||
+    employeeProfile?.name ||
+    "";
+  const currentUserName = resolvedCurrentUserName || (isAdmin ? "Admin" : "Agent");
+
+  // Proactively fetch employee profile if name is not yet cached in state
+  useEffect(() => {
+    if (isAdmin || resolvedCurrentUserName) return;
+    let isMounted = true;
+    const token =
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("authToken");
+    if (!token) return;
+
+    fetch(`${API_BASE_URL}/api/auth/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((profile) => {
+        if (!isMounted || !profile) return;
+        const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+        if (fullName) {
+          setEmployeeProfile(profile);
+          try {
+            sessionStorage.setItem("userProfileCache", JSON.stringify(profile));
+            const stored = localStorage.getItem("user");
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              localStorage.setItem("user", JSON.stringify({ ...parsed, ...profile }));
+            }
+          } catch (_) {}
+          setAgentName((prev) => (!prev || prev === "Agent" || prev === "Admin" ? fullName : prev));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAdmin, resolvedCurrentUserName]);
+
   const [status, setStatus] = useState(selectedLot?.status || "Available");
   const [isNonSaleable, setIsNonSaleable] = useState(false);
   const [isEditMenuOpen, setIsEditMenuOpen] = useState(false);
@@ -55,12 +113,14 @@ export function useLotOffcanvasState({
   const [isDeletingLot, setIsDeletingLot] = useState(false);
   const [deleteLotError, setDeleteLotError] = useState("");
   const isDeleting = isDeletingLot;
-  const [agentName, setAgentName] = useState("Admin");
-  const [agentStatus, setAgentStatus] = useState("admin");
-  const [assignedEmployeeId, setAssignedEmployeeId] = useState(null);
+  const [agentName, setAgentName] = useState(() => (isAdmin ? "Admin" : currentUserName));
+  const [agentStatus, setAgentStatus] = useState(() => (isAdmin ? "admin" : "active"));
+  const [assignedEmployeeId, setAssignedEmployeeId] = useState(() => (isAdmin ? null : (currentUserId || null)));
   const [customSoldOn, setCustomSoldOn] = useState("");
   const [isLegacyUndated, setIsLegacyUndated] = useState(false);
   const [isOldRecord, setIsOldRecordState] = useState(false);
+  const [externalAgentName, setExternalAgentName] = useState("");
+  const [externalAgentSuggestions, setExternalAgentSuggestions] = useState([]);
 
   // Editable Lot Metadata details
   const [lotNumber, setLotNumber] = useState("");
@@ -158,15 +218,45 @@ export function useLotOffcanvasState({
     }
 
     if (!dirtyFieldsRef.current.agentName && data.agent_name !== undefined) {
-      setAgentName(data.agent_name || "");
+      if (data.status === "Available" || (!data.customer && data.status !== "Sold")) {
+        setAgentName(isAdmin ? "Admin" : currentUserName);
+      } else {
+        let lotAgentName = data.agent_name;
+        if (!lotAgentName || (lotAgentName === "Agent" && (!data.employee_id || data.employee_id === currentUserId))) {
+          lotAgentName = isAdmin ? (data.employee_id ? "Agent" : "Admin") : currentUserName;
+        }
+        setAgentName(lotAgentName);
+      }
     }
 
     if (data.agent_status !== undefined) {
-      setAgentStatus(data.agent_status || "admin");
+      if (data.status === "Available" || (!data.customer && data.status !== "Sold")) {
+        setAgentStatus(isAdmin ? "admin" : "active");
+      } else {
+        setAgentStatus(data.agent_status || (isAdmin ? "admin" : "active"));
+      }
     }
 
     if (!dirtyFieldsRef.current.isOldRecord) {
-      setIsOldRecordState(data.agent_name === "Old Record" || data.agent_status === "legacy");
+      if (data.status === "Available") {
+        setIsOldRecordState(false);
+      } else {
+        setIsOldRecordState(data.agent_name === "Old Record" || data.agent_status === "legacy");
+      }
+    }
+
+    if (!dirtyFieldsRef.current.externalAgentName) {
+      if (data.status === "Available" || (!data.customer && data.status !== "Sold")) {
+        setExternalAgentName("");
+      } else {
+        const isExt = data.agent_status === "external" ||
+          Boolean(
+            data.agent_name &&
+            !["admin", "old record", "legacy record", "agent"].includes(String(data.agent_name).toLowerCase().trim()) &&
+            (!data.employee_id || data.agent_status === "external")
+          );
+        setExternalAgentName(isExt ? (data.agent_name || "") : "");
+      }
     }
 
     if (!dirtyFieldsRef.current.assignedEmployeeId && data.employee_id !== undefined) {
@@ -177,26 +267,65 @@ export function useLotOffcanvasState({
       setPaymentMethod(data.payment_method || "");
     }
 
-    if (data.status === "Available" || !data.customer || data.customer.customer_status === "Cancelled") {
+    const isLegacySoldData = data.status === "Sold" && (
+      data.agent_name === "Old Record" ||
+      data.agent_status === "legacy" ||
+      !data.sold_on
+    );
+
+    if (data.status === "Available" || (!data.customer && !isLegacySoldData) || data.customer?.customer_status === "Cancelled") {
       if (!dirtyFieldsRef.current.email) setEmail("");
       if (!dirtyFieldsRef.current.fullName) setFullName("");
       if (!dirtyFieldsRef.current.contactNumber) setContactNumber("");
       if (!dirtyFieldsRef.current.address) setAddress("");
     } else if (data.customer) {
       if (!dirtyFieldsRef.current.email && data.customer.email !== undefined) {
-        setEmail(data.customer.email || "");
+        setEmail(data.customer.email || (isLegacySoldData ? "To be updated" : ""));
       }
       if (!dirtyFieldsRef.current.fullName && data.customer.full_name !== undefined) {
         setFullName(data.customer.full_name || "");
       }
       if (!dirtyFieldsRef.current.contactNumber && data.customer.contact_number !== undefined) {
-        setContactNumber(data.customer.contact_number || "");
+        setContactNumber(data.customer.contact_number || (isLegacySoldData ? "To be updated" : ""));
       }
       if (!dirtyFieldsRef.current.address && data.customer.address !== undefined) {
-        setAddress(data.customer.address || "");
+        setAddress(data.customer.address || (isLegacySoldData ? "To be updated" : ""));
       }
+    } else if (isLegacySoldData) {
+      if (!dirtyFieldsRef.current.email) setEmail("To be updated");
+      if (!dirtyFieldsRef.current.contactNumber) setContactNumber("To be updated");
+      if (!dirtyFieldsRef.current.address) setAddress("To be updated");
     }
-  }, []);
+  }, [isAdmin, currentUserName, currentUserId]);
+
+  // Fetch unique external agent suggestions for autocomplete
+  useEffect(() => {
+    let isMounted = true;
+    const fetchAgents = async () => {
+      try {
+        const token =
+          localStorage.getItem("authToken") ||
+          localStorage.getItem("token") ||
+          sessionStorage.getItem("authToken");
+        const res = await fetch(`${API_BASE_URL}/api/transactions/agents`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: "include",
+        });
+        if (res.ok) {
+          const list = await res.json();
+          if (isMounted && Array.isArray(list)) {
+            setExternalAgentSuggestions(list);
+          }
+        }
+      } catch (_) {}
+    };
+    if (isOpen) {
+      fetchAgents();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   // Cleanup timers and abort controllers on unmount
   useEffect(() => {
@@ -263,6 +392,40 @@ export function useLotOffcanvasState({
     if (nextVal) {
       setCustomSoldOn("");
       dirtyFieldsRef.current.customSoldOn = false;
+      if (!contactNumber?.trim()) setContactNumber("To be updated");
+      if (!email?.trim()) setEmail("To be updated");
+      if (!address?.trim()) setAddress("To be updated");
+    }
+  };
+
+  const handleExternalAgentNameChange = (val) => {
+    dirtyFieldsRef.current.externalAgentName = true;
+    setExternalAgentName(val);
+    const trimmed = String(val || "").trim();
+    if (trimmed) {
+      setAgentName(trimmed);
+      setAgentStatus("external");
+      if (isOldRecord) {
+        setIsOldRecordState(false);
+        dirtyFieldsRef.current.isOldRecord = true;
+      }
+    } else {
+      const wasOld = selectedLot?.agent_name === "Old Record" || selectedLot?.agent_status === "legacy";
+      if (isAdmin) {
+        if (wasOld) {
+          setIsOldRecordState(true);
+          dirtyFieldsRef.current.isOldRecord = true;
+          setAgentName("Old Record");
+          setAgentStatus("legacy");
+        } else {
+          setAgentName(isOldRecord ? "Old Record" : "Admin");
+          setAgentStatus(isOldRecord ? "legacy" : "admin");
+        }
+      } else {
+        setAgentName(currentUserName);
+        setAgentStatus("active");
+        setAssignedEmployeeId(currentUserId || null);
+      }
     }
   };
 
@@ -271,11 +434,19 @@ export function useLotOffcanvasState({
     dirtyFieldsRef.current.isOldRecord = true;
     setIsOldRecordState(nextVal);
     if (nextVal) {
+      setExternalAgentName("");
+      dirtyFieldsRef.current.externalAgentName = true;
       setAgentName("Old Record");
       setAgentStatus("legacy");
+      if (!contactNumber?.trim()) setContactNumber("To be updated");
+      if (!email?.trim()) setEmail("To be updated");
+      if (!address?.trim()) setAddress("To be updated");
     } else {
       setAgentName("Admin");
       setAgentStatus("admin");
+      if (contactNumber === "To be updated") setContactNumber("");
+      if (email === "To be updated") setEmail("");
+      if (address === "To be updated") setAddress("");
     }
   };
 
@@ -288,33 +459,44 @@ export function useLotOffcanvasState({
       setIsLegacyUndated(false);
       dirtyFieldsRef.current.isLegacyUndated = false;
     }
-    // When switching to Available OR when picking Pending/Sold on an Available lot, clear customer details for a fresh form.
-    if (
-      (nextStatus === "Available" && status !== "Available") ||
-      (status === "Available" && nextStatus !== "Available")
-    ) {
-      setEmail("");
-      setFullName("");
-      setContactNumber("");
-      setAddress("");
-      dirtyFieldsRef.current.email = false;
-      dirtyFieldsRef.current.fullName = false;
-      dirtyFieldsRef.current.contactNumber = false;
-      dirtyFieldsRef.current.address = false;
-    }
-    setStatus(nextStatus);
-  };
+      // When switching to Available OR when picking Pending/Sold on an Available lot, clear customer details for a fresh form.
+      if (
+        (nextStatus === "Available" && status !== "Available") ||
+        (status === "Available" && nextStatus !== "Available")
+      ) {
+        setEmail("");
+        setFullName("");
+        setContactNumber("");
+        setAddress("");
+        dirtyFieldsRef.current.email = false;
+        dirtyFieldsRef.current.fullName = false;
+        dirtyFieldsRef.current.contactNumber = false;
+        dirtyFieldsRef.current.address = false;
 
-  const userRole = (localStorage.getItem("role") || "").toLowerCase();
-  const isAdmin = isAdminProp !== undefined ? isAdminProp : userRole === "admin";
+        // Clear any lingering outside agent referral and old record flag for a clean slate
+        setExternalAgentName("");
+        dirtyFieldsRef.current.externalAgentName = false;
+        setIsOldRecordState(false);
+        dirtyFieldsRef.current.isOldRecord = false;
 
-  const currentUser = getCurrentUser();
-  const currentUserId = currentUser?.id || currentUser?.employee_id;
-  const reservingEmployeeId = selectedLot?.customer?.employee_id || selectedLot?.employee_id;
-  const isReservingAgent = isAdmin || Boolean(currentUserId && reservingEmployeeId && Number(currentUserId) === Number(reservingEmployeeId));
+        // When newly setting an Available lot to Pending or Sold:
+        if (nextStatus !== "Available" && !hasSavedClient) {
+          setAgentName(isAdmin ? "Admin" : currentUserName);
+          setAgentStatus(isAdmin ? "admin" : "active");
+          setAssignedEmployeeId(isAdmin ? null : (currentUserId || null));
+          dirtyFieldsRef.current.agentName = false;
+          dirtyFieldsRef.current.assignedEmployeeId = false;
+        }
+      }
+      setStatus(nextStatus);
+    };
+
+    const reservingEmployeeId = selectedLot?.customer?.employee_id || selectedLot?.employee_id;
+    const hasOtherReservingEmployee = Boolean(reservingEmployeeId && Number(currentUserId) !== Number(reservingEmployeeId));
+    const isReservingAgent = isAdmin || !hasOtherReservingEmployee;
 
   const isExistingSoldLot = selectedLot?.status === "Sold";
-  const isPendingLockedForOther = selectedLot?.status === "Pending" && !isReservingAgent;
+  const isPendingLockedForOther = selectedLot?.status === "Pending" && hasOtherReservingEmployee;
   const isLockedForUser = !isAdmin && (isExistingSoldLot || isPendingLockedForOther || isNonSaleable);
   const canCancelReservation = isAdmin || isReservingAgent;
   const hasSavedClient = Boolean(
@@ -440,11 +622,22 @@ export function useLotOffcanvasState({
     }
 
     // If lot has customer data, set the customer information (strictly active Pending/Sold lots, never for Available)
+    const isLegacySoldInit = selectedLot.status === "Sold" && (
+      selectedLot.agent_name === "Old Record" ||
+      selectedLot.agent_status === "legacy" ||
+      !selectedLot.sold_on
+    );
+
     if (selectedLot.status !== "Available" && selectedLot.customer && selectedLot.customer.customer_status !== "Cancelled") {
-      setEmail(selectedLot.customer.email || "");
+      setEmail(selectedLot.customer.email || (isLegacySoldInit ? "To be updated" : ""));
       setFullName(selectedLot.customer.full_name || "");
-      setContactNumber(selectedLot.customer.contact_number || "");
-      setAddress(selectedLot.customer.address || "");
+      setContactNumber(selectedLot.customer.contact_number || (isLegacySoldInit ? "To be updated" : ""));
+      setAddress(selectedLot.customer.address || (isLegacySoldInit ? "To be updated" : ""));
+    } else if (isLegacySoldInit) {
+      setEmail("To be updated");
+      setFullName("");
+      setContactNumber("To be updated");
+      setAddress("To be updated");
     } else {
       setEmail("");
       setFullName("");
@@ -460,9 +653,33 @@ export function useLotOffcanvasState({
     }
 
     // Initialize assigned agent name & ID
-    setAgentName(selectedLot.agent_name || (selectedLot.employee_id ? "Agent" : "Admin"));
-    setAgentStatus(selectedLot.agent_status || (selectedLot.employee_id ? "active" : "admin"));
-    setAssignedEmployeeId(selectedLot.employee_id ?? selectedLot.customer?.employee_id ?? null);
+    const isAvailableLot = selectedLot.status === "Available" || (!selectedLot.customer && selectedLot.status !== "Sold");
+
+    const isExtInit = !isAvailableLot && (
+      selectedLot.agent_status === "external" ||
+      Boolean(
+        selectedLot.agent_name &&
+        !["admin", "old record", "legacy record", "agent"].includes(String(selectedLot.agent_name).toLowerCase().trim()) &&
+        (!selectedLot.employee_id || selectedLot.agent_status === "external")
+      )
+    );
+    setExternalAgentName(isExtInit ? (selectedLot.agent_name || "") : "");
+
+    if (isAvailableLot) {
+      setAgentName(isAdmin ? "Admin" : currentUserName);
+      setAgentStatus(isAdmin ? "admin" : "active");
+      setAssignedEmployeeId(isAdmin ? null : (currentUserId || null));
+      setIsOldRecordState(false);
+    } else {
+      let lotAgentName = selectedLot.agent_name;
+      if (!lotAgentName || (lotAgentName === "Agent" && (!selectedLot.employee_id || selectedLot.employee_id === currentUserId))) {
+        lotAgentName = isAdmin ? (selectedLot.employee_id ? "Agent" : "Admin") : currentUserName;
+      }
+      setAgentName(lotAgentName);
+      setAgentStatus(selectedLot.agent_status || (isExtInit ? "external" : (selectedLot.employee_id ? "active" : (isAdmin ? "admin" : "active"))));
+      setAssignedEmployeeId(selectedLot.employee_id ?? selectedLot.customer?.employee_id ?? (isAdmin ? null : currentUserId));
+      setIsOldRecordState(selectedLot.agent_name === "Old Record" || selectedLot.agent_status === "legacy");
+    }
     setCustomSoldOn(selectedLot.sold_on ? String(selectedLot.sold_on).slice(0, 10) : "");
     const isAgent = Boolean(
       selectedLot.employee_id ??
@@ -470,7 +687,6 @@ export function useLotOffcanvasState({
       (selectedLot.agent_name && !["admin", "old record"].includes(selectedLot.agent_name.toLowerCase().trim()))
     );
     setIsLegacyUndated(Boolean(!isAgent && selectedLot.status === "Sold" && !selectedLot.sold_on));
-    setIsOldRecordState(selectedLot.agent_name === "Old Record" || selectedLot.agent_status === "legacy");
 
     // Fetch latest lot details from server
     if (currentLotId) {
@@ -506,7 +722,7 @@ export function useLotOffcanvasState({
           }
         });
     }
-  }, [selectedLot, isOpen, applyUntouchedFields]);
+  }, [selectedLot, isOpen, applyUntouchedFields, isAdmin, currentUserId, currentUserName]);
 
   const handleSetSaleable = () => {
     setIsNonSaleable(false);
@@ -667,8 +883,9 @@ export function useLotOffcanvasState({
           address: isNonSaleable ? null : effectiveAddress,
           paymentMethod: !isNonSaleable && status === "Sold" ? paymentMethod : null,
           assigned_employee_id: isAdmin && status === "Pending" ? assignedEmployeeId : undefined,
+          external_agent_name: externalAgentName?.trim() || null,
           is_legacy_undated: isAdmin && finalStatus === "Sold" && !isAssignedAgentSale ? Boolean(isLegacyUndated) : false,
-          is_old_record: isAdmin && finalStatus === "Sold" && !isAssignedAgentSale && dirtyFieldsRef.current.isOldRecord ? Boolean(isOldRecord) : undefined,
+          is_old_record: isAdmin && finalStatus === "Sold" && !isAssignedAgentSale ? Boolean(isOldRecord) : undefined,
           sold_on: !isNonSaleable && finalStatus === "Sold" && (!isLegacyUndated || isAssignedAgentSale) && dirtyFieldsRef.current.customSoldOn && customSoldOn
             ? customSoldOn
             : undefined,
@@ -697,7 +914,28 @@ export function useLotOffcanvasState({
         selectedLot.status = finalStatus;
         selectedLot.is_non_saleable = isNonSaleable ? 1 : 0;
         selectedLot._nonSaleable = isNonSaleable;
-        if (finalStatus === "Sold") {
+        if (finalStatus === "Available") {
+          selectedLot.customer = null;
+          selectedLot.agent_name = null;
+          selectedLot.agent_status = null;
+          selectedLot.employee_id = null;
+          selectedLot.sold_on = null;
+          selectedLot.pending_since = null;
+          setExternalAgentName("");
+          dirtyFieldsRef.current.externalAgentName = false;
+        } else if (externalAgentName?.trim()) {
+          selectedLot.agent_name = externalAgentName.trim();
+          selectedLot.agent_status = "external";
+          selectedLot.employee_id = null;
+          setAgentName(externalAgentName.trim());
+          setAgentStatus("external");
+        } else if (dirtyFieldsRef.current.externalAgentName && !externalAgentName?.trim()) {
+          const fallbackName = isAdmin ? "Admin" : (currentUserName || "Agent");
+          selectedLot.agent_name = fallbackName;
+          selectedLot.agent_status = isAdmin ? "admin" : "active";
+          setAgentName(fallbackName);
+          setAgentStatus(isAdmin ? "admin" : "active");
+        } else if (finalStatus === "Sold") {
           if (isLegacyUndated) {
             selectedLot.sold_on = null;
           } else if (customSoldOn) {
@@ -859,6 +1097,10 @@ export function useLotOffcanvasState({
     setIsLegacyUndated: handleLegacyUndatedChange,
     isOldRecord,
     setIsOldRecord: handleOldRecordChange,
+    externalAgentName,
+    setExternalAgentName,
+    handleExternalAgentNameChange,
+    externalAgentSuggestions,
     hasSavedClient,
     handleCopyCoords,
     handleSetSaleable,

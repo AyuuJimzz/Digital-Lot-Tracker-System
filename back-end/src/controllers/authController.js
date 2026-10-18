@@ -4,23 +4,9 @@ const { loginEmployee } = require("./Employee/employeeAuth");
 const { logAuthEvent } = require("../services/loggerService");
 const { createSession, isValidSession, invalidateSession } = require("../services/sessionManager");
 const { recordLogin } = require("../services/loginHistoryService");
+const db = require("../../config/database_connection");
+const { generateToken } = require("../utils/tokenHelper");
 
-// Helper: Generate JWT with unique sessionId
-const generateToken = (user, sessionId) => {
-	return jwt.sign(
-		{
-			id: user.id,
-			email: user.email,
-			role: user.role,
-			sessionId: sessionId || user.sessionId || null,
-			isHeadAdmin: user.isHeadAdmin || false,
-			canManageEmployees: user.canManageEmployees || false,
-			password_reset_required: user.password_reset_required || false,
-		},
-		process.env.JWT_SECRET,
-		{ expiresIn: "30d" },
-	);
-};
 
 // =======================
 // LOGIN
@@ -200,13 +186,28 @@ const checkSession = async (req, res) => {
 				}
 			}
 
+			let passwordResetRequired = Boolean(user.password_reset_required);
+			if (passwordResetRequired) {
+				const table = user.role === "admin" ? "admins" : "employees";
+				const idCol = user.role === "admin" ? "admin_id" : "employee_id";
+				try {
+					const [rows] = await db.query(`SELECT password_reset_required FROM ${table} WHERE ${idCol} = ?`, [user.id]);
+					if (rows.length > 0) {
+						passwordResetRequired = Boolean(rows[0].password_reset_required);
+						user.password_reset_required = passwordResetRequired;
+					}
+				} catch (dbErr) {
+					console.warn("Notice: could not verify live session password_reset_required:", dbErr.message);
+				}
+			}
+
 			return res.json({
 				authenticated: true,
 				role: user.role,
 				email: user.email,
 				isHeadAdmin: user.isHeadAdmin,
 				canManageEmployees: user.canManageEmployees,
-				password_reset_required: user.password_reset_required || false,
+				password_reset_required: passwordResetRequired,
 			});
 		}
 
@@ -235,13 +236,44 @@ const checkSession = async (req, res) => {
 				}
 			}
 
+			let passwordResetRequired = Boolean(decoded.password_reset_required);
+			let refreshedToken = null;
+
+			// Double check database as source of truth for password_reset_required
+			if (passwordResetRequired) {
+				const table = decoded.role === "admin" ? "admins" : "employees";
+				const idCol = decoded.role === "admin" ? "admin_id" : "employee_id";
+				try {
+					const [rows] = await db.query(`SELECT password_reset_required FROM ${table} WHERE ${idCol} = ?`, [decoded.id]);
+					if (rows.length > 0) {
+						passwordResetRequired = Boolean(rows[0].password_reset_required);
+						// If user already reset their password, mint a clean token so client no longer carries stale claim
+						if (!passwordResetRequired) {
+							const refreshedUser = {
+								id: decoded.id,
+								email: decoded.email,
+								role: decoded.role,
+								sessionId: decoded.sessionId,
+								isHeadAdmin: decoded.isHeadAdmin,
+								canManageEmployees: decoded.canManageEmployees,
+								password_reset_required: false,
+							};
+							refreshedToken = generateToken(refreshedUser, decoded.sessionId);
+						}
+					}
+				} catch (dbErr) {
+					console.warn("Notice: could not verify live JWT password_reset_required:", dbErr.message);
+				}
+			}
+
 			return res.json({
 				authenticated: true,
 				role: decoded.role,
 				email: decoded.email,
 				isHeadAdmin: decoded.isHeadAdmin,
 				canManageEmployees: decoded.canManageEmployees,
-				password_reset_required: decoded.password_reset_required || false,
+				password_reset_required: passwordResetRequired,
+				token: refreshedToken || undefined,
 			});
 		}
 
@@ -251,4 +283,4 @@ const checkSession = async (req, res) => {
 	}
 };
 
-module.exports = { login, logout, checkSession };
+module.exports = { login, logout, checkSession, generateToken };

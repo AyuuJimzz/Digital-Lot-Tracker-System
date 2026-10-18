@@ -56,6 +56,11 @@ const EmployeeRecentTransactions = () => {
       const agentStr = agentRaw.toLowerCase();
       const isInactiveAgent = t.agent_status === "inactive" && agentRaw.toLowerCase() !== "admin";
       const isOldRecord = t.agent_status === "legacy" || agentRaw.toLowerCase() === "old record";
+      const isExternalAgent = t.agent_status === "external" || Boolean(
+        t.agent_name &&
+        !t.employee_id &&
+        !["admin", "old record", "legacy record", "agent"].includes(String(t.agent_name).toLowerCase().trim())
+      );
       const payStr = (t.payment_type || "").toLowerCase();
 
       const matches =
@@ -66,6 +71,7 @@ const EmployeeRecentTransactions = () => {
         propStr.includes(q) ||
         agentStr.includes(q) ||
         (isInactiveAgent && "inactive agent".includes(q)) ||
+        (isExternalAgent && ("referral".includes(q) || "referred".includes(q) || "external".includes(q) || "outside".includes(q))) ||
         (isOldRecord && "old record".includes(q)) ||
         payStr.includes(q);
 
@@ -303,6 +309,15 @@ const EmployeeRecentTransactions = () => {
                   <td className="px-4 py-3.5 text-gray-700 dark:text-slate-300 whitespace-nowrap text-xs font-medium">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span>{txn.agent_name || (txn.employee_id && empNameMap[txn.employee_id]) || "Admin"}</span>
+                      {(txn.agent_status === "external" || Boolean(
+                        txn.agent_name &&
+                        !txn.employee_id &&
+                        !["admin", "old record", "legacy record", "agent"].includes(String(txn.agent_name).toLowerCase().trim())
+                      )) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-700/60">
+                          Referral
+                        </span>
+                      )}
                       {txn.agent_status === "inactive" && (txn.agent_name || "").toLowerCase() !== "admin" && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-700/60">
                           Inactive Agent

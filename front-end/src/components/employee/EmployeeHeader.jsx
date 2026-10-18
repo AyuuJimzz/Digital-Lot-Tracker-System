@@ -102,6 +102,16 @@ export function EmployeeHeader({ sidebarCollapsed }) {
               email: res.data.email || "",
               phone_number: res.data.phone_number || "",
             }));
+            const storedUser = localStorage.getItem("user");
+            if (storedUser) {
+              const parsed = JSON.parse(storedUser);
+              localStorage.setItem("user", JSON.stringify({
+                ...parsed,
+                first_name: res.data.first_name || parsed.first_name || "",
+                last_name: res.data.last_name || parsed.last_name || "",
+                name: `${res.data.first_name || ""} ${res.data.last_name || ""}`.trim() || parsed.name || "",
+              }));
+            }
           } catch (e) {}
         }
       } catch (err) {

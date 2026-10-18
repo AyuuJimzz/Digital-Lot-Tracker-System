@@ -102,6 +102,16 @@ exports.updateLotStatus = async (req, res) => {
     }
   }
 
+  // Check for external sales agent attribution ("sales agent sa labas")
+  const externalAgentName = typeof req.body.external_agent_name === "string" && req.body.external_agent_name.trim()
+    ? req.body.external_agent_name.trim()
+    : null;
+  const isExternalSale = Boolean(externalAgentName);
+
+  // If external sales agent is provided, transaction credit goes to that agent with employee_id = null
+  const txnEmployeeId = isExternalSale ? null : employeeId;
+  const txnAgentName = isExternalSale ? externalAgentName : agentName;
+
   const isAdmin = req.user?.role === "admin";
   const isAdminExplicitAssignment = isAdmin && (req.body.assigned_employee_id !== undefined || req.body.employee_id !== undefined);
 
@@ -185,7 +195,15 @@ exports.updateLotStatus = async (req, res) => {
     await query("UPDATE lots SET status = ? WHERE lot_id = ?", [status, id]);
 
     // Handle customer information update if provided (only for Pending or Sold states)
-    if (email && status !== "Available") {
+    const hasCustomerDetails = Boolean(
+      (fullName && fullName.trim()) ||
+      (email && email.trim()) ||
+      (contactNumber && contactNumber.trim()) ||
+      (address && address.trim())
+    );
+
+    let activeCustomerId = null;
+    if (hasCustomerDetails && status !== "Available") {
       // Check if customer already exists for this lot
       const [existingCustomer] = await query(
         `SELECT * FROM customers WHERE lot_id = ?
@@ -194,33 +212,50 @@ exports.updateLotStatus = async (req, res) => {
         [id]
       );
 
-      // If lot was previously Available (cancelled) and now getting a new Pending customer,
+      // If lot was previously Available (cancelled) and now getting a new customer,
       // INSERT a new record to preserve the cancelled customer's history
       const lotWasCancelled = lot.status === "Available";
 
+      const isOldRec = Boolean(req.body.is_old_record) || Boolean(req.body.is_legacy_undated);
+      const safeFullName = fullName?.trim() || (isOldRec ? "To be updated" : null);
+      const safeContact = contactNumber?.trim() || (isOldRec || status === "Sold" ? "To be updated" : null);
+      const safeEmail = email?.trim() || (isOldRec || status === "Sold" ? "To be updated" : null);
+      const safeAddress = address?.trim() || (isOldRec || status === "Sold" ? "To be updated" : null);
+
       if (existingCustomer.length > 0 && !lotWasCancelled) {
+        activeCustomerId = existingCustomer[0].customer_id;
         // Update existing customer (lot was Pending→Sold or same active customer editing)
         if (status === "Pending") {
           await query(
             `UPDATE customers SET 
-             full_name = ?, contact_number = ?, email = ?, address = ?, employee_id = ${isAdminExplicitAssignment ? '?' : 'COALESCE(employee_id, ?)'}, customer_status = 'Pending', updated_at = NOW()
+             full_name = ?, contact_number = ?, email = ?, address = ?,
+             employee_id = ${isAdminExplicitAssignment ? '?' : 'COALESCE(employee_id, ?)'},
+             customer_status = 'Pending', updated_at = NOW()
              WHERE lot_id = ? AND customer_id = ?`,
-            [fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), employeeId, id, existingCustomer[0].customer_id]
+            [safeFullName, safeContact, safeEmail, safeAddress, employeeId, id, existingCustomer[0].customer_id]
           );
 
-          if (isAdminExplicitAssignment) {
+          if (isAdminExplicitAssignment || req.body.external_agent_name !== undefined) {
             await query(
               "UPDATE transactions SET employee_id = ?, agent_name = ? WHERE lot_id = ? AND customer_id = ?",
-              [employeeId, agentName, id, existingCustomer[0].customer_id]
+              [txnEmployeeId, txnAgentName, id, existingCustomer[0].customer_id]
             );
           }
         } else if (status === "Sold") {
-          await query("UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
-            id, existingCustomer[0].customer_id,
-          ]);
+          await query(
+            `UPDATE customers SET
+             full_name = COALESCE(?, full_name),
+             contact_number = COALESCE(?, contact_number),
+             email = COALESCE(?, email),
+             address = COALESCE(?, address),
+             employee_id = ${isAdminExplicitAssignment ? '?' : 'employee_id'},
+             customer_status = 'Sold', updated_at = NOW()
+             WHERE lot_id = ? AND customer_id = ?`,
+            [safeFullName, safeContact, safeEmail, safeAddress, employeeId, id, existingCustomer[0].customer_id]
+          );
         } else {
           await query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
-            email, id, existingCustomer[0].customer_id,
+            safeEmail, id, existingCustomer[0].customer_id,
           ]);
         }
       } else {
@@ -232,19 +267,12 @@ exports.updateLotStatus = async (req, res) => {
             [id]
           );
         }
-        if (fullName?.trim() && contactNumber?.trim() && address?.trim()) {
-          await query(
-            `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at) 
-             VALUES (?, ?, ?, ?, ?, ?, 'Pending', NOW(), NOW())`,
-            [id, fullName.trim(), contactNumber.trim(), email.trim(), address.trim(), employeeId]
-          );
-        } else if (status !== "Pending") {
-          // For non-pending status, create with just email
-          await query(
-            "INSERT INTO customers (lot_id, email, employee_id, customer_status, created_at, updated_at) VALUES (?, ?, ?, 'Pending', NOW(), NOW())",
-            [id, email, employeeId]
-          );
-        }
+        const [insertCustResult] = await query(
+          `INSERT INTO customers (lot_id, full_name, contact_number, email, address, employee_id, customer_status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [id, safeFullName, safeContact, safeEmail, safeAddress, employeeId, status]
+        );
+        activeCustomerId = insertCustResult?.insertId || null;
       }
     }
 
@@ -269,13 +297,13 @@ exports.updateLotStatus = async (req, res) => {
         );
 
         if (existingTransaction.length > 0) {
-          // Update existing transaction for this customer while preserving original reserving agent (unless Admin explicitly reassigns)
+          // Update existing transaction for this customer while preserving original reserving agent (unless Admin explicitly reassigns or external agent is specified)
           await query(
             `UPDATE transactions SET payment_type = 'No Downpayment', notes = ?,
-             employee_id = ${isAdminExplicitAssignment ? '?' : 'COALESCE(employee_id, ?)'},
-             agent_name = ${isAdminExplicitAssignment ? '?' : 'COALESCE(agent_name, ?)'},
+             employee_id = ${isAdminExplicitAssignment || req.body.external_agent_name !== undefined ? '?' : 'COALESCE(employee_id, ?)'},
+             agent_name = ${isAdminExplicitAssignment || req.body.external_agent_name !== undefined ? '?' : 'COALESCE(agent_name, ?)'},
              transaction_date = NOW() WHERE transaction_id = ?`,
-            [`Transaction updated for lot ${lot.lot_number} - Pending status`, employeeId, agentName, existingTransaction[0].transaction_id]
+            [`Transaction updated for lot ${lot.lot_number} - Pending status`, txnEmployeeId, txnAgentName, existingTransaction[0].transaction_id]
           );
         } else {
           // Create new transaction for this customer with persistent agent_name
@@ -285,8 +313,8 @@ exports.updateLotStatus = async (req, res) => {
               id,
               customerId,
               `Transaction created for lot ${lot.lot_number} - Pending status`,
-              employeeId,
-              agentName,
+              txnEmployeeId,
+              txnAgentName,
             ]
           );
         }
@@ -387,7 +415,16 @@ exports.updateLotStatus = async (req, res) => {
           [verifiedDateInput, id]
         );
       }
-      let customerId = null;
+      let customerId = activeCustomerId || null;
+      let creditEmpId = isExternalSale ? null : employeeId;
+      let creditAgentName = isExternalSale ? externalAgentName : agentName;
+
+      const isOldRecordExplicit = Boolean(req.body.is_old_record) && isAdmin;
+      if (isOldRecordExplicit) {
+        creditEmpId = null;
+        creditAgentName = "Old Record";
+      }
+
       const customerResult = await query(
         `SELECT customer_id, employee_id FROM customers
          WHERE lot_id = ? AND (customer_status IN ('Pending', 'Sold') OR customer_status IS NULL)
@@ -398,9 +435,6 @@ exports.updateLotStatus = async (req, res) => {
       if (customerResult[0].length > 0) {
         customerId = customerResult[0][0].customer_id;
         const originalEmpId = customerResult[0][0].employee_id;
-        let creditEmpId = originalEmpId || employeeId;
-        let creditAgentName = agentName;
-        const isOldRecordExplicit = Boolean(req.body.is_old_record) && isAdmin;
         if (isOldRecordExplicit) {
           if (originalEmpId) {
             await connection.rollback();
@@ -408,8 +442,12 @@ exports.updateLotStatus = async (req, res) => {
               error: "Cannot mark as Old Record: This reservation is assigned to an agent. Old Record attribution is only allowed for company/Admin sales.",
             });
           }
+        } else if (isExternalSale) {
           creditEmpId = null;
-          creditAgentName = "Old Record";
+          creditAgentName = externalAgentName;
+        } else if (req.body.external_agent_name === "" || req.body.external_agent_name === null) {
+          creditEmpId = employeeId;
+          creditAgentName = agentName;
         } else if (originalEmpId && originalEmpId !== employeeId) {
           try {
             const [origEmpRows] = await dbToUse.query(
@@ -420,69 +458,69 @@ exports.updateLotStatus = async (req, res) => {
               creditAgentName = `${origEmpRows[0].first_name} ${origEmpRows[0].last_name || ""}`.trim() || "Agent";
             }
           } catch (_) {}
+          creditEmpId = originalEmpId;
         }
 
         await query(
           "UPDATE customers SET customer_status = 'Sold', updated_at = NOW() WHERE customer_id = ?",
           [customerId]
         );
+      }
 
-        // Check if transaction already exists
-        const existingTransaction = await query(
-          `SELECT transaction_id FROM transactions
-           WHERE lot_id = ? AND customer_id = ?
-           ORDER BY transaction_date DESC, transaction_id DESC LIMIT 1`,
-          [id, customerId]
+      // Check if transaction already exists
+      const existingTransaction = await query(
+        `SELECT transaction_id FROM transactions
+         WHERE lot_id = ? ${customerId ? "AND (customer_id = ? OR customer_id IS NULL)" : ""}
+         ORDER BY transaction_date DESC, transaction_id DESC LIMIT 1`,
+        customerId ? [id, customerId] : [id]
+      );
+
+      let isDateVerified = 1;
+      let provenanceToSet = "system_recorded";
+      if (isLegacyUndated) {
+        isDateVerified = 0;
+        provenanceToSet = "unknown_requires_review";
+      } else if (verifiedDateInput) {
+        isDateVerified = 1;
+        provenanceToSet = "manual_audit";
+      }
+
+      const txnNotes = isLegacyUndated
+        ? `Legacy sold record for lot ${lot.lot_number} without verified sale date`
+        : `Transaction ${existingTransaction[0].length > 0 ? "updated" : "created"} for lot ${lot.lot_number} - Sold status`;
+
+      if (existingTransaction[0].length > 0) {
+        // Update existing transaction to Sold
+        await query(
+          "UPDATE transactions SET customer_id = COALESCE(customer_id, ?), payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = COALESCE(?, NOW()), is_date_verified = ?, date_provenance = ? WHERE transaction_id = ?",
+          [
+            customerId,
+            paymentMethod || "Cash",
+            txnNotes,
+            creditEmpId,
+            creditAgentName,
+            verifiedDateInput || null,
+            isDateVerified,
+            provenanceToSet,
+            existingTransaction[0][0].transaction_id,
+          ]
         );
-
-        let isDateVerified = 1;
-        let provenanceToSet = "system_recorded";
-        if (isLegacyUndated) {
-          isDateVerified = 0;
-          provenanceToSet = "unknown_requires_review";
-        } else if (verifiedDateInput) {
-          isDateVerified = 1;
-          provenanceToSet = "manual_audit";
-        }
-
-        const txnNotes = isLegacyUndated
-          ? `Legacy sold record for lot ${lot.lot_number} without verified sale date`
-          : `Transaction updated for lot ${lot.lot_number} - Sold status`;
-
-        if (existingTransaction[0].length > 0) {
-          // Update existing transaction to Sold while preserving original reserver credit
-          await query(
-            "UPDATE transactions SET payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = COALESCE(?, NOW()), is_date_verified = ?, date_provenance = ? WHERE transaction_id = ?",
-            [
-              paymentMethod || "Cash",
-              txnNotes,
-              creditEmpId,
-              creditAgentName,
-              verifiedDateInput || null,
-              isDateVerified,
-              provenanceToSet,
-              existingTransaction[0][0].transaction_id,
-            ]
-          );
-        } else {
-          // Create new transaction for Sold with persistent agent_name
-          await query(
-            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NOW()), ?, ?)",
-            [
-              id,
-              customerId,
-              paymentMethod || "Cash",
-              isLegacyUndated
-                ? `Legacy sold record for lot ${lot.lot_number} without verified sale date`
-                : `Transaction created for lot ${lot.lot_number} - Sold status`,
-              employeeId,
-              agentName,
-              verifiedDateInput || null,
-              isDateVerified,
-              provenanceToSet,
-            ]
-          );
-        }
+      } else if (customerId) {
+        // Create new transaction for Sold with persistent agent_name
+        await query(
+          "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NOW()), ?, ?)",
+          [
+            id,
+            customerId,
+            paymentMethod || "Cash",
+            txnNotes,
+            creditEmpId,
+            creditAgentName,
+            verifiedDateInput || null,
+            isDateVerified,
+            provenanceToSet,
+          ]
+        );
       }
 
         // Schedule email to be sent after 5 minutes for real-time Sold status (suppress for old/historical sales)
@@ -570,11 +608,30 @@ exports.updateLotStatus = async (req, res) => {
           );
         } else if (lot.status === "Sold") {
           // Retrieve the historical sold customer ID to link the reversal audit record
+          let soldCustomerId = null;
           const [soldCustRows] = await query(
             "SELECT customer_id FROM customers WHERE lot_id = ? AND customer_status = 'Sold' ORDER BY customer_id DESC LIMIT 1",
             [id]
           );
-          const soldCustomerId = soldCustRows[0]?.customer_id || null;
+          if (soldCustRows.length > 0) {
+            soldCustomerId = soldCustRows[0].customer_id;
+          } else {
+            const [anyCustRows] = await query(
+              "SELECT customer_id FROM customers WHERE lot_id = ? ORDER BY customer_id DESC LIMIT 1",
+              [id]
+            );
+            if (anyCustRows.length > 0) {
+              soldCustomerId = anyCustRows[0].customer_id;
+            } else {
+              const [anyTxnRows] = await query(
+                "SELECT customer_id FROM transactions WHERE lot_id = ? AND customer_id IS NOT NULL ORDER BY transaction_id DESC LIMIT 1",
+                [id]
+              );
+              if (anyTxnRows.length > 0) {
+                soldCustomerId = anyTxnRows[0].customer_id;
+              }
+            }
+          }
 
           // Mark historical customer record as 'Cancelled' so this sale is formally closed/reversed
           // and will not be counted as an active sale or cause phantom counts
@@ -583,23 +640,23 @@ exports.updateLotStatus = async (req, res) => {
               "UPDATE customers SET customer_status = 'Cancelled', updated_at = NOW() WHERE customer_id = ?",
               [soldCustomerId]
             );
+
+            const revertDate = new Intl.DateTimeFormat("en-PH", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              timeZone: "Asia/Manila",
+            }).format(new Date());
+            const adminEmail = req.user?.email || "Admin";
+            const revertNote = `Sale Reversal: Reverted to Available by Admin (${adminEmail}) on ${revertDate}`;
+
+            // Insert an explicit Reversal audit transaction record — keeps original sale transaction row untouched
+            await query(
+              `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date)
+               VALUES (?, ?, 'Reversal', ?, ?, ?, NOW())`,
+              [id, soldCustomerId, revertNote, employeeId, agentName]
+            );
           }
-
-          const revertDate = new Intl.DateTimeFormat("en-PH", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            timeZone: "Asia/Manila",
-          }).format(new Date());
-          const adminEmail = req.user?.email || "Admin";
-          const revertNote = `Sale Reversal: Reverted to Available by Admin (${adminEmail}) on ${revertDate}`;
-
-          // Insert an explicit Reversal audit transaction record — keeps original sale transaction row untouched
-          await query(
-            `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date)
-             VALUES (?, ?, 'Reversal', ?, ?, ?, NOW())`,
-            [id, soldCustomerId, revertNote, employeeId, agentName]
-          );
         }
       }
     }
@@ -728,7 +785,7 @@ exports.updateLotStatus = async (req, res) => {
           });
         }
 
-        if (isOldRecordExplicit) {
+        if (isOldRecordExplicit && !req.body.external_agent_name?.trim()) {
           // Admin sale -> Old Record (lossless, safe)
           await query(
             `UPDATE transactions
@@ -736,13 +793,45 @@ exports.updateLotStatus = async (req, res) => {
              WHERE transaction_id = ?`,
             [currentTxn.transaction_id]
           );
-        } else if (currentTxn.agent_name === "Old Record") {
+        } else if (currentTxn.agent_name === "Old Record" && !req.body.external_agent_name?.trim()) {
           // Revert Old Record -> Admin (lossless round-trip!)
           await query(
             `UPDATE transactions
              SET agent_name = 'Admin', employee_id = NULL
              WHERE transaction_id = ?`,
             [currentTxn.transaction_id]
+          );
+        }
+      }
+    }
+
+    if (status === "Sold" && lot.status === "Sold" && (isAdmin || req.user?.role === "employee") && req.body.external_agent_name !== undefined) {
+      const [currentTxnRows] = await query(
+        `SELECT transaction_id, employee_id, agent_name FROM transactions
+         WHERE lot_id = ? AND payment_type NOT IN ('Reversal', 'Cancelled')
+         ORDER BY transaction_id DESC LIMIT 1`,
+        [id]
+      );
+
+      const txnList = Array.isArray(currentTxnRows?.[0]) ? currentTxnRows[0] : currentTxnRows;
+      if (txnList && txnList.length > 0) {
+        const currentTxn = txnList[0];
+        const newExtAgent = typeof req.body.external_agent_name === "string" ? req.body.external_agent_name.trim() : null;
+        if (newExtAgent) {
+          await query(
+            `UPDATE transactions
+             SET agent_name = ?, employee_id = NULL
+             WHERE transaction_id = ?`,
+            [newExtAgent, currentTxn.transaction_id]
+          );
+        } else if (req.body.external_agent_name === null || req.body.external_agent_name === "") {
+          const fallbackAgent = (req.body.is_old_record || currentTxn.agent_name === "Old Record") ? "Old Record" : agentName;
+          const fallbackEmp = (req.body.is_old_record || currentTxn.agent_name === "Old Record") ? null : employeeId;
+          await query(
+            `UPDATE transactions
+             SET agent_name = ?, employee_id = ?
+             WHERE transaction_id = ?`,
+            [fallbackAgent, fallbackEmp, currentTxn.transaction_id]
           );
         }
       }

@@ -33,7 +33,9 @@ body {
   display: none !important;
 }
 
-.leaflet-tooltip {
+.leaflet-tooltip-pane,
+.leaflet-tooltip,
+.leaflet-tooltip * {
   pointer-events: none !important;
   user-select: none !important;
 }
@@ -41,6 +43,7 @@ body {
 .map-view-zoomed-in .property-overview-beacon-marker {
   opacity: 0 !important;
   pointer-events: none !important;
+  display: none !important;
 }
 
 .property-overview-beacon-marker {
@@ -64,7 +67,7 @@ body {
 
 .map-road-label-inner {
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none !important;
   transition: opacity 150ms ease-out;
 }
 
@@ -72,6 +75,11 @@ body {
 .map-zoom-street-level .map-road-label-inner,
 .map-editing-labels-active .map-road-label-inner {
   opacity: 1;
+  pointer-events: none;
+}
+
+/* Road labels only capture mouse interaction when actively editing road annotations */
+.map-editing-labels-active .map-road-label-inner {
   pointer-events: auto;
 }
 

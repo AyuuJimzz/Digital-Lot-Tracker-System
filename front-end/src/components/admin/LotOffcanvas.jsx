@@ -71,6 +71,9 @@ export const LotOffcanvas = ({
     setIsLegacyUndated,
     isOldRecord,
     setIsOldRecord,
+    externalAgentName,
+    handleExternalAgentNameChange,
+    externalAgentSuggestions,
     openDeleteModal,
     closeDeleteModal,
     confirmDeleteLot,
@@ -233,6 +236,9 @@ export const LotOffcanvas = ({
                 agentName={isOldRecord ? "Old Record" : (agentName === "Old Record" ? "Admin" : agentName)}
                 agentStatus={isOldRecord ? "legacy" : (agentStatus === "legacy" ? "admin" : agentStatus)}
                 isOldRecord={isOldRecord}
+                externalAgentName={externalAgentName}
+                handleExternalAgentNameChange={handleExternalAgentNameChange}
+                externalAgentSuggestions={externalAgentSuggestions}
                 propertyName={propertyName}
                 propertyLocation={propertyLocation}
                 isSaving={isSaving}

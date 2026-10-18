@@ -265,7 +265,7 @@ function AdminViewMap() {
           <ViewportLotLayer
             lots={filteredLots}
             renderLot={renderLot}
-            showTooltips={showLotTooltips && !isBulkShifting}
+            showTooltips={showLotTooltips && !isBulkShifting && !isOffcanvasOpen}
             isTouchDevice={isTouchDevice}
             offsetPropertyId={shiftedPropertyId}
             offset={bulkShiftOffset}

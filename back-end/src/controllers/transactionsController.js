@@ -22,12 +22,15 @@ const getTransactions = async (req, res) => {
         t.lot_id,
         CASE
           WHEN t.agent_name = 'Old Record' THEN NULL
+          WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL
           ELSE COALESCE(t.employee_id, c.employee_id)
         END as employee_id,
         COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') as agent_name,
         CASE
           WHEN t.agent_name = 'Old Record' THEN 'legacy'
-          WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END) IS NULL AND (t.agent_name IS NULL OR t.agent_name = 'Admin') THEN 'admin'
+          WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN 'external'
+          WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END) IS NULL AND (t.agent_name IS NULL OR t.agent_name = 'Admin') THEN 'admin'
+          WHEN (CASE WHEN t.agent_name = 'Old Record' THEN NULL WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END) IS NULL AND t.agent_name IS NOT NULL THEN 'external'
           WHEN e.status = 'active' THEN 'active'
           ELSE 'inactive'
         END as agent_status,
@@ -59,7 +62,11 @@ const getTransactions = async (req, res) => {
       JOIN lots l ON t.lot_id = l.lot_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
       LEFT JOIN employees e ON (
-        CASE WHEN t.agent_name = 'Old Record' THEN NULL ELSE COALESCE(t.employee_id, c.employee_id) END
+        CASE
+          WHEN t.agent_name = 'Old Record' THEN NULL
+          WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL
+          ELSE COALESCE(t.employee_id, c.employee_id)
+        END
       ) = e.employee_id
       JOIN properties p ON l.property_id = p.property_id
       WHERE (
@@ -274,8 +281,30 @@ const updateTransactionStatus = async (req, res) => {
   }
 };
 
+// Get list of unique external sales agents for autocomplete
+const getExternalAgents = async (req, res) => {
+  try {
+    const dbToUse = req.db || db;
+    const [rows] = await dbToUse.query(`
+      SELECT DISTINCT TRIM(t.agent_name) as agent_name
+      FROM transactions t
+      WHERE t.agent_name IS NOT NULL
+        AND TRIM(t.agent_name) != ''
+        AND t.agent_name NOT IN ('Admin', 'Old Record', 'Legacy Record')
+        AND t.employee_id IS NULL
+      ORDER BY agent_name ASC
+    `);
+    const agents = rows.map((r) => r.agent_name).filter(Boolean);
+    res.json(agents);
+  } catch (error) {
+    console.error("Error fetching external agents:", error);
+    res.status(500).json({ error: "Failed to fetch external agents" });
+  }
+};
+
 module.exports = {
   getTransactions,
   createTransaction,
   updateTransactionStatus,
+  getExternalAgents,
 };

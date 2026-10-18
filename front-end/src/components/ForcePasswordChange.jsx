@@ -43,6 +43,14 @@ function ForcePasswordChange({ onPasswordChanged }) {
       );
 
       if (response.data && response.status === 200) {
+        if (response.data.token) {
+          localStorage.setItem("authToken", response.data.token);
+          localStorage.removeItem("token");
+          axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
+        }
+        if (response.data.user) {
+          localStorage.setItem("user", JSON.stringify(response.data.user));
+        }
         localStorage.setItem("password_reset_required", "false");
         if (onPasswordChanged) {
           onPasswordChanged();

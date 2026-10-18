@@ -5,9 +5,13 @@ const {
   getTransactions,
   createTransaction,
   updateTransactionStatus,
+  getExternalAgents,
 } = require("../controllers/transactionsController");
 
 const requireAuth = sessionOrToken({ roles: ["admin", "employee"] });
+
+// GET /api/transactions/agents - Get unique external sales agent suggestions
+router.get("/agents", requireAuth, getExternalAgents);
 
 // GET /api/transactions - Get all transactions
 router.get("/", requireAuth, getTransactions);

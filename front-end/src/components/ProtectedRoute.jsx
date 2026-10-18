@@ -64,6 +64,11 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 				if (response.data && response.data.authenticated) {
 					localStorage.setItem("role", response.data.role || "");
 					localStorage.setItem("password_reset_required", response.data.password_reset_required ? "true" : "false");
+					if (response.data.token) {
+						localStorage.setItem("authToken", response.data.token);
+						localStorage.removeItem("token");
+						axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.token}`;
+					}
 					const roles = rolesKey ? rolesKey.split(",") : [];
 					const hasRole = roles.length > 0 ? roles.includes(response.data.role) : true;
 					setAuth({

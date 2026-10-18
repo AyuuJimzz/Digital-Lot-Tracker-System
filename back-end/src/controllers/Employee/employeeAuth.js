@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const loginEmployee = async (email, password) => {
 	try {
 		const [results] = await db.query(
-			"SELECT employee_id, email, password, status, temp_password_expiry, password_reset_required FROM employees WHERE email = ?",
+			"SELECT employee_id, first_name, last_name, email, password, status, temp_password_expiry, password_reset_required FROM employees WHERE email = ?",
 			[email]
 		);
 		if (!results.length) return { success: false };
@@ -43,12 +43,17 @@ const loginEmployee = async (email, password) => {
 			// Silently continue if last_login column is not yet migrated
 		}
 
+		const fullName = `${employee.first_name || ""} ${employee.last_name || ""}`.trim();
+
 		return {
 			success: true,
 			message: "Login successful",
 			role: "employee",
 			user: {
 				id: employee.employee_id,
+				first_name: employee.first_name || "",
+				last_name: employee.last_name || "",
+				name: fullName || "Agent",
 				email: employee.email,
 				password_reset_required: employee.password_reset_required || false,
 			},

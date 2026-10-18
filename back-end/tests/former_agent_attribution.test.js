@@ -668,6 +668,179 @@ test("getTransactions: team transactions visible by default, personal transactio
   assert.equal(executedQuery3.includes("t.employee_id = ?"), false, "Admin request must see all transactions");
 });
 
+test("external sales agent attribution: classifyAgentStatus, getExternalAgents, and updateLotStatus with external_agent_name", async () => {
+  // 1. classifyAgentStatus unit test for external agent
+  assert.equal(
+    classifyAgentStatus({ employeeId: null, agentName: "Juan Dela Cruz", employeeStatus: null }),
+    "external",
+    "Non-admin, non-legacy agent with null employeeId must be classified as 'external'"
+  );
 
+  // 2. getExternalAgents controller test
+  const { getExternalAgents } = require("../src/controllers/transactionsController");
+  let capturedQuery = null;
+  const mockDb = {
+    query: async (sql) => {
+      capturedQuery = sql;
+      return [[{ agent_name: "Juan Dela Cruz" }, { agent_name: "Pedro Penduko" }]];
+    }
+  };
+  let responseData = null;
+  const fakeReq = { db: mockDb };
+  const fakeRes = {
+    json: (data) => { responseData = data; }
+  };
+  await getExternalAgents(fakeReq, fakeRes);
+  assert.deepEqual(responseData, ["Juan Dela Cruz", "Pedro Penduko"]);
+  assert.equal(capturedQuery.includes("agent_name NOT IN ('Admin', 'Old Record', 'Legacy Record')"), true);
+  assert.equal(capturedQuery.includes("employee_id IS NULL"), true);
 
+  // 3. updateLotStatus with external_agent_name sets agent_name and nulls employee_id
+  const { updateLotStatus } = require("../src/controllers/lots/lotStatusController");
+  const updatesExecuted = [];
+  const fakeConn = {
+    query: async (sql, params) => {
+      updatesExecuted.push({ sql, params });
+      if (sql.includes("FROM lots WHERE lot_id = ?")) {
+        return [[{ lot_id: 88, lot_number: "Block 1 Lot 88", status: "Available" }]];
+      }
+      if (sql.includes("SELECT customer_id FROM customers WHERE lot_id = ?")) {
+        return [[{ customer_id: 101 }]];
+      }
+      if (sql.includes("FROM customers WHERE lot_id = ?")) {
+        return [[]];
+      }
+      if (sql.includes("FROM transactions WHERE customer_id = ?")) {
+        return [[]];
+      }
+      return [{ insertId: 101 }];
+    },
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+  };
+  const mockDbConn = {
+    getConnection: async () => fakeConn,
+    query: async (sql, params) => fakeConn.query(sql, params),
+  };
 
+  const reqStaffExternal = {
+    params: { id: 88 },
+    body: {
+      status: "Pending",
+      fullName: "Sample Buyer",
+      contactNumber: "09123456789",
+      email: "buyer@example.com",
+      address: "Iloilo City",
+      external_agent_name: "Juan Dela Cruz",
+    },
+    user: { role: "employee", id: 3, email: "denise@example.com" },
+    db: mockDbConn,
+  };
+  let resultJson = null;
+  let statusSet = 200;
+  const resStaffExternal = {
+    status: (s) => { statusSet = s; return resStaffExternal; },
+    json: (d) => { resultJson = d; },
+  };
+
+  await updateLotStatus(reqStaffExternal, resStaffExternal);
+  assert.equal(statusSet, 200);
+
+  // Verify that in transactions, employee_id is NULL and agent_name is "Juan Dela Cruz"
+  const txnInsert = updatesExecuted.find((u) => u.sql.includes("INSERT INTO transactions"));
+  assert.ok(txnInsert, "Transaction must be inserted for reservation");
+  // [id, customerId, notes, txnEmployeeId, txnAgentName]
+  assert.equal(txnInsert.params[3], null, "External agent transaction must have employee_id as null");
+  assert.equal(txnInsert.params[4], "Juan Dela Cruz", "Transaction must be credited to Juan Dela Cruz");
+
+  // Verify that in customers, employee_id is still Denise (id: 3) so Denise can manage her pending reservation
+  const custInsert = updatesExecuted.find((u) => u.sql.includes("INSERT INTO customers"));
+  assert.ok(custInsert, "Customer must be inserted");
+  assert.equal(custInsert.params[5], 3, "Customer must preserve reserving staff id for reservation permissions");
+});
+
+test("direct Available to Sold transition with is_old_record and partial customer details creates customer and transaction properly", async () => {
+  const { updateLotStatus } = require("../src/controllers/lots/lotStatusController");
+
+  const queriesRun = [];
+  let insertedCustomerId = null;
+  const fakeConn = {
+    query: async (sql, params) => {
+      queriesRun.push({ sql, params });
+      if (sql.includes("FROM lots WHERE lot_id = ?")) {
+        return [[{ lot_id: 8250, lot_number: "Block 4-H Lot 4", status: "Available" }]];
+      }
+      if (sql.includes("FROM customers WHERE lot_id = ?") && sql.includes("ORDER BY updated_at DESC")) {
+        if (insertedCustomerId) {
+          return [[{ customer_id: insertedCustomerId, employee_id: null, full_name: "SDSDSDSD" }]];
+        }
+        return [[]];
+      }
+      if (sql.includes("FROM transactions WHERE lot_id = ?")) {
+        return [[]];
+      }
+      if (sql.includes("SHOW COLUMNS FROM transactions")) {
+        return [[{ Field: "is_date_verified" }, { Field: "date_provenance" }]];
+      }
+      if (sql.includes("INSERT INTO customers")) {
+        insertedCustomerId = 999;
+        return [{ insertId: 999 }];
+      }
+      return [{ insertId: 1001 }];
+    },
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+  };
+  const mockDbConn = {
+    getConnection: async () => fakeConn,
+    query: async (sql, params) => fakeConn.query(sql, params),
+  };
+
+  const req = {
+    params: { id: 8250 },
+    body: {
+      status: "Sold",
+      fullName: "SDSDSDSD",
+      contactNumber: "To be updated",
+      email: "To be updated",
+      address: "To be updated",
+      paymentMethod: "Cash",
+      is_legacy_undated: true,
+      is_old_record: true,
+    },
+    user: { role: "admin", id: 1, email: "admin@example.com" },
+    db: mockDbConn,
+  };
+  let resultJson = null;
+  let statusCode = 200;
+  const res = {
+    status: (code) => { statusCode = code; return res; },
+    json: (data) => { resultJson = data; },
+  };
+
+  await updateLotStatus(req, res);
+  assert.equal(statusCode, 200);
+
+  // 1. Verify customer was inserted with full_name = 'SDSDSDSD', customer_status = 'Sold'
+  const custInsert = queriesRun.find((q) => q.sql.includes("INSERT INTO customers"));
+  assert.ok(custInsert, "Customer must be inserted for Sold lot");
+  // VALUES [id, safeFullName, safeContact, safeEmail, safeAddress, employeeId, status]
+  assert.equal(custInsert.params[1], "SDSDSDSD", "Full name must be saved");
+  assert.equal(custInsert.params[2], "To be updated", "Contact number must default to To be updated");
+  assert.equal(custInsert.params[3], "To be updated", "Email must default to To be updated");
+  assert.equal(custInsert.params[4], "To be updated", "Address must default to To be updated");
+  assert.equal(custInsert.params[6], "Sold", "Customer status must be Sold, not Pending");
+
+  // 2. Verify transaction was inserted with agent_name = 'Old Record', employee_id = null, is_date_verified = 0
+  const txnInsert = queriesRun.find((q) => q.sql.includes("INSERT INTO transactions"));
+  assert.ok(txnInsert, "Transaction must be inserted for Sold lot");
+  // [id, customerId, paymentMethod, txnNotes, creditEmpId, creditAgentName, verifiedDateInput, isDateVerified, provenanceToSet]
+  assert.equal(txnInsert.params[1], 999, "Transaction must link customer_id");
+  assert.equal(txnInsert.params[4], null, "Old Record attribution must have employee_id = null");
+  assert.equal(txnInsert.params[5], "Old Record", "Transaction agent_name must be 'Old Record'");
+  assert.equal(txnInsert.params[7], 0, "is_date_verified must be 0 for legacy undated sale");
+});

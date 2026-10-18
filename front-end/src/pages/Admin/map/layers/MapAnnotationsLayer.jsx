@@ -33,27 +33,30 @@ export const MapAnnotationsLayer = ({
             key={`${item.property_id || "p"}-${item.id}`}
             position={[itemLat, itemLng]}
             draggable={isInteractive}
+            interactive={isInteractive}
             icon={createRoadLabelIcon(
               item,
               isInteractive,
               activeAnnotationId === item.id && isThisPropActive
             )}
-            eventHandlers={{
-              click: () => {
-                if (isBulkShifting) return;
-                if (item.property_id && Number(item.property_id) !== Number(selectedProperty)) {
-                  setSelectedProperty(item.property_id);
-                }
-                setActiveAnnotationId(item.id);
-                setShowAnnotationPanel(true);
-              },
-              dragend: (e) => {
-                if (isInteractive) {
-                  const { lat, lng } = e.target.getLatLng();
-                  handleUpdateAnnotation(item.id, { lat, lng });
-                }
-              },
-            }}
+            eventHandlers={
+              isInteractive
+                ? {
+                    click: () => {
+                      if (isBulkShifting) return;
+                      if (item.property_id && Number(item.property_id) !== Number(selectedProperty)) {
+                        setSelectedProperty(item.property_id);
+                      }
+                      setActiveAnnotationId(item.id);
+                      setShowAnnotationPanel(true);
+                    },
+                    dragend: (e) => {
+                      const { lat, lng } = e.target.getLatLng();
+                      handleUpdateAnnotation(item.id, { lat, lng });
+                    },
+                  }
+                : undefined
+            }
           />
         );
       })}
