@@ -158,9 +158,11 @@ exports.getTableData = async (req, res) => {
     const [[countResult]] = await db.query(`SELECT COUNT(*) AS total FROM \`${tableName}\``);
     const totalRows = Number(countResult.total) || 0;
 
-    // 4. Fetch table rows
+    // 4. Fetch table rows (Order by Primary Key DESC so latest records appear first)
+    const primaryKeyCol = columns.find((c) => c.isPrimary)?.name;
+    const orderClause = primaryKeyCol ? `ORDER BY \`${primaryKeyCol}\` DESC` : "";
     const [rows] = await db.query(
-      `SELECT * FROM \`${tableName}\` LIMIT ? OFFSET ?`,
+      `SELECT * FROM \`${tableName}\` ${orderClause} LIMIT ? OFFSET ?`,
       [limit, offset]
     );
 
