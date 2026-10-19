@@ -19,7 +19,8 @@ const pool = mysql.createPool({
 // explicit setup script, never to normal web-service startup.
 pool.getConnection(async (err, connection) => {
   if (err) {
-    console.error(`❌ [MySQL Database Connection Failed]: ${err.message} (Host: ${process.env.DB_HOST || "localhost"})`);
+    const errorDetail = err.message || err.code || "Connection refused";
+    console.error(`❌ [MySQL Database Connection Failed]: ${errorDetail} (Host: ${process.env.DB_HOST || "localhost"})`);
   } else {
     console.log(`🗄️  [MySQL Database Connected] Host: ${process.env.DB_HOST || "localhost"} | DB: ${process.env.DB_NAME || "goldendragon"} | SSL: ${!!process.env.DB_SSL || !!process.env.DB_HOST?.includes("aivencloud.com")}`);
     connection.release();

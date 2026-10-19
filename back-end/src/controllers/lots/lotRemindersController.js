@@ -185,8 +185,17 @@ exports.sendPendingLotReminders = async (req, res) => {
     if (result.errors.length === 0) delete result.errors;
     return res.json(result);
   } catch (error) {
-    console.error("Pending reminder job failed:", error);
-    return res.status(500).json({ error: "Pending reminder job failed" });
+    const isDbConnError = ["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "PROTOCOL_CONNECTION_LOST"].includes(error?.code);
+    const friendlyMessage = isDbConnError
+      ? `Database connection offline (${error.code || "ECONNREFUSED"}) — MySQL is not reachable on port 3306.`
+      : (error?.message || "Internal error");
+
+    console.error(`⚠️ [Pending Reminder Job]: ${friendlyMessage}`);
+    return res.status(500).json({
+      error: "Pending reminder job failed",
+      code: error?.code,
+      message: friendlyMessage,
+    });
   } finally {
     isReminderJobRunning = false;
   }

@@ -28,7 +28,13 @@ systemStateReady.then(async () => {
   });
   reminderJob = schedule.scheduleJob("0 * * * *", runReminderJob);
 }).catch((error) => {
-  console.error("Failed to initialize required database state before startup:", error);
+  const isDbConnError = ["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "PROTOCOL_CONNECTION_LOST"].includes(error?.code);
+  if (isDbConnError) {
+    console.error(`\n❌ [Startup Offline]: Cannot connect to MySQL database (${error.code || "ECONNREFUSED"}).`);
+    console.error(`👉 Please ensure MySQL is running in XAMPP Control Panel or active on port 3306.\n`);
+  } else {
+    console.error("❌ Failed to initialize required database state before startup:", error?.message || error);
+  }
   process.exit(1);
 });
 
@@ -42,19 +48,23 @@ const runReminderJob = async () => {
     const mockRes = {
       json: (data) => {
         if (data && data.totalEmailsSent > 0) {
-          console.log(`Sent ${data.totalEmailsSent} pending lot reminder email(s).`);
+          console.log(`📧 [Pending Reminder Job]: Sent ${data.totalEmailsSent} reminder email(s).`);
         }
       },
       status: (code) => ({
         json: (data) => {
-          console.error(`Error ${code} in pending lot reminders:`, data);
+          // If already logged by lotRemindersController, avoid redundant console spam
+          if (data?.code === "ECONNREFUSED" || data?.message?.includes("Database connection offline")) {
+            return;
+          }
+          console.error(`⚠️ [Pending Reminder Job] Status ${code}:`, data?.message || data?.error || data);
         },
       }),
     };
 
     await sendPendingLotReminders(mockReq, mockRes);
   } catch (error) {
-    console.error("Error in scheduled pending lot reminder job:", error);
+    console.error("⚠️ [Pending Reminder Job Error]:", error?.message || error);
   }
 };
 
