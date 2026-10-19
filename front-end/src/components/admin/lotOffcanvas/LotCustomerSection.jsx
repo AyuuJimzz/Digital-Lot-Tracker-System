@@ -93,7 +93,7 @@ export const LotCustomerSection = ({
   }
 
   const isFieldDisabled = isLockedForUser || isSaving;
-  const isPricingDisabled = !isAdmin || isFieldDisabled;
+  const isPricingDisabled = status === "Sold" ? (!isAdmin || isFieldDisabled) : isFieldDisabled;
 
   const getFieldTitle = () => {
     if (isSaving) return "Saving...";
@@ -104,9 +104,8 @@ export const LotCustomerSection = ({
 
   const getPricingTitle = () => {
     if (isSaving) return "Saving...";
-    if (!isAdmin) return "Only Admins can edit pricing";
-    if (status === "Sold") return "Only Admins can edit sold lot pricing";
-    if (isFieldDisabled) return "Only Admins can edit pricing";
+    if (status === "Sold" && !isAdmin) return "Only Admins can edit sold lot pricing";
+    if (isFieldDisabled) return `Only ${agentName || "the assigned agent"} or Admin can edit this reservation`;
     return "";
   };
 
@@ -457,7 +456,7 @@ export const LotCustomerSection = ({
               <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600">
                 To be updated (Optional)
               </span>
-            ) : !isAdmin ? (
+            ) : (!isAdmin && status === "Sold") ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
                 <LockKeyhole className="h-3 w-3" aria-hidden="true" />
                 Admin only
