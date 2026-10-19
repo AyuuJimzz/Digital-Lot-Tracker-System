@@ -92,24 +92,25 @@ export const LotCustomerSection = ({
     return null;
   }
 
+  const isExistingSold = selectedLot?.status === "Sold";
   const isFieldDisabled = isLockedForUser || isSaving;
-  const isPricingDisabled = status === "Sold" ? (!isAdmin || isFieldDisabled) : isFieldDisabled;
+  const isPricingDisabled = isExistingSold ? (!isAdmin || isFieldDisabled) : isFieldDisabled;
 
   const getFieldTitle = () => {
     if (isSaving) return "Saving...";
     if (!isLockedForUser) return "";
-    if (status === "Sold") return "Only Admins can edit sold lot details";
+    if (isExistingSold) return "Only Admins can edit sold lot details";
     return `Only ${agentName || "the assigned agent"} or Admin can edit this reservation`;
   };
 
   const getPricingTitle = () => {
     if (isSaving) return "Saving...";
-    if (status === "Sold" && !isAdmin) return "Only Admins can edit sold lot pricing";
+    if (isExistingSold && !isAdmin) return "Only Admins can edit sold lot pricing";
     if (isFieldDisabled) return `Only ${agentName || "the assigned agent"} or Admin can edit this reservation`;
     return "";
   };
 
-  const isLegacyRecord = Boolean(isOldRecordSale || status === "Sold");
+  const isLegacyRecord = Boolean(isOldRecordSale || (isExistingSold && !hasPricing));
 
   const isPlaceholder = (val) => String(val || "").trim().toLowerCase() === "to be updated";
 
@@ -184,7 +185,7 @@ export const LotCustomerSection = ({
           </div>
           {isLockedForUser && (
             <p className="mt-2 border-t border-slate-200 pt-2 text-[11px] leading-relaxed text-slate-600 dark:border-slate-700 dark:text-slate-400">
-              {status === "Sold"
+              {isExistingSold
                 ? (isOldRecordSale
                     ? "Old sale record. Only Admin can edit this."
                     : "Only Admin can update a completed sale.")
@@ -249,7 +250,7 @@ export const LotCustomerSection = ({
             onFocus={handleInputFocus(setContactNumber)}
             onBlur={handleInputBlur(setContactNumber)}
             disabled={isFieldDisabled}
-            title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins or assigned agent can edit lot details") : ""}
+            title={getFieldTitle()}
             className={getInputClasses(contactNumber, validationErrors.contactNumber)}
             placeholder="Enter contact number"
           />
@@ -277,7 +278,7 @@ export const LotCustomerSection = ({
               }
             }}
             disabled={isFieldDisabled}
-            title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit payment method") : ""}
+            title={getFieldTitle()}
             className={`min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-700 dark:text-white ${
               isFieldDisabled ? "cursor-not-allowed opacity-75" : ""
             }`}
@@ -310,7 +311,7 @@ export const LotCustomerSection = ({
           onFocus={handleInputFocus(setEmail)}
           onBlur={handleInputBlur(setEmail)}
           disabled={isFieldDisabled}
-          title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
+          title={getFieldTitle()}
           className={getInputClasses(email, validationErrors.email)}
           placeholder="Enter email address"
         />
@@ -341,7 +342,7 @@ export const LotCustomerSection = ({
           onFocus={handleInputFocus(setAddress)}
           onBlur={handleInputBlur(setAddress)}
           disabled={isFieldDisabled}
-          title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
+          title={getFieldTitle()}
           className={getInputClasses(address, validationErrors.address)}
           placeholder="Enter customer's address"
         />
@@ -456,7 +457,7 @@ export const LotCustomerSection = ({
               <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600">
                 To be updated (Optional)
               </span>
-            ) : (!isAdmin && status === "Sold") ? (
+            ) : (!isAdmin && isExistingSold) ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
                 <LockKeyhole className="h-3 w-3" aria-hidden="true" />
                 Admin only

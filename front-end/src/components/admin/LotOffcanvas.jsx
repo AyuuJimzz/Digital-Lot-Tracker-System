@@ -111,6 +111,23 @@ export const LotOffcanvas = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, requestClose, showUnsavedChangesModal, cancelDiscardChanges]);
 
+  // Broadcast lot offcanvas open/close state so headers can disable property switching
+  React.useEffect(() => {
+    const isDrawerOpen = Boolean(isOpen && selectedLot);
+    window.dispatchEvent(
+      new CustomEvent("lotDrawerStateChange", {
+        detail: { isOpen: isDrawerOpen },
+      })
+    );
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent("lotDrawerStateChange", {
+          detail: { isOpen: false },
+        })
+      );
+    };
+  }, [isOpen, selectedLot]);
+
   const handleStartCoordinateEdit = (lot) => {
     if (onStartCoordinateEdit) {
       requestClose(() => onStartCoordinateEdit(lot || selectedLot));

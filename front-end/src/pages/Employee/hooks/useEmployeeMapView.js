@@ -41,9 +41,11 @@ export function useEmployeeMapView() {
     return savedProperty ? parseInt(savedProperty, 10) : 1;
   });
 
-  // Clear active popup on property change
+  // Clear active popup & close offcanvas on property change
   useEffect(() => {
     setActivePopupLot(null);
+    setIsOffcanvasOpen(false);
+    setSelectedLot(null);
   }, [selectedProperty]);
 
   const triggerArrivalPulse = useCallback(() => {

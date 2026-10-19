@@ -52,6 +52,13 @@ export const useAdminViewMap = () => {
   const activeLotFetchIdRef = useRef(null);
   const activeLotFetchAbortRef = useRef(null);
 
+  // Clear active popup & close offcanvas on property change
+  useEffect(() => {
+    setActivePopupLot(null);
+    setIsOffcanvasOpen(false);
+    setSelectedLot(null);
+  }, [selectedProperty]);
+
   const triggerArrivalPulse = useCallback((coords) => {
     window.dispatchEvent(
       new CustomEvent("triggerMapPulse", {

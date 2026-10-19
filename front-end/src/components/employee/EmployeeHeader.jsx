@@ -5,6 +5,7 @@ import { User, MapPin, Moon, Sun } from "lucide-react";
 import axios from "axios";
 import { clearStoredAuth } from "../../utils/authStorage";
 import { AccountMenu } from "../AccountMenu";
+import { showToast } from "../GlobalToast";
 
 import {
   geocodeAddress,
@@ -59,6 +60,7 @@ const resolvePropertyCoords = (p) => {
 export function EmployeeHeader({ sidebarCollapsed }) {
   const [isOpen, setIsOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
+  const [isLotDrawerOpen, setIsLotDrawerOpen] = useState(false);
   const [profileInitials, setProfileInitials] = useState(null);
   const dropdownRef = useRef(null);
   const propertyDropdownRef = useRef(null);
@@ -219,7 +221,28 @@ export function EmployeeHeader({ sidebarCollapsed }) {
     return () => window.removeEventListener("selectProperty", handleSelectProperty);
   }, []);
 
+  // Listen for lot drawer open/close state to prevent switching locations while editing/viewing a lot
+  useEffect(() => {
+    const handleLotDrawerState = (event) => {
+      const open = Boolean(event.detail?.isOpen);
+      setIsLotDrawerOpen(open);
+      if (open) {
+        setPropertyDropdownOpen(false);
+      }
+    };
+    window.addEventListener("lotDrawerStateChange", handleLotDrawerState);
+    return () => window.removeEventListener("lotDrawerStateChange", handleLotDrawerState);
+  }, []);
+
+  useEffect(() => {
+    setIsLotDrawerOpen(false);
+  }, [location.pathname]);
+
   const handlePropertySelect = (property) => {
+    if (isLotDrawerOpen) {
+      showToast("Please close or save the lot details drawer before switching location.", "warning");
+      return;
+    }
     setSelectedProperty(property.id);
     // Save selected property to localStorage
     localStorage.setItem("selectedProperty", property.id.toString());
@@ -268,18 +291,36 @@ export function EmployeeHeader({ sidebarCollapsed }) {
         {isMapViewPage && (
           <div className="relative" ref={propertyDropdownRef}>
             <button
-              onClick={() => setPropertyDropdownOpen(!propertyDropdownOpen)}
+              type="button"
+              onClick={() => {
+                if (isLotDrawerOpen) {
+                  showToast("Please close or save the lot details drawer before switching location.", "warning");
+                  return;
+                }
+                setPropertyDropdownOpen(!propertyDropdownOpen);
+              }}
+              disabled={isLotDrawerOpen}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm rounded-md transition-colors duration-200 max-w-[240px] truncate ${
-                propertyDropdownOpen
+                isLotDrawerOpen
+                  ? "cursor-not-allowed opacity-60 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 border border-gray-200 dark:border-slate-700 select-none"
+                  : propertyDropdownOpen
                   ? "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-slate-700 dark:text-blue-300 dark:border-slate-600"
                   : "bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
               }`}
-              title="Select Property / Location"
+              title={
+                isLotDrawerOpen
+                  ? "Close the lot details drawer before switching property location"
+                  : "Select Property / Location"
+              }
             >
-              <MapPin className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+              <MapPin className={`h-4 w-4 shrink-0 ${isLotDrawerOpen ? "text-gray-400 dark:text-slate-500" : "text-blue-600 dark:text-blue-400"}`} />
               {properties.find((p) => p.id === selectedProperty) ? (
                 <div className="flex items-center gap-1.5 truncate">
-                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-200/70 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-bold shrink-0">
+                  <span className={`text-[11px] px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                    isLotDrawerOpen
+                      ? "bg-gray-200/80 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
+                      : "bg-blue-200/70 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300"
+                  }`}>
                     #{properties.findIndex((p) => p.id === selectedProperty) + 1 || 1}
                   </span>
                   <span className="truncate font-medium">
