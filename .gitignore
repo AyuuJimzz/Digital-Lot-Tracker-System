@@ -25,6 +25,8 @@ back-end/src/data/
 demo-video/
 mapsPDF/
 scratch/
+database_Backup/
+*.sql
 md/
 docs/PDF-LOT-IMPORT-TROUBLESHOOTING.md
 .agents/
