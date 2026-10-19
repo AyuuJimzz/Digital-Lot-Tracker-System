@@ -921,9 +921,22 @@ export function useLotOffcanvasState({
           selectedLot.employee_id = null;
           selectedLot.sold_on = null;
           selectedLot.pending_since = null;
+          selectedLot.payment_method = null;
           setExternalAgentName("");
           dirtyFieldsRef.current.externalAgentName = false;
-        } else if (externalAgentName?.trim()) {
+        } else {
+          selectedLot.customer = {
+            ...(selectedLot.customer || {}),
+            full_name: effectiveFullName,
+            contact_number: effectiveContactNumber,
+            email: effectiveEmail,
+            address: effectiveAddress,
+          };
+          if (finalStatus === "Sold") {
+            selectedLot.payment_method = paymentMethod;
+          }
+        }
+        if (externalAgentName?.trim()) {
           selectedLot.agent_name = externalAgentName.trim();
           selectedLot.agent_status = "external";
           selectedLot.employee_id = null;
@@ -954,6 +967,20 @@ export function useLotOffcanvasState({
               setAgentStatus("admin");
             }
           }
+        }
+
+        if (onLiveLotUpdate) {
+          onLiveLotUpdate({
+            lot_number: finalLotNumber,
+            area_sqm: areaSqm,
+            status: finalStatus,
+            is_non_saleable: isNonSaleable ? 1 : 0,
+            customer: selectedLot.customer,
+            payment_method: selectedLot.payment_method,
+            agent_name: selectedLot.agent_name,
+            agent_status: selectedLot.agent_status,
+            sold_on: selectedLot.sold_on,
+          });
         }
       }
 

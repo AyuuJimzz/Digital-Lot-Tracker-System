@@ -242,17 +242,34 @@ exports.updateLotStatus = async (req, res) => {
             );
           }
         } else if (status === "Sold") {
+          const soldCustomerParams = [safeFullName, safeContact, safeEmail, safeAddress];
+          let employeeIdClause = "employee_id";
+          if (isAdminExplicitAssignment) {
+            employeeIdClause = "?";
+            soldCustomerParams.push(employeeId);
+          }
+          soldCustomerParams.push(id, existingCustomer[0].customer_id);
+
           await query(
             `UPDATE customers SET
              full_name = COALESCE(?, full_name),
              contact_number = COALESCE(?, contact_number),
              email = COALESCE(?, email),
              address = COALESCE(?, address),
-             employee_id = ${isAdminExplicitAssignment ? '?' : 'employee_id'},
+             employee_id = ${employeeIdClause},
              customer_status = 'Sold', updated_at = NOW()
              WHERE lot_id = ? AND customer_id = ?`,
-            [safeFullName, safeContact, safeEmail, safeAddress, employeeId, id, existingCustomer[0].customer_id]
+            soldCustomerParams
           );
+
+          if (paymentMethod) {
+            await query(
+              `UPDATE transactions SET payment_type = ?, updated_at = NOW()
+               WHERE lot_id = ? AND payment_type NOT IN ('Reversal', 'Cancelled')
+               ORDER BY transaction_id DESC LIMIT 1`,
+              [paymentMethod, id]
+            );
+          }
         } else {
           await query("UPDATE customers SET email = ?, updated_at = NOW() WHERE lot_id = ? AND customer_id = ?", [
             safeEmail, id, existingCustomer[0].customer_id,
@@ -825,14 +842,17 @@ exports.updateLotStatus = async (req, res) => {
             [newExtAgent, currentTxn.transaction_id]
           );
         } else if (req.body.external_agent_name === null || req.body.external_agent_name === "") {
-          const fallbackAgent = (req.body.is_old_record || currentTxn.agent_name === "Old Record") ? "Old Record" : agentName;
-          const fallbackEmp = (req.body.is_old_record || currentTxn.agent_name === "Old Record") ? null : employeeId;
-          await query(
-            `UPDATE transactions
-             SET agent_name = ?, employee_id = ?
-             WHERE transaction_id = ?`,
-            [fallbackAgent, fallbackEmp, currentTxn.transaction_id]
-          );
+          const isAssignedEmployeeSale = currentTxn.employee_id !== null;
+          if (!isAssignedEmployeeSale) {
+            const fallbackAgent = (req.body.is_old_record || currentTxn.agent_name === "Old Record") ? "Old Record" : agentName;
+            const fallbackEmp = (req.body.is_old_record || currentTxn.agent_name === "Old Record") ? null : employeeId;
+            await query(
+              `UPDATE transactions
+               SET agent_name = ?, employee_id = ?
+               WHERE transaction_id = ?`,
+              [fallbackAgent, fallbackEmp, currentTxn.transaction_id]
+            );
+          }
         }
       }
     }

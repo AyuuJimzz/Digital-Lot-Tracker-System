@@ -187,6 +187,8 @@ exports.getMapData = async (req, res) => {
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.full_name END AS customer_name,
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.email END AS customer_email,
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.contact_number END AS customer_contact,
+              CASE WHEN l.status = 'Available' THEN NULL ELSE c.address END AS customer_address,
+              CASE WHEN l.status = 'Sold' THEN t.payment_type ELSE NULL END AS payment_method,
               CASE
                 WHEN l.status = 'Available' THEN NULL
                 WHEN t.agent_name = 'Old Record' THEN NULL
@@ -208,13 +210,13 @@ exports.getMapData = async (req, res) => {
               END AS agent_status
        FROM lots l
        LEFT JOIN (
-         SELECT customer_id, lot_id, full_name, email, contact_number, employee_id,
+         SELECT customer_id, lot_id, full_name, email, contact_number, address, employee_id,
                 ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY updated_at DESC, customer_id DESC) AS rn
          FROM customers
          WHERE lot_id IS NOT NULL AND customer_status IN ('Pending', 'Sold')
        ) c ON l.lot_id = c.lot_id AND c.rn = 1 AND l.status != 'Available'
        LEFT JOIN (
-         SELECT lot_id, customer_id, employee_id, agent_name,
+         SELECT lot_id, customer_id, employee_id, agent_name, payment_type,
                 ROW_NUMBER() OVER (PARTITION BY lot_id, customer_id ORDER BY transaction_date DESC, transaction_id DESC) AS rn
          FROM transactions
          WHERE lot_id IS NOT NULL AND customer_id IS NOT NULL AND payment_type NOT IN ('Reversal', 'Cancelled')
@@ -253,7 +255,7 @@ exports.getMapData = async (req, res) => {
       },
       properties: propertyRows,
       lots: rows.map((lot) => {
-        const hasCustomer = Boolean(lot.customer_name || lot.customer_email || lot.customer_contact);
+        const hasCustomer = Boolean(lot.customer_name || lot.customer_email || lot.customer_contact || lot.customer_address);
         let parsedCoordinates = lot.coordinates;
         if (typeof lot.coordinates === "string") {
           try {
@@ -275,11 +277,13 @@ exports.getMapData = async (req, res) => {
           employee_id: lot.employee_id,
           agent_name: lot.agent_name,
           agent_status: lot.agent_status,
+          payment_method: lot.payment_method || null,
           customer: hasCustomer
             ? {
                 full_name: lot.customer_name || "",
                 email: lot.customer_email || "",
                 contact_number: lot.customer_contact || "",
+                address: lot.customer_address || "",
                 employee_id: lot.employee_id,
               }
             : null,

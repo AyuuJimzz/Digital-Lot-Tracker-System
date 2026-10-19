@@ -84,7 +84,7 @@ export const LotCustomerSection = ({
     return `Only ${agentName || "the assigned agent"} or Admin can edit this reservation`;
   };
 
-  const isLegacyRecord = Boolean(isOldRecord);
+  const isLegacyRecord = Boolean(isOldRecord || status === "Sold");
 
   const isPlaceholder = (val) => String(val || "").trim().toLowerCase() === "to be updated";
 
