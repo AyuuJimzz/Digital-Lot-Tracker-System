@@ -27,6 +27,13 @@ mapsPDF/
 scratch/
 database_Backup/
 *.sql
+old data customer/
+back-end/scripts/data/
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
 md/
 docs/PDF-LOT-IMPORT-TROUBLESHOOTING.md
 .agents/
