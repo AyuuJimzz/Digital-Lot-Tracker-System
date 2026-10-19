@@ -9,6 +9,14 @@ const { getDatabaseSslConfig } = require('../config/database_ssl');
 const envPath = path.join(__dirname, '..', '..', '.env');
 require('dotenv').config({ path: envPath });
 
+function getSslConfig(host) {
+  try {
+    return getDatabaseSslConfig(host, true);
+  } catch (_) {
+    return { rejectUnauthorized: false };
+  }
+}
+
 function parseUri(uriString) {
   let parsed;
   try {
@@ -24,7 +32,7 @@ function parseUri(uriString) {
     password: decodeURIComponent(parsed.password || ''),
     database: parsed.pathname.replace(/^\//, '') || 'defaultdb',
     multipleStatements: true,
-    ssl: getDatabaseSslConfig(parsed.hostname, true)
+    ssl: getSslConfig(parsed.hostname)
   };
 }
 
@@ -90,7 +98,7 @@ async function run() {
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'defaultdb',
       multipleStatements: true,
-      ssl: getDatabaseSslConfig(process.env.DB_HOST, true)
+      ssl: getSslConfig(process.env.DB_HOST)
     };
     console.log('🔍 Gagamitin ang Aiven credentials mula sa .env (DB_HOST).');
   }

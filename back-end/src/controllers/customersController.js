@@ -15,10 +15,21 @@ exports.getAllCustomersForMap = async (req, res) => {
           WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN 'Cancelled'
           ELSE COALESCE(c.customer_status, l.status)
         END as lot_status, 
-        l.property_id, p.property_name
+        l.property_id, p.property_name,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.payment_type END AS payment_type,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.total_contract_price END AS total_contract_price,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.downpayment END AS downpayment,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.terms_months END AS terms_months,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.monthly_amortization END AS monthly_amortization
       FROM customers c
       LEFT JOIN lots l ON c.lot_id = l.lot_id
       LEFT JOIN properties p ON l.property_id = p.property_id
+      LEFT JOIN (
+        SELECT lot_id, customer_id, payment_type, total_contract_price, downpayment, terms_months, monthly_amortization,
+               ROW_NUMBER() OVER (PARTITION BY lot_id, customer_id ORDER BY transaction_date DESC, transaction_id DESC) AS rn
+        FROM transactions
+        WHERE lot_id IS NOT NULL AND customer_id IS NOT NULL AND payment_type NOT IN ('Reversal', 'Cancelled')
+      ) t ON c.lot_id = t.lot_id AND c.customer_id = t.customer_id AND t.rn = 1
       ORDER BY c.created_at DESC
     `);
     res.json(rows);
@@ -40,10 +51,21 @@ exports.getAllCustomers = async (req, res) => {
           WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN 'Cancelled'
           ELSE COALESCE(c.customer_status, l.status)
         END as lot_status, 
-        l.property_id, p.property_name
+        l.property_id, p.property_name,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.payment_type END AS payment_type,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.total_contract_price END AS total_contract_price,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.downpayment END AS downpayment,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.terms_months END AS terms_months,
+        CASE WHEN l.status = 'Available' AND (c.customer_status IS NULL OR c.customer_status != 'Sold') THEN NULL ELSE t.monthly_amortization END AS monthly_amortization
       FROM customers c
       LEFT JOIN lots l ON c.lot_id = l.lot_id
       LEFT JOIN properties p ON l.property_id = p.property_id
+      LEFT JOIN (
+        SELECT lot_id, customer_id, payment_type, total_contract_price, downpayment, terms_months, monthly_amortization,
+               ROW_NUMBER() OVER (PARTITION BY lot_id, customer_id ORDER BY transaction_date DESC, transaction_id DESC) AS rn
+        FROM transactions
+        WHERE lot_id IS NOT NULL AND customer_id IS NOT NULL AND payment_type NOT IN ('Reversal', 'Cancelled')
+      ) t ON c.lot_id = t.lot_id AND c.customer_id = t.customer_id AND t.rn = 1
     `;
     const params = [];
     if (req.user && req.user.role === "employee") {

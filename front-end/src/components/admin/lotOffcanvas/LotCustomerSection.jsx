@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, LockKeyhole, UserRound } from "lucide-react";
+import { Calculator, FileText, LockKeyhole, UserRound } from "lucide-react";
 import { exportSingleLotWordDoc } from "../../../utils/exportUtils";
 import { getCurrentUser } from "../../../utils/authStorage";
 
@@ -14,6 +14,13 @@ export const LotCustomerSection = ({
   setContactNumber,
   paymentMethod,
   setPaymentMethod,
+  totalContractPrice = "",
+  setTotalContractPrice,
+  downpayment = "",
+  setDownpayment,
+  termsMonths = "",
+  setTermsMonths,
+  monthlyAmortization = 0,
   email,
   setEmail,
   address,
@@ -37,9 +44,19 @@ export const LotCustomerSection = ({
     ? `${currentUser.first_name} ${currentUser.last_name || ""}`.trim()
     : (currentUser?.name || "");
 
+  const isOldRecordSale = Boolean(
+    isOldRecord ||
+    agentName?.toLowerCase() === "old record" ||
+    agentStatus === "legacy" ||
+    selectedLot?.agent_name === "Old Record" ||
+    selectedLot?.agent_status === "legacy"
+  );
+
+  const hasPricing = Number(totalContractPrice || 0) > 0;
+
   const displayAgentName = React.useMemo(() => {
     if (externalAgentName?.trim()) return externalAgentName.trim();
-    if (isOldRecord) return "Old Record";
+    if (isOldRecordSale) return "Old Record";
     if (agentName && agentName.toLowerCase() !== "old record" && agentName.toLowerCase() !== "agent") {
       return agentName;
     }
@@ -50,7 +67,7 @@ export const LotCustomerSection = ({
       return agentName;
     }
     return isAdmin ? "Admin" : (currentEmployeeName || "Agent");
-  }, [externalAgentName, isOldRecord, agentName, currentEmployeeName, isAdmin]);
+  }, [externalAgentName, isOldRecordSale, agentName, currentEmployeeName, isAdmin]);
 
   const [isExternalAgentChecked, setIsExternalAgentChecked] = React.useState(
     Boolean(externalAgentName?.trim())
@@ -76,6 +93,7 @@ export const LotCustomerSection = ({
   }
 
   const isFieldDisabled = isLockedForUser || isSaving;
+  const isPricingDisabled = !isAdmin || isFieldDisabled;
 
   const getFieldTitle = () => {
     if (isSaving) return "Saving...";
@@ -84,7 +102,15 @@ export const LotCustomerSection = ({
     return `Only ${agentName || "the assigned agent"} or Admin can edit this reservation`;
   };
 
-  const isLegacyRecord = Boolean(isOldRecord || status === "Sold");
+  const getPricingTitle = () => {
+    if (isSaving) return "Saving...";
+    if (!isAdmin) return "Only Admins can edit pricing";
+    if (status === "Sold") return "Only Admins can edit sold lot pricing";
+    if (isFieldDisabled) return "Only Admins can edit pricing";
+    return "";
+  };
+
+  const isLegacyRecord = Boolean(isOldRecordSale || status === "Sold");
 
   const isPlaceholder = (val) => String(val || "").trim().toLowerCase() === "to be updated";
 
@@ -143,7 +169,7 @@ export const LotCustomerSection = ({
                     Referral
                   </span>
                 )}
-                {!isOldRecord && agentStatus === "inactive" && agentName && !["admin", "old record"].includes(agentName.toLowerCase()) && (
+                {!isOldRecordSale && agentStatus === "inactive" && agentName && !["admin", "old record"].includes(agentName.toLowerCase()) && (
                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     Inactive Agent
                   </span>
@@ -160,8 +186,10 @@ export const LotCustomerSection = ({
           {isLockedForUser && (
             <p className="mt-2 border-t border-slate-200 pt-2 text-[11px] leading-relaxed text-slate-600 dark:border-slate-700 dark:text-slate-400">
               {status === "Sold"
-                ? "Only Admin can update a completed sale."
-                : "Only the assigned agent or Admin can update this reservation. Contact them for client changes."}
+                ? (isOldRecordSale
+                    ? "Old sale record. Only Admin can edit this."
+                    : "Only Admin can update a completed sale.")
+                : "Only the assigned agent or Admin can update this reservation."}
             </p>
           )}
         </div>
@@ -200,62 +228,7 @@ export const LotCustomerSection = ({
       </div>
 
       {/* Contact & Payment Method */}
-      {status === "Sold" ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="lot-offcanvas-contact-sold"
-              className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Contact Number
-            </label>
-            <input
-              id="lot-offcanvas-contact-sold"
-              name="customer_contact"
-              type="tel"
-              value={contactNumber}
-              onChange={(e) => {
-                setContactNumber(e.target.value);
-                if (validationErrors.contactNumber) {
-                  setValidationErrors((prev) => ({ ...prev, contactNumber: false }));
-                }
-              }}
-              onFocus={handleInputFocus(setContactNumber)}
-              onBlur={handleInputBlur(setContactNumber)}
-              disabled={isFieldDisabled}
-              title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
-              className={getInputClasses(contactNumber, validationErrors.contactNumber)}
-              placeholder="Enter contact number"
-            />
-            {validationErrors.contactNumber && (
-              <p className="text-[11px] text-rose-500 mt-0.5 font-medium">Contact number is required</p>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="lot-offcanvas-payment-method"
-              className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Payment Method
-            </label>
-            <select
-              id="lot-offcanvas-payment-method"
-              name="payment_method"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              disabled={isFieldDisabled}
-              title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot payment method") : ""}
-              className={`min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-700 dark:text-white ${
-                isFieldDisabled ? "cursor-not-allowed opacity-75" : ""
-              }`}
-            >
-              <option value="Cash">Cash</option>
-              <option value="Installment">Installment</option>
-            </select>
-          </div>
-        </div>
-      ) : (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label
             htmlFor="lot-offcanvas-contact"
@@ -277,7 +250,7 @@ export const LotCustomerSection = ({
             onFocus={handleInputFocus(setContactNumber)}
             onBlur={handleInputBlur(setContactNumber)}
             disabled={isFieldDisabled}
-            title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit sold lot details") : ""}
+            title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins or assigned agent can edit lot details") : ""}
             className={getInputClasses(contactNumber, validationErrors.contactNumber)}
             placeholder="Enter contact number"
           />
@@ -285,7 +258,36 @@ export const LotCustomerSection = ({
             <p className="text-[11px] text-rose-500 mt-0.5 font-medium">Contact number is required</p>
           )}
         </div>
-      )}
+
+        <div>
+          <label
+            htmlFor="lot-offcanvas-payment-method"
+            className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Payment Method
+          </label>
+          <select
+            id="lot-offcanvas-payment-method"
+            name="payment_method"
+            value={paymentMethod || "Cash"}
+            onChange={(e) => {
+              const val = e.target.value;
+              setPaymentMethod(val);
+              if (val === "Cash") {
+                setTermsMonths("");
+              }
+            }}
+            disabled={isFieldDisabled}
+            title={isFieldDisabled ? (isSaving ? "Saving..." : "Only Admins can edit payment method") : ""}
+            className={`min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-700 dark:text-white ${
+              isFieldDisabled ? "cursor-not-allowed opacity-75" : ""
+            }`}
+          >
+            <option value="Cash">Cash</option>
+            <option value="Installment">Installment</option>
+          </select>
+        </div>
+      </div>
 
       {/* Email */}
       <div>
@@ -348,6 +350,259 @@ export const LotCustomerSection = ({
           <p className="text-[11px] text-rose-500 mt-0.5 font-medium">Customer address is required</p>
         )}
       </div>
+
+      {/* Designated Area: Payment & Amortization Breakdown */}
+      {!isAdmin && isOldRecordSale && !hasPricing ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2.5 dark:border-slate-700 dark:bg-slate-800/40">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300">
+                <Calculator className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                Payment &amp; Terms
+              </span>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
+              <LockKeyhole className="h-3 w-3" aria-hidden="true" />
+              View only
+            </span>
+          </div>
+
+          <div className="rounded-lg border border-slate-200/70 bg-white/70 p-2.5 dark:border-slate-700/60 dark:bg-slate-900/50">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-slate-600 dark:text-slate-300">Total Price (TCP)</span>
+              <span className="italic text-slate-400 dark:text-slate-400">To be updated (Optional)</span>
+            </div>
+          </div>
+
+          <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+            Payment details are optional and to be updated from paper records.
+          </p>
+        </div>
+      ) : !isAdmin && isOldRecordSale && hasPricing ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-3 dark:border-slate-700 dark:bg-slate-800/40">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300">
+                <Calculator className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                Payment &amp; Terms
+              </span>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <LockKeyhole className="h-3 w-3" aria-hidden="true" />
+              View only
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900/50">
+              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">Total Contract Price</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                ₱{Number(totalContractPrice).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900/50">
+              <span className="block text-[10px] font-medium text-slate-500 dark:text-slate-400">Payment Type</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                {paymentMethod || "Cash"}
+              </span>
+            </div>
+          </div>
+
+          {paymentMethod === "Installment" && Number(termsMonths) > 0 ? (
+            <div className="rounded-lg border border-blue-200/80 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 p-2.5 dark:border-blue-900/60 dark:from-blue-950/30 dark:to-indigo-950/30 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  Monthly Amortization ({termsMonths} mos)
+                </span>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                  Downpayment: ₱{Number(downpayment || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <span className="text-xs sm:text-sm font-bold text-blue-700 dark:text-blue-300">
+                ₱{Number(monthlyAmortization || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 })}/mo
+              </span>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-emerald-200/80 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 p-2.5 dark:border-emerald-900/60 dark:from-emerald-950/30 dark:to-teal-950/30 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
+                  Cash Sale Terms
+                </span>
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                  Full / Spot cash payment
+                </p>
+              </div>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                Cash Deal
+              </span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-3 dark:border-slate-700 dark:bg-slate-800/40">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300">
+                <Calculator className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                Payment &amp; Amortization
+              </span>
+            </div>
+            {isAdmin && isOldRecordSale ? (
+              <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600">
+                To be updated (Optional)
+              </span>
+            ) : !isAdmin ? (
+              <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                <LockKeyhole className="h-3 w-3" aria-hidden="true" />
+                Admin only
+              </span>
+            ) : (
+              <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                Quotation &amp; Terms
+              </span>
+            )}
+          </div>
+
+          {/* Row 1: Total Contract Price (Full Width so millions/large numbers never get cramped) */}
+          <div>
+            <label
+              htmlFor="lot-offcanvas-tcp"
+              className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              TCP (Total Price)
+            </label>
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                ₱
+              </span>
+              <input
+                id="lot-offcanvas-tcp"
+                name="total_contract_price"
+                type="number"
+                step="any"
+                min="0"
+                value={totalContractPrice}
+                onChange={(e) => setTotalContractPrice(e.target.value)}
+                disabled={isPricingDisabled}
+                title={getPricingTitle()}
+                placeholder={isOldRecordSale ? "Optional" : "0.00"}
+                className={`min-h-10 w-full rounded-lg border border-gray-300 pl-7 pr-3 py-1.5 text-xs sm:text-sm font-medium tabular-nums text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white ${
+                  isPricingDisabled ? "cursor-not-allowed opacity-75" : ""
+                }`}
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Downpayment & Terms (Months) */}
+          <div className={`grid grid-cols-1 gap-3 ${paymentMethod === "Installment" ? "grid-cols-2" : ""}`}>
+            <div>
+              <label
+                htmlFor="lot-offcanvas-downpayment"
+                className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Downpayment
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  ₱
+                </span>
+                <input
+                  id="lot-offcanvas-downpayment"
+                  name="downpayment"
+                  type="number"
+                  step="any"
+                  min="0"
+                  value={downpayment}
+                  onChange={(e) => setDownpayment(e.target.value)}
+                  disabled={isPricingDisabled}
+                  title={getPricingTitle()}
+                  placeholder={isOldRecordSale ? "Optional" : "0.00"}
+                  className={`min-h-10 w-full rounded-lg border border-gray-300 pl-7 pr-3 py-1.5 text-xs sm:text-sm font-medium tabular-nums text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white ${
+                    isPricingDisabled ? "cursor-not-allowed opacity-75" : ""
+                  }`}
+                />
+              </div>
+            </div>
+
+            {paymentMethod === "Installment" && (
+              <div>
+                <label
+                  htmlFor="lot-offcanvas-terms"
+                  className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Terms (Months)
+                </label>
+                <input
+                  id="lot-offcanvas-terms"
+                  name="terms_months"
+                  type="number"
+                  min="1"
+                  value={termsMonths}
+                  onChange={(e) => setTermsMonths(e.target.value)}
+                  disabled={isPricingDisabled}
+                  title={getPricingTitle()}
+                  placeholder="e.g. 24"
+                  className={`min-h-10 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs sm:text-sm font-medium tabular-nums text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-white ${
+                    isPricingDisabled ? "cursor-not-allowed opacity-75" : ""
+                  }`}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Monthly Amortization Display */}
+          {paymentMethod === "Installment" ? (
+            <div className="rounded-lg border border-blue-200/80 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 p-2.5 dark:border-blue-900/60 dark:from-blue-950/30 dark:to-indigo-950/30">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                    Monthly Amortization
+                  </span>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                    (TCP − Downpayment) ÷ Terms
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <span className="text-xs sm:text-sm md:text-base font-bold tabular-nums text-blue-700 dark:text-blue-300 whitespace-nowrap">
+                    ₱{Number(monthlyAmortization || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className="block text-[10px] text-slate-500 dark:text-slate-400">
+                    / month
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-emerald-200/80 bg-gradient-to-r from-emerald-50/80 to-teal-50/80 p-2.5 dark:border-emerald-900/60 dark:from-emerald-950/30 dark:to-teal-950/30">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
+                    Cash Sale Terms
+                  </span>
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    Full / Spot cash payment. No monthly amortization.
+                  </p>
+                </div>
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                  Cash Deal
+                </span>
+              </div>
+            </div>
+          )}
+
+          {isAdmin && isOldRecordSale && (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed pt-1 border-t border-slate-200/70 dark:border-slate-700/60">
+              To be updated (Optional): Enter pricing only if contract copy is available.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Outside Sales Agent Commission Credit Toggle */}
       {isFieldDisabled ? (
@@ -412,7 +667,7 @@ export const LotCustomerSection = ({
         </div>
       )}
 
-      {hasSavedClient && (
+      {hasSavedClient && (!isOldRecordSale || hasPricing) && (
         <button
           type="button"
           onClick={() =>
@@ -423,10 +678,14 @@ export const LotCustomerSection = ({
                 agent_name: displayAgentName,
                 agent_status: externalAgentName?.trim()
                   ? "external"
-                  : isOldRecord
+                  : isOldRecordSale
                   ? "legacy"
                   : agentStatus,
                 payment_method: paymentMethod || selectedLot?.payment_method,
+                total_contract_price: totalContractPrice !== "" ? totalContractPrice : selectedLot?.total_contract_price,
+                downpayment: downpayment !== "" ? downpayment : selectedLot?.downpayment,
+                terms_months: termsMonths !== "" ? termsMonths : selectedLot?.terms_months,
+                monthly_amortization: monthlyAmortization || selectedLot?.monthly_amortization,
                 customer: {
                   ...selectedLot?.customer,
                   full_name: fullName || selectedLot?.customer?.full_name,

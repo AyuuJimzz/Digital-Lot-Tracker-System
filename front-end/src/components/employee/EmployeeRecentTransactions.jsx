@@ -8,6 +8,12 @@ const STATUS_STYLES = {
   Cancelled: "text-slate-500 dark:text-slate-400 font-semibold",
 };
 
+const formatPeso = (val) => {
+  if (val == null || val === "" || isNaN(Number(val))) return null;
+  const num = Number(val);
+  return `₱${num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+};
+
 const EmployeeRecentTransactions = () => {
   const [filter, setFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -62,6 +68,9 @@ const EmployeeRecentTransactions = () => {
         !["admin", "old record", "legacy record", "agent"].includes(String(t.agent_name).toLowerCase().trim())
       );
       const payStr = (t.payment_type || "").toLowerCase();
+      const tcpStr = t.total_contract_price ? String(t.total_contract_price) : "";
+      const moStr = t.monthly_amortization ? String(t.monthly_amortization) : "";
+      const termsStr = t.terms_months ? `${t.terms_months} mos` : "";
 
       const matches =
         idStr.includes(q) ||
@@ -73,7 +82,10 @@ const EmployeeRecentTransactions = () => {
         (isInactiveAgent && "inactive agent".includes(q)) ||
         (isExternalAgent && ("referral".includes(q) || "referred".includes(q) || "external".includes(q) || "outside".includes(q))) ||
         (isOldRecord && "old record".includes(q)) ||
-        payStr.includes(q);
+        payStr.includes(q) ||
+        tcpStr.includes(q) ||
+        moStr.includes(q) ||
+        termsStr.includes(q);
 
       if (!matches) return false;
     }
@@ -252,20 +264,20 @@ const EmployeeRecentTransactions = () => {
         <table className="w-full divide-y divide-gray-200 dark:divide-slate-800">
           <thead className="bg-gray-50/80 dark:bg-slate-800/80">
             <tr>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[18%]">
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[15%]">
                 Txn ID / Date
               </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[20%]">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[17%]">
                 Client
               </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[24%]">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[20%]">
                 Lot Details
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[14%]">
                 Agent
               </th>
-              <th className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
-                Payment
+              <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[22%]">
+                Payment & Terms
               </th>
               <th className="px-5 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider w-[12%]">
                 Status
@@ -325,8 +337,78 @@ const EmployeeRecentTransactions = () => {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 text-center whitespace-nowrap text-xs font-medium text-slate-700 dark:text-slate-300">
-                    {txn.payment_type || "No Downpayment"}
+                  <td className="px-4 py-3.5 text-left whitespace-nowrap text-xs">
+                    {(() => {
+                      const hasPricing = Boolean(txn.total_contract_price || txn.monthly_amortization || txn.downpayment);
+                      const dpNum = Number(txn.downpayment || 0);
+                      const termsNum = parseInt(txn.terms_months || 0, 10);
+                      const moNum = Number(txn.monthly_amortization || 0);
+                      const tcpNum = Number(txn.total_contract_price || 0);
+
+                      const rawType = String(txn.payment_type || "").trim();
+                      const isExplicitCash = rawType.toLowerCase() === "cash";
+                      const isExplicitInstallment = rawType.toLowerCase() === "installment";
+
+                      let resolvedType;
+                      if (isExplicitCash) {
+                        resolvedType = "Cash";
+                      } else if (isExplicitInstallment) {
+                        resolvedType = "Installment";
+                      } else if (termsNum > 1 || moNum > 0) {
+                        resolvedType = "Installment";
+                      } else if (dpNum > 0 && rawType === "No Downpayment") {
+                        resolvedType = "Downpayment";
+                      } else if (rawType === "No Downpayment" && !hasPricing) {
+                        resolvedType = "Standard";
+                      } else {
+                        resolvedType = rawType || "Standard";
+                      }
+
+                      const badgeStyle =
+                        resolvedType === "Installment"
+                          ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60"
+                          : resolvedType === "Cash"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60"
+                          : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60";
+
+                      if (!hasPricing) {
+                        return (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            {txn.payment_type || "Standard"}
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 dark:text-slate-100 text-[13px] tracking-tight">
+                              {tcpNum > 0 ? formatPeso(tcpNum) : "—"}
+                            </span>
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${badgeStyle}`}>
+                              {resolvedType}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-gray-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                            {resolvedType === "Installment" && moNum > 0 ? (
+                              <>
+                                <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                  {formatPeso(moNum)}/mo
+                                </span>
+                                {termsNum > 0 && <span>• {termsNum} mos</span>}
+                                {dpNum > 0 && <span>• DP {formatPeso(dpNum)}</span>}
+                              </>
+                            ) : dpNum > 0 ? (
+                              <span>DP: <strong className="font-semibold text-gray-700 dark:text-slate-300">{formatPeso(dpNum)}</strong></span>
+                            ) : termsNum > 0 && resolvedType === "Installment" ? (
+                              <span>{termsNum} mos term</span>
+                            ) : (
+                              <span className="text-gray-400 dark:text-slate-500">Spot Cash</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-5 py-3.5 text-center whitespace-nowrap text-xs">
                     <span className={STATUS_STYLES[txn.status] || "text-slate-600 dark:text-slate-400 font-semibold"}>

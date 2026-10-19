@@ -26,7 +26,7 @@ async function exportAll() {
   }
 
   const [tables] = await db.query('SHOW TABLES');
-  const tableOrder = ['properties', 'lots', 'customers', 'admins', 'employees', 'transactions', 'sale_date_audit', 'system_state'];
+  const tableOrder = ['properties', 'lots', 'customers', 'admins', 'employees', 'transactions', 'sale_date_audit', 'account_login_history', 'system_state'];
 
   const fileMap = {
     properties: '01_golden_dragon_corp_properties.sql',

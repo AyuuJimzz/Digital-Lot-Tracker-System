@@ -6,6 +6,12 @@ import { useQuery } from "@tanstack/react-query";
 const ROWS_PER_PAGE = 10;
 const EMPTY_CUSTOMERS = [];
 
+const formatPeso = (val) =>
+  `₱${Number(val || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 const paginBtnCls =
   "rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors";
 
@@ -131,7 +137,7 @@ const Customers = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                 <thead className="bg-gray-50 dark:bg-slate-800">
                   <tr>
-                    {["Full Name", "Contact Number", "Email", "Lot Details", "Status"].map((col) => (
+                    {["Full Name", "Contact Number", "Email", "Lot Details", "Payment & Terms", "Status"].map((col) => (
                       <th
                         key={col}
                         className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider"
@@ -167,6 +173,87 @@ const Customers = () => {
                         ) : (
                           <span className="text-gray-400 dark:text-slate-500 font-normal">—</span>
                         )}
+                      </td>
+                      <td className="px-3 py-3 whitespace-nowrap text-xs">
+                        {(() => {
+                          const rawStatus = String(customer.lot_status || "").toLowerCase();
+                          if (rawStatus === "cancelled" || rawStatus === "available") {
+                            return <span className="text-gray-400 dark:text-slate-500 font-normal">—</span>;
+                          }
+
+                          const hasPricing = Boolean(customer.total_contract_price || customer.monthly_amortization || customer.downpayment);
+                          const dpNum = Number(customer.downpayment || 0);
+                          const termsNum = parseInt(customer.terms_months || 0, 10);
+                          const moNum = Number(customer.monthly_amortization || 0);
+                          const tcpNum = Number(customer.total_contract_price || 0);
+
+                          const rawType = String(customer.payment_type || "").trim();
+                          const isExplicitCash = rawType.toLowerCase() === "cash";
+                          const isExplicitInstallment = rawType.toLowerCase() === "installment";
+
+                          let resolvedType;
+                          if (isExplicitCash) {
+                            resolvedType = "Cash";
+                          } else if (isExplicitInstallment) {
+                            resolvedType = "Installment";
+                          } else if (termsNum > 1 || moNum > 0) {
+                            resolvedType = "Installment";
+                          } else if (dpNum > 0 && rawType === "No Downpayment") {
+                            resolvedType = "Downpayment";
+                          } else if (rawType === "No Downpayment" && !hasPricing) {
+                            resolvedType = "Standard";
+                          } else {
+                            resolvedType = rawType || "Standard";
+                          }
+
+                          const badgeStyle =
+                            resolvedType === "Installment"
+                              ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60"
+                              : resolvedType === "Cash"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60"
+                              : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60";
+
+                          if (!hasPricing && (!customer.payment_type || customer.payment_type === "No Downpayment")) {
+                            return (
+                              <span className="text-gray-400 dark:text-slate-500 italic text-[11px]">
+                                To be updated (Optional)
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-gray-900 dark:text-slate-100 text-[13px] tracking-tight">
+                                  {tcpNum > 0 ? formatPeso(tcpNum) : "—"}
+                                </span>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${badgeStyle}`}>
+                                  {resolvedType}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-gray-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                                {resolvedType === "Installment" && moNum > 0 ? (
+                                  <>
+                                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                      {formatPeso(moNum)}/mo
+                                    </span>
+                                    {termsNum > 0 && <span>• {termsNum} mos</span>}
+                                    {dpNum > 0 && <span>• DP {formatPeso(dpNum)}</span>}
+                                  </>
+                                ) : resolvedType === "Cash" ? (
+                                  <>
+                                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                                      Full Cash Payment
+                                    </span>
+                                    {dpNum > 0 && <span>• DP {formatPeso(dpNum)}</span>}
+                                  </>
+                                ) : (
+                                  <span>{customer.payment_type || "Standard Terms"}</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-3 whitespace-nowrap text-sm">
                         {(customer.lot_status === "Available" || customer.lot_status === "Cancelled") ? (

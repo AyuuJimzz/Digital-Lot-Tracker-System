@@ -1,6 +1,6 @@
 -- Golden Dragon Corp Database Backup
 -- Table: employees
--- Generated on: 2026-10-15T04:23:42.630Z
+-- Generated on: 2026-10-19T13:44:53.417Z
 
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI_QUOTES' */;
 DROP TABLE IF EXISTS `employees`;
@@ -18,13 +18,14 @@ CREATE TABLE `employees` (
   `active_session_id` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`employee_id`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 LOCK TABLES `employees` WRITE;
 /*!40000 ALTER TABLE `employees` DISABLE KEYS */;
 INSERT INTO `employees` (`employee_id`, `first_name`, `last_name`, `email`, `password`, `password_reset_required`, `temp_password_expiry`, `status`, `last_login`, `created_at`, `active_session_id`) VALUES
-  (13, 'Sarah Mae', 'Santos', 'sarah.santos@goldendragon.com', '$2b$10$oB0mUDbmGo/LXEDussTf5.862Cwiin1B9IbZwAtEDVc5ner8ZlZkq', 0, NULL, 'active', '2026-10-15 11:41:25', '2026-09-16 04:54:34', NULL),
-  (19, 'Mark Anthony', 'Reyes', 'mark.reyes@goldendragon.com', '$2b$10$CHuKP7WNk6fW2pMOvp6umeZkZlgs.mLKPA5ELgyKJ4JsTc5dvjcqe', 0, NULL, 'active', '2026-10-03 18:28:57', '2026-09-26 13:28:53', NULL);
+  (21, 'JOHN ROWEN', 'COSCA', 'goldendragonestatedevelopercom@gmail.com', '$2b$10$eZTlzROcBHe3LLXqgzAv2.g8agV6VNGq248sG5VY3B.GgH66Kbvgq', 0, NULL, 'active', '2026-10-19 04:49:16', '2026-10-16 02:15:12', NULL),
+  (25, 'DENISSE', 'GADOT', 'gadotdenisse@gmail.com', '$2b$10$O6J5QpifCHA.XAwNd.d5Yeg.4zijV.yNDMbhHWlw.R7y3NEFt3N9m', 0, NULL, 'active', '2026-10-19 05:02:35', '2026-10-19 04:56:06', NULL),
+  (26, 'johnedward', 'bearneza', 'joan.bearneza.ui@phinmaed.com', '$2b$10$t.pPuquEvufrOf/fByLKIe34aXHDnWhBB.lzxBU4wtlVTklYh4yIG', 0, NULL, 'active', '2026-10-19 21:14:46', '2026-10-19 15:08:08', NULL);
 /*!40000 ALTER TABLE `employees` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

@@ -105,33 +105,40 @@ export const createHandleIcon = (index) => {
   });
 };
 
-// Create a small '+' icon for the midpoint handles
+// Create a small '+' icon for the midpoint handles with generous hit target
 export const createMidpointIcon = () => {
   return L.divIcon({
     className: "custom-midpoint-icon",
     html: `
       <div style="
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        background-color: rgba(16, 185, 129, 0.85);
-        border: 1.5px solid #ffffff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        width: 28px;
+        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: #ffffff;
-        font-size: 11px;
-        font-weight: bold;
-        line-height: 1;
-        transition: transform 0.15s ease-in-out;
-      " onmouseover="this.style.transform='scale(1.2)';" onmouseout="this.style.transform='scale(1)';">
-        +
+        user-select: none;
+      ">
+        <div style="
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background-color: #10b981;
+          border: 2px solid #ffffff;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 900;
+          line-height: 1;
+          pointer-events: none;
+        ">+</div>
       </div>
     `,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   });
 };
 
@@ -166,111 +173,164 @@ export const EditingLotLayer = ({
   if (!editingLot) return null;
 
   return (
-    <Pane name="editing-lot-pane" style={{ zIndex: 650 }}>
-      {/* ── Active Editing Polygon ── */}
-      <Polygon
-        ref={editingPolygonRef}
-        positions={editingCoords}
-        pane="editing-lot-pane"
-        pathOptions={{
-          color: "#10b981",
-          fillColor: "#10b981",
-          fillOpacity: 0.45,
-          weight: 4,
-          dashArray: "6, 6",
-          className: isDraggingPolygon ? "cursor-grabbing" : "cursor-grab",
-        }}
-        eventHandlers={{
-          mousedown: (e) => {
-            if (e.originalEvent) {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.preventDefault();
-            }
-            startPolygonDrag(e.latlng);
-          },
-        }}
-      />
+    <>
+      {/* ── 1. Lower Layer: Active Editing Polygon (zIndex 640) ── */}
+      <Pane name="editing-lot-polygon-pane" style={{ zIndex: 640 }}>
+        <Polygon
+          ref={editingPolygonRef}
+          positions={editingCoords}
+          pane="editing-lot-polygon-pane"
+          pathOptions={{
+            color: "#10b981",
+            fillColor: "#10b981",
+            fillOpacity: 0.45,
+            weight: 3.5,
+            dashArray: "6, 6",
+            className: isDraggingPolygon ? "cursor-grabbing" : "cursor-grab",
+          }}
+          eventHandlers={{
+            mouseover: () => {
+              if (map) map.dragging.disable();
+            },
+            mouseout: () => {
+              if (!isDraggingPolygon && map) map.dragging.enable();
+            },
+            mousedown: (e) => {
+              if (e.originalEvent) {
+                e.originalEvent.stopPropagation();
+                e.originalEvent.preventDefault();
+              }
+              if (map) map.dragging.disable();
+              startPolygonDrag(e.latlng);
+            },
+          }}
+        />
+      </Pane>
 
-      {/* Center Move Handle (allows grabbing and dragging entire lot effortlessly) */}
-      {editingCoords && editingCoords.length >= 3 && (() => {
-        const centroid = getPolygonCentroid(editingCoords);
-        return (
+      {/* ── 2. Upper Layer: All Vertex, Corner & Midpoint Handles (zIndex 680 - Guaranteed on top) ── */}
+      <Pane name="editing-lot-handles-pane" style={{ zIndex: 680 }}>
+        {/* Center Move Handle (allows grabbing and dragging entire lot effortlessly) */}
+        {editingCoords && editingCoords.length >= 3 && (() => {
+          const centroid = getPolygonCentroid(editingCoords);
+          return (
+            <Marker
+              ref={centerMoveMarkerRef}
+              position={centroid}
+              pane="editing-lot-handles-pane"
+              draggable={true}
+              icon={createPolygonCenterMoveIcon()}
+              eventHandlers={{
+                mouseover: () => {
+                  if (map) map.dragging.disable();
+                },
+                mouseout: () => {
+                  if (!isDraggingPolygon && map) map.dragging.enable();
+                },
+                dragstart: (e) => {
+                  if (e.originalEvent) {
+                    e.originalEvent.stopPropagation();
+                  }
+                  if (map) map.dragging.disable();
+                  startPolygonDrag(e.target.getLatLng());
+                },
+                mousedown: (e) => {
+                  if (e.originalEvent) {
+                    e.originalEvent.stopPropagation();
+                    e.originalEvent.preventDefault();
+                  }
+                  if (map) map.dragging.disable();
+                  startPolygonDrag(e.latlng);
+                },
+              }}
+            />
+          );
+        })()}
+
+        {/* Draggable Corner Vertex Handles */}
+        {editingCoords.map((coord, index) => (
           <Marker
-            ref={centerMoveMarkerRef}
-            position={centroid}
-            pane="editing-lot-pane"
+            key={`handle-${index}`}
+            ref={(el) => {
+              if (cornerMarkersRef?.current) cornerMarkersRef.current[index] = el;
+            }}
+            position={coord}
+            pane="editing-lot-handles-pane"
             draggable={true}
-            icon={createPolygonCenterMoveIcon()}
+            icon={createHandleIcon(index)}
             eventHandlers={{
+              mouseover: () => {
+                if (map) map.dragging.disable();
+              },
+              mouseout: () => {
+                if (map) map.dragging.enable();
+              },
+              mousedown: (e) => {
+                if (e.originalEvent) {
+                  e.originalEvent.stopPropagation();
+                }
+                if (map) {
+                  map.dragging.disable();
+                }
+              },
               dragstart: (e) => {
                 if (e.originalEvent) {
                   e.originalEvent.stopPropagation();
                 }
-                startPolygonDrag(e.target.getLatLng());
+                if (map) {
+                  map.dragging.disable();
+                }
+                if (dragCoordsRef && (!dragCoordsRef.current || dragCoordsRef.current.length !== editingCoords.length)) {
+                  dragCoordsRef.current = editingCoords.map((c) => [...c]);
+                }
+              },
+              drag: (e) => handleVertexDrag(index, e),
+              dragend: (e) => {
+                if (map) {
+                  map.dragging.enable();
+                }
+                handleVertexDragEnd(index, e);
+              },
+              dblclick: (e) => {
+                if (e.originalEvent) {
+                  e.originalEvent.stopPropagation();
+                }
+                handleRemoveVertex(index);
+              },
+            }}
+          />
+        ))}
+
+        {/* Midpoint Split Handles to easily add new corners */}
+        {midpointHandles.map((mid, idx) => (
+          <Marker
+            key={`midpoint-${idx}-${editingCoords.length}`}
+            position={mid.position}
+            pane="editing-lot-handles-pane"
+            icon={createMidpointIcon()}
+            eventHandlers={{
+              mouseover: () => {
+                if (map) map.dragging.disable();
+              },
+              mouseout: () => {
+                if (map) map.dragging.enable();
               },
               mousedown: (e) => {
                 if (e.originalEvent) {
                   e.originalEvent.stopPropagation();
                   e.originalEvent.preventDefault();
                 }
-                startPolygonDrag(e.latlng);
+              },
+              click: (e) => {
+                if (e.originalEvent) {
+                  e.originalEvent.stopPropagation();
+                }
+                handleAddVertexAtIndex(mid.insertIndex, mid.position);
               },
             }}
           />
-        );
-      })()}
-
-      {/* Draggable Corner Vertex Handles */}
-      {editingCoords.map((coord, index) => (
-        <Marker
-          key={`handle-${index}`}
-          ref={(el) => {
-            if (cornerMarkersRef?.current) cornerMarkersRef.current[index] = el;
-          }}
-          position={coord}
-          pane="editing-lot-pane"
-          draggable={true}
-          icon={createHandleIcon(index)}
-          eventHandlers={{
-            dragstart: () => {
-              if (map) {
-                map.dragging.disable();
-              }
-              if (dragCoordsRef && (!dragCoordsRef.current || dragCoordsRef.current.length !== editingCoords.length)) {
-                dragCoordsRef.current = editingCoords.map((c) => [...c]);
-              }
-            },
-            drag: (e) => handleVertexDrag(index, e),
-            dragend: (e) => {
-              if (map) {
-                map.dragging.enable();
-              }
-              handleVertexDragEnd(index, e);
-            },
-            dblclick: (e) => {
-              e.originalEvent.stopPropagation();
-              handleRemoveVertex(index);
-            },
-          }}
-        />
-      ))}
-
-      {/* Midpoint Split Handles to easily add new corners */}
-      {midpointHandles.map((mid, idx) => (
-        <Marker
-          key={`midpoint-${idx}-${editingCoords.length}`}
-          position={mid.position}
-          pane="editing-lot-pane"
-          icon={createMidpointIcon()}
-          eventHandlers={{
-            click: (e) => {
-              e.originalEvent.stopPropagation();
-              handleAddVertexAtIndex(mid.insertIndex, mid.position);
-            },
-          }}
-        />
-      ))}
-    </Pane>
+        ))}
+      </Pane>
+    </>
   );
 };
 

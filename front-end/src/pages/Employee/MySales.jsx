@@ -32,6 +32,12 @@ const formatSaleDate = (dateString) => {
   }
 };
 
+const formatPeso = (val) => {
+  if (val == null || val === "" || isNaN(Number(val))) return null;
+  const num = Number(val);
+  return `₱${num.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+};
+
 const inputCls =
   "w-full md:max-w-sm rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 px-3 py-2 text-sm outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors";
 const paginBtnCls =
@@ -88,6 +94,11 @@ const MySales = () => {
           buyer_name: t.customer_name || cust?.full_name || "—",
           buyer_contact: cust?.contact_number || "",
           buyer_email: cust?.email || "",
+          payment_type: t.payment_type || lot?.payment_type || "Cash",
+          total_contract_price: t.total_contract_price ?? lot?.total_contract_price ?? null,
+          downpayment: t.downpayment ?? lot?.downpayment ?? null,
+          terms_months: t.terms_months ?? lot?.terms_months ?? null,
+          monthly_amortization: t.monthly_amortization ?? lot?.monthly_amortization ?? null,
         });
       });
 
@@ -104,12 +115,19 @@ const MySales = () => {
   const filteredSales = useMemo(() => {
     return salesRecords.filter((sale) => {
       const searchText =
-        `${sale.sale_ref || ""} ${sale.lot_number || ""} ${sale.buyer_name || ""} ${sale.buyer_contact || ""} ${sale.buyer_email || ""} ${sale.property_name || ""} ${sale.status || ""} ${sale.area_sqm || ""} ${sale.sale_date || ""}`.toLowerCase();
+        `${sale.sale_ref || ""} ${sale.lot_number || ""} ${sale.buyer_name || ""} ${sale.buyer_contact || ""} ${sale.buyer_email || ""} ${sale.property_name || ""} ${sale.status || ""} ${sale.area_sqm || ""} ${sale.sale_date || ""} ${sale.payment_type || ""} ${sale.total_contract_price || ""} ${sale.monthly_amortization || ""}`.toLowerCase();
       return searchTerm.trim()
         ? searchText.includes(searchTerm.trim().toLowerCase())
         : true;
     });
   }, [salesRecords, searchTerm]);
+
+  const totalVolume = useMemo(() => {
+    return salesRecords.reduce((sum, s) => {
+      const val = Number(s.total_contract_price);
+      return !isNaN(val) && val > 0 ? sum + val : sum;
+    }, 0);
+  }, [salesRecords]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -162,8 +180,16 @@ const MySales = () => {
               placeholder="Search txn id, lot, client name, property..."
               className={inputCls}
             />
-            <div className="text-xs text-gray-500 dark:text-slate-400 font-medium">
-              {filteredSales.length} {filteredSales.length === 1 ? "completed sale" : "completed sales"}
+            <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-slate-400 font-medium">
+              {totalVolume > 0 && (
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 font-semibold text-xs shadow-sm">
+                  <span className="text-[11px] font-medium opacity-80">Total Closed Volume:</span>
+                  <span>{formatPeso(totalVolume)}</span>
+                </span>
+              )}
+              <span>
+                {filteredSales.length} {filteredSales.length === 1 ? "completed sale" : "completed sales"}
+              </span>
             </div>
           </div>
 
@@ -182,6 +208,7 @@ const MySales = () => {
                         "Lot Details",
                         "Client Name",
                         "Area (sqm)",
+                        "Pricing & Terms",
                         "Status",
                       ].map((col) => (
                         <th
@@ -220,6 +247,79 @@ const MySales = () => {
                         </td>
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-slate-300">
                           {sale.area_sqm ? `${sale.area_sqm} sqm` : "-"}
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs">
+                          {(() => {
+                            const hasPricing = Boolean(sale.total_contract_price || sale.monthly_amortization || sale.downpayment);
+                            const dpNum = Number(sale.downpayment || 0);
+                            const termsNum = parseInt(sale.terms_months || 0, 10);
+                            const moNum = Number(sale.monthly_amortization || 0);
+                            const tcpNum = Number(sale.total_contract_price || 0);
+
+                            const rawType = String(sale.payment_type || "").trim();
+                            const isExplicitCash = rawType.toLowerCase() === "cash";
+                            const isExplicitInstallment = rawType.toLowerCase() === "installment";
+
+                            let resolvedType;
+                            if (isExplicitCash) {
+                              resolvedType = "Cash";
+                            } else if (isExplicitInstallment) {
+                              resolvedType = "Installment";
+                            } else if (termsNum > 1 || moNum > 0) {
+                              resolvedType = "Installment";
+                            } else if (dpNum > 0 && rawType === "No Downpayment") {
+                              resolvedType = "Downpayment";
+                            } else if (rawType === "No Downpayment" && !hasPricing) {
+                              resolvedType = "Standard";
+                            } else {
+                              resolvedType = rawType || "Standard";
+                            }
+
+                            const badgeStyle =
+                              resolvedType === "Installment"
+                                ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60"
+                                : resolvedType === "Cash"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60"
+                                : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60";
+
+                            if (!hasPricing) {
+                              return (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                  {sale.payment_type || "Standard"}
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-gray-900 dark:text-slate-100 text-[13px] tracking-tight">
+                                    {tcpNum > 0 ? formatPeso(tcpNum) : "—"}
+                                  </span>
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${badgeStyle}`}>
+                                    {resolvedType}
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-gray-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                                  {resolvedType === "Installment" && moNum > 0 ? (
+                                    <>
+                                      <span className="font-semibold text-blue-600 dark:text-blue-400">
+                                        {formatPeso(moNum)}/mo
+                                      </span>
+                                      {termsNum > 0 && <span>• {termsNum} mos</span>}
+                                      {dpNum > 0 && <span>• DP {formatPeso(dpNum)}</span>}
+                                    </>
+                                  ) : dpNum > 0 ? (
+                                    <span>DP: <strong className="font-semibold text-gray-700 dark:text-slate-300">{formatPeso(dpNum)}</strong></span>
+                                  ) : termsNum > 0 && resolvedType === "Installment" ? (
+                                    <span>{termsNum} mos term</span>
+                                  ) : (
+                                    <span className="text-gray-400 dark:text-slate-500">Spot Cash</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
                           <span className={`text-xs ${getStatusColor(sale.status)}`}>

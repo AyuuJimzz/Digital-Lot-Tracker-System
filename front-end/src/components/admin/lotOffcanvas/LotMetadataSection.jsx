@@ -1,5 +1,4 @@
 import React from "react";
-import { checkIsNonSaleable, stripNonSaleableTags } from "./lotOffcanvasUtils";
 
 export const LotMetadataSection = ({
   lotNumber,
@@ -49,26 +48,6 @@ export const LotMetadataSection = ({
         />
         {validationErrors.lotNumber && (
           <p className="text-[11px] text-rose-500 mt-0.5 font-medium">Required</p>
-        )}
-        {isAdmin && !isSaving && !isNonSaleable && checkIsNonSaleable(lotNumber) && (
-          <button
-            type="button"
-            onClick={() => {
-              const cleaned = stripNonSaleableTags(lotNumber);
-              setLotNumber(cleaned);
-              if (onLiveLotUpdate && selectedLot) {
-                onLiveLotUpdate({
-                  lot_id: selectedLot.lot_id,
-                  lot_number: cleaned,
-                  status: status || "Available",
-                  is_non_saleable: false,
-                });
-              }
-            }}
-            className="mt-1 text-left text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
-          >
-            ✨ Strip tag
-          </button>
         )}
       </div>
 

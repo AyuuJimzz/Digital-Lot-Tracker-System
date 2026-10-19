@@ -39,6 +39,10 @@ const getTransactions = async (req, res) => {
         p.property_name,
         DATE_FORMAT(COALESCE(t.transaction_date, l.sold_on), '%Y-%m-%d') as transaction_date,
         t.payment_type,
+        t.total_contract_price,
+        t.downpayment,
+        t.terms_months,
+        t.monthly_amortization,
         CASE 
           WHEN t.agent_name = 'Old Record' THEN 1
           WHEN l.status = 'Sold' AND (l.sold_on IS NULL OR CAST(l.sold_on AS CHAR) IN ('', '0000-00-00')) THEN 1
@@ -149,9 +153,10 @@ const createTransaction = async (req, res) => {
 
     const employeeId = customer.employee_id;
     const agentName = await getCreditedAgent(connection, employeeId);
+    const { total_contract_price, downpayment, terms_months, monthly_amortization } = req.body;
     const [result] = await connection.query(
-      `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, total_contract_price, downpayment, terms_months, monthly_amortization)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         lotId,
         customerId,
@@ -159,6 +164,10 @@ const createTransaction = async (req, res) => {
         notes,
         employeeId,
         agentName,
+        total_contract_price != null && total_contract_price !== "" ? Number(total_contract_price) : null,
+        downpayment != null && downpayment !== "" ? Number(downpayment) : null,
+        terms_months != null && terms_months !== "" ? parseInt(terms_months, 10) : null,
+        monthly_amortization != null && monthly_amortization !== "" ? Number(monthly_amortization) : null,
       ]
     );
 

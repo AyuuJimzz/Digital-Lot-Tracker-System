@@ -29,6 +29,10 @@ const statements = [
   "ALTER TABLE lots ADD COLUMN sold_on DATE NULL DEFAULT NULL",
   "ALTER TABLE transactions ADD COLUMN is_date_verified TINYINT(1) NOT NULL DEFAULT 0",
   "ALTER TABLE transactions ADD COLUMN date_provenance VARCHAR(50) NOT NULL DEFAULT 'unknown_requires_review'",
+  "ALTER TABLE transactions ADD COLUMN total_contract_price DECIMAL(12,2) NULL DEFAULT NULL",
+  "ALTER TABLE transactions ADD COLUMN downpayment DECIMAL(12,2) NULL DEFAULT NULL",
+  "ALTER TABLE transactions ADD COLUMN terms_months INT NULL DEFAULT NULL",
+  "ALTER TABLE transactions ADD COLUMN monthly_amortization DECIMAL(12,2) NULL DEFAULT NULL",
 ];
 
 function getCustomPool(uriString) {

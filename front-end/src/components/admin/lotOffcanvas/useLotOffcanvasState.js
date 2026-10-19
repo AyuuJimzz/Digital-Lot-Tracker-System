@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { API_BASE_URL } from "../../../config/api";
 import { invalidateEstateMutation } from "../../../config/queryClient";
 import { showToast } from "../../GlobalToast";
@@ -107,6 +107,27 @@ export function useLotOffcanvasState({
   const [contactNumber, setContactNumber] = useState("");
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
+  const [totalContractPrice, setTotalContractPrice] = useState("");
+  const [downpayment, setDownpayment] = useState("");
+  const [termsMonths, setTermsMonths] = useState("");
+
+  const monthlyAmortization = useMemo(() => {
+    const cleanTcp = String(totalContractPrice || "").replace(/,/g, "").trim();
+    const cleanDp = String(downpayment || "").replace(/,/g, "").trim();
+    const cleanTerms = String(termsMonths || "").replace(/,/g, "").trim();
+
+    const tcp = parseFloat(cleanTcp);
+    const dp = cleanDp ? parseFloat(cleanDp) : 0;
+    const terms = parseInt(cleanTerms, 10);
+
+    if (isNaN(tcp) || isNaN(terms) || terms <= 0) {
+      return 0;
+    }
+    const balance = tcp - (isNaN(dp) ? 0 : dp);
+    if (balance <= 0) return 0;
+    return Number((balance / terms).toFixed(2));
+  }, [totalContractPrice, downpayment, termsMonths]);
+
   const [isSaving, setIsSaving] = useState(false);
 
   const [lotPendingDelete, setLotPendingDelete] = useState(null);
@@ -264,7 +285,17 @@ export function useLotOffcanvasState({
     }
 
     if (!dirtyFieldsRef.current.paymentMethod && data.payment_method !== undefined) {
-      setPaymentMethod(data.payment_method || "");
+      setPaymentMethod(data.payment_method || "Cash");
+    }
+
+    if (!dirtyFieldsRef.current.totalContractPrice && data.total_contract_price !== undefined) {
+      setTotalContractPrice(data.total_contract_price != null ? String(data.total_contract_price) : "");
+    }
+    if (!dirtyFieldsRef.current.downpayment && data.downpayment !== undefined) {
+      setDownpayment(data.downpayment != null ? String(data.downpayment) : "");
+    }
+    if (!dirtyFieldsRef.current.termsMonths && data.terms_months !== undefined) {
+      setTermsMonths(data.terms_months != null ? String(data.terms_months) : "");
     }
 
     const isLegacySoldData = data.status === "Sold" && (
@@ -364,6 +395,21 @@ export function useLotOffcanvasState({
   const handlePaymentMethodChange = (val) => {
     dirtyFieldsRef.current.paymentMethod = true;
     setPaymentMethod(val);
+  };
+
+  const handleTotalContractPriceChange = (val) => {
+    dirtyFieldsRef.current.totalContractPrice = true;
+    setTotalContractPrice(val);
+  };
+
+  const handleDownpaymentChange = (val) => {
+    dirtyFieldsRef.current.downpayment = true;
+    setDownpayment(val);
+  };
+
+  const handleTermsMonthsChange = (val) => {
+    dirtyFieldsRef.current.termsMonths = true;
+    setTermsMonths(val);
   };
 
   const handleLotNumberChange = (val) => {
@@ -468,6 +514,16 @@ export function useLotOffcanvasState({
         setFullName("");
         setContactNumber("");
         setAddress("");
+        setTotalContractPrice("");
+        setDownpayment("");
+        setTermsMonths("");
+        dirtyFieldsRef.current.email = false;
+        dirtyFieldsRef.current.fullName = false;
+        dirtyFieldsRef.current.contactNumber = false;
+        dirtyFieldsRef.current.address = false;
+        dirtyFieldsRef.current.totalContractPrice = false;
+        dirtyFieldsRef.current.downpayment = false;
+        dirtyFieldsRef.current.termsMonths = false;
         dirtyFieldsRef.current.email = false;
         dirtyFieldsRef.current.fullName = false;
         dirtyFieldsRef.current.contactNumber = false;
@@ -645,12 +701,16 @@ export function useLotOffcanvasState({
       setAddress("");
     }
 
-    // Set payment method if lot is sold and has payment method data
-    if (selectedLot.status === "Sold" && selectedLot.payment_method) {
+    // Set payment method if lot has payment method data
+    if (selectedLot.payment_method) {
       setPaymentMethod(selectedLot.payment_method);
     } else {
       setPaymentMethod("Cash");
     }
+
+    setTotalContractPrice(selectedLot.total_contract_price != null ? String(selectedLot.total_contract_price) : "");
+    setDownpayment(selectedLot.downpayment != null ? String(selectedLot.downpayment) : "");
+    setTermsMonths(selectedLot.terms_months != null ? String(selectedLot.terms_months) : "");
 
     // Initialize assigned agent name & ID
     const isAvailableLot = selectedLot.status === "Available" || (!selectedLot.customer && selectedLot.status !== "Sold");
@@ -881,7 +941,11 @@ export function useLotOffcanvasState({
           fullName: isNonSaleable ? null : effectiveFullName,
           contactNumber: isNonSaleable ? null : effectiveContactNumber,
           address: isNonSaleable ? null : effectiveAddress,
-          paymentMethod: !isNonSaleable && status === "Sold" ? paymentMethod : null,
+          paymentMethod: !isNonSaleable && (status === "Sold" || status === "Pending") ? paymentMethod : null,
+          total_contract_price: !isNonSaleable && totalContractPrice !== "" ? totalContractPrice : null,
+          downpayment: !isNonSaleable && downpayment !== "" ? downpayment : null,
+          terms_months: !isNonSaleable && paymentMethod === "Installment" && termsMonths !== "" ? termsMonths : null,
+          monthly_amortization: !isNonSaleable && paymentMethod === "Installment" && monthlyAmortization ? monthlyAmortization : null,
           assigned_employee_id: isAdmin && status === "Pending" ? assignedEmployeeId : undefined,
           external_agent_name: externalAgentName?.trim() || null,
           is_legacy_undated: isAdmin && finalStatus === "Sold" && !isAssignedAgentSale ? Boolean(isLegacyUndated) : false,
@@ -932,8 +996,12 @@ export function useLotOffcanvasState({
             email: effectiveEmail,
             address: effectiveAddress,
           };
-          if (finalStatus === "Sold") {
+          if (finalStatus === "Sold" || finalStatus === "Pending") {
             selectedLot.payment_method = paymentMethod;
+            selectedLot.total_contract_price = totalContractPrice !== "" ? Number(totalContractPrice) : null;
+            selectedLot.downpayment = downpayment !== "" ? Number(downpayment) : null;
+            selectedLot.terms_months = termsMonths !== "" ? parseInt(termsMonths, 10) : null;
+            selectedLot.monthly_amortization = monthlyAmortization || null;
           }
         }
         if (externalAgentName?.trim()) {
@@ -977,6 +1045,10 @@ export function useLotOffcanvasState({
             is_non_saleable: isNonSaleable ? 1 : 0,
             customer: selectedLot.customer,
             payment_method: selectedLot.payment_method,
+            total_contract_price: selectedLot.total_contract_price,
+            downpayment: selectedLot.downpayment,
+            terms_months: selectedLot.terms_months,
+            monthly_amortization: selectedLot.monthly_amortization,
             agent_name: selectedLot.agent_name,
             agent_status: selectedLot.agent_status,
             sold_on: selectedLot.sold_on,
@@ -1098,6 +1170,13 @@ export function useLotOffcanvasState({
     setAddress: handleAddressChange,
     paymentMethod,
     setPaymentMethod: handlePaymentMethodChange,
+    totalContractPrice,
+    setTotalContractPrice: handleTotalContractPriceChange,
+    downpayment,
+    setDownpayment: handleDownpaymentChange,
+    termsMonths,
+    setTermsMonths: handleTermsMonthsChange,
+    monthlyAmortization,
     isSaving,
     lotPendingDelete,
     isDeletingLot,

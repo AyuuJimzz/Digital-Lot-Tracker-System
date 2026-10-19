@@ -40,10 +40,9 @@ function downloadWordDoc(htmlContent, filename, logoBase64) {
   const boundary = "----=_NextPart_GoldenDragon_Estate_Doc";
 
   const fullHtml = `<!DOCTYPE html>
-<html xmlns:v="urn:schemas-microsoft-com:vml"
-      xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns="http://www.w3.org/TR/REC-html40">
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>${filename}</title>
@@ -59,30 +58,31 @@ function downloadWordDoc(htmlContent, filename, logoBase64) {
     <style>
       @page {
         size: A4 portrait;
-        margin: 0.6in 0.7in 0.6in 0.7in;
+        margin: 0.45in 0.65in;
       }
       body {
         font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
         color: #0f172a;
-        line-height: 1.35;
+        line-height: 1.25;
         background-color: #ffffff;
         margin: 0;
         padding: 0;
-        font-size: 10pt;
+        font-size: 9.5pt;
+        mso-pagination: widow-orphan;
       }
       /* INTEGRATED TOP HEADER */
       table.header-table {
         width: 100%;
         border-collapse: collapse;
-        border-bottom: 2pt solid #0f172a;
-        padding-bottom: 8pt;
-        margin-bottom: 14pt;
+        table-layout: fixed;
+        margin-bottom: 12pt;
+        page-break-inside: avoid;
       }
       .company-title {
-        font-size: 14pt;
+        font-size: 13pt;
         font-weight: bold;
         color: #0f172a;
-        letter-spacing: 0.4pt;
+        letter-spacing: 0.25pt;
         text-transform: uppercase;
         margin: 0;
         line-height: 1.2;
@@ -101,47 +101,52 @@ function downloadWordDoc(htmlContent, filename, logoBase64) {
 
       /* SECTION TITLE */
       .section-title {
-        font-size: 9.5pt;
+        font-size: 9pt;
         font-weight: bold;
         color: #0f172a;
         text-transform: uppercase;
         letter-spacing: 0.4pt;
         padding: 3pt 0;
-        margin: 14pt 0 4pt 0;
-        border-bottom: 1pt solid #cbd5e1;
+        margin: 12pt 0 4pt 0;
+        border-bottom: 1pt solid #d9dee7;
+        page-break-after: avoid;
       }
 
       /* DETAIL KEY-VALUE TABLE */
       table.detail-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 8pt;
+        table-layout: fixed;
+        margin-bottom: 7pt;
+        page-break-inside: avoid;
       }
       table.detail-table td {
-        padding: 5pt 7pt;
-        font-size: 9.5pt;
+        padding: 6pt 8pt;
+        font-size: 9pt;
         vertical-align: middle;
         border-bottom: 0.5pt solid #f1f5f9;
+        word-wrap: break-word;
       }
       .label-col {
-        width: 28%;
+        width: 34%;
         color: #64748b;
         font-weight: 500;
       }
       .value-col {
-        width: 72%;
+        width: 66%;
         color: #0f172a;
         font-weight: 600;
       }
 
       /* FOOTER */
       .footer-note {
-        border-top: 1pt solid #e2e8f0;
-        padding-top: 8pt;
-        margin-top: 24pt;
+        padding-top: 6pt;
+        margin-top: 16pt;
         text-align: center;
-        font-size: 8pt;
-        color: #94a3b8;
+        font-size: 8.5pt;
+        line-height: 1.35;
+        color: #64748b;
+        page-break-inside: avoid;
       }
     </style>
   </head>
@@ -200,6 +205,10 @@ function downloadWordDoc(htmlContent, filename, logoBase64) {
 export async function exportSingleLotWordDoc(lot, propertyName = "", propertyLocation = "") {
   if (!lot) return;
 
+  const escapeHtml = (value) => String(value ?? "N/A").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[char]);
+
   const actualPropertyName =
     propertyName ||
     lot.property_name ||
@@ -228,70 +237,122 @@ export async function exportSingleLotWordDoc(lot, propertyName = "", propertyLoc
   const isReservedOrSold = ["pending", "sold"].includes(rawStatus.toLowerCase());
   const customer = lot.customer || {};
 
+  // Agent attribution
+  let agentDisplayName = "Admin";
+  if (lot.agent_status === "legacy" || (lot.agent_name || "").toLowerCase() === "old record") {
+    agentDisplayName = "Old Record";
+  } else if (lot.agent_status === "external") {
+    agentDisplayName = `${lot.agent_name} (Referral)`;
+  } else if (lot.agent_status === "inactive" && lot.agent_name && lot.agent_name.toLowerCase() !== "admin") {
+    agentDisplayName = `${lot.agent_name} (Inactive Agent)`;
+  } else if (lot.agent_name) {
+    agentDisplayName = lot.agent_name;
+  }
+
   const logoBase64 = await getLogoBase64Clean();
 
   // Reference the embedded MHTML image location directly
   const logoHtml = `<img src="golden-dragon-logo.png" width="56" height="56" style="width:56px; height:56px; display:block; border-radius:50%;" alt="Golden Dragon Logo" />`;
+  const propertyNameHtml = escapeHtml(actualPropertyName);
+  const locationHtml = escapeHtml(actualLocation);
+  const lotNumberHtml = escapeHtml(lot.lot_number || "N/A");
+  const lotIdHtml = escapeHtml(lot.lot_id || "N/A");
+  const statusHtml = escapeHtml(status);
+  const agentHtml = escapeHtml(agentDisplayName);
 
-  const isSold = rawStatus.toLowerCase() === "sold";
   const paymentRowHtml =
-    isSold && lot.payment_method
+    lot.payment_method
       ? `<tr>
           <td class="label-col">Payment Method:</td>
-          <td class="value-col">${lot.payment_method}</td>
+          <td class="value-col">${escapeHtml(lot.payment_method)}</td>
         </tr>`
       : "";
 
+  const formatPeso = (val) => {
+    if (val == null || val === "" || isNaN(Number(val))) return "N/A";
+    return `₱${Number(val).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const hasPricingData = Boolean(
+    lot.total_contract_price || lot.downpayment || lot.terms_months || lot.monthly_amortization
+  );
+
+  const tcpDisplay = formatPeso(lot.total_contract_price);
+  const dpDisplay = formatPeso(lot.downpayment);
+  const termsDisplay = lot.terms_months ? `${lot.terms_months} Month${Number(lot.terms_months) > 1 ? "s" : ""}` : "N/A";
+  const monthlyAmortDisplay = lot.monthly_amortization ? `${formatPeso(lot.monthly_amortization)} / month` : "N/A";
+
+  const pricingSectionHtml = hasPricingData
+    ? `
+    <!-- 3. PAYMENT & QUOTATION BREAKDOWN -->
+    <div class="section-title">III. Payment &amp; Quotation Breakdown</div>
+    <table class="detail-table">
+      <tr>
+        <td class="label-col">Total Contract Price:</td>
+        <td class="value-col"><strong>${tcpDisplay}</strong></td>
+      </tr>
+      <tr>
+        <td class="label-col">Downpayment:</td>
+        <td class="value-col">${dpDisplay}</td>
+      </tr>
+      <tr>
+        <td class="label-col">Payment Term:</td>
+        <td class="value-col">${escapeHtml(termsDisplay)}</td>
+      </tr>
+      <tr>
+        <td class="label-col">Monthly Amortization:</td>
+        <td class="value-col"><strong>${monthlyAmortDisplay}</strong></td>
+      </tr>
+    </table>
+    `
+    : "";
+
   const htmlContent = `
     <!-- HEADER: LOGO & TITLE (LEFT) + DOCUMENT META (RIGHT) -->
-    <table class="header-table">
+    <table class="header-table" style="width: 100%; border-collapse: collapse; margin-bottom: 12pt;">
       <tr>
-        <td style="width: 62px; vertical-align: middle; border: none; padding: 0 10pt 0 0;">
+        <td style="width: 58px; vertical-align: middle; border: none; padding: 0 9pt 6pt 0;">
           ${logoHtml}
         </td>
-        <td style="vertical-align: middle; border: none; padding: 0;">
-          <div class="company-title">Golden Dragon Real Estate Corp.</div>
-          <div class="company-sub">Digital Lot Tracker System &bull; Official Lot Quotation</div>
+        <td style="vertical-align: middle; border: none; padding: 0 6pt 6pt 0;">
+          <div class="company-title">GOLDEN DRAGON ESTATE DEVELOPER COMPANY</div>
+          <div class="company-sub">LOT QUOTATION</div>
         </td>
-        <td class="header-meta" style="vertical-align: middle; border: none; padding: 0;">
-          <div><strong>Doc Ref:</strong> GDC-QUO-${lot.lot_id || "00"}-${new Date().getFullYear()}</div>
+        <td class="header-meta" style="width: 165px; vertical-align: middle; border: none; padding: 0 0 6pt 0;">
+          <div><strong>Reference:</strong> GDC-QUO-${lotIdHtml}-${new Date().getFullYear()}</div>
           <div><strong>Date Issued:</strong> ${dateNow}</div>
         </td>
       </tr>
     </table>
 
     <!-- 1. PROPERTY & LOT SPECIFICATIONS -->
-    <div class="section-title">I. Property & Lot Details</div>
+    <div class="section-title">I. Property &amp; Lot Details</div>
     <table class="detail-table">
       <tr>
         <td class="label-col">Property / Estate:</td>
-        <td class="value-col">${actualPropertyName}</td>
+        <td class="value-col">${propertyNameHtml}</td>
       </tr>
       <tr>
         <td class="label-col">Property Location:</td>
-        <td class="value-col">${actualLocation}</td>
+        <td class="value-col">${locationHtml}</td>
       </tr>
       <tr>
         <td class="label-col">Lot Designation:</td>
-        <td class="value-col"><strong>${lot.lot_number || "N/A"}</strong></td>
+        <td class="value-col"><strong>${lotNumberHtml}</strong></td>
       </tr>
       <tr>
         <td class="label-col">Total Lot Area:</td>
         <td class="value-col"><strong>${lot.area_sqm ? Number(lot.area_sqm).toFixed(2) + " sq.m." : "N/A"}</strong></td>
       </tr>
       <tr>
-        <td class="label-col">System Lot ID:</td>
-        <td class="value-col">LOT-${lot.lot_id || "N/A"}</td>
-      </tr>
-      <tr>
         <td class="label-col">Lot Status:</td>
-        <td class="value-col"><strong>${status}</strong></td>
+        <td class="value-col"><strong>${statusHtml}</strong></td>
       </tr>
       ${paymentRowHtml}
       ${isReservedOrSold ? `
       <tr>
-        <td class="label-col">Assigned Agent / Sold By:</td>
-        <td class="value-col"><strong>${(lot.agent_status === "legacy" || (lot.agent_name || "").toLowerCase() === "old record") ? "Old Record" : (lot.agent_status === "external" ? `${lot.agent_name} (Referral)` : (lot.agent_status === "inactive" && lot.agent_name && lot.agent_name.toLowerCase() !== "admin") ? `${lot.agent_name} (Inactive Agent)` : (lot.agent_name || "Admin"))}</strong></td>
+        <td class="label-col">Sales Representative:</td>
+        <td class="value-col"><strong>${agentHtml}</strong></td>
       </tr>
       ` : ""}
     </table>
@@ -301,21 +362,23 @@ export async function exportSingleLotWordDoc(lot, propertyName = "", propertyLoc
     <table class="detail-table">
       <tr>
         <td class="label-col">Client Full Name:</td>
-        <td class="value-col"><strong>${customer.full_name || "N/A"}</strong></td>
+        <td class="value-col"><strong>${escapeHtml(customer.full_name || "N/A")}</strong></td>
       </tr>
       <tr>
         <td class="label-col">Contact Number:</td>
-        <td class="value-col">${customer.contact_number || "N/A"}</td>
+        <td class="value-col">${escapeHtml(customer.contact_number || "N/A")}</td>
       </tr>
       <tr>
         <td class="label-col">Email Address:</td>
-        <td class="value-col">${customer.email || "N/A"}</td>
+        <td class="value-col">${escapeHtml(customer.email || "N/A")}</td>
       </tr>
       <tr>
         <td class="label-col">Registered Address:</td>
-        <td class="value-col">${customer.address || "N/A"}</td>
+        <td class="value-col">${escapeHtml(customer.address || "N/A")}</td>
       </tr>
     </table>
+
+    ${pricingSectionHtml}
 
     <!-- FOOTER -->
     <div class="footer-note">

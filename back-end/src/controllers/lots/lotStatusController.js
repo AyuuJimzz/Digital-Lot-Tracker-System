@@ -49,7 +49,36 @@ function resetDateVerifiedColumnCache() {
 // =======================
 exports.updateLotStatus = async (req, res) => {
   const { id } = req.params;
-  const { status, email, fullName, contactNumber, address, paymentMethod } = req.body;
+  const {
+    status,
+    email,
+    fullName,
+    contactNumber,
+    address,
+    paymentMethod,
+    total_contract_price,
+    downpayment,
+    terms_months,
+    monthly_amortization,
+  } = req.body;
+
+  const parsePricingField = (val, isInt = false) => {
+    if (val === undefined) return undefined;
+    if (val === null || val === "") return null;
+    const num = isInt ? parseInt(val, 10) : Number(val);
+    return isNaN(num) ? null : num;
+  };
+
+  const parsedTcp = parsePricingField(total_contract_price);
+  const parsedDownpayment = parsePricingField(downpayment);
+  const parsedTerms = parsePricingField(terms_months, true);
+  let parsedMonthlyAmortization = parsePricingField(monthly_amortization);
+
+  if (parsedTcp != null && parsedTerms != null && parsedTerms > 0 && parsedMonthlyAmortization === undefined) {
+    const dp = parsedDownpayment != null ? parsedDownpayment : 0;
+    parsedMonthlyAmortization = Number(((parsedTcp - dp) / parsedTerms).toFixed(2));
+  }
+
   let connection;
   const dbToUse = req.db || db;
   const postCommitTasks = [];
@@ -241,6 +270,38 @@ exports.updateLotStatus = async (req, res) => {
               [txnEmployeeId, txnAgentName, id, existingCustomer[0].customer_id]
             );
           }
+
+          const pendingPricingSets = [];
+          const pendingPricingParams = [];
+          if (paymentMethod) {
+            pendingPricingSets.push("payment_type = ?");
+            pendingPricingParams.push(paymentMethod);
+          }
+          if (parsedTcp !== undefined) {
+            pendingPricingSets.push("total_contract_price = ?");
+            pendingPricingParams.push(parsedTcp);
+          }
+          if (parsedDownpayment !== undefined) {
+            pendingPricingSets.push("downpayment = ?");
+            pendingPricingParams.push(parsedDownpayment);
+          }
+          if (parsedTerms !== undefined) {
+            pendingPricingSets.push("terms_months = ?");
+            pendingPricingParams.push(parsedTerms);
+          }
+          if (parsedMonthlyAmortization !== undefined) {
+            pendingPricingSets.push("monthly_amortization = ?");
+            pendingPricingParams.push(parsedMonthlyAmortization);
+          }
+          if (pendingPricingSets.length > 0) {
+            pendingPricingSets.push("updated_at = NOW()");
+            await query(
+              `UPDATE transactions SET ${pendingPricingSets.join(", ")}
+               WHERE lot_id = ? AND customer_id = ? AND payment_type NOT IN ('Reversal', 'Cancelled')
+               ORDER BY transaction_id DESC LIMIT 1`,
+              [...pendingPricingParams, id, existingCustomer[0].customer_id]
+            );
+          }
         } else if (status === "Sold") {
           const soldCustomerParams = [safeFullName, safeContact, safeEmail, safeAddress];
           let employeeIdClause = "employee_id";
@@ -262,12 +323,35 @@ exports.updateLotStatus = async (req, res) => {
             soldCustomerParams
           );
 
+          const soldPricingSets = [];
+          const soldPricingParams = [];
           if (paymentMethod) {
+            soldPricingSets.push("payment_type = ?");
+            soldPricingParams.push(paymentMethod);
+          }
+          if (parsedTcp !== undefined) {
+            soldPricingSets.push("total_contract_price = ?");
+            soldPricingParams.push(parsedTcp);
+          }
+          if (parsedDownpayment !== undefined) {
+            soldPricingSets.push("downpayment = ?");
+            soldPricingParams.push(parsedDownpayment);
+          }
+          if (parsedTerms !== undefined) {
+            soldPricingSets.push("terms_months = ?");
+            soldPricingParams.push(parsedTerms);
+          }
+          if (parsedMonthlyAmortization !== undefined) {
+            soldPricingSets.push("monthly_amortization = ?");
+            soldPricingParams.push(parsedMonthlyAmortization);
+          }
+          if (soldPricingSets.length > 0) {
+            soldPricingSets.push("updated_at = NOW()");
             await query(
-              `UPDATE transactions SET payment_type = ?, updated_at = NOW()
+              `UPDATE transactions SET ${soldPricingSets.join(", ")}
                WHERE lot_id = ? AND payment_type NOT IN ('Reversal', 'Cancelled')
                ORDER BY transaction_id DESC LIMIT 1`,
-              [paymentMethod, id]
+              [...soldPricingParams, id]
             );
           }
         } else {
@@ -316,22 +400,41 @@ exports.updateLotStatus = async (req, res) => {
         if (existingTransaction.length > 0) {
           // Update existing transaction for this customer while preserving original reserving agent (unless Admin explicitly reassigns or external agent is specified)
           await query(
-            `UPDATE transactions SET payment_type = 'No Downpayment', notes = ?,
+            `UPDATE transactions SET payment_type = ${paymentMethod ? '?' : "'No Downpayment'"}, notes = ?,
+             total_contract_price = COALESCE(?, total_contract_price),
+             downpayment = COALESCE(?, downpayment),
+             terms_months = COALESCE(?, terms_months),
+             monthly_amortization = COALESCE(?, monthly_amortization),
              employee_id = ${isAdminExplicitAssignment || req.body.external_agent_name !== undefined ? '?' : 'COALESCE(employee_id, ?)'},
              agent_name = ${isAdminExplicitAssignment || req.body.external_agent_name !== undefined ? '?' : 'COALESCE(agent_name, ?)'},
-             transaction_date = NOW() WHERE transaction_id = ?`,
-            [`Transaction updated for lot ${lot.lot_number} - Pending status`, txnEmployeeId, txnAgentName, existingTransaction[0].transaction_id]
+             transaction_date = NOW(), updated_at = NOW() WHERE transaction_id = ?`,
+            [
+              ...(paymentMethod ? [paymentMethod] : []),
+              `Transaction updated for lot ${lot.lot_number} - Pending status`,
+              parsedTcp !== undefined ? parsedTcp : null,
+              parsedDownpayment !== undefined ? parsedDownpayment : null,
+              parsedTerms !== undefined ? parsedTerms : null,
+              parsedMonthlyAmortization !== undefined ? parsedMonthlyAmortization : null,
+              txnEmployeeId,
+              txnAgentName,
+              existingTransaction[0].transaction_id,
+            ]
           );
         } else {
           // Create new transaction for this customer with persistent agent_name
           await query(
-            "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date) VALUES (?, ?, 'No Downpayment', ?, ?, ?, NOW())",
+            `INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, total_contract_price, downpayment, terms_months, monthly_amortization) VALUES (?, ?, ${paymentMethod ? '?' : "'No Downpayment'"}, ?, ?, ?, NOW(), ?, ?, ?, ?)`,
             [
               id,
               customerId,
+              ...(paymentMethod ? [paymentMethod] : []),
               `Transaction created for lot ${lot.lot_number} - Pending status`,
               txnEmployeeId,
               txnAgentName,
+              parsedTcp !== undefined ? parsedTcp : null,
+              parsedDownpayment !== undefined ? parsedDownpayment : null,
+              parsedTerms !== undefined ? parsedTerms : null,
+              parsedMonthlyAmortization !== undefined ? parsedMonthlyAmortization : null,
             ]
           );
         }
@@ -509,7 +612,7 @@ exports.updateLotStatus = async (req, res) => {
       if (existingTransaction[0].length > 0) {
         // Update existing transaction to Sold
         await query(
-          "UPDATE transactions SET customer_id = COALESCE(customer_id, ?), payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = COALESCE(?, NOW()), is_date_verified = ?, date_provenance = ? WHERE transaction_id = ?",
+          "UPDATE transactions SET customer_id = COALESCE(customer_id, ?), payment_type = ?, notes = ?, employee_id = ?, agent_name = ?, transaction_date = COALESCE(?, NOW()), is_date_verified = ?, date_provenance = ?, total_contract_price = COALESCE(?, total_contract_price), downpayment = COALESCE(?, downpayment), terms_months = COALESCE(?, terms_months), monthly_amortization = COALESCE(?, monthly_amortization), updated_at = NOW() WHERE transaction_id = ?",
           [
             customerId,
             paymentMethod || "Cash",
@@ -519,13 +622,17 @@ exports.updateLotStatus = async (req, res) => {
             verifiedDateInput || null,
             isDateVerified,
             provenanceToSet,
+            parsedTcp !== undefined ? parsedTcp : null,
+            parsedDownpayment !== undefined ? parsedDownpayment : null,
+            parsedTerms !== undefined ? parsedTerms : null,
+            parsedMonthlyAmortization !== undefined ? parsedMonthlyAmortization : null,
             existingTransaction[0][0].transaction_id,
           ]
         );
       } else if (customerId) {
         // Create new transaction for Sold with persistent agent_name
         await query(
-          "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NOW()), ?, ?)",
+          "INSERT INTO transactions (lot_id, customer_id, payment_type, notes, employee_id, agent_name, transaction_date, is_date_verified, date_provenance, total_contract_price, downpayment, terms_months, monthly_amortization) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, NOW()), ?, ?, ?, ?, ?, ?)",
           [
             id,
             customerId,
@@ -536,6 +643,10 @@ exports.updateLotStatus = async (req, res) => {
             verifiedDateInput || null,
             isDateVerified,
             provenanceToSet,
+            parsedTcp !== undefined ? parsedTcp : null,
+            parsedDownpayment !== undefined ? parsedDownpayment : null,
+            parsedTerms !== undefined ? parsedTerms : null,
+            parsedMonthlyAmortization !== undefined ? parsedMonthlyAmortization : null,
           ]
         );
       }

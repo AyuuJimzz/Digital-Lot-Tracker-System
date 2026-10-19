@@ -82,6 +82,10 @@ exports.getLotById = async (req, res) => {
       lot.agent_status = null;
       lot.employee_id = null;
       lot.payment_method = null;
+      lot.total_contract_price = null;
+      lot.downpayment = null;
+      lot.terms_months = null;
+      lot.monthly_amortization = null;
     } else {
       // Get transaction information (payment method & agent) if exists
       const customerEmpId = lot.customer?.employee_id || null;
@@ -100,6 +104,10 @@ exports.getLotById = async (req, res) => {
 
       const [transactionRows] = await db.query(
         `SELECT t.payment_type,
+                t.total_contract_price,
+                t.downpayment,
+                t.terms_months,
+                t.monthly_amortization,
                 CASE
                   WHEN t.agent_name = 'Old Record' THEN NULL
                   WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL
@@ -128,34 +136,44 @@ exports.getLotById = async (req, res) => {
       );
 
       if (transactionRows.length > 0) {
-        if (lot.status === "Sold") {
+        if (lot.status !== "Available") {
           lot.payment_method = transactionRows[0].payment_type;
         }
+        lot.total_contract_price = transactionRows[0].total_contract_price != null ? Number(transactionRows[0].total_contract_price) : null;
+        lot.downpayment = transactionRows[0].downpayment != null ? Number(transactionRows[0].downpayment) : null;
+        lot.terms_months = transactionRows[0].terms_months != null ? Number(transactionRows[0].terms_months) : null;
+        lot.monthly_amortization = transactionRows[0].monthly_amortization != null ? Number(transactionRows[0].monthly_amortization) : null;
         lot.agent_name = transactionRows[0].agent_name;
         lot.agent_status = transactionRows[0].agent_status;
         lot.employee_id = transactionRows[0].employee_id;
-      } else if (lot.customer?.employee_id) {
-        try {
-          const [empRows] = await db.query(
-            "SELECT first_name, last_name, status FROM employees WHERE employee_id = ?",
-            [lot.customer.employee_id]
-          );
-          if (empRows.length > 0) {
-            lot.agent_name = `${empRows[0].first_name || ""} ${empRows[0].last_name || ""}`.trim() || "Agent";
-            lot.agent_status = empRows[0].status === "active" ? "active" : "inactive";
-          } else {
+      } else {
+        lot.total_contract_price = null;
+        lot.downpayment = null;
+        lot.terms_months = null;
+        lot.monthly_amortization = null;
+        if (lot.customer?.employee_id) {
+          try {
+            const [empRows] = await db.query(
+              "SELECT first_name, last_name, status FROM employees WHERE employee_id = ?",
+              [lot.customer.employee_id]
+            );
+            if (empRows.length > 0) {
+              lot.agent_name = `${empRows[0].first_name || ""} ${empRows[0].last_name || ""}`.trim() || "Agent";
+              lot.agent_status = empRows[0].status === "active" ? "active" : "inactive";
+            } else {
+              lot.agent_name = "Agent";
+              lot.agent_status = "inactive";
+            }
+          } catch (_) {
             lot.agent_name = "Agent";
             lot.agent_status = "inactive";
           }
-        } catch (_) {
-          lot.agent_name = "Agent";
-          lot.agent_status = "inactive";
+          lot.employee_id = lot.customer.employee_id;
+        } else {
+          lot.agent_name = "Admin";
+          lot.agent_status = "admin";
+          lot.employee_id = null;
         }
-        lot.employee_id = lot.customer.employee_id;
-      } else {
-        lot.agent_name = "Admin";
-        lot.agent_status = "admin";
-        lot.employee_id = null;
       }
     }
 
@@ -188,7 +206,11 @@ exports.getMapData = async (req, res) => {
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.email END AS customer_email,
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.contact_number END AS customer_contact,
               CASE WHEN l.status = 'Available' THEN NULL ELSE c.address END AS customer_address,
-              CASE WHEN l.status = 'Sold' THEN t.payment_type ELSE NULL END AS payment_method,
+              CASE WHEN l.status = 'Available' THEN NULL ELSE t.payment_type END AS payment_method,
+              CASE WHEN l.status = 'Available' THEN NULL ELSE t.total_contract_price END AS total_contract_price,
+              CASE WHEN l.status = 'Available' THEN NULL ELSE t.downpayment END AS downpayment,
+              CASE WHEN l.status = 'Available' THEN NULL ELSE t.terms_months END AS terms_months,
+              CASE WHEN l.status = 'Available' THEN NULL ELSE t.monthly_amortization END AS monthly_amortization,
               CASE
                 WHEN l.status = 'Available' THEN NULL
                 WHEN t.agent_name = 'Old Record' THEN NULL
@@ -217,6 +239,7 @@ exports.getMapData = async (req, res) => {
        ) c ON l.lot_id = c.lot_id AND c.rn = 1 AND l.status != 'Available'
        LEFT JOIN (
          SELECT lot_id, customer_id, employee_id, agent_name, payment_type,
+                total_contract_price, downpayment, terms_months, monthly_amortization,
                 ROW_NUMBER() OVER (PARTITION BY lot_id, customer_id ORDER BY transaction_date DESC, transaction_id DESC) AS rn
          FROM transactions
          WHERE lot_id IS NOT NULL AND customer_id IS NOT NULL AND payment_type NOT IN ('Reversal', 'Cancelled')
@@ -278,6 +301,10 @@ exports.getMapData = async (req, res) => {
           agent_name: lot.agent_name,
           agent_status: lot.agent_status,
           payment_method: lot.payment_method || null,
+          total_contract_price: lot.total_contract_price != null ? Number(lot.total_contract_price) : null,
+          downpayment: lot.downpayment != null ? Number(lot.downpayment) : null,
+          terms_months: lot.terms_months != null ? Number(lot.terms_months) : null,
+          monthly_amortization: lot.monthly_amortization != null ? Number(lot.monthly_amortization) : null,
           customer: hasCustomer
             ? {
                 full_name: lot.customer_name || "",

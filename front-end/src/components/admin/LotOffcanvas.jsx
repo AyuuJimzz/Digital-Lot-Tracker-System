@@ -41,6 +41,13 @@ export const LotOffcanvas = ({
     setAddress,
     paymentMethod,
     setPaymentMethod,
+    totalContractPrice,
+    setTotalContractPrice,
+    downpayment,
+    setDownpayment,
+    termsMonths,
+    setTermsMonths,
+    monthlyAmortization,
     isSaving,
     lotPendingDelete,
     isDeletingLot,
@@ -225,6 +232,13 @@ export const LotOffcanvas = ({
                 setContactNumber={setContactNumber}
                 paymentMethod={paymentMethod}
                 setPaymentMethod={setPaymentMethod}
+                totalContractPrice={totalContractPrice}
+                setTotalContractPrice={setTotalContractPrice}
+                downpayment={downpayment}
+                setDownpayment={setDownpayment}
+                termsMonths={termsMonths}
+                setTermsMonths={setTermsMonths}
+                monthlyAmortization={monthlyAmortization}
                 email={email}
                 setEmail={setEmail}
                 address={address}
