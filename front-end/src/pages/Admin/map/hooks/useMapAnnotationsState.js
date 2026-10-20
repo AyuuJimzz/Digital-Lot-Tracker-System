@@ -316,9 +316,9 @@ export function useMapAnnotationsState({
           transform-origin: center center;
           color: ${item.color || '#e2e8f0'};
           font-size: ${item.fontSize || 13}px;
-          font-weight: 800;
+          font-weight: ${item.fontWeight || 600};
           font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          letter-spacing: 0;
+          letter-spacing: 0.6px;
           text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9);
           white-space: nowrap;
           user-select: none;
