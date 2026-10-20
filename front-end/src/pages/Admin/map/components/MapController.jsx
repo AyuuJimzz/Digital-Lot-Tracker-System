@@ -22,9 +22,9 @@ export function MapController({
     // Real-time geo-scale & street-level class tracking on DOM container
     const container = map.getContainer();
     const updateZoomClasses = (z) => {
-      const scale = Math.max(0.45, Math.pow(1.4, z - 19));
+      const scale = Math.pow(2, z - 20);
       container.style.setProperty("--road-label-scale", scale);
-      container.style.setProperty("--pdf-road-label-scale", Math.pow(2, z - 20));
+      container.style.setProperty("--pdf-road-label-scale", scale);
 
       // Show road text labels at comfortable subdivision view (zoom >= 18.2)
       if (z >= 18.2) {

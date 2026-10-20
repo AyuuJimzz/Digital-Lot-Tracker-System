@@ -19,8 +19,16 @@ export function useMapAnnotationsState({
   const [showAnnotationPanel, setShowAnnotationPanel] = useState(false);
   const [isEditingAnnotations, setIsEditingAnnotations] = useState(true);
   const [activeAnnotationId, setActiveAnnotationId] = useState(null);
+  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState([]);
   const [annotations, setAnnotations] = useState([]);
   const [isSavingAnnotations, setIsSavingAnnotations] = useState(false);
+
+  // Auto-clean selected IDs when annotations change
+  useEffect(() => {
+    setSelectedAnnotationIds((prev) =>
+      prev.filter((id) => annotations.some((a) => a.id === id && !a.deleted))
+    );
+  }, [annotations]);
 
   // Sync annotations when selectedProperty or mapData changes
   useEffect(() => {
@@ -103,18 +111,163 @@ export function useMapAnnotationsState({
     const newId = "label_" + Date.now();
     const newLabel = {
       id: newId,
+      property_id: Number(selectedProperty),
       text: `ROAD LOT ${annotations.length + 1} (6.50 M. WIDE)`,
       lat: center.lat,
       lng: center.lng,
       rotation: 0,
       fontSize: 12,
       color: "#e2e8f0",
+      scaleWithMap: true,
     };
     setAnnotations((prev) => [...prev, newLabel]);
     setActiveAnnotationId(newId);
     setIsEditingAnnotations(true);
     setShowAnnotationPanel(true);
   }, [map, annotations.length, selectedProperty, mapData]);
+
+  const handleGenerateBlockLabels = useCallback(() => {
+    if (!selectedProperty || !mapData?.lots) {
+      showToast("Please select a property first.", "info");
+      return;
+    }
+    const propLots = mapData.lots.filter(
+      (l) => Number(l.property_id) === Number(selectedProperty)
+    );
+    if (!propLots.length) {
+      showToast("No mapped lots found for this property.", "info");
+      return;
+    }
+
+    const blockGroups = new Map();
+    propLots.forEach((lot) => {
+      const match = String(lot.lot_number || "").match(/^(Block\s+[0-9A-Za-z-]+)/i);
+      if (!match) return;
+      const bName = match[1].trim();
+      if (!blockGroups.has(bName)) {
+        blockGroups.set(bName, { lats: [], lngs: [] });
+      }
+
+      if (lot._centerLat != null && lot._centerLng != null) {
+        blockGroups.get(bName).lats.push(lot._centerLat);
+        blockGroups.get(bName).lngs.push(lot._centerLng);
+      } else if (lot.coordinates) {
+        try {
+          const coords = typeof lot.coordinates === "string" ? JSON.parse(lot.coordinates) : lot.coordinates;
+          if (Array.isArray(coords) && coords.length > 0) {
+            let latSum = 0, lngSum = 0, ptCount = 0;
+            coords.forEach((pt) => {
+              if (Array.isArray(pt) && pt.length >= 2) {
+                latSum += Number(pt[0]);
+                lngSum += Number(pt[1]);
+                ptCount++;
+              }
+            });
+            if (ptCount > 0) {
+              blockGroups.get(bName).lats.push(latSum / ptCount);
+              blockGroups.get(bName).lngs.push(lngSum / ptCount);
+            }
+          }
+        } catch (e) {}
+      }
+    });
+
+    const newBlockLabels = [];
+    blockGroups.forEach((coords, bName) => {
+      if (!coords.lats.length) return;
+      const alreadyExists = annotations.some(
+        (a) => !a.deleted && String(a.text || "").toLowerCase().trim() === bName.toLowerCase().trim()
+      );
+      if (alreadyExists) return;
+
+      const avgLat = coords.lats.reduce((a, b) => a + b, 0) / coords.lats.length;
+      const avgLng = coords.lngs.reduce((a, b) => a + b, 0) / coords.lngs.length;
+
+      newBlockLabels.push({
+        id: "label_block_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6),
+        property_id: Number(selectedProperty),
+        text: bName.toUpperCase(),
+        lat: avgLat,
+        lng: avgLng,
+        rotation: 0,
+        fontSize: 16,
+        color: "#ffffff",
+        scaleWithMap: true,
+      });
+    });
+
+    if (newBlockLabels.length > 0) {
+      setAnnotations((prev) => [...prev, ...newBlockLabels]);
+      setActiveAnnotationId(newBlockLabels[0].id);
+      setIsEditingAnnotations(true);
+      setShowAnnotationPanel(true);
+      showToast(`Added ${newBlockLabels.length} block labels! You can now drag them anywhere, adjust font size, and click Save.`, "success");
+    } else {
+      showToast("All block labels are already in your list.", "info");
+      setShowAnnotationPanel(true);
+    }
+  }, [selectedProperty, mapData, annotations]);
+
+  const handleToggleSelectAnnotation = useCallback((id) => {
+    setSelectedAnnotationIds((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id];
+      if (next.length === 1) {
+        setActiveAnnotationId(next[0]);
+      } else if (!next.includes(activeAnnotationId) && next.length > 0) {
+        setActiveAnnotationId(next[next.length - 1]);
+      }
+      return next;
+    });
+  }, [activeAnnotationId]);
+
+  const handleSelectAllAnnotations = useCallback(() => {
+    const allIds = annotations.filter((a) => !a.deleted).map((a) => a.id);
+    setSelectedAnnotationIds(allIds);
+    if (allIds.length > 0 && !allIds.includes(activeAnnotationId)) {
+      setActiveAnnotationId(allIds[0]);
+    }
+  }, [annotations, activeAnnotationId]);
+
+  const handleDeselectAllAnnotations = useCallback(() => {
+    setSelectedAnnotationIds([]);
+  }, []);
+
+  const handleUpdateSelectedAnnotations = useCallback((updates) => {
+    const targetIds = selectedAnnotationIds.length > 0
+      ? selectedAnnotationIds
+      : (activeAnnotationId ? [activeAnnotationId] : []);
+    if (targetIds.length === 0) return;
+
+    setAnnotations((prev) =>
+      prev.map((a) => {
+        if (!targetIds.includes(a.id) || a.deleted) return a;
+        const computed = typeof updates === "function" ? updates(a) : updates;
+        return {
+          ...a,
+          ...computed,
+          ...(a.autoGenerated === "pdf-road" ? { pdfOverrides: { ...a.pdfOverrides, ...computed } } : {})
+        };
+      })
+    );
+  }, [selectedAnnotationIds, activeAnnotationId]);
+
+  const handleDeleteSelectedAnnotations = useCallback(() => {
+    const targetIds = selectedAnnotationIds.length > 0
+      ? selectedAnnotationIds
+      : (activeAnnotationId ? [activeAnnotationId] : []);
+    if (targetIds.length === 0) return;
+
+    setAnnotations((prev) =>
+      prev.flatMap((a) => {
+        if (!targetIds.includes(a.id)) return [a];
+        return a.autoGenerated === "pdf-road" ? [{ ...a, deleted: true }] : [];
+      })
+    );
+    setSelectedAnnotationIds([]);
+    setActiveAnnotationId(null);
+  }, [selectedAnnotationIds, activeAnnotationId]);
 
   const handleUpdateAnnotation = useCallback((id, updates) => {
     setAnnotations((prev) =>
@@ -159,22 +312,24 @@ export function useMapAnnotationsState({
           position: absolute;
           left: 0;
           top: 0;
-          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(${item.scaleWithMap ? '--pdf-road-label-scale' : '--road-label-scale'}, 1));
+          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(--pdf-road-label-scale, 1));
           transform-origin: center center;
           color: ${item.color || '#e2e8f0'};
-          font-size: ${item.fontSize || 12}px;
-          font-weight: 700;
-          font-family: system-ui, -apple-system, sans-serif;
-          letter-spacing: ${item.scaleWithMap ? '0' : '0.8px'};
+          font-size: ${item.fontSize || 13}px;
+          font-weight: 800;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          letter-spacing: 0;
           text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.9);
           white-space: nowrap;
           user-select: none;
           pointer-events: ${isEditing ? 'auto' : 'none'};
           cursor: ${isEditing ? 'grab' : 'default'};
-          padding: 2px 4px;
-          border: ${isEditing && isSelected ? '1px dashed rgba(255,255,255,0.6)' : 'none'};
-          border-radius: 4px;
-          background: transparent;
+          padding: ${isEditing ? '5px 12px' : '2px 4px'};
+          border: ${isEditing ? (isSelected ? '2px solid #38bdf8' : '1.5px dashed rgba(255,255,255,0.7)') : 'none'};
+          border-radius: 6px;
+          background: ${isEditing ? (isSelected ? 'rgba(14, 165, 233, 0.45)' : 'rgba(15, 23, 42, 0.75)') : 'transparent'};
+          box-shadow: ${isEditing ? (isSelected ? '0 0 14px rgba(56, 189, 248, 0.8), 0 2px 8px rgba(0,0,0,0.8)' : '0 2px 8px rgba(0,0,0,0.6)') : 'none'};
+          transition: border-color 0.15s ease, background-color 0.15s ease;
         ">
           <span>${String(item.text || '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))}</span>
         </div>
@@ -226,12 +381,20 @@ export function useMapAnnotationsState({
     setIsEditingAnnotations,
     activeAnnotationId,
     setActiveAnnotationId,
+    selectedAnnotationIds,
+    setSelectedAnnotationIds,
     annotations,
     setAnnotations,
     isSavingAnnotations,
     setIsSavingAnnotations,
     allPropertiesAnnotations,
     handleAddAnnotation,
+    handleGenerateBlockLabels,
+    handleToggleSelectAnnotation,
+    handleSelectAllAnnotations,
+    handleDeselectAllAnnotations,
+    handleUpdateSelectedAnnotations,
+    handleDeleteSelectedAnnotations,
     handleUpdateAnnotation,
     handleUpdateAllAnnotations,
     handleDeleteAnnotation,

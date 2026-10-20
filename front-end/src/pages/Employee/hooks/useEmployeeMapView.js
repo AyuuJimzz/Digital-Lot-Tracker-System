@@ -5,7 +5,7 @@ import L from "leaflet";
 import { API_BASE_URL } from "../../../config/api";
 import { getLotBounds } from "../../../utils/lotViewport";
 import { LotPlanPolygon } from "../../../components/admin/LotPlanPolygon";
-import { LotPlanPin } from "../../../components/admin/LotPlanPin";
+import { LotPlanPin, extractLotNumber } from "../../../components/admin/LotPlanPin";
 import { MAP_LAYERS } from "../../../components/admin/MapLayerControls";
 import { getPropertyFallbackCoordinates } from "../../../utils/geocoding";
 import {
@@ -184,13 +184,13 @@ export function useEmployeeMapView() {
           position: absolute;
           left: 0;
           top: 0;
-          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(${item.scaleWithMap ? '--pdf-road-label-scale' : '--road-label-scale'}, 1));
+          transform: translate(-50%, -50%) rotate(${item.rotation || 0}deg) scale(var(--pdf-road-label-scale, 1));
           transform-origin: center center;
           color: ${item.color || '#e2e8f0'};
           font-size: ${item.fontSize || 12}px;
           font-weight: 800;
           font-family: system-ui, -apple-system, sans-serif;
-          letter-spacing: ${item.scaleWithMap ? '0' : '0.6px'};
+          letter-spacing: 0;
           text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,1);
           white-space: nowrap;
           user-select: none;
@@ -352,6 +352,7 @@ export function useEmployeeMapView() {
             key={`emp-pin-${lot.lot_id}`}
             center={[centerLat, centerLng]}
             color={statusColor}
+            text={extractLotNumber(lot.lot_number)}
             eventHandlers={{
               click: handleLotClick,
               mouseover: () => showHover(lot, [centerLat, centerLng]),

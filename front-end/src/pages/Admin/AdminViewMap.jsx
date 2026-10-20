@@ -169,7 +169,15 @@ function AdminViewMap() {
     annotations,
     activeAnnotationId,
     setActiveAnnotationId,
+    selectedAnnotationIds,
+    setSelectedAnnotationIds,
     handleAddAnnotation,
+    handleGenerateBlockLabels,
+    handleToggleSelectAnnotation,
+    handleSelectAllAnnotations,
+    handleDeselectAllAnnotations,
+    handleUpdateSelectedAnnotations,
+    handleDeleteSelectedAnnotations,
     handleUpdateAnnotation,
     handleUpdateAllAnnotations,
     handleDeleteAnnotation,
@@ -553,11 +561,23 @@ function AdminViewMap() {
         <MapAnnotationControl
           annotations={annotations.filter((item) => !item.deleted)}
           activeAnnotationId={activeAnnotationId}
-          onSelectAnnotation={(id) => setActiveAnnotationId(id)}
+          selectedAnnotationIds={selectedAnnotationIds}
+          onSelectAnnotation={(id) => {
+            setActiveAnnotationId(id);
+            if (setSelectedAnnotationIds) {
+              setSelectedAnnotationIds([id]);
+            }
+          }}
+          onToggleSelectAnnotation={handleToggleSelectAnnotation}
+          onSelectAllAnnotations={handleSelectAllAnnotations}
+          onDeselectAllAnnotations={handleDeselectAllAnnotations}
           onAddAnnotation={handleAddAnnotation}
+          onGenerateBlockLabels={handleGenerateBlockLabels}
           onUpdateAnnotation={handleUpdateAnnotation}
+          onUpdateSelectedAnnotations={handleUpdateSelectedAnnotations}
           onUpdateAllAnnotations={handleUpdateAllAnnotations}
           onDeleteAnnotation={handleDeleteAnnotation}
+          onDeleteSelectedAnnotations={handleDeleteSelectedAnnotations}
           onDeleteAllAnnotations={handleDeleteAllAnnotations}
           onSaveAnnotations={handleSaveAnnotations}
           isSaving={isSavingAnnotations}

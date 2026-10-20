@@ -40,6 +40,24 @@ body {
   user-select: none !important;
 }
 
+/* Tooltips and popups must always float cleanly above map pins, labels, and handles */
+.leaflet-tooltip-pane {
+  z-index: 850 !important;
+}
+
+.leaflet-popup-pane {
+  z-index: 900 !important;
+}
+
+/* Map annotations pane: Keep below lot pins (600) when viewing normally, elevate when editing */
+.leaflet-map-annotations-pane-pane {
+  z-index: 450 !important;
+}
+
+.map-editing-labels-active .leaflet-map-annotations-pane-pane {
+  z-index: 680 !important;
+}
+
 .map-view-zoomed-in .property-overview-beacon-marker {
   opacity: 0 !important;
   pointer-events: none !important;
@@ -67,7 +85,7 @@ body {
 
 .map-road-label-inner {
   opacity: 0;
-  pointer-events: none !important;
+  pointer-events: none;
   transition: opacity 150ms ease-out;
 }
 
@@ -75,12 +93,12 @@ body {
 .map-zoom-street-level .map-road-label-inner,
 .map-editing-labels-active .map-road-label-inner {
   opacity: 1;
-  pointer-events: none;
 }
 
 /* Road labels only capture mouse interaction when actively editing road annotations */
+.map-editing-labels-active .map-road-label-icon,
 .map-editing-labels-active .map-road-label-inner {
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 .map-view-zoomed-out .map-road-label-inner,

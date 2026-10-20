@@ -14,7 +14,7 @@ import {
   getStatusColor
 } from "../utils/mapConstants";
 import { Marker } from "react-leaflet";
-import { LotPlanPin } from "../../../../components/admin/LotPlanPin";
+import { LotPlanPin, extractLotNumber } from "../../../../components/admin/LotPlanPin";
 import { LotPlanPolygon } from "../../../../components/admin/LotPlanPolygon";
 import { createOverviewPropertyIcon } from "../layers/OverviewBeaconsLayer";
 
@@ -532,6 +532,7 @@ export const useAdminViewMap = () => {
             key={`pin-${lot.lot_id}`}
             center={[centerLat, centerLng]}
             color={statusColor}
+            text={extractLotNumber(lot.lot_number)}
             eventHandlers={{
               click: handleLotClick,
               mouseover: () => showHover(lot, [centerLat, centerLng]),
