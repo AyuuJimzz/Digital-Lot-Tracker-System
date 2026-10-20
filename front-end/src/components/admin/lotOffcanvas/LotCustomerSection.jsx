@@ -316,7 +316,7 @@ export const LotCustomerSection = ({
           placeholder="Enter email address"
         />
         {validationErrors.email && (
-          <p className="text-[11px] text-rose-500 mt-0.5 font-medium">Email address is required</p>
+          <p className="text-[11px] text-rose-500 mt-0.5 font-medium">Please enter a valid email address</p>
         )}
       </div>
 

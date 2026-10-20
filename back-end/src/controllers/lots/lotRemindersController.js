@@ -123,7 +123,7 @@ exports.sendPendingLotReminders = async (req, res) => {
       SELECT ${fields} FROM lots l ${customerJoin}
       WHERE l.status = 'Pending' AND l.pending_since > ?
         AND l.pending_since < DATE_SUB(NOW(), INTERVAL 12 HOUR)
-        AND l.last_reminder_sent IS NULL AND c.email IS NOT NULL`, cutoffParams);
+        AND l.last_reminder_sent IS NULL AND c.email IS NOT NULL AND c.email != '' AND c.email != 'To be updated'`, cutoffParams);
 
     const [finalLots] = await db.query(`
       SELECT ${fields} FROM lots l ${customerJoin}
@@ -131,7 +131,7 @@ exports.sendPendingLotReminders = async (req, res) => {
         AND l.pending_since < DATE_SUB(NOW(), INTERVAL 24 HOUR)
         AND l.last_reminder_sent IS NOT NULL
         AND l.last_reminder_sent < DATE_SUB(NOW(), INTERVAL 12 HOUR)
-        AND l.last_reminder_sent < '9000-01-01' AND c.email IS NOT NULL`, cutoffParams);
+        AND l.last_reminder_sent < '9000-01-01' AND c.email IS NOT NULL AND c.email != '' AND c.email != 'To be updated'`, cutoffParams);
 
     const result = { firstRemindersSent: 0, secondRemindersSent: 0, totalEmailsSent: 0, errors: [] };
     for (const [lots, final] of [[firstLots, false], [finalLots, true]]) {

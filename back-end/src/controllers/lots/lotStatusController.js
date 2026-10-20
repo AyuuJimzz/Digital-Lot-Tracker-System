@@ -150,13 +150,8 @@ exports.updateLotStatus = async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: "Invalid status. Must be Available, Pending, or Sold" });
     }
-    if (email && email !== "To be updated" && !email.includes("@")) {
+    if (email && email.trim() !== "To be updated" && !email.includes("@")) {
       return res.status(400).json({ error: "Valid email is required" });
-    }
-    if (status === "Pending" && (!email || !fullName?.trim() || !contactNumber?.trim() || !address?.trim())) {
-      return res.status(400).json({
-        error: "All customer fields (email, full name, contact number, address) are required when setting lot status to Pending",
-      });
     }
 
     connection = await dbToUse.getConnection();
@@ -172,6 +167,16 @@ exports.updateLotStatus = async (req, res) => {
     }
 
     const lot = lotRows[0];
+    const isOldRec = Boolean(req.body.is_old_record) || Boolean(req.body.is_legacy_undated);
+
+    // Customer full name is strictly required when setting lot to Pending or direct Sold (unless legacy paper record)
+    if (
+      (status === "Pending" || (status === "Sold" && !isOldRec && lot.status === "Available")) &&
+      (!fullName || !fullName.trim() || fullName.trim() === "To be updated")
+    ) {
+      await connection.rollback();
+      return res.status(400).json({ error: "Customer full name is required" });
+    }
 
     // Zero-Trust Guard: Non-saleable lots (parks, playgrounds, facilities, excluded lots) can NEVER be reserved or sold
     if (isNonSaleableLot(lot) && status !== "Available") {
@@ -223,12 +228,14 @@ exports.updateLotStatus = async (req, res) => {
     // Update lot status
     await query("UPDATE lots SET status = ? WHERE lot_id = ?", [status, id]);
 
-    // Handle customer information update if provided (only for Pending or Sold states)
+    // Handle customer information update if provided (always create record for Pending or Sold states)
     const hasCustomerDetails = Boolean(
       (fullName && fullName.trim()) ||
       (email && email.trim()) ||
       (contactNumber && contactNumber.trim()) ||
-      (address && address.trim())
+      (address && address.trim()) ||
+      status === "Pending" ||
+      status === "Sold"
     );
 
     let activeCustomerId = null;
@@ -245,11 +252,11 @@ exports.updateLotStatus = async (req, res) => {
       // INSERT a new record to preserve the cancelled customer's history
       const lotWasCancelled = lot.status === "Available";
 
-      const isOldRec = Boolean(req.body.is_old_record) || Boolean(req.body.is_legacy_undated);
-      const safeFullName = fullName?.trim() || (isOldRec ? "To be updated" : null);
-      const safeContact = contactNumber?.trim() || (isOldRec || status === "Sold" ? "To be updated" : null);
-      const safeEmail = email?.trim() || (isOldRec || status === "Sold" ? "To be updated" : null);
-      const safeAddress = address?.trim() || (isOldRec || status === "Sold" ? "To be updated" : null);
+      const isPendingOrOldRec = isOldRec || status === "Pending" || status === "Sold";
+      const safeFullName = fullName?.trim() || (isPendingOrOldRec ? "To be updated" : null);
+      const safeContact = contactNumber?.trim() || (isPendingOrOldRec ? "To be updated" : null);
+      const safeEmail = email?.trim() || (isPendingOrOldRec ? "To be updated" : null);
+      const safeAddress = address?.trim() || (isPendingOrOldRec ? "To be updated" : null);
 
       if (existingCustomer.length > 0 && !lotWasCancelled) {
         activeCustomerId = existingCustomer[0].customer_id;
@@ -440,8 +447,8 @@ exports.updateLotStatus = async (req, res) => {
         }
       }
 
-      // Send instant confirmation email immediately to customer upon reservation
-      if (email && email.trim()) {
+      // Send instant confirmation email immediately to customer upon reservation (only if valid email provided)
+      if (email && email.trim() && email.trim() !== "To be updated" && email.includes("@")) {
         postCommitTasks.push(async () => {
           try {
             const [propRows] = await db.query(

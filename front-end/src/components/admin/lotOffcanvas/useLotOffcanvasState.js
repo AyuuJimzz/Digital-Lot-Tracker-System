@@ -837,13 +837,27 @@ export function useLotOffcanvasState({
       return;
     }
 
-    // Existing legacy Sold lots may have incomplete buyer records; a date-only audit must remain possible.
+    // Pending reservations and legacy Sold lots may have incomplete contact details.
     let effectiveContactNumber = contactNumber;
     let effectiveEmail = email;
     let effectiveAddress = address;
     let effectiveFullName = fullName;
 
-    if (isOldRecord || status === "Sold") {
+    // Customer full name is strictly required for Pending reservations and Sold lots
+    if (status === "Pending" || (status === "Sold" && !isOldRecord)) {
+      if (!fullName?.trim() || fullName.trim() === "To be updated") {
+        setValidationErrors({ fullName: true });
+        showToast("Customer full name is required.", "error");
+        return;
+      }
+    }
+
+    if (isOldRecord && !effectiveFullName?.trim()) {
+      effectiveFullName = "To be updated";
+      setFullName("To be updated");
+    }
+
+    if (isOldRecord || status === "Sold" || status === "Pending") {
       if (!effectiveContactNumber?.trim()) {
         effectiveContactNumber = "To be updated";
         setContactNumber("To be updated");
@@ -858,25 +872,11 @@ export function useLotOffcanvasState({
       }
     }
 
-    const isEditingCustomer = ["fullName", "contactNumber", "email", "address"]
-      .some((field) => dirtyFieldsRef.current[field]);
-    const requiresCustomerDetails = status === "Pending" ||
-      (status === "Sold" && (selectedLot.status !== "Sold" || isEditingCustomer));
-    if (!isNonSaleable && requiresCustomerDetails) {
-      const errors = {};
-      if (!effectiveFullName?.trim()) errors.fullName = true;
-      if (!effectiveContactNumber?.trim()) errors.contactNumber = true;
-      if (!effectiveEmail?.trim()) errors.email = true;
-      if (!effectiveAddress?.trim()) errors.address = true;
-
-      if (Object.keys(errors).length > 0) {
-        setValidationErrors(errors);
-        showToast(
-          `All customer fields (full name, contact number, email, address) are required when setting status to ${status}.`,
-          "error"
-        );
-        return;
-      }
+    // Email format validation (only if provided and not placeholder)
+    if (effectiveEmail && effectiveEmail.trim() !== "To be updated" && !effectiveEmail.includes("@")) {
+      setValidationErrors({ email: true });
+      showToast("Please enter a valid email address.", "error");
+      return;
     }
 
     setValidationErrors({});

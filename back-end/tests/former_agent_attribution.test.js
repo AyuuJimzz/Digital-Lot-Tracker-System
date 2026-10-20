@@ -844,3 +844,89 @@ test("direct Available to Sold transition with is_old_record and partial custome
   assert.equal(txnInsert.params[5], "Old Record", "Transaction agent_name must be 'Old Record'");
   assert.equal(txnInsert.params[7], 0, "is_date_verified must be 0 for legacy undated sale");
 });
+
+test("pending reservation with optional / omitted customer details succeeds and defaults safely", async () => {
+  const { updateLotStatus } = require("../src/controllers/lots/lotStatusController");
+
+  const queriesRun = [];
+  let insertedCustomerId = null;
+  const fakeConn = {
+    query: async (sql, params) => {
+      queriesRun.push({ sql, params });
+      if (sql.includes("FROM lots WHERE lot_id = ?")) {
+        return [[{ lot_id: 101, lot_number: "Block 1 Lot 101", status: "Available" }]];
+      }
+      if (sql.includes("FROM customers WHERE lot_id = ?") && sql.includes("ORDER BY updated_at DESC")) {
+        return [[]];
+      }
+      if (sql.includes("FROM customers WHERE lot_id = ? ORDER BY customer_id DESC LIMIT 1")) {
+        return [[{ customer_id: insertedCustomerId || 555 }]];
+      }
+      if (sql.includes("FROM transactions WHERE customer_id = ?")) {
+        return [[]];
+      }
+      if (sql.includes("INSERT INTO customers")) {
+        insertedCustomerId = 555;
+        return [{ insertId: 555 }];
+      }
+      return [{ insertId: 777 }];
+    },
+    beginTransaction: async () => {},
+    commit: async () => {},
+    rollback: async () => {},
+    release: () => {},
+  };
+  const mockDbConn = {
+    getConnection: async () => fakeConn,
+    query: async (sql, params) => fakeConn.query(sql, params),
+  };
+
+  // Case 1: Pending reservation with ONLY full name (all contact/email/address omitted)
+  const reqPartial = {
+    params: { id: 101 },
+    body: {
+      status: "Pending",
+      fullName: "Maria Clara",
+    },
+    user: { role: "employee", id: 2, email: "agent@example.com" },
+    db: mockDbConn,
+  };
+  let statusCode = 200;
+  const res = {
+    status: (code) => { statusCode = code; return res; },
+    json: () => {},
+  };
+
+  await updateLotStatus(reqPartial, res);
+  assert.equal(statusCode, 200, "Pending reservation with partial info must succeed");
+
+  const custInsert = queriesRun.find((q) => q.sql.includes("INSERT INTO customers"));
+  assert.ok(custInsert, "Customer must be inserted for Pending lot");
+  // VALUES [id, safeFullName, safeContact, safeEmail, safeAddress, employeeId, status]
+  assert.equal(custInsert.params[1], "Maria Clara", "Provided full name must be preserved");
+  assert.equal(custInsert.params[2], "To be updated", "Omitted contact number must safely default to 'To be updated'");
+  assert.equal(custInsert.params[3], "To be updated", "Omitted email must safely default to 'To be updated'");
+  assert.equal(custInsert.params[4], "To be updated", "Omitted address must safely default to 'To be updated'");
+  assert.equal(custInsert.params[6], "Pending", "Customer status must be Pending");
+
+  // Case 2: Pending reservation with missing / omitted full name must be rejected with 400
+  queriesRun.length = 0;
+  let errorResponse = null;
+  const resFail = {
+    status: (code) => { statusCode = code; return resFail; },
+    json: (data) => { errorResponse = data; },
+  };
+  const reqEmpty = {
+    params: { id: 101 },
+    body: {
+      status: "Pending",
+      contactNumber: "09123456789",
+    },
+    user: { role: "employee", id: 2, email: "agent@example.com" },
+    db: mockDbConn,
+  };
+
+  await updateLotStatus(reqEmpty, resFail);
+  assert.equal(statusCode, 400, "Pending reservation without full name must be rejected with 400");
+  assert.equal(errorResponse?.error, "Customer full name is required");
+});
