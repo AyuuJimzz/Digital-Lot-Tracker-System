@@ -33,6 +33,7 @@ const statements = [
   "ALTER TABLE transactions ADD COLUMN downpayment DECIMAL(12,2) NULL DEFAULT NULL",
   "ALTER TABLE transactions ADD COLUMN terms_months INT NULL DEFAULT NULL",
   "ALTER TABLE transactions ADD COLUMN monthly_amortization DECIMAL(12,2) NULL DEFAULT NULL",
+  "ALTER TABLE transactions MODIFY COLUMN payment_type VARCHAR(50) NOT NULL DEFAULT 'Cash'",
 ];
 
 function getCustomPool(uriString) {
