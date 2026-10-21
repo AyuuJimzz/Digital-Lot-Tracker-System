@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   loadCustomColors,
   getThemeForSubdivision,
@@ -31,12 +31,6 @@ const LotsSoldProperties = ({
       window.removeEventListener("storage", handleColorUpdate);
     };
   }, []);
-
-  const totalYearSold = useMemo(() => {
-    return Array.isArray(properties)
-      ? properties.reduce((sum, p) => sum + (Number(p.sold) || 0), 0)
-      : 0;
-  }, [properties]);
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 flex flex-col justify-between h-full transition-colors duration-300">
@@ -114,11 +108,17 @@ const LotsSoldProperties = ({
               const total = Number(property.total) || 1;
               const sold = Number(property.sold) || 0;
               const allTimePct = Math.min(Math.round((sold / total) * 1000) / 10, 100);
-              const yearSharePct = totalYearSold > 0 ? Math.round((sold / totalYearSold) * 100) : 0;
 
               return (
-                <div key={property.property_id || index} className="space-y-2 group">
-                  <div className="flex justify-between items-center text-xs">
+                <div
+                  key={property.property_id || index}
+                  className={
+                    isAllTime
+                      ? "space-y-2 group"
+                      : "flex items-center justify-between py-2 border-b border-gray-100 dark:border-slate-800/60 last:border-0 group"
+                  }
+                >
+                  <div className="flex justify-between items-center text-xs flex-1">
                     <span className="font-medium text-gray-900 dark:text-slate-200 flex items-center gap-1.5 truncate max-w-[180px]">
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ring-1 ring-white/10"
@@ -149,18 +149,18 @@ const LotsSoldProperties = ({
                     </div>
                   </div>
 
-                  {/* Progress Bar Track */}
-                  <div className="w-full bg-gray-100 dark:bg-slate-800/90 border border-gray-200/50 dark:border-slate-700/40 rounded-full h-2.5 overflow-hidden p-0.5">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: isAllTime
-                          ? `${Math.max(allTimePct, sold > 0 ? 3 : 0)}%`
-                          : `${Math.max(yearSharePct, sold > 0 ? 4 : 0)}%`,
-                        ...(sold > 0 ? theme.style.bar : { backgroundColor: "transparent" }),
-                      }}
-                    />
-                  </div>
+                  {/* Progress Bar Track only visible in All Time mode */}
+                  {isAllTime && (
+                    <div className="w-full bg-gray-100 dark:bg-slate-800/90 border border-gray-200/50 dark:border-slate-700/40 rounded-full h-2.5 overflow-hidden p-0.5">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.max(allTimePct, sold > 0 ? 3 : 0)}%`,
+                          ...(sold > 0 ? theme.style.bar : { backgroundColor: "transparent" }),
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })
