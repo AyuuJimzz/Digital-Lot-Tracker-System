@@ -477,4 +477,76 @@ exports.getTimeBasedPropertySales = async (req, res) => {
   }
 };
 
+// =======================
+// SUBDIVISION COLOR PALETTE PERSISTENCE (system_state)
+// =======================
+exports.getSubdivisionColors = async (req, res) => {
+  try {
+    const dbToUse = req.db || db;
+    const [rows] = await dbToUse.query(
+      "SELECT state_value FROM system_state WHERE state_key = 'subdivision_chart_colors'"
+    );
+    if (!rows.length || !rows[0].state_value) {
+      return res.json({ colors: {} });
+    }
+    let colors = {};
+    try {
+      colors = JSON.parse(rows[0].state_value);
+    } catch (_) {
+      colors = {};
+    }
+    return res.json({ colors: colors && typeof colors === "object" && !Array.isArray(colors) ? colors : {} });
+  } catch (error) {
+    console.error("Error fetching subdivision colors:", error);
+    return res.status(500).json({ error: "Failed to fetch subdivision colors" });
+  }
+};
+
+exports.saveSubdivisionColors = async (req, res) => {
+  try {
+    const dbToUse = req.db || db;
+    const incoming = req.body?.colors || req.body;
+    if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
+      return res.status(400).json({ error: "Invalid colors payload" });
+    }
+
+    const sanitized = {};
+    for (const [key, val] of Object.entries(incoming)) {
+      if (typeof val === "string") {
+        const trimmed = val.trim();
+        const match = trimmed.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+        if (match) {
+          const digits = match[1].length === 3
+            ? match[1].split("").map((d) => `${d}${d}`).join("")
+            : match[1];
+          sanitized[String(key)] = `#${digits.toLowerCase()}`;
+        }
+      }
+    }
+
+    await dbToUse.query(
+      `INSERT INTO system_state (state_key, state_value, updated_at)
+       VALUES ('subdivision_chart_colors', ?, NOW())
+       ON DUPLICATE KEY UPDATE state_value = VALUES(state_value), updated_at = NOW()`,
+      [JSON.stringify(sanitized)]
+    );
+
+    return res.json({ success: true, colors: sanitized });
+  } catch (error) {
+    console.error("Error saving subdivision colors:", error);
+    return res.status(500).json({ error: "Failed to save subdivision colors" });
+  }
+};
+
+exports.resetSubdivisionColors = async (req, res) => {
+  try {
+    const dbToUse = req.db || db;
+    await dbToUse.query("DELETE FROM system_state WHERE state_key = 'subdivision_chart_colors'");
+    return res.json({ success: true, reset: true });
+  } catch (error) {
+    console.error("Error resetting subdivision colors:", error);
+    return res.status(500).json({ error: "Failed to reset subdivision colors" });
+  }
+};
+
 exports.resetDateVerifiedColumnCache = resetDateVerifiedColumnCache;

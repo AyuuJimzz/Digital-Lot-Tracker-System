@@ -18,12 +18,16 @@ const {
   deleteLot,
   bulkShiftPropertyLots,
   updateLotDetails,
+  getSubdivisionColors,
+  saveSubdivisionColors,
+  resetSubdivisionColors,
 } = require("../controllers/lotsController");
 
 const requireAuth = sessionOrToken({ roles: ["admin", "employee"] });
 const requireAdmin = sessionOrToken({ roles: ["admin"] });
 
 // Read routes
+router.get("/subdivision-colors", requireAuth, getSubdivisionColors);
 router.get("/map-data", requireAuth, getMapData);
 router.get("/dashboard-stats", requireAuth, getDashboardStats);
 router.get("/property-stats", requireAuth, getPropertyLotStats);
@@ -34,6 +38,8 @@ router.get("/property/:propertyId", requireAuth, getLotsByProperty);
 router.get("/:id", requireAuth, getLotById);
 
 // Write / Mutation routes (Protected)
+router.put("/subdivision-colors", requireAdmin, saveSubdivisionColors);
+router.delete("/subdivision-colors", requireAdmin, resetSubdivisionColors);
 router.post("/import", requireAdmin, importLots);
 router.post("/", requireAdmin, createLot);
 router.put("/:id/status", requireAuth, updateLotStatus);

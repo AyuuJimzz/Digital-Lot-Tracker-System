@@ -1,6 +1,9 @@
 // utils/subdivisionColors.js
 // Centralized, synchronized color palette management for subdivision analytics across the admin dashboard.
 
+import axios from "axios";
+import { API_BASE_URL } from "../config/api";
+
 export const DEFAULT_SUBDIVISION_PALETTE = [
   {
     nameMatch: "2018",
@@ -41,6 +44,59 @@ export const DEFAULT_SUBDIVISION_PALETTE = [
 
 const STORAGE_KEY = "gde_subdivision_colors";
 
+const getAuthConfig = () => {
+  try {
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("authToken") : null;
+    return {
+      withCredentials: true,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    };
+  } catch (_) {
+    return { withCredentials: true };
+  }
+};
+
+let dbSaveTimer = null;
+let isSyncing = false;
+
+/**
+ * Flush any pending debounced database sync immediately.
+ */
+export const flushSubdivisionColorsSync = async () => {
+  if (dbSaveTimer) {
+    clearTimeout(dbSaveTimer);
+    dbSaveTimer = null;
+    try {
+      if (typeof window === "undefined") return;
+      const authConfig = getAuthConfig();
+      const colors = loadCustomColors();
+      await axios.put(`${API_BASE_URL}/api/lots/subdivision-colors`, { colors }, authConfig);
+    } catch (err) {
+      console.warn("Subdivision colors database flush warning:", err?.message || err);
+    }
+  }
+};
+
+/**
+ * Debounced push of colors palette to the shared database (system_state table).
+ */
+export const pushColorsToDatabase = (colors) => {
+  if (dbSaveTimer) {
+    clearTimeout(dbSaveTimer);
+  }
+  dbSaveTimer = setTimeout(async () => {
+    try {
+      if (typeof window === "undefined") return;
+      const authConfig = getAuthConfig();
+      await axios.put(`${API_BASE_URL}/api/lots/subdivision-colors`, { colors }, authConfig);
+    } catch (err) {
+      console.warn("Subdivision colors database sync warning:", err?.message || err);
+    } finally {
+      dbSaveTimer = null;
+    }
+  }, 250);
+};
+
 /** Normalize valid 3- or 6-digit CSS hex colors to #RRGGBB. */
 export const normalizeHexColor = (value) => {
   if (typeof value !== "string") return null;
@@ -68,7 +124,59 @@ export const loadCustomColors = () => {
 };
 
 /**
+ * Fetch latest synchronized custom colors from the database.
+ * If server has custom colors, updates localStorage and notifies dashboard listeners.
+ * If server is empty and local storage has custom colors, auto-seeds the database.
+ */
+export const syncColorsFromDatabase = async () => {
+  if (isSyncing || typeof window === "undefined") return loadCustomColors();
+  isSyncing = true;
+  try {
+    const authConfig = getAuthConfig();
+    const res = await axios.get(`${API_BASE_URL}/api/lots/subdivision-colors`, authConfig);
+    const serverColors = res.data?.colors;
+
+    if (serverColors && typeof serverColors === "object" && !Array.isArray(serverColors)) {
+      const sanitized = {};
+      for (const [key, val] of Object.entries(serverColors)) {
+        const norm = normalizeHexColor(val);
+        if (norm) {
+          sanitized[String(key)] = norm;
+        }
+      }
+
+      const localColors = loadCustomColors();
+      const hasServerColors = Object.keys(sanitized).length > 0;
+      const hasLocalColors = Object.keys(localColors).length > 0;
+
+      if (hasServerColors) {
+        const isDifferent = JSON.stringify(sanitized) !== JSON.stringify(localColors);
+        if (isDifferent) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
+          window.dispatchEvent(
+            new CustomEvent("gde-subdivision-color-changed", {
+              detail: { colors: sanitized, fromServer: true },
+            })
+          );
+        }
+        return sanitized;
+      } else if (hasLocalColors) {
+        pushColorsToDatabase(localColors);
+        return localColors;
+      }
+    }
+    return loadCustomColors();
+  } catch (err) {
+    console.warn("Failed to fetch subdivision colors from database:", err?.message || err);
+    return loadCustomColors();
+  } finally {
+    isSyncing = false;
+  }
+};
+
+/**
  * Save custom color for a specific subdivision and notify all dashboard listeners.
+ * Updates local cache instantly (optimistic UI) and debounces network sync to database.
  */
 export const saveSubdivisionColor = (subdivIdentifier, hexColor) => {
   try {
@@ -87,6 +195,9 @@ export const saveSubdivisionColor = (subdivIdentifier, hexColor) => {
         detail: { identifier: String(subdivIdentifier), color: normalizedColor },
       })
     );
+
+    // Asynchronously synchronize palette to MySQL database
+    pushColorsToDatabase(updated);
     return true;
   } catch (err) {
     console.error("Failed to save custom subdivision color:", err);
@@ -96,15 +207,27 @@ export const saveSubdivisionColor = (subdivIdentifier, hexColor) => {
 
 /**
  * Reset all customized colors back to the default Neo-Tech Glow palette.
+ * Clears local cache instantly and removes state_key from database.
  */
 export const resetSubdivisionColors = () => {
   try {
+    if (dbSaveTimer) {
+      clearTimeout(dbSaveTimer);
+      dbSaveTimer = null;
+    }
     localStorage.removeItem(STORAGE_KEY);
     window.dispatchEvent(
       new CustomEvent("gde-subdivision-color-changed", {
         detail: { reset: true },
       })
     );
+
+    if (typeof window !== "undefined") {
+      const authConfig = getAuthConfig();
+      axios.delete(`${API_BASE_URL}/api/lots/subdivision-colors`, authConfig).catch((err) => {
+        console.warn("Subdivision colors database reset warning:", err?.message || err);
+      });
+    }
   } catch (err) {
     console.error("Failed to reset custom subdivision colors:", err);
   }

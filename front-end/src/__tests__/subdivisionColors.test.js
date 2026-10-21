@@ -1,13 +1,17 @@
+import axios from "axios";
 import {
   getThemeForSubdivision,
   loadCustomColors,
   normalizeHexColor,
   saveSubdivisionColor,
+  resetSubdivisionColors,
+  syncColorsFromDatabase,
 } from "../utils/subdivisionColors";
 
 describe("subdivision color utilities", () => {
   beforeEach(() => {
     localStorage.clear();
+    jest.clearAllMocks();
   });
 
   test("normalizes valid HEX values and rejects incomplete input", () => {
@@ -48,5 +52,43 @@ describe("subdivision color utilities", () => {
 
     expect(theme.hex).toBe("#f43f5e");
     expect(theme.style.dot.backgroundColor).toBe("#f43f5e");
+  });
+
+  test("syncColorsFromDatabase fetches server colors and updates local storage", async () => {
+    const handleColorChange = jest.fn();
+    window.addEventListener("gde-subdivision-color-changed", handleColorChange);
+
+    const getSpy = jest.spyOn(axios, "get").mockResolvedValueOnce({
+      data: {
+        colors: {
+          "2018": "#10b981",
+          "3896": "#f43f5e",
+        },
+      },
+    });
+
+    const result = await syncColorsFromDatabase();
+    expect(result).toEqual({
+      "2018": "#10b981",
+      "3896": "#f43f5e",
+    });
+    expect(loadCustomColors()).toEqual({
+      "2018": "#10b981",
+      "3896": "#f43f5e",
+    });
+    expect(handleColorChange).toHaveBeenCalled();
+
+    window.removeEventListener("gde-subdivision-color-changed", handleColorChange);
+    getSpy.mockRestore();
+  });
+
+  test("resetSubdivisionColors clears storage and calls delete API", () => {
+    const deleteSpy = jest.spyOn(axios, "delete").mockResolvedValueOnce({ data: { success: true } });
+    localStorage.setItem("gde_subdivision_colors", JSON.stringify({ "2018": "#10b981" }));
+
+    resetSubdivisionColors();
+    expect(loadCustomColors()).toEqual({});
+    expect(deleteSpy).toHaveBeenCalled();
+    deleteSpy.mockRestore();
   });
 });

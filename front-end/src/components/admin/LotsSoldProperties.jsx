@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   loadCustomColors,
   getThemeForSubdivision,
+  syncColorsFromDatabase,
 } from "../../utils/subdivisionColors";
 import SubdivisionColorModal from "./SubdivisionColorModal";
 
@@ -21,6 +22,7 @@ const LotsSoldProperties = ({
   const [isColorModalOpen, setIsColorModalOpen] = useState(false);
 
   useEffect(() => {
+    syncColorsFromDatabase();
     const handleColorUpdate = () => {
       setCustomColors(loadCustomColors());
     };

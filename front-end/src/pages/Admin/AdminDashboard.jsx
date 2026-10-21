@@ -7,6 +7,7 @@ import MonthlyRecapReport from "../../components/admin/MonthlyRecapReport";
 import LotsSoldProperties from "../../components/admin/LotsSoldProperties";
 import ForcePasswordChange from "../../components/ForcePasswordChange";
 import { API_BASE_URL } from "../../config/api";
+import { syncColorsFromDatabase } from "../../utils/subdivisionColors";
 
 const AdminDashboard = () => {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -32,6 +33,7 @@ const AdminDashboard = () => {
   const [availableYears, setAvailableYears] = useState([currentYear]);
 
   useEffect(() => {
+    syncColorsFromDatabase();
     const passwordResetRequired = localStorage.getItem("password_reset_required");
     if (
       passwordResetRequired === "true" ||

@@ -5,6 +5,7 @@ import {
   saveSubdivisionColor,
   resetSubdivisionColors,
   getThemeForSubdivision,
+  flushSubdivisionColorsSync,
 } from "../../utils/subdivisionColors";
 
 const getSubdivisionId = (subdiv, index) =>
@@ -49,6 +50,7 @@ const SubdivisionColorModal = ({
 
   const handleClose = () => {
     flushPendingSave();
+    flushSubdivisionColorsSync();
     onCloseRef.current?.();
   };
   const handleCloseRef = useRef(handleClose);
