@@ -18,12 +18,38 @@ exports.getDashboardStats = async (req, res) => {
     const pendingLots = allLots.filter((lot) => lot.status === "Pending" && !isNonSaleableLot(lot)).length;
     const soldLots = allLots.filter((lot) => lot.status === "Sold" && !isNonSaleableLot(lot)).length;
 
-    // Get total customers (distinct by email)
+    // Get total unique clients on currently active (Pending/Sold) lots
+    // Deduplicates multi-lot buyers by full_name (with email/phone fallback), excludes cancelled & placeholder records
     const [customers] = await dbToUse.query(`
-      SELECT COUNT(DISTINCT c.email) as count 
-      FROM customers c
+      SELECT COUNT(DISTINCT
+        CASE
+          WHEN c.full_name IS NOT NULL
+            AND TRIM(c.full_name) != ''
+            AND TRIM(LOWER(c.full_name)) != 'to be updated'
+            THEN TRIM(LOWER(c.full_name))
+          WHEN c.email IS NOT NULL
+            AND TRIM(c.email) != ''
+            AND TRIM(LOWER(c.email)) != 'to be updated'
+            THEN TRIM(LOWER(c.email))
+          WHEN c.contact_number IS NOT NULL
+            AND TRIM(c.contact_number) != ''
+            AND TRIM(LOWER(c.contact_number)) != 'to be updated'
+            THEN TRIM(c.contact_number)
+          ELSE NULL
+        END
+      ) as count
+      FROM (
+        SELECT customer_id, lot_id, full_name, email, contact_number, customer_status,
+               ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY updated_at DESC, customer_id DESC) AS rn
+        FROM customers
+        WHERE lot_id IS NOT NULL
+          AND (customer_status IN ('Pending', 'Sold') OR customer_status IS NULL)
+      ) c
+      JOIN lots l ON c.lot_id = l.lot_id
+      WHERE c.rn = 1
+        AND l.status IN ('Pending', 'Sold')
     `);
-    const totalClients = customers[0].count;
+    const totalClients = (customers && customers[0] && customers[0].count) ? Number(customers[0].count) : 0;
 
     const stats = {
       totalLots, // Saleable lots (Available + Pending + Sold) -> Exact math match!
@@ -148,13 +174,16 @@ exports.getMonthlySalesData = async (req, res) => {
      * 4. Exclude historical sales that were subsequent to a reversal (rev.transaction_id > t.transaction_id).
      * 5. Never allow unverified backfills into dated charts via (sold_on OR is_date_verified).
      */
-    // 1. Dated Verified Sales query (for targetYear)
+    // 1. Dated Verified Sales query (for targetYear) with subdivision grouping
     const verifiedQuery = `
       SELECT 
         MONTH(COALESCE(l.sold_on, t.transaction_date)) as month,
+        p.property_id,
+        p.property_name,
         COUNT(DISTINCT l.lot_id) as lotsSold
       FROM transactions t
       INNER JOIN lots l ON t.lot_id = l.lot_id
+      INNER JOIN properties p ON l.property_id = p.property_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
       WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) = ?
         AND l.status = 'Sold'
@@ -168,10 +197,24 @@ exports.getMonthlySalesData = async (req, res) => {
             AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
             AND rev.transaction_id > t.transaction_id
         )
-      GROUP BY MONTH(COALESCE(l.sold_on, t.transaction_date))
-      ORDER BY MONTH(COALESCE(l.sold_on, t.transaction_date))
+      GROUP BY MONTH(COALESCE(l.sold_on, t.transaction_date)), p.property_id, p.property_name
+      ORDER BY MONTH(COALESCE(l.sold_on, t.transaction_date)), p.property_name
     `;
     const [rows] = await dbToUse.query(verifiedQuery, [targetYear]);
+
+    // Discover all unique active subdivisions to standardize data keys
+    const [propertyListRows] = await dbToUse.query(`
+      SELECT property_id, property_name
+      FROM properties
+      WHERE status = 'active'
+      ORDER BY property_name
+    `);
+    const propertyList = propertyListRows.map((p) => ({
+      id: p.property_id,
+      name: p.property_name,
+      shortName: p.property_name.replace(/\s+Oton\s+Cadastre/i, "").trim(),
+      key: `subdiv_${p.property_id}`,
+    }));
 
     // 2. Prior Years Verified Sales query
     const priorYearsQuery = `
@@ -248,7 +291,7 @@ exports.getMonthlySalesData = async (req, res) => {
     }
     distinctYears.sort((a, b) => b - a);
 
-    // Create array for all 12 months
+    // Create array for all 12 months with both aggregate lotsSold and subdivision breakdown
     const monthNames = [
       "Jan",
       "Feb",
@@ -264,11 +307,22 @@ exports.getMonthlySalesData = async (req, res) => {
       "Dec",
     ];
     const monthlyData = monthNames.map((month, index) => {
-      const monthData = rows.find((row) => row.month === index + 1);
-      return {
+      const monthNum = index + 1;
+      const matchingRows = rows.filter((r) => r.month === monthNum);
+      const totalMonthSold = matchingRows.reduce((sum, r) => sum + Number(r.lotsSold || 0), 0);
+
+      const entry = {
         month: month,
-        lotsSold: monthData ? monthData.lotsSold : 0,
+        lotsSold: totalMonthSold,
       };
+
+      propertyList.forEach((prop) => {
+        const found = matchingRows.find((r) => r.property_id === prop.id);
+        entry[prop.key] = found ? Number(found.lotsSold || 0) : 0;
+        entry[prop.shortName] = entry[prop.key];
+      });
+
+      return entry;
     });
 
     const totalYearSold = monthlyData.reduce((sum, item) => sum + item.lotsSold, 0);
@@ -277,6 +331,7 @@ exports.getMonthlySalesData = async (req, res) => {
       year: targetYear,
       availableYears: distinctYears,
       monthlyData,
+      subdivisions: propertyList,
       totalYearSold,
       ytdVerifiedSoldLots: totalYearSold,
       verifiedSoldLots: totalYearSold, // backward-compatibility alias

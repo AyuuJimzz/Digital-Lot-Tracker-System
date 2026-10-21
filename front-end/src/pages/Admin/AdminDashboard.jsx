@@ -26,7 +26,8 @@ const AdminDashboard = () => {
       return { totalLots: 0, soldLots: 0, availableLots: 0, pendingLots: 0, totalClients: 0 };
     }
   });
-  const [propertiesResult, setPropertiesResult] = useState({ year: null, data: null, loading: true, error: false });
+  const [subdivisionPeriod, setSubdivisionPeriod] = useState("all");
+  const [propertiesResult, setPropertiesResult] = useState({ period: null, data: null, loading: true, error: false });
   const [monthlyResult, setMonthlyResult] = useState({ year: null, data: null, loading: true, error: false });
   const [availableYears, setAvailableYears] = useState([currentYear]);
 
@@ -68,7 +69,8 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     let isCancelled = false;
-    setPropertiesResult({ year: selectedYear, data: null, loading: true, error: false });
+    const activePeriod = subdivisionPeriod === "all" ? "all" : String(selectedYear);
+    setPropertiesResult({ period: activePeriod, data: null, loading: true, error: false });
     const fetchPropertyStats = async () => {
       try {
         const token = localStorage.getItem("authToken");
@@ -76,16 +78,16 @@ const AdminDashboard = () => {
 
         const response = await axios.get(`${API_BASE_URL}/api/lots/time-based-sales`, {
           ...authConfig,
-          params: { period: String(selectedYear) },
+          params: { period: activePeriod },
         });
 
         if (!isCancelled) {
-          setPropertiesResult({ year: selectedYear, data: response.data, loading: false, error: false });
+          setPropertiesResult({ period: activePeriod, data: response.data, loading: false, error: false });
         }
       } catch (error) {
         if (!isCancelled) {
           console.error("Error fetching time-based property stats:", error);
-          setPropertiesResult({ year: selectedYear, data: null, loading: false, error: true });
+          setPropertiesResult({ period: activePeriod, data: null, loading: false, error: true });
         }
       }
     };
@@ -94,7 +96,7 @@ const AdminDashboard = () => {
     return () => {
       isCancelled = true;
     };
-  }, [selectedYear]);
+  }, [subdivisionPeriod, selectedYear]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -128,8 +130,9 @@ const AdminDashboard = () => {
     };
   }, [selectedYear]);
 
+  const activeSubdivisionPeriod = subdivisionPeriod === "all" ? "all" : String(selectedYear);
   const visibleMonthly = monthlyResult.year === selectedYear ? monthlyResult : null;
-  const visibleProperties = propertiesResult.year === selectedYear ? propertiesResult : null;
+  const visibleProperties = propertiesResult.period === activeSubdivisionPeriod ? propertiesResult : null;
 
   const handlePasswordChanged = () => {
     localStorage.setItem("password_reset_required", "false");
@@ -174,6 +177,8 @@ const AdminDashboard = () => {
           <LotsSoldProperties
             properties={visibleProperties?.data}
             selectedYear={selectedYear}
+            period={subdivisionPeriod}
+            onPeriodChange={setSubdivisionPeriod}
             isLoading={!visibleProperties || visibleProperties.loading}
             hasError={Boolean(visibleProperties?.error)}
           />
