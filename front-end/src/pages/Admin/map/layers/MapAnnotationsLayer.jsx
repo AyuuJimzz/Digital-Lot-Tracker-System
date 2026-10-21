@@ -63,7 +63,8 @@ export const MapAnnotationsLayer = ({
                       if (item.property_id && Number(item.property_id) !== Number(selectedProperty)) {
                         setSelectedProperty(item.property_id);
                       }
-                      if (e?.originalEvent?.shiftKey || e?.originalEvent?.ctrlKey || e?.originalEvent?.metaKey) {
+                      const isMultiSelect = selectedAnnotationIds && selectedAnnotationIds.length > 1;
+                      if (e?.originalEvent?.shiftKey || e?.originalEvent?.ctrlKey || e?.originalEvent?.metaKey || isMultiSelect) {
                         if (setSelectedAnnotationIds) {
                           setSelectedAnnotationIds((prev) =>
                             prev.includes(item.id)
@@ -71,6 +72,7 @@ export const MapAnnotationsLayer = ({
                               : [...prev, item.id]
                           );
                         }
+                        setActiveAnnotationId(item.id);
                       } else {
                         setActiveAnnotationId(item.id);
                         if (setSelectedAnnotationIds) {

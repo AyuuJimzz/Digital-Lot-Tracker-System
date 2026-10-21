@@ -130,6 +130,37 @@ export function MapAnnotationControl({
     }
   };
 
+  const handleItemRowClick = (item, e) => {
+    // 1. If modifier key is pressed (Shift, Ctrl, Meta) -> always toggle selection
+    if (e?.shiftKey || e?.ctrlKey || e?.metaKey) {
+      if (onToggleSelectAnnotation) onToggleSelectAnnotation(item.id);
+      return;
+    }
+
+    // 2. If already in multi-select/batch mode (more than 1 item selected)
+    // OR if user has active batch selections (selectedAnnotationIds.length > 0):
+    // Clicking ANYWHERE on the row (box, text, background) TOGGLES that item in the batch!
+    // This strictly prevents accidental clicks from resetting/clearing multi-selection.
+    const hasBatchSelection = selectedAnnotationIds && selectedAnnotationIds.length > 0;
+    if (isMulti || hasBatchSelection) {
+      if (onToggleSelectAnnotation) onToggleSelectAnnotation(item.id);
+      return;
+    }
+
+    // 3. Normal single item selection when no multi-select is active
+    if (onSelectAnnotation) {
+      onSelectAnnotation(item.id);
+    }
+  };
+
+  const handleItemDoubleClick = (item, e) => {
+    e.stopPropagation();
+    // Double click explicitly isolates this single item for text editing, even if in batch mode
+    if (onSelectAnnotation) {
+      onSelectAnnotation(item.id);
+    }
+  };
+
   const handleDeleteActiveOrSelected = () => {
     if (isMulti && onDeleteSelectedAnnotations) {
       onDeleteSelectedAnnotations();
@@ -309,33 +340,50 @@ export function MapAnnotationControl({
                     return (
                       <div
                         key={item.id || idx}
-                        onClick={() => {
-                          if (onSelectAnnotation) onSelectAnnotation(item.id);
-                        }}
-                        className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs cursor-pointer border transition ${
+                        onClick={(e) => handleItemRowClick(item, e)}
+                        onDoubleClick={(e) => handleItemDoubleClick(item, e)}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs cursor-pointer border transition select-none ${
                           isChecked
                             ? "bg-blue-600/20 border-blue-500/60 text-white font-medium shadow-sm"
                             : "bg-slate-800/40 border-slate-800/80 text-slate-300 hover:bg-slate-800/70"
                         }`}
+                        title={
+                          isMulti
+                            ? "Click to toggle selection • Double-click to edit alone"
+                            : "Click to select label"
+                        }
                       >
-                        <div className="flex items-center gap-2 truncate flex-1">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
+                        <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                          {/* Generous clickable checkbox + dot target */}
+                          <div
+                            className="flex items-center gap-1.5 py-0.5 px-1 -ml-1 cursor-pointer shrink-0 rounded hover:bg-slate-700/50 transition"
+                            onClick={(e) => {
                               e.stopPropagation();
                               if (onToggleSelectAnnotation) {
                                 onToggleSelectAnnotation(item.id);
                               }
                             }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-900 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
-                          />
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: item.color || "#e2e8f0" }}
-                          />
-                          <span className="truncate text-[11px]">
+                            title={isChecked ? "Deselect this label" : "Select this label"}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                if (onToggleSelectAnnotation) {
+                                  onToggleSelectAnnotation(item.id);
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-600 focus:ring-blue-500 cursor-pointer accent-blue-600"
+                            />
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
+                              style={{ backgroundColor: item.color || "#e2e8f0" }}
+                            />
+                          </div>
+
+                          <span className="truncate text-[11px] flex-1 py-0.5">
                             {item.text || `Label ${idx + 1}`}
                           </span>
                         </div>
@@ -361,7 +409,19 @@ export function MapAnnotationControl({
                           Editing {selectedCount} Selected Labels
                         </span>
                       </div>
-                      <span className="text-[10px] text-blue-300 font-medium">Batch Mode</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-blue-300 font-medium">Batch Mode</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onDeselectAllAnnotations) onDeselectAllAnnotations();
+                          }}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/80 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                          title="Deselect all and exit batch mode"
+                        >
+                          Exit Batch
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div>

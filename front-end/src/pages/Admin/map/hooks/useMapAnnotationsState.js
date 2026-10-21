@@ -199,9 +199,10 @@ export function useMapAnnotationsState({
     if (newBlockLabels.length > 0) {
       setAnnotations((prev) => [...prev, ...newBlockLabels]);
       setActiveAnnotationId(newBlockLabels[0].id);
+      setSelectedAnnotationIds(newBlockLabels.map((l) => l.id));
       setIsEditingAnnotations(true);
       setShowAnnotationPanel(true);
-      showToast(`Added ${newBlockLabels.length} block labels! You can now drag them anywhere, adjust font size, and click Save.`, "success");
+      showToast(`Added ${newBlockLabels.length} block labels! All are selected for batch editing.`, "success");
     } else {
       showToast("All block labels are already in your list.", "info");
       setShowAnnotationPanel(true);
@@ -210,9 +211,16 @@ export function useMapAnnotationsState({
 
   const handleToggleSelectAnnotation = useCallback((id) => {
     setSelectedAnnotationIds((prev) => {
-      const next = prev.includes(id)
-        ? prev.filter((item) => item !== id)
-        : [...prev, id];
+      // If prev is empty, but we already have an active item that is different from id,
+      // include the active item so multi-selection starts smoothly with both items!
+      let current = [...prev];
+      if (current.length === 0 && activeAnnotationId && activeAnnotationId !== id) {
+        current = [activeAnnotationId];
+      }
+
+      const next = current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id];
       if (next.length === 1) {
         setActiveAnnotationId(next[0]);
       } else if (!next.includes(activeAnnotationId) && next.length > 0) {
