@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   loadCustomColors,
   getThemeForSubdivision,
@@ -31,6 +31,12 @@ const LotsSoldProperties = ({
       window.removeEventListener("storage", handleColorUpdate);
     };
   }, []);
+
+  const totalYearSold = useMemo(() => {
+    return Array.isArray(properties)
+      ? properties.reduce((sum, p) => sum + (Number(p.sold) || 0), 0)
+      : 0;
+  }, [properties]);
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 flex flex-col justify-between h-full transition-colors duration-300">
@@ -107,7 +113,8 @@ const LotsSoldProperties = ({
               const theme = getThemeForSubdivision(property, index, customColors);
               const total = Number(property.total) || 1;
               const sold = Number(property.sold) || 0;
-              const pct = Math.min(Math.round((sold / total) * 1000) / 10, 100);
+              const allTimePct = Math.min(Math.round((sold / total) * 1000) / 10, 100);
+              const yearSharePct = totalYearSold > 0 ? Math.round((sold / totalYearSold) * 100) : 0;
 
               return (
                 <div key={property.property_id || index} className="space-y-2 group">
@@ -121,14 +128,22 @@ const LotsSoldProperties = ({
                     </span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="font-mono text-gray-500 dark:text-slate-400 text-[11px]">
-                        <strong className="text-gray-900 dark:text-white font-semibold">{sold}</strong> of {total} Lots
+                        {isAllTime ? (
+                          <>
+                            <strong className="text-gray-900 dark:text-white font-semibold">{sold}</strong> of {total} Lots
+                          </>
+                        ) : (
+                          <>
+                            <strong className="text-gray-900 dark:text-white font-semibold">{sold}</strong> {sold === 1 ? "Lot" : "Lots"}
+                          </>
+                        )}
                       </span>
-                      {sold > 0 && (
+                      {isAllTime && sold > 0 && (
                         <span
                           className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded-md border"
                           style={theme.style.badge}
                         >
-                          {pct}%
+                          {allTimePct}%
                         </span>
                       )}
                     </div>
@@ -139,7 +154,9 @@ const LotsSoldProperties = ({
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
-                        width: `${Math.max(pct, sold > 0 ? 3 : 0)}%`,
+                        width: isAllTime
+                          ? `${Math.max(allTimePct, sold > 0 ? 3 : 0)}%`
+                          : `${Math.max(yearSharePct, sold > 0 ? 4 : 0)}%`,
                         ...(sold > 0 ? theme.style.bar : { backgroundColor: "transparent" }),
                       }}
                     />
