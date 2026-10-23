@@ -682,7 +682,7 @@ exports.getMonthlySalesSheet = async (req, res) => {
 
     const legacyFilter = includeOldRecords
       ? ""
-      : " AND t.agent_name != 'Old Record' AND (t.notes IS NULL OR t.notes NOT LIKE '%Legacy sold record%') ";
+      : " AND t.agent_name != 'Old Record' ";
 
     const query = `
       SELECT
