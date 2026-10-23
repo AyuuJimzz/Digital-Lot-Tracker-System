@@ -682,7 +682,7 @@ exports.getMonthlySalesSheet = async (req, res) => {
 
     const legacyFilter = includeOldRecords
       ? ""
-      : " AND t.agent_name != 'Old Record' ";
+      : " AND t.agent_name != 'Old Record' AND (t.is_date_verified = 1 OR l.sold_on IS NOT NULL) ";
 
     const query = `
       SELECT
