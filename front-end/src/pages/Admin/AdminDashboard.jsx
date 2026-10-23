@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 
 import StatCard from "../../components/admin/StatCard";
@@ -17,6 +17,8 @@ const AdminDashboard = () => {
   const [selectedProject, setSelectedProject] = useState("all");
   const [customColors, setCustomColors] = useState(() => loadCustomColors());
   const [statsLoading, setStatsLoading] = useState(false);
+  const projectStatsCacheRef = useRef({});
+  const estateStatsRef = useRef(null);
 
   const [stats, setStats] = useState(() => {
     try {
@@ -77,10 +79,51 @@ const AdminDashboard = () => {
     };
   }, []);
 
-  // Fetch Dashboard Stats based on selected project
+  // Instant 0ms switch handler: updates the stats cards immediately from cache/subdivisions
+  const handleSelectProject = useCallback((projectId) => {
+    setSelectedProject(projectId);
+
+    if (projectId === "all") {
+      if (estateStatsRef.current) {
+        setStats(estateStatsRef.current);
+      }
+      return;
+    }
+
+    const cached = projectStatsCacheRef.current[String(projectId)];
+    if (cached) {
+      setStats(cached);
+      return;
+    }
+
+    // Instant optimistic projection directly from pre-loaded subdivisions
+    setStats((prev) => {
+      const subdiv = prev.subdivisions?.find((s) => String(s.property_id) === String(projectId));
+      if (!subdiv) return prev;
+      return {
+        ...prev,
+        propertyId: subdiv.property_id,
+        propertyName: subdiv.property_name,
+        placeLocation: subdiv.location || "Iloilo",
+        totalLots: subdiv.totalLots || 0,
+        soldLots: subdiv.soldLots || 0,
+        availableLots: subdiv.availableLots || 0,
+        pendingLots: subdiv.pendingLots || 0,
+        totalParcels: subdiv.totalParcels || 0,
+        nonSaleableLots: subdiv.nonSaleableLots || 0,
+        totalClients: subdiv.totalClients || 0,
+      };
+    });
+  }, []);
+
+  // Fetch Dashboard Stats based on selected project with silent background revalidation
   useEffect(() => {
     let isCancelled = false;
-    setStatsLoading(true);
+
+    // Only dim stats on cold boot if no data is available yet
+    if (!stats || stats.totalLots === 0) {
+      setStatsLoading(true);
+    }
 
     const fetchStats = async () => {
       try {
@@ -106,10 +149,33 @@ const AdminDashboard = () => {
             subdivisions: Array.isArray(response.data.subdivisions) ? response.data.subdivisions : [],
           };
 
-          setStats(newStats);
           if (selectedProject === "all") {
+            estateStatsRef.current = newStats;
             try { sessionStorage.setItem("adminStatsCache", JSON.stringify(newStats)); } catch (e) {}
+
+            // Pre-warm projectStatsCacheRef from subdivisions array for instant subsequent clicks
+            if (Array.isArray(response.data.subdivisions)) {
+              response.data.subdivisions.forEach((s) => {
+                projectStatsCacheRef.current[String(s.property_id)] = {
+                  propertyId: s.property_id,
+                  propertyName: s.property_name,
+                  placeLocation: s.location || "Iloilo",
+                  totalLots: s.totalLots || 0,
+                  soldLots: s.soldLots || 0,
+                  availableLots: s.availableLots || 0,
+                  pendingLots: s.pendingLots || 0,
+                  totalParcels: s.totalParcels || 0,
+                  nonSaleableLots: s.nonSaleableLots || 0,
+                  totalClients: s.totalClients || 0,
+                  subdivisions: response.data.subdivisions,
+                };
+              });
+            }
+          } else {
+            projectStatsCacheRef.current[String(selectedProject)] = newStats;
           }
+
+          setStats(newStats);
         }
       } catch (error) {
         if (!isCancelled) {
@@ -213,7 +279,7 @@ const AdminDashboard = () => {
       <ProjectDashboardSwitcher
         subdivisions={stats.subdivisions || []}
         selectedProject={selectedProject}
-        onSelectProject={setSelectedProject}
+        onSelectProject={handleSelectProject}
         customColors={customColors}
         totalEstateLots={estateTotalSaleable}
       />
@@ -267,7 +333,7 @@ const AdminDashboard = () => {
             isLoading={!visibleMonthly || visibleMonthly.loading}
             hasError={Boolean(visibleMonthly?.error)}
             activeSubdivision={selectedProject}
-            onSubdivisionSelect={setSelectedProject}
+            onSubdivisionSelect={handleSelectProject}
           />
         </div>
         <div className="lg:col-span-3 min-w-0">
@@ -279,7 +345,7 @@ const AdminDashboard = () => {
             isLoading={!visibleProperties || visibleProperties.loading}
             hasError={Boolean(visibleProperties?.error)}
             selectedPropertyId={selectedProject}
-            onSelectProperty={setSelectedProject}
+            onSelectProperty={handleSelectProject}
           />
         </div>
       </div>
@@ -288,7 +354,7 @@ const AdminDashboard = () => {
       <div className="pt-2">
         <RecentTransactions
           selectedPropertyId={selectedProject}
-          onClearPropertyFilter={() => setSelectedProject("all")}
+          onClearPropertyFilter={() => handleSelectProject("all")}
         />
       </div>
     </div>

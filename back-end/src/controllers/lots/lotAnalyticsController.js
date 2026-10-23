@@ -50,6 +50,7 @@ exports.getDashboardStats = async (req, res) => {
         pendingLots: 0,
         soldLots: 0,
         nonSaleableLots: 0,
+        totalClients: 0,
       };
     });
 
@@ -67,7 +68,7 @@ exports.getDashboardStats = async (req, res) => {
       }
     });
 
-    const subdivisions = Object.values(propertySummaryMap);
+    let subdivisions = Object.values(propertySummaryMap);
 
     const selectedProperty = requestedPropertyId
       ? activeProperties.find((p) => p.property_id === requestedPropertyId) || null
@@ -136,7 +137,58 @@ exports.getDashboardStats = async (req, res) => {
         customerQueryParams
       );
       totalClients = customers && customers[0] && customers[0].count ? Number(customers[0].count) : 0;
+
+      // When estate-wide (no requestedPropertyId), pre-compute client counts for each subdivision
+      if (!requestedPropertyId) {
+        try {
+          const [perSubdivClients] = await dbToUse.query(
+            `
+            SELECT l.property_id, COUNT(DISTINCT
+              CASE
+                WHEN c.full_name IS NOT NULL
+                  AND TRIM(c.full_name) != ''
+                  AND TRIM(LOWER(c.full_name)) != 'to be updated'
+                  THEN TRIM(LOWER(c.full_name))
+                WHEN c.email IS NOT NULL
+                  AND TRIM(c.email) != ''
+                  AND TRIM(LOWER(c.email)) != 'to be updated'
+                  THEN TRIM(LOWER(c.email))
+                WHEN c.contact_number IS NOT NULL
+                  AND TRIM(c.contact_number) != ''
+                  AND TRIM(LOWER(c.contact_number)) != 'to be updated'
+                  THEN TRIM(c.contact_number)
+                ELSE NULL
+              END
+            ) as count
+            FROM (
+              SELECT customer_id, lot_id, full_name, email, contact_number, customer_status,
+                     ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY updated_at DESC, customer_id DESC) AS rn
+              FROM customers
+              WHERE lot_id IS NOT NULL
+                AND (customer_status IN ('Pending', 'Sold') OR customer_status IS NULL)
+            ) c
+            JOIN lots l ON c.lot_id = l.lot_id
+            JOIN properties p ON l.property_id = p.property_id
+            WHERE c.rn = 1
+              AND p.status = 'active'
+              AND l.status IN ('Pending', 'Sold')
+            GROUP BY l.property_id
+          `
+          );
+          if (Array.isArray(perSubdivClients)) {
+            perSubdivClients.forEach((row) => {
+              if (row && row.property_id && propertySummaryMap[row.property_id]) {
+                propertySummaryMap[row.property_id].totalClients = Number(row.count) || 0;
+              }
+            });
+          }
+        } catch (subdivCustErr) {
+          console.warn("Could not load per-subdivision customer counts:", subdivCustErr.message);
+        }
+      }
     }
+
+    subdivisions = Object.values(propertySummaryMap);
 
     const stats = {
       propertyId: requestedPropertyId || "all",

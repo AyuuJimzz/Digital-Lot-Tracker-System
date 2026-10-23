@@ -119,7 +119,7 @@ const MonthlySalesSheetModal = ({
         });
 
         if (!isCancelled) {
-          setReportData(res.data);
+          setReportData(res?.data || null);
           setLoading(false);
         }
       } catch (err) {
