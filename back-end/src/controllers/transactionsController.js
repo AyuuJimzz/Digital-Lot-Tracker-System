@@ -56,7 +56,7 @@ const getTransactions = async (req, res) => {
           WHEN EXISTS (
             SELECT 1 FROM transactions rev
             WHERE rev.lot_id = l.lot_id
-              AND rev.payment_type = 'Reversal'
+              AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
               AND rev.transaction_id > t.transaction_id
           ) THEN 'Cancelled'
           WHEN l.status = 'Sold' AND (c.customer_status = 'Sold' OR c.customer_status IS NULL) THEN 'Sold'

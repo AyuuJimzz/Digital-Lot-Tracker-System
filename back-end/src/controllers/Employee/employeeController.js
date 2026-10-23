@@ -26,12 +26,19 @@ exports.getAllEmployees = async (req, res) => {
         COALESCE(reserves.pending_count, 0) AS lots_pending
       FROM employees e
       LEFT JOIN (
-        SELECT t.employee_id, COUNT(*) AS sold_count
+        SELECT t.employee_id, COUNT(DISTINCT l.lot_id) AS sold_count
         FROM transactions t
         JOIN lots l ON t.lot_id = l.lot_id
         LEFT JOIN customers c ON t.customer_id = c.customer_id
-        WHERE c.customer_status = 'Sold'
-           OR (t.customer_id IS NULL AND l.status = 'Sold')
+        WHERE l.status = 'Sold'
+          AND (c.customer_status = 'Sold' OR t.customer_id IS NULL)
+          AND t.payment_type NOT IN ('Reversal', 'Cancelled')
+          AND NOT EXISTS (
+            SELECT 1 FROM transactions rev
+            WHERE rev.lot_id = l.lot_id
+              AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
+              AND rev.transaction_id > t.transaction_id
+          )
         GROUP BY t.employee_id
       ) sales ON e.employee_id = sales.employee_id
       LEFT JOIN (

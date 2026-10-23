@@ -351,6 +351,12 @@ exports.getMonthlySalesData = async (req, res) => {
         AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
         AND t.payment_type NOT IN ('Reversal', 'Cancelled')
         AND ${verificationCondition}
+        AND NOT EXISTS (
+          SELECT 1 FROM transactions rev
+          WHERE rev.lot_id = l.lot_id
+            AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
+            AND rev.transaction_id > t.transaction_id
+        )
         AND COALESCE(l.sold_on, t.transaction_date) IS NOT NULL
       ORDER BY year DESC
     `);

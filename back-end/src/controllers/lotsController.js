@@ -131,6 +131,12 @@ exports.getLotById = async (req, res) => {
            END
          ) = e.employee_id
          WHERE t.lot_id = ? ${customerFilterSql} AND t.payment_type NOT IN ('Reversal', 'Cancelled')
+           AND NOT EXISTS (
+             SELECT 1 FROM transactions rev
+             WHERE rev.lot_id = t.lot_id
+               AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
+               AND rev.transaction_id > t.transaction_id
+           )
          ORDER BY t.transaction_date DESC, t.transaction_id DESC LIMIT 1`,
         queryParams
       );
