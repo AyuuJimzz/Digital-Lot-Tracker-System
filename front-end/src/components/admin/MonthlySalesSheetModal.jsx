@@ -239,7 +239,7 @@ const MonthlySalesSheetModal = ({
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
-      doc.text("MONTHLY SALES & NEW ACCOUNTS REPORT", pageWidth / 2, 20, { align: "center" });
+      doc.text("MONTHLY SALES REPORT", pageWidth / 2, 20, { align: "center" });
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
@@ -295,7 +295,7 @@ const MonthlySalesSheetModal = ({
         doc.setFontSize(10);
         doc.setTextColor(15, 23, 42);
         const projectTitle = doc.splitTextToSize(
-          `${proj.property_name || "Subdivision"} NEW ACCOUNT`.toUpperCase(),
+          (proj.property_name || "Subdivision").toUpperCase(),
           pageWidth - margin * 2
         );
         doc.text(projectTitle, margin, currentY);
@@ -373,6 +373,32 @@ const MonthlySalesSheetModal = ({
         });
 
         currentY = (doc.lastAutoTable?.finalY || currentY) + 8;
+      });
+
+      // Compact preparation and approval details after all project totals.
+      const approvalBlockHeight = 22;
+      if (currentY + approvalBlockHeight > pageHeight - 15) {
+        doc.addPage();
+        currentY = margin + 5;
+      } else {
+        currentY += 5;
+      }
+
+      const approvalColumnWidth = (pageWidth - margin * 2) / 3;
+      [
+        ["Prepared by:", "Denisse P. Gadot"],
+        ["Verified by:", "John Rowen E. Cosca"],
+        ["Approved by:", "Erika Freud D. Orleans"],
+      ].forEach(([label, name], index) => {
+        const x = margin + approvalColumnWidth * index;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(label, x, currentY + 4);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        doc.text(name, x, currentY + 11, { maxWidth: approvalColumnWidth - 10 });
       });
 
       // 4. Page numbering & footer
@@ -465,11 +491,11 @@ const MonthlySalesSheetModal = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white leading-tight">
-                  Monthly Sales & New Accounts Report
+                  Monthly Sales Report
                 </h2>
               </div>
               <p className="text-xs text-gray-500 dark:text-slate-400">
-                Official statement of new accounts, collections, and total contract price
+                Official statement of sales, collections, and total contract price
               </p>
             </div>
           </div>
@@ -666,7 +692,7 @@ const MonthlySalesSheetModal = ({
                   </span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-white uppercase">
-                  Monthly Sales & New Accounts Report
+                  Monthly Sales Report
                 </h1>
                 <div className="inline-flex items-center gap-2 mt-2 px-3 py-1 bg-gray-100 dark:bg-slate-800 rounded-full text-xs font-semibold text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-slate-700">
                   <Calendar className="w-3.5 h-3.5 text-gray-400" />
@@ -763,7 +789,7 @@ const MonthlySalesSheetModal = ({
                     >
                       <span className="flex min-w-0 items-center gap-2.5">
                         <span className="truncate text-sm font-semibold uppercase text-gray-900 dark:text-white">
-                          {proj.property_name} NEW ACCOUNT
+                          {proj.property_name}
                         </span>
                         <span className="shrink-0 text-[11px] font-medium text-gray-500 dark:text-slate-400">
                           {proj.subtotal.lots_sold} {proj.subtotal.lots_sold === 1 ? "LOT" : "LOTS"} SOLD
@@ -915,6 +941,29 @@ const MonthlySalesSheetModal = ({
                   </div>
                 );
               })}
+
+              {/* Compact client-requested report acknowledgements after all totals. */}
+              <section
+                className="mt-7 border-t border-gray-200 pt-5 dark:border-slate-800"
+                aria-label="Report acknowledgements"
+              >
+                <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3">
+                  {[
+                    ["Prepared by:", "Denisse P. Gadot"],
+                    ["Verified by:", "John Rowen E. Cosca"],
+                    ["Approved by:", "Erika Freud D. Orleans"],
+                  ].map(([label, name]) => (
+                    <div key={label} className="min-w-0">
+                      <p className="text-[11px] font-medium text-gray-500 dark:text-slate-400">
+                        {label}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                        {name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
               {/* Report footer */}
               <div className="pt-6 mt-6 border-t border-gray-200 dark:border-slate-800 text-[11px] text-gray-500 dark:text-slate-400">

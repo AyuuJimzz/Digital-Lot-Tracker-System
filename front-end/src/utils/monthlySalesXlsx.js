@@ -120,7 +120,7 @@ const buildRows = ({ monthName, selectedYear, scopeLabel, projects, summary }) =
   };
 
   rows.push(row(mergedLabel("GOLDEN DRAGON ESTATE DEVELOPER COMPANY", 1, 1, 9), 31));
-  rows.push(row(mergedLabel("MONTHLY SALES & NEW ACCOUNTS REPORT", 2, 1, 9), 24));
+  rows.push(row(mergedLabel("MONTHLY SALES REPORT", 2, 1, 9), 24));
   rows.push(
     row(
       mergedLabel(`Period: ${monthName} ${selectedYear}     Scope: ${scopeLabel}`, 3, 1, 9),
@@ -130,12 +130,12 @@ const buildRows = ({ monthName, selectedYear, scopeLabel, projects, summary }) =
   rows.push(row(Array.from({ length: 9 }, () => cell(null, 0, "blank")), 9));
 
   if (!projects.length) {
-    rows.push(row(mergedLabel("No recorded new accounts for this month.", 6, 1, 9), 24));
+    rows.push(row(mergedLabel("No recorded sales for this month.", 6, 1, 9), 24));
     return { rows, merges };
   }
 
   projects.forEach((project) => {
-    const projectTitle = `${(project.property_name || "SUBDIVISION").toUpperCase()} NEW ACCOUNT`;
+    const projectTitle = (project.property_name || "SUBDIVISION").toUpperCase();
     rows.push(row(mergedLabel(projectTitle, 4, 1, 9), 23));
     rows.push(
       row(
@@ -241,6 +241,28 @@ const buildRows = ({ monthName, selectedYear, scopeLabel, projects, summary }) =
   merge(grandTotalRow, 1, 5);
   merge(grandTotalRow, 6, 7);
   merge(grandTotalRow, 8, 9);
+
+  rows.push(row(Array.from({ length: 9 }, () => cell(null, 0, "blank")), 10));
+
+  const acknowledgementLabelsRow = rows.length + 1;
+  const acknowledgementLabels = Array.from({ length: 9 }, () => cell(null, 0, "blank"));
+  acknowledgementLabels[0] = cell("Prepared by:", 0);
+  acknowledgementLabels[3] = cell("Verified by:", 0);
+  acknowledgementLabels[6] = cell("Approved by:", 0);
+  rows.push(row(acknowledgementLabels, 16));
+  merge(acknowledgementLabelsRow, 1, 3);
+  merge(acknowledgementLabelsRow, 4, 6);
+  merge(acknowledgementLabelsRow, 7, 9);
+
+  const acknowledgementNamesRow = rows.length + 1;
+  const acknowledgementNames = Array.from({ length: 9 }, () => cell(null, 0, "blank"));
+  acknowledgementNames[0] = cell("Denisse P. Gadot", 2);
+  acknowledgementNames[3] = cell("John Rowen E. Cosca", 2);
+  acknowledgementNames[6] = cell("Erika Freud D. Orleans", 2);
+  rows.push(row(acknowledgementNames, 20));
+  merge(acknowledgementNamesRow, 1, 3);
+  merge(acknowledgementNamesRow, 4, 6);
+  merge(acknowledgementNamesRow, 7, 9);
 
   return { rows, merges };
 };
@@ -367,7 +389,7 @@ export const createMonthlySalesXlsx = ({ monthName, selectedYear, scopeLabel, pr
   const sheet = worksheetXml({ rows, merges });
   const now = new Date().toISOString();
   const coreXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Monthly Sales and New Accounts Report</dc:title><dc:creator>Golden Dragon Estate Management System</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created></cp:coreProperties>`;
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Monthly Sales Report</dc:title><dc:creator>Golden Dragon Estate Management System</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created></cp:coreProperties>`;
   const files = {
     "[Content_Types].xml": strToU8(contentTypesXml),
     "_rels/.rels": strToU8(packageRelsXml),

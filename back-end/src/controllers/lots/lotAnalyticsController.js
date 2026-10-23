@@ -13,12 +13,7 @@ exports.getDashboardStats = async (req, res) => {
         ? Number(req.query.property_id)
         : null;
 
-    // Get all lots with property_id, lot_number, status, is_non_saleable
-    const [allLots] = await dbToUse.query(
-      `SELECT lot_id, property_id, lot_number, status, is_non_saleable FROM lots`
-    );
-
-    // Get active properties metadata
+    // 1. Get active properties metadata first
     let activeProperties = [];
     try {
       const [props] = await dbToUse.query(
@@ -28,6 +23,19 @@ exports.getDashboardStats = async (req, res) => {
     } catch (propErr) {
       console.warn("Could not load active properties in dashboard stats:", propErr.message);
     }
+
+    const activePropertyIdSet = new Set(activeProperties.map((p) => Number(p.property_id)));
+
+    // 2. Get lots: strictly join properties with status = 'active'
+    const [rawLots] = await dbToUse.query(
+      `SELECT l.lot_id, l.property_id, l.lot_number, l.status, l.is_non_saleable
+       FROM lots l
+       INNER JOIN properties p ON l.property_id = p.property_id
+       WHERE p.status = 'active'`
+    );
+
+    // Defense-in-depth: exclude any lot not mapped to an active property
+    const allLots = (rawLots || []).filter((lot) => activePropertyIdSet.has(Number(lot.property_id)));
 
     // Build per-subdivision summary
     const propertySummaryMap = {};
@@ -61,10 +69,21 @@ exports.getDashboardStats = async (req, res) => {
 
     const subdivisions = Object.values(propertySummaryMap);
 
-    // Target lots: filter if specific property requested
-    const targetLots = requestedPropertyId
-      ? allLots.filter((lot) => Number(lot.property_id) === requestedPropertyId)
-      : allLots;
+    const selectedProperty = requestedPropertyId
+      ? activeProperties.find((p) => p.property_id === requestedPropertyId) || null
+      : null;
+
+    // Target lots: filter if specific active property requested; if requested property is inactive or missing, return empty set
+    let targetLots = [];
+    if (requestedPropertyId) {
+      if (selectedProperty) {
+        targetLots = allLots.filter((lot) => Number(lot.property_id) === requestedPropertyId);
+      } else {
+        targetLots = [];
+      }
+    } else {
+      targetLots = allLots;
+    }
 
     const totalParcels = targetLots.length;
     const nonSaleableLots = targetLots.filter((lot) => isNonSaleableLot(lot)).length;
@@ -73,48 +92,51 @@ exports.getDashboardStats = async (req, res) => {
     const pendingLots = targetLots.filter((lot) => lot.status === "Pending" && !isNonSaleableLot(lot)).length;
     const soldLots = targetLots.filter((lot) => lot.status === "Sold" && !isNonSaleableLot(lot)).length;
 
-    // Customer query with optional property_id filter
-    const customerQueryParams = requestedPropertyId ? [requestedPropertyId] : [];
-    const customerPropertyClause = requestedPropertyId ? `AND l.property_id = ?` : ``;
+    // Customer query with optional property_id filter (strictly active properties)
+    let totalClients = 0;
+    if (requestedPropertyId && !selectedProperty) {
+      totalClients = 0;
+    } else {
+      const customerQueryParams = requestedPropertyId ? [requestedPropertyId] : [];
+      const customerPropertyClause = requestedPropertyId ? `AND l.property_id = ?` : ``;
 
-    const [customers] = await dbToUse.query(
-      `
-      SELECT COUNT(DISTINCT
-        CASE
-          WHEN c.full_name IS NOT NULL
-            AND TRIM(c.full_name) != ''
-            AND TRIM(LOWER(c.full_name)) != 'to be updated'
-            THEN TRIM(LOWER(c.full_name))
-          WHEN c.email IS NOT NULL
-            AND TRIM(c.email) != ''
-            AND TRIM(LOWER(c.email)) != 'to be updated'
-            THEN TRIM(LOWER(c.email))
-          WHEN c.contact_number IS NOT NULL
-            AND TRIM(c.contact_number) != ''
-            AND TRIM(LOWER(c.contact_number)) != 'to be updated'
-            THEN TRIM(c.contact_number)
-          ELSE NULL
-        END
-      ) as count
-      FROM (
-        SELECT customer_id, lot_id, full_name, email, contact_number, customer_status,
-               ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY updated_at DESC, customer_id DESC) AS rn
-        FROM customers
-        WHERE lot_id IS NOT NULL
-          AND (customer_status IN ('Pending', 'Sold') OR customer_status IS NULL)
-      ) c
-      JOIN lots l ON c.lot_id = l.lot_id
-      WHERE c.rn = 1
-        AND l.status IN ('Pending', 'Sold')
-        ${customerPropertyClause}
-    `,
-      customerQueryParams
-    );
-    const totalClients = customers && customers[0] && customers[0].count ? Number(customers[0].count) : 0;
-
-    const selectedProperty = requestedPropertyId
-      ? activeProperties.find((p) => p.property_id === requestedPropertyId) || null
-      : null;
+      const [customers] = await dbToUse.query(
+        `
+        SELECT COUNT(DISTINCT
+          CASE
+            WHEN c.full_name IS NOT NULL
+              AND TRIM(c.full_name) != ''
+              AND TRIM(LOWER(c.full_name)) != 'to be updated'
+              THEN TRIM(LOWER(c.full_name))
+            WHEN c.email IS NOT NULL
+              AND TRIM(c.email) != ''
+              AND TRIM(LOWER(c.email)) != 'to be updated'
+              THEN TRIM(LOWER(c.email))
+            WHEN c.contact_number IS NOT NULL
+              AND TRIM(c.contact_number) != ''
+              AND TRIM(LOWER(c.contact_number)) != 'to be updated'
+              THEN TRIM(c.contact_number)
+            ELSE NULL
+          END
+        ) as count
+        FROM (
+          SELECT customer_id, lot_id, full_name, email, contact_number, customer_status,
+                 ROW_NUMBER() OVER (PARTITION BY lot_id ORDER BY updated_at DESC, customer_id DESC) AS rn
+          FROM customers
+          WHERE lot_id IS NOT NULL
+            AND (customer_status IN ('Pending', 'Sold') OR customer_status IS NULL)
+        ) c
+        JOIN lots l ON c.lot_id = l.lot_id
+        JOIN properties p ON l.property_id = p.property_id
+        WHERE c.rn = 1
+          AND p.status = 'active'
+          AND l.status IN ('Pending', 'Sold')
+          ${customerPropertyClause}
+      `,
+        customerQueryParams
+      );
+      totalClients = customers && customers[0] && customers[0].count ? Number(customers[0].count) : 0;
+    }
 
     const stats = {
       propertyId: requestedPropertyId || "all",
@@ -255,6 +277,7 @@ exports.getMonthlySalesData = async (req, res) => {
       INNER JOIN properties p ON l.property_id = p.property_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
       WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) = ?
+        AND p.status = 'active'
         AND l.status = 'Sold'
         AND NOT ${NON_SALEABLE_SQL_CONDITION}
         AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
@@ -290,8 +313,10 @@ exports.getMonthlySalesData = async (req, res) => {
       SELECT COUNT(DISTINCT l.lot_id) as count
       FROM transactions t
       INNER JOIN lots l ON t.lot_id = l.lot_id
+      INNER JOIN properties p ON l.property_id = p.property_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
       WHERE YEAR(COALESCE(l.sold_on, t.transaction_date)) < ?
+        AND p.status = 'active'
         AND l.status = 'Sold'
         AND NOT ${NON_SALEABLE_SQL_CONDITION}
         AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
@@ -312,7 +337,9 @@ exports.getMonthlySalesData = async (req, res) => {
     const undatedQuery = `
       SELECT COUNT(DISTINCT l.lot_id) as count
       FROM lots l
+      INNER JOIN properties p ON l.property_id = p.property_id
       WHERE l.status = 'Sold'
+        AND p.status = 'active'
         AND NOT ${NON_SALEABLE_SQL_CONDITION}
         AND NOT EXISTS (
           SELECT 1 FROM transactions t
@@ -336,7 +363,10 @@ exports.getMonthlySalesData = async (req, res) => {
     const [allTimeRows] = await dbToUse.query(`
       SELECT COUNT(*) as count
       FROM lots l
-      WHERE l.status = 'Sold' AND NOT ${NON_SALEABLE_SQL_CONDITION}
+      INNER JOIN properties p ON l.property_id = p.property_id
+      WHERE l.status = 'Sold'
+        AND p.status = 'active'
+        AND NOT ${NON_SALEABLE_SQL_CONDITION}
     `);
     const allTimeSoldLots = Number(allTimeRows[0]?.count || 0);
 
@@ -345,8 +375,10 @@ exports.getMonthlySalesData = async (req, res) => {
       SELECT DISTINCT YEAR(COALESCE(l.sold_on, t.transaction_date)) as year
       FROM transactions t
       INNER JOIN lots l ON t.lot_id = l.lot_id
+      INNER JOIN properties p ON l.property_id = p.property_id
       LEFT JOIN customers c ON t.customer_id = c.customer_id
       WHERE l.status = 'Sold'
+        AND p.status = 'active'
         AND NOT ${NON_SALEABLE_SQL_CONDITION}
         AND (c.customer_status = 'Sold' OR c.customer_status IS NULL)
         AND t.payment_type NOT IN ('Reversal', 'Cancelled')
@@ -715,6 +747,7 @@ exports.getMonthlySalesSheet = async (req, res) => {
       LEFT JOIN employees e ON t.employee_id = e.employee_id
       WHERE YEAR(COALESCE(t.transaction_date, l.sold_on)) = ?
         AND MONTH(COALESCE(t.transaction_date, l.sold_on)) = ?
+        AND p.status = 'active'
         AND t.payment_type NOT IN ('Reversal', 'Cancelled')
         AND l.status = 'Sold'
         AND NOT EXISTS (

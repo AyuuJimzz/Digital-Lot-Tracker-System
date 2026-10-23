@@ -89,8 +89,14 @@ describe("monthly sales Excel export", () => {
     expect(sheet).toContain('<col min="8" max="8" width="31" customWidth="1"/>');
     expect(sheet).toContain('<col min="14" max="14" width="22" customWidth="1"/>');
     expect(sheet).toContain('<col min="1" max="6" width="8.43" customWidth="1"/>');
-    expect(sheet).toContain('<dimension ref="A1:O15"/>');
-    expect(workbookFiles["xl/workbook.xml"]).toContain("'Monthly Sales'!$G$1:$O$15");
+    expect(sheet).toContain('<dimension ref="A1:O18"/>');
+    expect(workbookFiles["xl/workbook.xml"]).toContain("'Monthly Sales'!$G$1:$O$18");
+    expect(sheet).toContain("Prepared by:");
+    expect(sheet).toContain("Verified by:");
+    expect(sheet).toContain("Approved by:");
+    expect(sheet).toContain("Denisse P. Gadot");
+    expect(sheet).toContain("John Rowen E. Cosca");
+    expect(sheet).toContain("Erika Freud D. Orleans");
     expect(styles).toContain('<alignment horizontal="left" vertical="center" wrapText="1"/>');
     expect(styles).toContain('<xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>');
     expect(styles).toContain('<xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>');
@@ -113,6 +119,6 @@ describe("monthly sales Excel export", () => {
     });
     const sheet = strFromU8(unzipSync(bytes)["xl/worksheets/sheet1.xml"]);
 
-    expect(sheet).toContain("No recorded new accounts for this month.");
+    expect(sheet).toContain("No recorded sales for this month.");
   });
 });

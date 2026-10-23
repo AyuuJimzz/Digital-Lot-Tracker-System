@@ -123,7 +123,7 @@ describe("MonthlySalesSheetModal", () => {
     expect(screen.getAllByText(/Monthly Sales/i).length).toBeGreaterThan(0);
 
     await waitFor(() => {
-      expect(screen.getByText(/Abilay New Account/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Abilay/i).length).toBeGreaterThan(0);
       expect(screen.getByText("Juan Dela Cruz")).toBeInTheDocument();
       expect(screen.getByText("Ana Santos")).toBeInTheDocument();
     });
@@ -138,7 +138,15 @@ describe("MonthlySalesSheetModal", () => {
     expect(screen.getByText("AGENT")).toBeInTheDocument();
     expect(screen.getByText("SALES OF THE MONTH")).toBeInTheDocument();
     expect(screen.queryByText("Full Screen")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Full Screen|Restore Window/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Prepared by:")).toBeInTheDocument();
+    expect(screen.getByText("Denisse P. Gadot")).toBeInTheDocument();
+    expect(screen.getByText("Verified by:")).toBeInTheDocument();
+    expect(screen.getByText("John Rowen E. Cosca")).toBeInTheDocument();
+    expect(screen.getByText("Approved by:")).toBeInTheDocument();
+    expect(screen.getByText("Erika Freud D. Orleans")).toBeInTheDocument();
+    const acknowledgements = screen.getByRole("region", { name: "Report acknowledgements" });
+    const generatedFooter = screen.getByText("Generated via Golden Dragon Estate Management System");
+    expect(acknowledgements.compareDocumentPosition(generatedFooter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText("Prepared by / Management Sign-off")).not.toBeInTheDocument();
     expect(screen.queryByText("Include old records")).not.toBeInTheDocument();
     expect(axios.get.mock.calls[0][1].params).toEqual({ year: 2026, month: 3 });

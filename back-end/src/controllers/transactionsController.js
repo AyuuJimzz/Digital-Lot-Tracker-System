@@ -79,6 +79,7 @@ const getTransactions = async (req, res) => {
         OR c.customer_status = 'Cancelled'
         OR t.payment_type IN ('Reversal', 'Cancelled')
       )
+      AND p.status = 'active'
     `;
     const params = [];
     if (req.user && req.user.role === "employee" && req.query.scope === "personal") {

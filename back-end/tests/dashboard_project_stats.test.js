@@ -182,7 +182,58 @@ test("getTransactions includes p.property_id in the SELECT query", async () => {
 
   assert.equal(res.getStatusCode(), 200);
   assert.equal(executedSql.includes("p.property_id"), true, "Query must select p.property_id");
+  assert.equal(executedSql.includes("p.status = 'active'"), true, "Query must filter active properties");
   const data = res.getResult();
   assert.equal(Array.isArray(data), true);
   assert.equal(data[0].property_id, 10);
+});
+
+test("getDashboardStats strictly excludes inactive properties from estate totals and subdivisions", async () => {
+  const mockLots = [
+    { lot_id: 1, property_id: 10, lot_number: "Block 1 Lot 1", status: "Available", is_non_saleable: 0 },
+    { lot_id: 2, property_id: 10, lot_number: "Block 1 Lot 2", status: "Sold", is_non_saleable: 0 },
+    // Property 20 is inactive (not in active properties result)
+    { lot_id: 3, property_id: 20, lot_number: "Block 2 Lot 1", status: "Pending", is_non_saleable: 0 },
+    { lot_id: 4, property_id: 20, lot_number: "Block 2 Lot 2", status: "Available", is_non_saleable: 1 },
+  ];
+
+  // Properties query where status = 'active' only returns property 10
+  const mockProps = [
+    { property_id: 10, property_name: "Abilay Norte", location: "Oton, Iloilo", total_lots: 2 },
+  ];
+
+  const mockDb = {
+    query: async (sql, params) => {
+      if (sql.includes("FROM properties")) {
+        return [mockProps];
+      }
+      if (sql.includes("FROM lots")) {
+        return [mockLots];
+      }
+      if (sql.includes("FROM customers")) {
+        return [[{ count: 1 }]];
+      }
+      return [[]];
+    },
+  };
+
+  const req = { query: {}, db: mockDb };
+  const res = createMockResponse();
+
+  await getDashboardStats(req, res);
+
+  assert.equal(res.getStatusCode(), 200);
+  const data = res.getResult();
+  assert.equal(data.propertyId, "all");
+  // Total parcels should only be 2 from active property 10, NOT 4!
+  assert.equal(data.totalParcels, 2);
+  assert.equal(data.nonSaleableLots, 0);
+  assert.equal(data.totalLots, 2);
+  assert.equal(data.availableLots, 1);
+  assert.equal(data.soldLots, 1);
+  // Pending lot belonged to inactive property 20, must be 0!
+  assert.equal(data.pendingLots, 0);
+  // Subdivisions array must only contain the active property
+  assert.equal(data.subdivisions.length, 1);
+  assert.equal(data.subdivisions[0].property_id, 10);
 });
