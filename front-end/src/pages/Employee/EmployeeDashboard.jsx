@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../../config/api";
+import { queryClient } from "../../config/queryClient";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -79,6 +80,30 @@ const EmployeeDashboard = () => {
     };
 
     fetchDashboardData();
+  }, []);
+
+  // Background prefetch map data during idle time for instant 0ms View Map navigation
+  useEffect(() => {
+    const prefetchTimer = setTimeout(() => {
+      const token = localStorage.getItem("authToken");
+      const authConfig = {
+        withCredentials: true,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      };
+      queryClient.prefetchQuery({
+        queryKey: ["map-data", "employee"],
+        queryFn: async () => {
+          const res = await axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig);
+          try {
+            sessionStorage.setItem("gde_map_data_cache_employee", JSON.stringify(res.data));
+          } catch (_) {}
+          return res.data;
+        },
+        staleTime: 60 * 1000,
+      });
+    }, 1200);
+
+    return () => clearTimeout(prefetchTimer);
   }, []);
 
   useEffect(() => {

@@ -17,7 +17,20 @@ import {
 export function useEmployeeMapView() {
   const mapQuery = useQuery({
     queryKey: ["map-data", "employee"],
-    queryFn: async () => (await axios.get(`${API_BASE_URL}/api/lots/map-data`, getAuthConfig())).data,
+    queryFn: async () => {
+      const response = await axios.get(`${API_BASE_URL}/api/lots/map-data`, getAuthConfig());
+      try {
+        sessionStorage.setItem("gde_map_data_cache_employee", JSON.stringify(response.data));
+      } catch (_) {}
+      return response.data;
+    },
+    placeholderData: () => {
+      try {
+        const cached = sessionStorage.getItem("gde_map_data_cache_employee");
+        if (cached) return JSON.parse(cached);
+      } catch (_) {}
+      return undefined;
+    },
     staleTime: 60 * 1000,
     structuralSharing: false,
   });

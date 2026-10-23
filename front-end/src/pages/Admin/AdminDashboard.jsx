@@ -8,6 +8,7 @@ import LotsSoldProperties from "../../components/admin/LotsSoldProperties";
 import ForcePasswordChange from "../../components/ForcePasswordChange";
 import ProjectDashboardSwitcher from "../../components/admin/ProjectDashboardSwitcher";
 import { API_BASE_URL } from "../../config/api";
+import { queryClient } from "../../config/queryClient";
 import { syncColorsFromDatabase, loadCustomColors } from "../../utils/subdivisionColors";
 
 const AdminDashboard = () => {
@@ -16,7 +17,7 @@ const AdminDashboard = () => {
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedProject, setSelectedProject] = useState("all");
   const [customColors, setCustomColors] = useState(() => loadCustomColors());
-  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(() => !sessionStorage.getItem("adminStatsCache"));
   const projectStatsCacheRef = useRef({});
   const estateStatsRef = useRef(null);
 
@@ -52,9 +53,29 @@ const AdminDashboard = () => {
   });
 
   const [subdivisionPeriod, setSubdivisionPeriod] = useState("all");
-  const [propertiesResult, setPropertiesResult] = useState({ period: null, data: null, loading: true, error: false });
-  const [monthlyResult, setMonthlyResult] = useState({ year: null, data: null, loading: true, error: false });
-  const [availableYears, setAvailableYears] = useState([currentYear]);
+  const [propertiesResult, setPropertiesResult] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("adminPropertiesSales_all");
+      if (cached) return { period: "all", data: JSON.parse(cached), loading: false, error: false };
+    } catch (_) {}
+    return { period: null, data: null, loading: true, error: false };
+  });
+
+  const [monthlyResult, setMonthlyResult] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem(`adminMonthlySales_${currentYear}`);
+      if (cached) return { year: currentYear, data: JSON.parse(cached), loading: false, error: false };
+    } catch (_) {}
+    return { year: null, data: null, loading: true, error: false };
+  });
+
+  const [availableYears, setAvailableYears] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem("adminAvailableYears");
+      if (cached) return JSON.parse(cached);
+    } catch (_) {}
+    return [currentYear];
+  });
 
   useEffect(() => {
     syncColorsFromDatabase();
@@ -77,6 +98,27 @@ const AdminDashboard = () => {
       window.removeEventListener("gde-subdivision-color-changed", handleColorUpdate);
       window.removeEventListener("storage", handleColorUpdate);
     };
+  }, []);
+
+  // Background prefetch map data during idle time so navigating to View Map is instant (0ms)
+  useEffect(() => {
+    const prefetchTimer = setTimeout(() => {
+      const token = localStorage.getItem("authToken");
+      const authConfig = { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
+      queryClient.prefetchQuery({
+        queryKey: ["map-data", "admin"],
+        queryFn: async () => {
+          const res = await axios.get(`${API_BASE_URL}/api/lots/map-data`, authConfig);
+          try {
+            sessionStorage.setItem("gde_map_data_cache_admin", JSON.stringify(res.data));
+          } catch (_) {}
+          return res.data;
+        },
+        staleTime: 60 * 1000,
+      });
+    }, 1200);
+
+    return () => clearTimeout(prefetchTimer);
   }, []);
 
   // Instant 0ms switch handler: updates the stats cards immediately from cache/subdivisions
@@ -120,8 +162,8 @@ const AdminDashboard = () => {
   useEffect(() => {
     let isCancelled = false;
 
-    // Only dim stats on cold boot if no data is available yet
-    if (!stats || stats.totalLots === 0) {
+    // Only dim stats if switching to an uncached project
+    if (selectedProject !== "all" && !projectStatsCacheRef.current[String(selectedProject)]) {
       setStatsLoading(true);
     }
 
@@ -197,7 +239,20 @@ const AdminDashboard = () => {
   useEffect(() => {
     let isCancelled = false;
     const activePeriod = subdivisionPeriod === "all" ? "all" : String(selectedYear);
-    setPropertiesResult({ period: activePeriod, data: null, loading: true, error: false });
+
+    // Stale-while-revalidate: check cache before forcing loading state
+    let cachedData = null;
+    try {
+      const stored = sessionStorage.getItem(`adminPropertiesSales_${activePeriod}`);
+      if (stored) cachedData = JSON.parse(stored);
+    } catch (_) {}
+
+    if (cachedData) {
+      setPropertiesResult({ period: activePeriod, data: cachedData, loading: false, error: false });
+    } else {
+      setPropertiesResult({ period: activePeriod, data: null, loading: true, error: false });
+    }
+
     const fetchPropertyStats = async () => {
       try {
         const token = localStorage.getItem("authToken");
@@ -210,11 +265,16 @@ const AdminDashboard = () => {
 
         if (!isCancelled) {
           setPropertiesResult({ period: activePeriod, data: response.data, loading: false, error: false });
+          try {
+            sessionStorage.setItem(`adminPropertiesSales_${activePeriod}`, JSON.stringify(response.data));
+          } catch (_) {}
         }
       } catch (error) {
         if (!isCancelled) {
           console.error("Error fetching time-based property stats:", error);
-          setPropertiesResult({ period: activePeriod, data: null, loading: false, error: true });
+          if (!cachedData) {
+            setPropertiesResult({ period: activePeriod, data: null, loading: false, error: true });
+          }
         }
       }
     };
@@ -227,7 +287,20 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     let isCancelled = false;
-    setMonthlyResult({ year: selectedYear, data: null, loading: true, error: false });
+
+    // Stale-while-revalidate: check cache before forcing loading state
+    let cachedData = null;
+    try {
+      const stored = sessionStorage.getItem(`adminMonthlySales_${selectedYear}`);
+      if (stored) cachedData = JSON.parse(stored);
+    } catch (_) {}
+
+    if (cachedData) {
+      setMonthlyResult({ year: selectedYear, data: cachedData, loading: false, error: false });
+    } else {
+      setMonthlyResult({ year: selectedYear, data: null, loading: true, error: false });
+    }
+
     const fetchMonthlySalesData = async () => {
       try {
         const token = localStorage.getItem("authToken");
@@ -239,14 +312,22 @@ const AdminDashboard = () => {
 
         if (!isCancelled) {
           setMonthlyResult({ year: selectedYear, data: response.data, loading: false, error: false });
+          try {
+            sessionStorage.setItem(`adminMonthlySales_${selectedYear}`, JSON.stringify(response.data));
+          } catch (_) {}
           if (Array.isArray(response.data?.availableYears)) {
             setAvailableYears(response.data.availableYears);
+            try {
+              sessionStorage.setItem("adminAvailableYears", JSON.stringify(response.data.availableYears));
+            } catch (_) {}
           }
         }
       } catch (error) {
         if (!isCancelled) {
           console.error("Error fetching monthly sales data:", error);
-          setMonthlyResult({ year: selectedYear, data: null, loading: false, error: true });
+          if (!cachedData) {
+            setMonthlyResult({ year: selectedYear, data: null, loading: false, error: true });
+          }
         }
       }
     };

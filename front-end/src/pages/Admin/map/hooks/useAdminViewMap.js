@@ -27,14 +27,33 @@ export const useAdminViewMap = () => {
   const queryClient = useQueryClient();
   const mapQuery = useQuery({
     queryKey: ["map-data", "admin"],
-    queryFn: async () => (await axios.get(`${API_BASE_URL}/api/lots/map-data`, getAuthConfig())).data,
+    queryFn: async () => {
+      const response = await axios.get(`${API_BASE_URL}/api/lots/map-data`, getAuthConfig());
+      try {
+        sessionStorage.setItem("gde_map_data_cache_admin", JSON.stringify(response.data));
+      } catch (_) {}
+      return response.data;
+    },
+    placeholderData: () => {
+      try {
+        const cached = sessionStorage.getItem("gde_map_data_cache_admin");
+        if (cached) return JSON.parse(cached);
+      } catch (_) {}
+      return undefined;
+    },
     staleTime: 60 * 1000,
     structuralSharing: false,
   });
   const refetchMapData = mapQuery.refetch;
   const mapData = mapQuery.data ?? null;
   const setMapData = useCallback((update) => {
-    queryClient.setQueryData(["map-data", "admin"], update);
+    queryClient.setQueryData(["map-data", "admin"], (old) => {
+      const next = typeof update === "function" ? update(old) : update;
+      try {
+        sessionStorage.setItem("gde_map_data_cache_admin", JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
   }, [queryClient]);
   const [map, setMap] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(19);
