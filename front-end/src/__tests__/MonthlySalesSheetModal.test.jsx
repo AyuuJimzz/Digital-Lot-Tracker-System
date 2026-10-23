@@ -9,6 +9,7 @@ import axios from "axios";
 import MonthlySalesSheetModal from "../components/admin/MonthlySalesSheetModal";
 
 const mockPdfSave = jest.fn();
+const mockPdfText = jest.fn();
 
 jest.mock("axios");
 jest.mock("jspdf", () => {
@@ -25,7 +26,7 @@ jest.mock("jspdf", () => {
       this.setFillColor = jest.fn();
       this.setLineWidth = jest.fn();
       this.line = jest.fn();
-      this.text = jest.fn();
+      this.text = mockPdfText;
       this.roundedRect = jest.fn();
       this.addPage = jest.fn();
       this.setPage = jest.fn();
@@ -138,15 +139,10 @@ describe("MonthlySalesSheetModal", () => {
     expect(screen.getByText("AGENT")).toBeInTheDocument();
     expect(screen.getByText("SALES OF THE MONTH")).toBeInTheDocument();
     expect(screen.queryByText("Full Screen")).not.toBeInTheDocument();
-    expect(screen.getByText("Prepared by:")).toBeInTheDocument();
-    expect(screen.getByText("Denisse P. Gadot")).toBeInTheDocument();
-    expect(screen.getByText("Verified by:")).toBeInTheDocument();
-    expect(screen.getByText("John Rowen E. Cosca")).toBeInTheDocument();
-    expect(screen.getByText("Approved by:")).toBeInTheDocument();
-    expect(screen.getByText("Erika Freud D. Orleans")).toBeInTheDocument();
-    const acknowledgements = screen.getByRole("region", { name: "Report acknowledgements" });
-    const generatedFooter = screen.getByText("Generated via Golden Dragon Estate Management System");
-    expect(acknowledgements.compareDocumentPosition(generatedFooter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("Prepared by:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Verified by:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Approved by:")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Report acknowledgements" })).not.toBeInTheDocument();
     expect(screen.queryByText("Prepared by / Management Sign-off")).not.toBeInTheDocument();
     expect(screen.queryByText("Include old records")).not.toBeInTheDocument();
     expect(axios.get.mock.calls[0][1].params).toEqual({ year: 2026, month: 3 });
@@ -179,6 +175,7 @@ describe("MonthlySalesSheetModal", () => {
   });
 
   test("triggers jsPDF export when Download PDF button is clicked", async () => {
+    mockPdfText.mockClear();
     axios.get.mockResolvedValueOnce({ data: mockReportData });
 
     render(
@@ -201,6 +198,10 @@ describe("MonthlySalesSheetModal", () => {
     expect(mockPdfSave.mock.calls[0][0]).toMatch(
       /Golden_Dragon_Monthly_Sales_March_2026_All_projects\.pdf/
     );
+    expect(mockPdfText).toHaveBeenCalledWith("Prepared by:", expect.any(Number), expect.any(Number));
+    expect(mockPdfText).toHaveBeenCalledWith("Denisse P. Gadot", expect.any(Number), expect.any(Number), expect.objectContaining({ maxWidth: expect.any(Number) }));
+    expect(mockPdfText).toHaveBeenCalledWith("Verified by:", expect.any(Number), expect.any(Number));
+    expect(mockPdfText).toHaveBeenCalledWith("Approved by:", expect.any(Number), expect.any(Number));
   });
 
   test("closes the modal when Escape key is pressed", () => {

@@ -942,29 +942,6 @@ const MonthlySalesSheetModal = ({
                 );
               })}
 
-              {/* Compact client-requested report acknowledgements after all totals. */}
-              <section
-                className="mt-7 border-t border-gray-200 pt-5 dark:border-slate-800"
-                aria-label="Report acknowledgements"
-              >
-                <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3">
-                  {[
-                    ["Prepared by:", "Denisse P. Gadot"],
-                    ["Verified by:", "John Rowen E. Cosca"],
-                    ["Approved by:", "Erika Freud D. Orleans"],
-                  ].map(([label, name]) => (
-                    <div key={label} className="min-w-0">
-                      <p className="text-[11px] font-medium text-gray-500 dark:text-slate-400">
-                        {label}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                        {name}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
               {/* Report footer */}
               <div className="pt-6 mt-6 border-t border-gray-200 dark:border-slate-800 text-[11px] text-gray-500 dark:text-slate-400">
                 <div>

@@ -242,28 +242,6 @@ const buildRows = ({ monthName, selectedYear, scopeLabel, projects, summary }) =
   merge(grandTotalRow, 6, 7);
   merge(grandTotalRow, 8, 9);
 
-  rows.push(row(Array.from({ length: 9 }, () => cell(null, 0, "blank")), 10));
-
-  const acknowledgementLabelsRow = rows.length + 1;
-  const acknowledgementLabels = Array.from({ length: 9 }, () => cell(null, 0, "blank"));
-  acknowledgementLabels[0] = cell("Prepared by:", 0);
-  acknowledgementLabels[3] = cell("Verified by:", 0);
-  acknowledgementLabels[6] = cell("Approved by:", 0);
-  rows.push(row(acknowledgementLabels, 16));
-  merge(acknowledgementLabelsRow, 1, 3);
-  merge(acknowledgementLabelsRow, 4, 6);
-  merge(acknowledgementLabelsRow, 7, 9);
-
-  const acknowledgementNamesRow = rows.length + 1;
-  const acknowledgementNames = Array.from({ length: 9 }, () => cell(null, 0, "blank"));
-  acknowledgementNames[0] = cell("Denisse P. Gadot", 2);
-  acknowledgementNames[3] = cell("John Rowen E. Cosca", 2);
-  acknowledgementNames[6] = cell("Erika Freud D. Orleans", 2);
-  rows.push(row(acknowledgementNames, 20));
-  merge(acknowledgementNamesRow, 1, 3);
-  merge(acknowledgementNamesRow, 4, 6);
-  merge(acknowledgementNamesRow, 7, 9);
-
   return { rows, merges };
 };
 
