@@ -125,6 +125,8 @@ test("monthly sales sheet controller functions", async (t) => {
         query: async (sql, params) => {
           assert.equal(params[0], 2026);
           assert.equal(params[1], 3);
+          assert.match(sql, /NOT EXISTS/);
+          assert.match(sql, /rev\.payment_type IN \('Reversal', 'Cancelled'\)/);
           return [
             [
               {

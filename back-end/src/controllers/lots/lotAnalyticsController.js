@@ -682,7 +682,7 @@ exports.getMonthlySalesSheet = async (req, res) => {
 
     const legacyFilter = includeOldRecords
       ? ""
-      : " AND (t.is_date_verified = 1 OR (t.agent_name != 'Old Record' AND (t.notes IS NULL OR t.notes NOT LIKE '%Legacy sold record%'))) ";
+      : " AND t.agent_name != 'Old Record' AND (t.notes IS NULL OR t.notes NOT LIKE '%Legacy sold record%') ";
 
     const query = `
       SELECT
@@ -709,8 +709,14 @@ exports.getMonthlySalesSheet = async (req, res) => {
       LEFT JOIN employees e ON t.employee_id = e.employee_id
       WHERE YEAR(COALESCE(t.transaction_date, l.sold_on)) = ?
         AND MONTH(COALESCE(t.transaction_date, l.sold_on)) = ?
-        AND t.payment_type != 'Reversal'
+        AND t.payment_type NOT IN ('Reversal', 'Cancelled')
         AND l.status = 'Sold'
+        AND NOT EXISTS (
+          SELECT 1 FROM transactions rev
+          WHERE rev.lot_id = l.lot_id
+            AND (rev.payment_type IN ('Reversal', 'Cancelled') OR COALESCE(rev.notes, '') LIKE 'Reversal of Sale%')
+            AND rev.transaction_id > t.transaction_id
+        )
         ${legacyFilter}
         ${propCondition}
       ORDER BY p.property_id ASC, purchase_date ASC, t.transaction_id ASC
