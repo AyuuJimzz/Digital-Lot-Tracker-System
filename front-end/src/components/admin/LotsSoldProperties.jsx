@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   loadCustomColors,
   getThemeForSubdivision,
@@ -13,6 +13,8 @@ const LotsSoldProperties = ({
   onPeriodChange,
   isLoading = false,
   hasError = false,
+  selectedPropertyId = "all",
+  onSelectProperty,
 }) => {
   const currentYear = new Date().getFullYear();
   const yearDisplay = selectedYear || currentYear;
@@ -20,6 +22,13 @@ const LotsSoldProperties = ({
 
   const [customColors, setCustomColors] = useState(() => loadCustomColors());
   const [isColorModalOpen, setIsColorModalOpen] = useState(false);
+
+  const sortedProperties = useMemo(() => {
+    if (!Array.isArray(properties)) return [];
+    return [...properties].sort(
+      (a, b) => Number(a.property_id || 0) - Number(b.property_id || 0)
+    );
+  }, [properties]);
 
   useEffect(() => {
     syncColorsFromDatabase();
@@ -105,20 +114,30 @@ const LotsSoldProperties = ({
               No subdivision property data available.
             </div>
           ) : (
-            properties.map((property, index) => {
+            sortedProperties.map((property, index) => {
               const theme = getThemeForSubdivision(property, index, customColors);
               const total = Number(property.total) || 1;
               const sold = Number(property.sold) || 0;
               const allTimePct = Math.min(Math.round((sold / total) * 1000) / 10, 100);
 
+              const isSelected =
+                selectedPropertyId !== "all" &&
+                String(selectedPropertyId) === String(property.property_id);
+
               return (
                 <div
                   key={property.property_id || index}
-                  className={
+                  onClick={() => onSelectProperty?.(isSelected ? "all" : property.property_id)}
+                  className={`transition-all duration-200 rounded-lg p-2 -mx-2 cursor-pointer ${
+                    isSelected
+                      ? "bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-500/40 shadow-xs"
+                      : "hover:bg-gray-50/80 dark:hover:bg-slate-800/50"
+                  } ${
                     isAllTime
                       ? "space-y-2 group"
-                      : "flex items-center justify-between py-2 border-b border-gray-100 dark:border-slate-800/60 last:border-0 group"
-                  }
+                      : "flex items-center justify-between border-b border-gray-100 dark:border-slate-800/60 last:border-0 group"
+                  }`}
+                  title={`Click to switch dashboard view for ${property.name}`}
                 >
                   <div className="flex justify-between items-center text-xs flex-1">
                     <span className="font-medium text-gray-900 dark:text-slate-200 flex items-center gap-1.5 truncate max-w-[180px]">
@@ -127,6 +146,11 @@ const LotsSoldProperties = ({
                         style={{ backgroundColor: theme.color }}
                       />
                       <span className="truncate">{property.name}</span>
+                      {isSelected && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                          Active
+                        </span>
+                      )}
                     </span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="font-mono text-gray-500 dark:text-slate-400 text-[11px]">

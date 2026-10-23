@@ -21,6 +21,7 @@ const {
   getSubdivisionColors,
   saveSubdivisionColors,
   resetSubdivisionColors,
+  getMonthlySalesSheet,
 } = require("../controllers/lotsController");
 
 const requireAuth = sessionOrToken({ roles: ["admin", "employee"] });
@@ -28,6 +29,7 @@ const requireAdmin = sessionOrToken({ roles: ["admin"] });
 
 // Read routes
 router.get("/subdivision-colors", requireAuth, getSubdivisionColors);
+router.get("/monthly-sales-sheet", requireAdmin, getMonthlySalesSheet);
 router.get("/map-data", requireAuth, getMapData);
 router.get("/dashboard-stats", requireAuth, getDashboardStats);
 router.get("/property-stats", requireAuth, getPropertyLotStats);

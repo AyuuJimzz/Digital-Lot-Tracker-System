@@ -8,19 +8,77 @@ const { isNonSaleableLot, NON_SALEABLE_SQL_CONDITION } = require("../../utils/lo
 exports.getDashboardStats = async (req, res) => {
   try {
     const dbToUse = req.db || db;
-    // Get all lots statistics with is_non_saleable and lot_number to isolate saleable inventory
-    const [allLots] = await dbToUse.query(`SELECT lot_id, lot_number, status, is_non_saleable FROM lots`);
+    const requestedPropertyId =
+      req.query?.property_id && req.query.property_id !== "all"
+        ? Number(req.query.property_id)
+        : null;
 
-    const totalParcels = allLots.length;
-    const nonSaleableLots = allLots.filter((lot) => isNonSaleableLot(lot)).length;
+    // Get all lots with property_id, lot_number, status, is_non_saleable
+    const [allLots] = await dbToUse.query(
+      `SELECT lot_id, property_id, lot_number, status, is_non_saleable FROM lots`
+    );
+
+    // Get active properties metadata
+    let activeProperties = [];
+    try {
+      const [props] = await dbToUse.query(
+        `SELECT property_id, property_name, location, total_lots FROM properties WHERE status = 'active' ORDER BY property_id ASC`
+      );
+      activeProperties = props || [];
+    } catch (propErr) {
+      console.warn("Could not load active properties in dashboard stats:", propErr.message);
+    }
+
+    // Build per-subdivision summary
+    const propertySummaryMap = {};
+    activeProperties.forEach((p) => {
+      propertySummaryMap[p.property_id] = {
+        property_id: p.property_id,
+        property_name: p.property_name,
+        location: p.location,
+        totalParcels: 0,
+        totalLots: 0, // saleable
+        availableLots: 0,
+        pendingLots: 0,
+        soldLots: 0,
+        nonSaleableLots: 0,
+      };
+    });
+
+    allLots.forEach((lot) => {
+      const p = propertySummaryMap[lot.property_id];
+      if (!p) return;
+      p.totalParcels += 1;
+      if (isNonSaleableLot(lot)) {
+        p.nonSaleableLots += 1;
+      } else {
+        p.totalLots += 1;
+        if (lot.status === "Available") p.availableLots += 1;
+        if (lot.status === "Pending") p.pendingLots += 1;
+        if (lot.status === "Sold") p.soldLots += 1;
+      }
+    });
+
+    const subdivisions = Object.values(propertySummaryMap);
+
+    // Target lots: filter if specific property requested
+    const targetLots = requestedPropertyId
+      ? allLots.filter((lot) => Number(lot.property_id) === requestedPropertyId)
+      : allLots;
+
+    const totalParcels = targetLots.length;
+    const nonSaleableLots = targetLots.filter((lot) => isNonSaleableLot(lot)).length;
     const totalLots = totalParcels - nonSaleableLots; // Saleable inventory
-    const availableLots = allLots.filter((lot) => lot.status === "Available" && !isNonSaleableLot(lot)).length;
-    const pendingLots = allLots.filter((lot) => lot.status === "Pending" && !isNonSaleableLot(lot)).length;
-    const soldLots = allLots.filter((lot) => lot.status === "Sold" && !isNonSaleableLot(lot)).length;
+    const availableLots = targetLots.filter((lot) => lot.status === "Available" && !isNonSaleableLot(lot)).length;
+    const pendingLots = targetLots.filter((lot) => lot.status === "Pending" && !isNonSaleableLot(lot)).length;
+    const soldLots = targetLots.filter((lot) => lot.status === "Sold" && !isNonSaleableLot(lot)).length;
 
-    // Get total unique clients on currently active (Pending/Sold) lots
-    // Deduplicates multi-lot buyers by full_name (with email/phone fallback), excludes cancelled & placeholder records
-    const [customers] = await dbToUse.query(`
+    // Customer query with optional property_id filter
+    const customerQueryParams = requestedPropertyId ? [requestedPropertyId] : [];
+    const customerPropertyClause = requestedPropertyId ? `AND l.property_id = ?` : ``;
+
+    const [customers] = await dbToUse.query(
+      `
       SELECT COUNT(DISTINCT
         CASE
           WHEN c.full_name IS NOT NULL
@@ -48,17 +106,28 @@ exports.getDashboardStats = async (req, res) => {
       JOIN lots l ON c.lot_id = l.lot_id
       WHERE c.rn = 1
         AND l.status IN ('Pending', 'Sold')
-    `);
-    const totalClients = (customers && customers[0] && customers[0].count) ? Number(customers[0].count) : 0;
+        ${customerPropertyClause}
+    `,
+      customerQueryParams
+    );
+    const totalClients = customers && customers[0] && customers[0].count ? Number(customers[0].count) : 0;
+
+    const selectedProperty = requestedPropertyId
+      ? activeProperties.find((p) => p.property_id === requestedPropertyId) || null
+      : null;
 
     const stats = {
-      totalLots, // Saleable lots (Available + Pending + Sold) -> Exact math match!
+      propertyId: requestedPropertyId || "all",
+      propertyName: selectedProperty ? selectedProperty.property_name : "All Projects (Whole Estate)",
+      placeLocation: selectedProperty ? (selectedProperty.location || "Iloilo") : "Iloilo City",
+      totalLots,
       availableLots,
       pendingLots,
       soldLots,
-      totalParcels, // Cadastral parcel count (including parks, open spaces, excluded lots)
+      totalParcels,
       nonSaleableLots,
       totalClients,
+      subdivisions,
     };
     res.json(stats);
   } catch (error) {
@@ -87,7 +156,7 @@ exports.getPropertyLotStats = async (req, res) => {
       LEFT JOIN lots l ON p.property_id = l.property_id
       WHERE p.status = 'active'
       GROUP BY p.property_id, p.property_name, p.total_lots
-      ORDER BY p.property_name
+      ORDER BY p.property_id ASC
     `;
 
     const dbToUse = req.db || db;
@@ -207,7 +276,7 @@ exports.getMonthlySalesData = async (req, res) => {
       SELECT property_id, property_name
       FROM properties
       WHERE status = 'active'
-      ORDER BY property_name
+      ORDER BY property_id ASC
     `);
     const propertyList = propertyListRows.map((p) => ({
       id: p.property_id,
@@ -438,7 +507,7 @@ exports.getTimeBasedPropertySales = async (req, res) => {
       LEFT JOIN lots l ON p.property_id = l.property_id
       WHERE p.status = 'active'
       GROUP BY p.property_id, p.property_name, p.total_lots
-      ORDER BY p.property_name
+      ORDER BY p.property_id ASC
     `;
 
     const [rows] = await dbToUse.query(query, queryParams);
@@ -546,6 +615,206 @@ exports.resetSubdivisionColors = async (req, res) => {
   } catch (error) {
     console.error("Error resetting subdivision colors:", error);
     return res.status(500).json({ error: "Failed to reset subdivision colors" });
+  }
+};
+
+// =======================
+// MONTHLY SALES FINANCIAL ACCOUNTING REPORT
+// =======================
+function parseBlockAndLot(lotNumber) {
+  if (!lotNumber || typeof lotNumber !== "string") {
+    return { block: "-", lot: "-" };
+  }
+  const str = lotNumber.trim();
+  const blkMatch = str.match(/(?:blk|block|b)\.?\s*([0-9a-zA-Z-]+)\s*(?:lot|l)\.?\s*([0-9a-zA-Z-]+)/i);
+  if (blkMatch) {
+    return { block: blkMatch[1], lot: blkMatch[2] };
+  }
+  const lotOnlyMatch = str.match(/(?:lot|l)\.?\s*([0-9a-zA-Z-]+)/i);
+  if (lotOnlyMatch) {
+    return { block: "-", lot: lotOnlyMatch[1] };
+  }
+  const blkOnlyMatch = str.match(/(?:blk|block|b)\.?\s*([0-9a-zA-Z-]+)/i);
+  if (blkOnlyMatch) {
+    return { block: blkOnlyMatch[1], lot: "-" };
+  }
+  return { block: "-", lot: str };
+}
+
+function computeCollectionAmount(tx) {
+  const tcp = Number(tx.total_contract_price) || 0;
+  const dp = Number(tx.downpayment) || 0;
+  const amort = Number(tx.monthly_amortization) || 0;
+  const pType = String(tx.payment_type || "").toLowerCase();
+
+  if (pType.includes("dp") && pType.includes("monthly")) {
+    return (dp > 0 && amort > 0) ? (dp + amort) : (dp || amort || tcp || 0);
+  }
+  if (pType.includes("downpayment") || pType.includes("dp")) {
+    return dp > 0 ? dp : (amort || tcp || 0);
+  }
+  if (pType.includes("monthly") || pType.includes("installment")) {
+    return amort > 0 ? amort : (dp || tcp || 0);
+  }
+  if (pType.includes("reservation")) {
+    return dp > 0 ? dp : (amort || 10000);
+  }
+  if (pType.includes("cash")) {
+    return tcp > 0 ? tcp : (dp || amort || 0);
+  }
+  return dp || amort || tcp || 0;
+}
+
+exports.getMonthlySalesSheet = async (req, res) => {
+  try {
+    const dbToUse = req.db || db;
+    const year = parseInt(req.query.year, 10) || new Date().getFullYear();
+    const month = parseInt(req.query.month, 10) || (new Date().getMonth() + 1);
+    const propertyId = req.query.property_id ? parseInt(req.query.property_id, 10) : null;
+    const includeOldRecords = req.query.include_old_records === "true";
+
+    let propCondition = "";
+    const params = [year, month];
+    if (propertyId) {
+      propCondition = " AND p.property_id = ? ";
+      params.push(propertyId);
+    }
+
+    const legacyFilter = includeOldRecords
+      ? ""
+      : " AND (t.is_date_verified = 1 OR (t.agent_name != 'Old Record' AND (t.notes IS NULL OR t.notes NOT LIKE '%Legacy sold record%'))) ";
+
+    const query = `
+      SELECT
+        t.transaction_id,
+        COALESCE(t.transaction_date, l.sold_on) AS purchase_date,
+        t.payment_type,
+        t.total_contract_price,
+        t.downpayment,
+        t.monthly_amortization,
+        t.terms_months,
+        t.notes,
+        COALESCE(t.agent_name, NULLIF(TRIM(CONCAT(COALESCE(e.first_name, ''), ' ', COALESCE(e.last_name, ''))), ''), 'Admin') AS agent_name,
+        l.lot_id,
+        l.lot_number,
+        l.status AS lot_status,
+        p.property_id,
+        p.property_name,
+        c.customer_id,
+        COALESCE(c.full_name, 'To be updated') AS customer_name
+      FROM transactions t
+      JOIN lots l ON t.lot_id = l.lot_id
+      JOIN properties p ON l.property_id = p.property_id
+      LEFT JOIN customers c ON t.customer_id = c.customer_id
+      LEFT JOIN employees e ON t.employee_id = e.employee_id
+      WHERE YEAR(COALESCE(t.transaction_date, l.sold_on)) = ?
+        AND MONTH(COALESCE(t.transaction_date, l.sold_on)) = ?
+        AND t.payment_type != 'Reversal'
+        AND l.status = 'Sold'
+        ${legacyFilter}
+        ${propCondition}
+      ORDER BY p.property_id ASC, purchase_date ASC, t.transaction_id ASC
+    `;
+
+    const [rows] = await dbToUse.query(query, params);
+
+    // Group rows by project / subdivision
+    const projectsMap = new Map();
+
+    rows.forEach((row) => {
+      const propId = row.property_id;
+      if (!projectsMap.has(propId)) {
+        projectsMap.set(propId, {
+          property_id: propId,
+          property_name: row.property_name,
+          records: [],
+          subtotal: {
+            lots_sold: 0,
+            total_amount: 0,
+            total_tcp: 0,
+          },
+        });
+      }
+
+      const proj = projectsMap.get(propId);
+      const { block, lot } = parseBlockAndLot(row.lot_number);
+      const amount = computeCollectionAmount(row);
+      const tcp = Number(row.total_contract_price) || 0;
+
+      let dateFormatted = "";
+      if (row.purchase_date) {
+        try {
+          const d = new Date(row.purchase_date);
+          dateFormatted = d.toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          });
+        } catch (_) {
+          dateFormatted = String(row.purchase_date);
+        }
+      }
+
+      proj.records.push({
+        transaction_id: row.transaction_id,
+        item_number: proj.records.length + 1,
+        buyer: row.customer_name,
+        block: block,
+        lot: lot,
+        lot_number: row.lot_number,
+        date_of_purchase: dateFormatted,
+        raw_date: row.purchase_date,
+        mode_of_payment: String(row.payment_type || "").trim().toLowerCase() === "cash" ? "CASH" : "INSTALLMENT",
+        amount: Number(amount.toFixed(2)),
+        tcp: Number(tcp.toFixed(2)),
+        agent: row.agent_name || "Admin",
+      });
+
+      proj.subtotal.lots_sold += 1;
+      proj.subtotal.total_amount += amount;
+      proj.subtotal.total_tcp += tcp;
+    });
+
+    const projects = Array.from(projectsMap.values()).map((p) => ({
+      ...p,
+      subtotal: {
+        lots_sold: p.subtotal.lots_sold,
+        total_amount: Number(p.subtotal.total_amount.toFixed(2)),
+        total_tcp: Number(p.subtotal.total_tcp.toFixed(2)),
+      },
+    }));
+
+    let overallLotsSold = 0;
+    let overallAmount = 0;
+    let overallTcp = 0;
+
+    const projectSummaries = projects.map((p) => {
+      overallLotsSold += p.subtotal.lots_sold;
+      overallAmount += p.subtotal.total_amount;
+      overallTcp += p.subtotal.total_tcp;
+      return {
+        property_id: p.property_id,
+        property_name: p.property_name,
+        lots_sold: p.subtotal.lots_sold,
+        sales_of_the_month: p.subtotal.total_amount,
+        tcp: p.subtotal.total_tcp,
+      };
+    });
+
+    return res.json({
+      year,
+      month,
+      projects,
+      summary: {
+        total_lots_sold: overallLotsSold,
+        overall_amount: Number(overallAmount.toFixed(2)),
+        overall_tcp: Number(overallTcp.toFixed(2)),
+        project_summaries: projectSummaries,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching monthly sales sheet:", error);
+    return res.status(500).json({ error: "Failed to generate monthly sales sheet" });
   }
 };
 

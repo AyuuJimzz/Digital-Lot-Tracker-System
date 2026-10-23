@@ -492,6 +492,7 @@ exports.getTimeBasedPropertySales = lotAnalytics.getTimeBasedPropertySales;
 exports.getSubdivisionColors = lotAnalytics.getSubdivisionColors;
 exports.saveSubdivisionColors = lotAnalytics.saveSubdivisionColors;
 exports.resetSubdivisionColors = lotAnalytics.resetSubdivisionColors;
+exports.getMonthlySalesSheet = lotAnalytics.getMonthlySalesSheet;
 
 // Status & Lifecycle Transitions
 exports.updateLotStatus = lotStatus.updateLotStatus;

@@ -20,6 +20,7 @@ const getTransactions = async (req, res) => {
       SELECT 
         CONCAT('TXN-', LPAD(t.transaction_id, 4, '0')) as transaction_id,
         t.lot_id,
+        p.property_id,
         CASE
           WHEN t.agent_name = 'Old Record' THEN NULL
           WHEN t.agent_name IS NOT NULL AND t.employee_id IS NULL AND t.agent_name != 'Admin' THEN NULL

@@ -1,12 +1,12 @@
 import React from "react";
 
-const StatCard = ({ title, value }) => {
+const StatCard = ({ title, value, subtitle }) => {
   // Icon mapping based on title
   const getIcon = (title) => {
     const icons = {
       "Place Location": (
         <svg
-          className="w-6 h-6 text-blue-500"
+          className="h-5 w-5 text-slate-500 dark:text-slate-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -27,7 +27,7 @@ const StatCard = ({ title, value }) => {
       ),
       "Total Lots": (
         <svg
-          className="w-6 h-6 text-green-500"
+          className="h-5 w-5 text-slate-500 dark:text-slate-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -42,7 +42,7 @@ const StatCard = ({ title, value }) => {
       ),
       "Lots Sold": (
         <svg
-          className="w-6 h-6 text-orange-500"
+          className="h-5 w-5 text-slate-500 dark:text-slate-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -57,7 +57,7 @@ const StatCard = ({ title, value }) => {
       ),
       "Lots Available": (
         <svg
-          className="w-6 h-6 text-purple-500"
+          className="h-5 w-5 text-slate-500 dark:text-slate-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -72,7 +72,7 @@ const StatCard = ({ title, value }) => {
       ),
       "Lots Pending": (
         <svg
-          className="w-6 h-6 text-yellow-500"
+          className="h-5 w-5 text-slate-500 dark:text-slate-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -87,7 +87,7 @@ const StatCard = ({ title, value }) => {
       ),
       "Total Clients": (
         <svg
-          className="w-6 h-6 text-indigo-500"
+          className="h-5 w-5 text-slate-500 dark:text-slate-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -102,7 +102,7 @@ const StatCard = ({ title, value }) => {
       ),
       "Employee Team": (
         <svg
-          className="w-6 h-6 text-teal-500"
+          className="h-5 w-5 text-slate-500 dark:text-slate-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -119,14 +119,34 @@ const StatCard = ({ title, value }) => {
     return icons[title] || null;
   };
 
+  const isTextValue = title === "Place Location" || String(value).length > 8;
+
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 transition-colors duration-300">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-600 dark:text-slate-400">{title}</h3>
-        {getIcon(title)}
+    <div className="flex min-h-[136px] flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 transition-colors dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">{title}</h3>
+        {getIcon(title) && (
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+            {getIcon(title)}
+          </span>
+        )}
       </div>
-      <div className="flex justify-center items-center mt-3">
-        <p className="text-4xl font-bold text-gray-900 dark:text-white">{value}</p>
+      <div className="mt-5 min-w-0">
+        <p
+          className={`truncate font-semibold leading-tight tracking-tight text-slate-900 dark:text-white ${
+            isTextValue
+              ? "text-base sm:text-lg"
+              : "text-3xl tabular-nums"
+          }`}
+          title={String(value)}
+        >
+          {value}
+        </p>
+        {subtitle && (
+          <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
+            {subtitle}
+          </span>
+        )}
       </div>
     </div>
   );

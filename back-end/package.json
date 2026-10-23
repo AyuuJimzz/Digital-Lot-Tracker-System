@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/server.js",
   "scripts": {
-    "test": "node --test tests/password_reset_safety.test.js tests/database_ssl.test.js tests/production_preflight.test.js tests/pending_lot_reminders.test.js tests/former_agent_attribution.test.js tests/startup_and_migration_safety.test.js tests/payment_terms_amortization.test.js tests/subdivision_colors_persistence.test.js",
+    "test": "node --test tests/password_reset_safety.test.js tests/database_ssl.test.js tests/production_preflight.test.js tests/pending_lot_reminders.test.js tests/former_agent_attribution.test.js tests/startup_and_migration_safety.test.js tests/payment_terms_amortization.test.js tests/subdivision_colors_persistence.test.js tests/monthly_sales_sheet.test.js tests/dashboard_project_stats.test.js",
     "start": "node --max-old-space-size=450 src/server.js",
     "dev": "nodemon src/server.js",
     "db:setup": "node scripts/setup_schema.js",

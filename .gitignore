@@ -47,3 +47,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+tmp/
+.jest-tmp-cache/
+front-end/.jest-tmp-cache/
+.cache/

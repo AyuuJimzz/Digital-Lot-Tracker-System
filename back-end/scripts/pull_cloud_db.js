@@ -102,7 +102,8 @@ async function pullCloudDb() {
 
   // Run payment terms migration on local to ensure new payment columns are preserved
   console.log('\nRunning migrate_payment_terms.js on local database to preserve new quotation columns...');
-  require('./migrate_payment_terms');
+  const { migratePaymentTerms } = require('./migrate_payment_terms');
+  await migratePaymentTerms();
 }
 
 if (require.main === module) {

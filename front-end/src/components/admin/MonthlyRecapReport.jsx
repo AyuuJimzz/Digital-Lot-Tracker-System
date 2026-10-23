@@ -12,6 +12,8 @@ import {
   loadCustomColors,
   getThemeForSubdivision,
 } from "../../utils/subdivisionColors";
+import { FileSpreadsheet } from "lucide-react";
+import MonthlySalesSheetModal from "./MonthlySalesSheetModal";
 
 const CustomRecapTooltip = ({ active, payload, label, activeYear, subdivisions }) => {
   if (!active || !payload || !payload.length) return null;
@@ -50,9 +52,27 @@ const MonthlyRecapReport = ({
   onYearChange,
   isLoading = false,
   hasError = false,
+  activeSubdivision,
+  onSubdivisionSelect,
 }) => {
-  const [selectedSubdivision, setSelectedSubdivision] = useState("all"); // "all" | propertyId
+  const [selectedSubdivision, setSelectedSubdivision] = useState(
+    activeSubdivision != null ? String(activeSubdivision) : "all"
+  );
   const [customColors, setCustomColors] = useState(() => loadCustomColors());
+  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (activeSubdivision !== undefined) {
+      setSelectedSubdivision(String(activeSubdivision));
+    }
+  }, [activeSubdivision]);
+
+  const handleSubdivisionChange = (subdivId) => {
+    setSelectedSubdivision(String(subdivId));
+    if (onSubdivisionSelect) {
+      onSubdivisionSelect(subdivId);
+    }
+  };
 
   useEffect(() => {
     const handleColorUpdate = () => {
@@ -82,10 +102,12 @@ const MonthlyRecapReport = ({
   const yearSet = new Set([currentYear, activeYear, ...rawYears]);
   const yearOptions = Array.from(yearSet).sort((a, b) => b - a);
 
-  // Available subdivisions from backend
+  // Available subdivisions from backend (sorted by property_id to match top switcher)
   const subdivisions = useMemo(() => {
     if (Array.isArray(data?.subdivisions) && data.subdivisions.length > 0) {
-      return data.subdivisions;
+      return [...data.subdivisions].sort(
+        (a, b) => Number(a.id || a.property_id || 0) - Number(b.id || b.property_id || 0)
+      );
     }
     const first = chartData[0] || {};
     return Object.keys(first)
@@ -95,7 +117,8 @@ const MonthlyRecapReport = ({
         name: `Subdivision ${i + 1}`,
         shortName: `Subdiv ${i + 1}`,
         key: k,
-      }));
+      }))
+      .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
   }, [data, chartData]);
 
   // Determine which subdivisions have at least 1 sale in this active year
@@ -132,8 +155,8 @@ const MonthlyRecapReport = ({
           </p>
         </div>
 
-        {/* Clean Controls: Year Selector Dropdown */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Clean Controls: Year Selector Dropdown & Monthly Sales Sheet Button */}
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-800/90 border border-gray-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs shadow-sm">
             <span className="text-gray-400 dark:text-slate-400 font-medium text-[11px]">Year:</span>
             <select
@@ -150,6 +173,16 @@ const MonthlyRecapReport = ({
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setIsSheetModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-sm transition-all cursor-pointer"
+            title="Open Printable Monthly Sales Statement"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Monthly Sales Sheet</span>
+          </button>
         </div>
       </div>
 
@@ -230,7 +263,7 @@ const MonthlyRecapReport = ({
                 {/* Reset to All Button */}
                 <button
                   type="button"
-                  onClick={() => setSelectedSubdivision("all")}
+                  onClick={() => handleSubdivisionChange("all")}
                   className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
                     selectedSubdivision === "all"
                       ? "bg-gray-200 dark:bg-slate-700 text-gray-900 dark:text-white"
@@ -250,8 +283,8 @@ const MonthlyRecapReport = ({
                       key={subdiv.id}
                       type="button"
                       onClick={() =>
-                        setSelectedSubdivision(
-                          selectedSubdivision === subdiv.id ? "all" : subdiv.id
+                        handleSubdivisionChange(
+                          selectedSubdivision === String(subdiv.id) ? "all" : subdiv.id
                         )
                       }
                       className={`inline-flex items-center gap-1.5 transition-all cursor-pointer ${
@@ -283,6 +316,15 @@ const MonthlyRecapReport = ({
             </div>
           )}
         </>
+      )}
+
+      {isSheetModalOpen && (
+        <MonthlySalesSheetModal
+          isOpen={isSheetModalOpen}
+          onClose={() => setIsSheetModalOpen(false)}
+          initialYear={activeYear}
+          availableYears={availableYears}
+        />
       )}
     </div>
   );
