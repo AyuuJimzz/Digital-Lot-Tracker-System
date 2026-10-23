@@ -4,6 +4,9 @@
     "front-end",
     "back-end"
   ],
+  "engines": {
+    "node": ">=20.18.0"
+  },
   "scripts": {
     "dev": "concurrently \"npm --prefix back-end run dev\" \"npm --prefix front-end start\"",
     "build": "npm --prefix front-end run build",
