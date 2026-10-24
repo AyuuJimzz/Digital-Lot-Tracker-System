@@ -506,6 +506,7 @@ exports.updateLotStatus = lotStatus.updateLotStatus;
 // GIS Coordinates & Bulk Operations
 exports.updateLotCoordinates = lotCoordinates.updateLotCoordinates;
 exports.bulkShiftPropertyLots = lotCoordinates.bulkShiftPropertyLots;
+exports.batchUpdateLotCoordinates = lotCoordinates.batchUpdateLotCoordinates;
 
 // Automated Reminder System
 exports.sendPendingLotReminders = lotReminders.sendPendingLotReminders;

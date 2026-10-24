@@ -39,6 +39,7 @@ export function useLotEditorState({
   const dragCoordsRef = useRef([]);
   const cornerMarkersRef = useRef([]);
   const centerMoveMarkerRef = useRef(null);
+  const midpointMarkersRef = useRef([]);
 
   // Quick-Add / Floating unified lot form states
   const [quickLotNumber, setQuickLotNumber] = useState("");
@@ -87,6 +88,7 @@ export function useLotEditorState({
     editingPolygonRef,
     cornerMarkersRef,
     centerMoveMarkerRef,
+    midpointMarkersRef,
   });
 
   // Persistence & Save Sub-Hook
@@ -270,6 +272,7 @@ export function useLotEditorState({
     dragCoordsRef,
     cornerMarkersRef,
     centerMoveMarkerRef,
+    midpointMarkersRef,
     liveAreaSqm,
     targetAreaSqm,
     quickLotNumber,

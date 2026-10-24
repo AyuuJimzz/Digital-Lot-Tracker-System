@@ -14,6 +14,7 @@ export const useLotDragEngine = ({
   editingPolygonRef,
   cornerMarkersRef,
   centerMoveMarkerRef,
+  midpointMarkersRef,
 }) => {
   // State and Ref for dragging the entire polygon
   const [isDraggingPolygon, setIsDraggingPolygon] = useState(false);
@@ -82,6 +83,18 @@ export const useLotDragEngine = ({
       }
       if (centerMoveMarkerRef.current) {
         centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(dragCoordsRef.current));
+      }
+      if (midpointMarkersRef?.current) {
+        const n = dragCoordsRef.current.length;
+        midpointMarkersRef.current.forEach((marker, i) => {
+          if (marker && n >= 3) {
+            const p1 = dragCoordsRef.current[i];
+            const p2 = dragCoordsRef.current[(i + 1) % n];
+            if (p1 && p2) {
+              marker.setLatLng([(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]);
+            }
+          }
+        });
       }
     }
   };
@@ -239,6 +252,19 @@ export const useLotDragEngine = ({
         centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(candidateCoords));
       }
 
+      if (midpointMarkersRef?.current) {
+        const n = candidateCoords.length;
+        midpointMarkersRef.current.forEach((marker, index) => {
+          if (marker && n >= 3) {
+            const p1 = candidateCoords[index];
+            const p2 = candidateCoords[(index + 1) % n];
+            if (p1 && p2) {
+              marker.setLatLng([(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]);
+            }
+          }
+        });
+      }
+
       dragCoordsRef.current = candidateCoords.map((c) => [...c]);
       currentCandidate = candidateCoords;
     };
@@ -266,7 +292,7 @@ export const useLotDragEngine = ({
     window.addEventListener("mouseup", onGlobalMouseUp);
     map.on("mousemove", onGlobalMouseMove);
     map.on("mouseup", onGlobalMouseUp);
-  }, [map, editingCoords, enableSnapping, mapData, editingLot, dragCoordsRef, editingPolygonRef, cornerMarkersRef, centerMoveMarkerRef, setEditingCoords]);
+  }, [map, editingCoords, enableSnapping, mapData, editingLot, dragCoordsRef, editingPolygonRef, cornerMarkersRef, centerMoveMarkerRef, midpointMarkersRef, setEditingCoords]);
 
   return {
     isDraggingPolygon,

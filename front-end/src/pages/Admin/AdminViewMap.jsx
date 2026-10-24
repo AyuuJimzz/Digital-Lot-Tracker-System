@@ -16,11 +16,13 @@ import { calculateMapViewportFromReview } from "../../utils/blueprintLotProjecti
 import MapController from "./map/components/MapController";
 import MapTouchPopup from "./map/components/MapTouchPopup";
 import BulkShiftAlignmentPanel from "./map/components/BulkShiftAlignmentPanel";
+import BlockAdjustPanel from "./map/components/BlockAdjustPanel";
 import BulkShiftModal from "./map/modals/BulkShiftModal";
 import DuplicateLotModal from "./map/modals/DuplicateLotModal";
 import OverviewBeaconsLayer from "./map/layers/OverviewBeaconsLayer";
 import BlueprintOverlayLayer from "./map/layers/BlueprintOverlayLayer";
 import EditingLotLayer from "./map/layers/EditingLotLayer";
+import BlockAdjustLayer from "./map/layers/BlockAdjustLayer";
 import MapAnnotationsLayer from "./map/layers/MapAnnotationsLayer";
 import LotImportCandidateLayer from "./map/layers/LotImportCandidateLayer";
 
@@ -283,6 +285,9 @@ function AdminViewMap() {
         {/* ── Active Coordinate Editing Polygon & Vertex Handles ── */}
         <EditingLotLayer {...mapState} />
 
+        {/* ── Block Adjust & Expand Bounding Aura Layer ── */}
+        <BlockAdjustLayer {...mapState} />
+
         {/* ── Road & Map Text Labels Layer ── */}
         <MapAnnotationsLayer {...mapState} />
       </MapContainer>
@@ -314,9 +319,6 @@ function AdminViewMap() {
               setQuickAreaSqm(num);
             }
             setEditingLot((prev) => (prev ? { ...prev, area_sqm: num } : prev));
-            if (num > 0) {
-              handleResetToSquareSize(num);
-            }
           }}
           liveArea={liveAreaSqm}
           status={
@@ -349,6 +351,9 @@ function AdminViewMap() {
 
       {/* Floating Bulk Shift Alignment Editor Panel */}
       <BulkShiftAlignmentPanel {...mapState} />
+
+      {/* Floating Block Adjust & Expand Editor Panel */}
+      <BlockAdjustPanel {...mapState} />
 
       {/* In-App Bulk Shift Confirmation Modal */}
       <BulkShiftModal {...mapState} />

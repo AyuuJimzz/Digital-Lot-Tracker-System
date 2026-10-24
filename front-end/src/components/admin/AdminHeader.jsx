@@ -343,6 +343,16 @@ export function AdminHeader({ sidebarCollapsed }) {
                   <Move className="mr-2.5 h-4 w-4 text-slate-400 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
                   <span className="font-medium">Move All Lots Together</span>
                 </button>
+                <button
+                  className="group flex w-full items-center px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700/80 transition-colors text-left border-t border-gray-100 dark:border-slate-700/70 cursor-pointer"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent("openBlockAdjustPanel"));
+                    setLotsDropdownOpen(false);
+                  }}
+                >
+                  <Layers className="mr-2.5 h-4 w-4 text-slate-400 dark:text-slate-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                  <span className="font-medium">Adjust & Expand by Block</span>
+                </button>
               </div>
             )}
           </div>

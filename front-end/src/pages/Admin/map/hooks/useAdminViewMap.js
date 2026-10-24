@@ -22,6 +22,7 @@ import { useBlueprintOverlayState } from "./useBlueprintOverlayState";
 import { useMapAnnotationsState } from "./useMapAnnotationsState";
 import { useBulkShiftState } from "./useBulkShiftState";
 import { useLotEditorState } from "./useLotEditorState";
+import { useBlockAdjustState } from "./useBlockAdjustState";
 
 export const useAdminViewMap = () => {
   const queryClient = useQueryClient();
@@ -252,6 +253,15 @@ export const useAdminViewMap = () => {
     setSelectedProperty,
   });
 
+  // ── 5. Sub-Hook: Block Level Adjust & Expand Engine ──
+  const blockAdjustState = useBlockAdjustState({
+    selectedProperty,
+    mapData,
+    handleLotUpdated,
+    map,
+    overlayRotation: overlayState.overlayRotation,
+  });
+
   // Handle duplicating / cloning a lot with auto-incremented identifier & adjacent offset
   const handleDuplicateLot = (lotToDuplicate) => {
     const sourceLot =
@@ -416,17 +426,41 @@ export const useAdminViewMap = () => {
       return null;
     }
 
-    const coords =
-      bulkShiftState.isBulkShifting && Number(lot.property_id) === Number(shiftedPropertyId)
-        ? lot.coordinates.map(([lat, lng]) => [
-            lat + bulkShiftState.bulkShiftOffset.lat,
-            lng + bulkShiftState.bulkShiftOffset.lng,
-          ])
-        : lot.coordinates;
+    const targetLotId = Number(lot.lot_id ?? lot.id);
+    const isBlockAdjusted =
+      blockAdjustState.isBlockAdjusting &&
+      (blockAdjustState.transformedLotsMap.has(targetLotId) ||
+       blockAdjustState.transformedLotsMap.has(lot.lot_id));
+
+    const blockAdjustData = isBlockAdjusted
+      ? blockAdjustState.transformedLotsMap.get(targetLotId) ||
+        blockAdjustState.transformedLotsMap.get(lot.lot_id)
+      : null;
+
+    const coords = blockAdjustData
+      ? blockAdjustData.coordinates
+      : bulkShiftState.isBulkShifting && Number(lot.property_id) === Number(shiftedPropertyId)
+      ? lot.coordinates.map(([lat, lng]) => [
+          lat + bulkShiftState.bulkShiftOffset.lat,
+          lng + bulkShiftState.bulkShiftOffset.lng,
+        ])
+      : lot.coordinates;
 
     const isShifted = bulkShiftState.isBulkShifting && Number(lot.property_id) === Number(shiftedPropertyId);
-    const centerLat = isShifted ? (lot._centerLat ?? 0) + bulkShiftState.bulkShiftOffset.lat : (lot._centerLat ?? 0);
-    const centerLng = isShifted ? (lot._centerLng ?? 0) + bulkShiftState.bulkShiftOffset.lng : (lot._centerLng ?? 0);
+    let centerLat = isShifted ? (lot._centerLat ?? 0) + bulkShiftState.bulkShiftOffset.lat : (lot._centerLat ?? 0);
+    let centerLng = isShifted ? (lot._centerLng ?? 0) + bulkShiftState.bulkShiftOffset.lng : (lot._centerLng ?? 0);
+
+    if (isBlockAdjusted && coords.length > 0) {
+      let sLat = 0;
+      let sLng = 0;
+      coords.forEach(([lt, lg]) => {
+        sLat += lt;
+        sLng += lg;
+      });
+      centerLat = sLat / coords.length;
+      centerLng = sLng / coords.length;
+    }
+
     const statusColor = lot._statusColor;
 
     const openFullLotDetails = async () => {
@@ -500,15 +534,31 @@ export const useAdminViewMap = () => {
           renderer={renderer}
           positions={coords}
           pathOptions={{
-            color: bulkShiftState.isBulkShifting ? "#3b82f6" : statusColor,
-            fillColor: bulkShiftState.isBulkShifting ? "#3b82f6" : statusColor,
-            fillOpacity: bulkShiftState.isBulkShifting ? 0.65 : 0.6,
-            weight: bulkShiftState.isBulkShifting ? 2.5 : 2,
-            dashArray: bulkShiftState.isBulkShifting ? "4, 4" : undefined,
-            className: bulkShiftState.isBulkShifting ? "cursor-grab active:cursor-grabbing" : undefined,
+            color: isBlockAdjusted
+              ? "#818cf8"
+              : bulkShiftState.isBulkShifting
+              ? "#3b82f6"
+              : statusColor,
+            fillColor: isBlockAdjusted
+              ? "#6366f1"
+              : bulkShiftState.isBulkShifting
+              ? "#3b82f6"
+              : statusColor,
+            fillOpacity: isBlockAdjusted ? 0.75 : bulkShiftState.isBulkShifting ? 0.65 : 0.6,
+            weight: isBlockAdjusted ? 2.5 : bulkShiftState.isBulkShifting ? 2.5 : 2,
+            dashArray: isBlockAdjusted ? "3, 3" : bulkShiftState.isBulkShifting ? "4, 4" : undefined,
+            className: isBlockAdjusted
+              ? "cursor-grab active:cursor-grabbing"
+              : bulkShiftState.isBulkShifting
+              ? "cursor-grab active:cursor-grabbing"
+              : undefined,
           }}
           eventHandlers={{
             mousedown: (e) => {
+              if (isBlockAdjusted) {
+                blockAdjustState.handleStartBlockDrag(e);
+                return;
+              }
               if (bulkShiftState.isBulkShifting && map) {
                 if (e?.originalEvent) {
                   e.originalEvent.stopPropagation();
@@ -538,7 +588,7 @@ export const useAdminViewMap = () => {
               }
             },
             click: (e) => {
-              if (bulkShiftState.isBulkShifting) return;
+              if (blockAdjustState.isBlockAdjusting || bulkShiftState.isBulkShifting) return;
               handleLotClick(e);
             },
             mouseover: () => showHover(lot, [centerLat, centerLng]),
@@ -566,6 +616,7 @@ export const useAdminViewMap = () => {
     isTouchDevice,
     lotEditorState.editingLot,
     bulkShiftState,
+    blockAdjustState,
     shiftedPropertyId,
     map,
   ]);
@@ -649,6 +700,9 @@ export const useAdminViewMap = () => {
 
     // Sub-Hook 4: Visual Lot Editor & Snapping Magnet Engine
     ...lotEditorState,
+
+    // Sub-Hook 5: Block Level Adjust & Expand Engine
+    ...blockAdjustState,
   };
 };
 

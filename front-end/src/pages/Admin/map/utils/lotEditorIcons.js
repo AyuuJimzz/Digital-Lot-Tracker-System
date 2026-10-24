@@ -20,7 +20,7 @@ export const getPolygonCentroid = (coords) => {
  * Creates Leaflet divIcon for the '+' vertex insertion handle between two corners
  * @returns {L.DivIcon}
  */
-export const createMidpointIcon = () => {
+export const createMidpointIcon = (color = "#06b6d4", glowColor = "rgba(6, 182, 212, 0.45)") => {
   return L.divIcon({
     className: "custom-midpoint-icon",
     html: `
@@ -28,9 +28,9 @@ export const createMidpointIcon = () => {
         width: 18px;
         height: 18px;
         border-radius: 50%;
-        background-color: rgba(16, 185, 129, 0.85);
+        background-color: ${color};
         border: 1.5px solid #ffffff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3), 0 0 6px ${glowColor};
         display: flex;
         align-items: center;
         justify-content: center;
@@ -53,7 +53,7 @@ export const createMidpointIcon = () => {
  * Creates Leaflet divIcon for the center 4-way arrow handle used to drag the entire lot
  * @returns {L.DivIcon}
  */
-export const createPolygonCenterMoveIcon = () => {
+export const createPolygonCenterMoveIcon = (color = "#06b6d4", glowColor = "rgba(6, 182, 212, 0.45)") => {
   return L.divIcon({
     className: "custom-polygon-center-icon",
     html: `
@@ -62,13 +62,13 @@ export const createPolygonCenterMoveIcon = () => {
         height: 28px;
         border-radius: 50%;
         background: rgba(15, 23, 42, 0.9);
-        border: 2px solid #10b981;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(16, 185, 129, 0.4);
+        border: 2px solid ${color};
+        box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 10px ${glowColor};
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: move;
-        color: #10b981;
+        color: ${color};
         user-select: none;
       " title="Drag to move entire lot">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -91,7 +91,13 @@ export const createPolygonCenterMoveIcon = () => {
  * @param {number} index - 0-based corner index
  * @returns {L.DivIcon}
  */
-export const createHandleIcon = (index) => {
+export const createHandleIcon = (
+  index,
+  color = "#06b6d4",
+  badgeColor = "#0891b2",
+  ringColor = "rgba(6, 182, 212, 0.25)",
+  glowColor = "rgba(6, 182, 212, 0.45)"
+) => {
   return L.divIcon({
     className: "custom-handle-icon",
     html: `
@@ -110,10 +116,10 @@ export const createHandleIcon = (index) => {
           width: 26px;
           height: 26px;
           border-radius: 50%;
-          border: 2px dashed #10b981;
-          background-color: rgba(16, 185, 129, 0.25);
+          border: 2px dashed ${color};
+          background-color: ${ringColor};
           pointer-events: none;
-          box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+          box-shadow: 0 0 8px ${glowColor};
         "></div>
         
         <div style="
@@ -121,7 +127,7 @@ export const createHandleIcon = (index) => {
           width: 10px;
           height: 10px;
           border-radius: 50%;
-          background-color: #10b981;
+          background-color: ${color};
           border: 2px solid #ffffff;
           box-shadow: 0 0 4px rgba(0,0,0,0.6);
           pointer-events: none;
@@ -132,7 +138,7 @@ export const createHandleIcon = (index) => {
           position: absolute;
           top: -2px;
           right: -2px;
-          background-color: #047857;
+          background-color: ${badgeColor};
           color: #ffffff;
           font-size: 9px;
           font-weight: 800;

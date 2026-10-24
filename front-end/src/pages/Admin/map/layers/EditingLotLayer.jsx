@@ -3,7 +3,7 @@ import { Pane, Polygon, Marker } from "react-leaflet";
 import L from "leaflet";
 
 // Create an explicit center move icon for grabbing and dragging the entire lot
-export const createPolygonCenterMoveIcon = () => {
+export const createPolygonCenterMoveIcon = (color = "#06b6d4", glowColor = "rgba(6, 182, 212, 0.45)") => {
   return L.divIcon({
     className: "custom-polygon-center-icon",
     html: `
@@ -12,13 +12,13 @@ export const createPolygonCenterMoveIcon = () => {
         height: 28px;
         border-radius: 50%;
         background: rgba(15, 23, 42, 0.9);
-        border: 2px solid #10b981;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(16, 185, 129, 0.4);
+        border: 2px solid ${color};
+        box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 10px ${glowColor};
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: move;
-        color: #10b981;
+        color: ${color};
         user-select: none;
       " title="Drag to move entire lot">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -37,7 +37,13 @@ export const createPolygonCenterMoveIcon = () => {
 };
 
 // Create a handle icon for the draggable vertices
-export const createHandleIcon = (index) => {
+export const createHandleIcon = (
+  index,
+  color = "#06b6d4",
+  badgeColor = "#0891b2",
+  ringColor = "rgba(6, 182, 212, 0.25)",
+  glowColor = "rgba(6, 182, 212, 0.45)"
+) => {
   return L.divIcon({
     className: "custom-handle-icon",
     html: `
@@ -57,10 +63,10 @@ export const createHandleIcon = (index) => {
           width: 26px;
           height: 26px;
           border-radius: 50%;
-          border: 2px dashed #10b981;
-          background-color: rgba(16, 185, 129, 0.25);
+          border: 2px dashed ${color};
+          background-color: ${ringColor};
           pointer-events: none;
-          box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+          box-shadow: 0 0 8px ${glowColor};
         "></div>
         
         <!-- Exact center point (vertex) -->
@@ -69,7 +75,7 @@ export const createHandleIcon = (index) => {
           width: 10px;
           height: 10px;
           border-radius: 50%;
-          background-color: #10b981;
+          background-color: ${color};
           border: 2px solid #ffffff;
           box-shadow: 0 0 4px rgba(0,0,0,0.6);
           pointer-events: none;
@@ -81,7 +87,7 @@ export const createHandleIcon = (index) => {
           position: absolute;
           top: -2px;
           right: -2px;
-          background-color: #047857;
+          background-color: ${badgeColor};
           color: #ffffff;
           font-size: 9px;
           font-weight: 800;
@@ -106,7 +112,7 @@ export const createHandleIcon = (index) => {
 };
 
 // Create a small '+' icon for the midpoint handles with generous hit target
-export const createMidpointIcon = () => {
+export const createMidpointIcon = (color = "#06b6d4", glowColor = "rgba(6, 182, 212, 0.45)") => {
   return L.divIcon({
     className: "custom-midpoint-icon",
     html: `
@@ -123,9 +129,9 @@ export const createMidpointIcon = () => {
           width: 20px;
           height: 20px;
           border-radius: 50%;
-          background-color: #10b981;
+          background-color: ${color};
           border: 2px solid #ffffff;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.45), 0 0 8px ${glowColor};
           display: flex;
           align-items: center;
           justify-content: center;
@@ -162,6 +168,7 @@ export const EditingLotLayer = ({
   startPolygonDrag,
   centerMoveMarkerRef,
   cornerMarkersRef,
+  midpointMarkersRef,
   dragCoordsRef,
   handleVertexDrag,
   handleVertexDragEnd,
@@ -172,6 +179,15 @@ export const EditingLotLayer = ({
 }) => {
   if (!editingLot) return null;
 
+  const isNewLot = Boolean(editingLot?.isNew);
+  // High-visibility drafting colors: Electric Cyan (#06b6d4) when adding a new lot so it pops out
+  // instantly against dark satellite terrain, green grass, red sold lots, and yellow pending lots.
+  // Sky Blue (#0ea5e9) when visually modifying an existing lot.
+  const primaryColor = isNewLot ? "#06b6d4" : "#0ea5e9";
+  const badgeColor = isNewLot ? "#0891b2" : "#0284c7";
+  const ringColor = isNewLot ? "rgba(6, 182, 212, 0.25)" : "rgba(14, 165, 233, 0.25)";
+  const glowColor = isNewLot ? "rgba(6, 182, 212, 0.5)" : "rgba(14, 165, 233, 0.5)";
+
   return (
     <>
       {/* ── 1. Lower Layer: Active Editing Polygon (zIndex 640) ── */}
@@ -181,9 +197,9 @@ export const EditingLotLayer = ({
           positions={editingCoords}
           pane="editing-lot-polygon-pane"
           pathOptions={{
-            color: "#10b981",
-            fillColor: "#10b981",
-            fillOpacity: 0.45,
+            color: primaryColor,
+            fillColor: primaryColor,
+            fillOpacity: 0.38,
             weight: 3.5,
             dashArray: "6, 6",
             className: isDraggingPolygon ? "cursor-grabbing" : "cursor-grab",
@@ -218,7 +234,7 @@ export const EditingLotLayer = ({
               position={centroid}
               pane="editing-lot-handles-pane"
               draggable={true}
-              icon={createPolygonCenterMoveIcon()}
+              icon={createPolygonCenterMoveIcon(primaryColor, glowColor)}
               eventHandlers={{
                 mouseover: () => {
                   if (map) map.dragging.disable();
@@ -256,7 +272,7 @@ export const EditingLotLayer = ({
             position={coord}
             pane="editing-lot-handles-pane"
             draggable={true}
-            icon={createHandleIcon(index)}
+            icon={createHandleIcon(index, primaryColor, badgeColor, ringColor, glowColor)}
             eventHandlers={{
               mouseover: () => {
                 if (map) map.dragging.disable();
@@ -300,13 +316,15 @@ export const EditingLotLayer = ({
           />
         ))}
 
-        {/* Midpoint Split Handles to easily add new corners */}
         {midpointHandles.map((mid, idx) => (
           <Marker
             key={`midpoint-${idx}-${editingCoords.length}`}
+            ref={(el) => {
+              if (midpointMarkersRef?.current) midpointMarkersRef.current[idx] = el;
+            }}
             position={mid.position}
             pane="editing-lot-handles-pane"
-            icon={createMidpointIcon()}
+            icon={createMidpointIcon(primaryColor, glowColor)}
             eventHandlers={{
               mouseover: () => {
                 if (map) map.dragging.disable();

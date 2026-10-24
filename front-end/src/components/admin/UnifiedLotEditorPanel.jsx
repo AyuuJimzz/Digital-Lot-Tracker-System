@@ -47,7 +47,7 @@ export function UnifiedLotEditorPanel({
       >
         <div className="flex items-center gap-2">
           <GripHorizontal className="w-4 h-4 text-slate-500" />
-          <span className={`w-2 h-2 rounded-full ${isNewLot ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" : "bg-blue-400"}`} />
+          <span className={`w-2 h-2 rounded-full ${isNewLot ? "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]" : "bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.9)]"}`} />
           <span className="font-bold text-white text-sm tracking-wide">
             {isNewLot ? "Quick Add Lot" : `Edit ${lotNumber || "Lot"}`}
           </span>
@@ -100,36 +100,11 @@ export function UnifiedLotEditorPanel({
           />
         </div>
 
-        {/* ── 2. Area (sqm) + Presets + Live Badge ───── */}
+        {/* ── 2. Area (sqm) ─────────────────────────── */}
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1.5">
-              <label htmlFor="unified-lot-area-input" className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Area (sqm)
-              </label>
-              {liveArea > 0 && (
-                <span className="text-[10px] text-emerald-400 font-mono font-bold bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                  {liveArea.toFixed(1)} sqm live
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              {[100, 120, 150].map((sz) => (
-                <button
-                  key={sz}
-                  type="button"
-                  onClick={() => onTargetAreaChange?.(sz)}
-                  className={`text-[10px] px-1.5 py-0.5 rounded border transition cursor-pointer font-semibold ${
-                    Number(targetArea) === sz
-                      ? "bg-blue-600 text-white border-blue-500 shadow-sm font-bold"
-                      : "bg-slate-800/80 text-slate-400 border-slate-700 hover:text-slate-200 hover:bg-slate-700"
-                  }`}
-                >
-                  {sz} sqm
-                </button>
-              ))}
-            </div>
-          </div>
+          <label htmlFor="unified-lot-area-input" className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            Area (sqm)
+          </label>
           <input
             id="unified-lot-area-input"
             name="target_area"
@@ -197,7 +172,7 @@ export function UnifiedLotEditorPanel({
               type="button"
               disabled={isSaving || !lotNumber.trim()}
               onClick={onSaveAndNext}
-              className="py-2 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-slate-800 disabled:to-slate-800 text-white rounded-xl text-xs font-bold transition shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer flex items-center justify-center gap-1"
+              className="py-2 px-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-slate-800 disabled:to-slate-800 text-white rounded-xl text-xs font-bold transition shadow-md shadow-cyan-600/20 active:scale-95 cursor-pointer flex items-center justify-center gap-1"
               title="Save this lot and immediately start tracing the next adjacent lot"
             >
               <Plus className="w-3.5 h-3.5" />

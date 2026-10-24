@@ -18,6 +18,7 @@ const {
   deleteLot,
   bulkShiftPropertyLots,
   updateLotDetails,
+  batchUpdateLotCoordinates,
   getSubdivisionColors,
   saveSubdivisionColors,
   resetSubdivisionColors,
@@ -44,6 +45,7 @@ router.put("/subdivision-colors", requireAdmin, saveSubdivisionColors);
 router.delete("/subdivision-colors", requireAdmin, resetSubdivisionColors);
 router.post("/import", requireAdmin, importLots);
 router.post("/", requireAdmin, createLot);
+router.put("/batch-coordinates", requireAdmin, batchUpdateLotCoordinates);
 router.put("/:id/status", requireAuth, updateLotStatus);
 router.put("/:id/coordinates", requireAdmin, updateLotCoordinates);
 router.put("/:id/details", requireAdmin, updateLotDetails);

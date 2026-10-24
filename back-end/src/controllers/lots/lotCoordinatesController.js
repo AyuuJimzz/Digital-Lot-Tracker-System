@@ -165,3 +165,73 @@ exports.bulkShiftPropertyLots = async (req, res) => {
     if (connection) connection.release();
   }
 };
+
+// =======================
+// BATCH UPDATE LOT COORDINATES (BLOCK ADJUST)
+// =======================
+exports.batchUpdateLotCoordinates = async (req, res) => {
+  const { lots } = req.body;
+
+  if (!Array.isArray(lots) || lots.length === 0) {
+    return res.status(400).json({ error: "Invalid lots list. Must be a non-empty array." });
+  }
+
+  let connection;
+  try {
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    let updatedCount = 0;
+
+    for (const item of lots) {
+      const { lot_id, coordinates, area_sqm } = item;
+      if (!lot_id || !Array.isArray(coordinates) || coordinates.length === 0) {
+        continue;
+      }
+
+      // Validate coordinates array has valid number pairs
+      const validCoords = coordinates.every(
+        (pair) => Array.isArray(pair) && pair.length === 2 && typeof pair[0] === "number" && typeof pair[1] === "number"
+      );
+      if (!validCoords) {
+        throw new Error(`Invalid coordinate format for lot ID ${lot_id}`);
+      }
+
+      const parsedArea = typeof area_sqm === "number" && area_sqm > 0 ? area_sqm : null;
+
+      if (parsedArea) {
+        await connection.query(
+          "UPDATE lots SET coordinates = ?, area_sqm = ? WHERE lot_id = ?",
+          [JSON.stringify(coordinates), parsedArea, lot_id]
+        );
+      } else {
+        await connection.query(
+          "UPDATE lots SET coordinates = ? WHERE lot_id = ?",
+          [JSON.stringify(coordinates), lot_id]
+        );
+      }
+      updatedCount++;
+    }
+
+    await connection.commit();
+
+    console.log(`🗺️ [Batch Update Lots] Successfully updated ${updatedCount} lots.`);
+
+    res.json({
+      message: `Successfully updated coordinates for ${updatedCount} lots.`,
+      updatedCount,
+    });
+  } catch (err) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("Error rolling back batch update lots:", rollbackError);
+      }
+    }
+    console.error("❌ [Batch Update Lots Error]:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) connection.release();
+  }
+};
