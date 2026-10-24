@@ -44,13 +44,19 @@ const ProjectDashboardSwitcher = ({
             aria-pressed={selectedProject === "all"}
             className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-500 ${
               selectedProject === "all"
-                ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/70 dark:hover:text-white"
+                ? "bg-slate-900 text-white shadow-sm dark:bg-slate-800 dark:text-white dark:border dark:border-slate-700/80"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-white"
             }`}
           >
             <Layers className="h-4 w-4" aria-hidden="true" />
             <span>All Projects</span>
-            <span className={`rounded px-1.5 py-0.5 text-xs tabular-nums ${selectedProject === "all" ? "bg-white/10 dark:bg-slate-900/10" : "bg-slate-100 dark:bg-slate-800"}`}>
+            <span
+              className={`rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums ${
+                selectedProject === "all"
+                  ? "bg-white/20 text-white dark:bg-slate-700/80 dark:text-slate-200"
+                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+              }`}
+            >
               {totalEstateLots.toLocaleString()}
             </span>
           </button>
@@ -68,8 +74,8 @@ const ProjectDashboardSwitcher = ({
                 aria-pressed={isSelected}
                 className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-500 ${
                   isSelected
-                    ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white"
-                    : "bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                    ? "bg-slate-900 text-white shadow-sm dark:bg-slate-800 dark:text-white dark:border dark:border-slate-700/80"
+                    : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-white"
                 }`}
               >
                 <span
@@ -77,7 +83,7 @@ const ProjectDashboardSwitcher = ({
                   style={{ backgroundColor: theme.color }}
                 />
                 <span>{shortName}</span>
-                <span className="text-xs tabular-nums text-slate-400 dark:text-slate-500">
+                <span className={`text-xs tabular-nums ${isSelected ? "text-slate-300 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}`}>
                   {Number(subdiv.availableLots || 0).toLocaleString()} available
                 </span>
               </button>
