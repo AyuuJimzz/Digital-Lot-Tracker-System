@@ -374,32 +374,26 @@ const AdminDashboard = () => {
         <StatCard
           title="Place Location"
           value={stats.placeLocation}
-          subtitle={selectedProject === "all" ? "Whole Estate Portfolio" : stats.propertyName}
         />
         <StatCard
           title="Total Lots"
           value={String(stats.totalLots)}
-          subtitle={stats.nonSaleableLots > 0 ? `Saleable (${stats.nonSaleableLots} non-saleable)` : "Saleable Inventory"}
         />
         <StatCard
           title="Lots Sold"
           value={String(stats.soldLots)}
-          subtitle={stats.totalLots > 0 ? `${Math.round((stats.soldLots / stats.totalLots) * 100)}% of inventory sold` : "Sold Lots"}
         />
         <StatCard
           title="Lots Available"
           value={String(stats.availableLots)}
-          subtitle="Ready for Acquisition"
         />
         <StatCard
           title="Lots Pending"
           value={String(stats.pendingLots)}
-          subtitle="Active Reservations"
         />
         <StatCard
           title="Total Clients"
           value={String(stats.totalClients)}
-          subtitle="Unique buyers & reservation holders"
         />
       </div>
 
