@@ -34,7 +34,7 @@ export function useMapAnnotationsState({
   useEffect(() => {
     if (selectedProperty && mapData?.properties) {
       const prop = mapData.properties.find(
-        (p) => Number(p.property_id) === Number(selectedProperty)
+        (p) => Number(p.property_id) === Number(selectedProperty) && p.status !== "inactive"
       );
       if (prop && prop.annotations) {
         try {
@@ -62,6 +62,7 @@ export function useMapAnnotationsState({
     if (!mapData?.properties) return [];
     const result = [];
     mapData.properties.forEach((p) => {
+      if (p.status === "inactive") return;
       const isSelected = Number(p.property_id) === Number(selectedProperty);
       if (isSelected) {
         const visibleAnnotations = isEditingOverlay

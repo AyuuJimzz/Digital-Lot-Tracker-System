@@ -205,6 +205,18 @@ export function AdminHeader({ sidebarCollapsed }) {
             }));
           setProperties(mapped);
           try { sessionStorage.setItem("propertiesCache", JSON.stringify(res.data)); } catch (e) {}
+          if (mapped.length > 0) {
+            setSelectedProperty((prev) => {
+              const currentSaved = parseInt(localStorage.getItem("selectedProperty"));
+              const activeId = !isNaN(currentSaved) && currentSaved > 0 ? currentSaved : prev;
+              const isCurrentValid = mapped.some((p) => Number(p.id) === Number(activeId));
+              if (!isCurrentValid) {
+                localStorage.setItem("selectedProperty", mapped[0].id.toString());
+                return mapped[0].id;
+              }
+              return activeId;
+            });
+          }
         }
       } catch (err) {
         console.error("Failed to load dynamic properties in header:", err);
@@ -385,17 +397,17 @@ export function AdminHeader({ sidebarCollapsed }) {
               }
             >
               <MapPin className={`h-4 w-4 shrink-0 ${isLotDrawerOpen ? "text-gray-400 dark:text-slate-500" : "text-blue-600 dark:text-blue-400"}`} />
-              {properties.find((p) => p.id === selectedProperty) ? (
+              {properties.find((p) => Number(p.id) === Number(selectedProperty)) ? (
                 <div className="flex items-center gap-1.5 truncate">
                   <span className={`text-[11px] px-1.5 py-0.5 rounded font-bold shrink-0 ${
                     isLotDrawerOpen
                       ? "bg-gray-200/80 dark:bg-slate-700 text-gray-500 dark:text-slate-400"
                       : "bg-blue-200/70 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300"
                   }`}>
-                    #{properties.findIndex((p) => p.id === selectedProperty) + 1 || 1}
+                    #{properties.findIndex((p) => Number(p.id) === Number(selectedProperty)) + 1 || 1}
                   </span>
                   <span className="truncate font-medium">
-                    {properties.find((p) => p.id === selectedProperty)?.name}
+                    {properties.find((p) => Number(p.id) === Number(selectedProperty))?.name}
                   </span>
                 </div>
               ) : (
@@ -411,7 +423,7 @@ export function AdminHeader({ sidebarCollapsed }) {
                     <button
                       key={property.id}
                       className={`flex w-full items-center gap-2 px-3.5 py-2 text-xs sm:text-sm transition-colors text-left ${
-                        property.id === selectedProperty
+                        Number(property.id) === Number(selectedProperty)
                           ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold"
                           : "text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                       }`}

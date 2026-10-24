@@ -176,6 +176,29 @@ export const useAdminViewMap = () => {
     return [];
   }, [mapData]);
 
+  // Fallback if selected property becomes invalid or inactive (e.g. fresh browser session)
+  useEffect(() => {
+    if (mapData && Array.isArray(mapData.properties) && mapData.properties.length > 0) {
+      const exists = mapData.properties.some(
+        (p) => p.status !== "inactive" && Number(p.property_id) === Number(selectedProperty)
+      );
+      if (!exists && properties.length > 0) {
+        const fallbackProp = properties[0];
+        if (fallbackProp) {
+          setSelectedProperty(fallbackProp.id.toString());
+          localStorage.setItem("selectedProperty", fallbackProp.id.toString());
+          if (fallbackProp.coordinates) {
+            window.dispatchEvent(
+              new CustomEvent("selectProperty", {
+                detail: { propertyId: fallbackProp.id, coordinates: fallbackProp.coordinates },
+              })
+            );
+          }
+        }
+      }
+    }
+  }, [mapData, properties, selectedProperty]);
+
   // Active property IDs set
   const activePropertyIds = useMemo(() => {
     return new Set(properties.map((p) => Number(p.id)));
