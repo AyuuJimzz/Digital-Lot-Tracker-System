@@ -74,14 +74,6 @@ export function EmployeeSidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      {!collapsed && (
-        <div className="p-3 border-t border-gray-200 dark:border-slate-800 text-center">
-          <span className="text-xs text-gray-400 dark:text-slate-500 font-medium">
-            Employee System v1.0
-          </span>
-        </div>
-      )}
     </aside>
   );
 }
