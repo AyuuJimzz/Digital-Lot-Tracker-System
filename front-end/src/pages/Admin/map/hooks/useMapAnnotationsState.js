@@ -43,8 +43,9 @@ export function useMapAnnotationsState({
               ? JSON.parse(prop.annotations)
               : prop.annotations;
           if (Array.isArray(parsed)) {
-            setAnnotations(parsed);
-            if (parsed.length > 0) setActiveAnnotationId(parsed[0].id);
+            const labels = parsed.filter((a) => a.id !== "property_center" && a.type !== "property_center");
+            setAnnotations(labels);
+            if (labels.length > 0) setActiveAnnotationId(labels[0].id);
           } else {
             setAnnotations([]);
           }
@@ -77,12 +78,16 @@ export function useMapAnnotationsState({
           typeof p.annotations === "string" ? JSON.parse(p.annotations) : p.annotations;
         if (Array.isArray(parsed)) {
           result.push(
-            ...parsed.map((a) => ({ ...a, property_id: p.property_id }))
+            ...parsed
+              .filter((a) => a.id !== "property_center" && a.type !== "property_center")
+              .map((a) => ({ ...a, property_id: p.property_id }))
           );
         }
       } catch (e) {}
     });
-    return result.filter((item) => !item.deleted);
+    return result.filter(
+      (item) => !item.deleted && item.id !== "property_center" && item.type !== "property_center"
+    );
   }, [mapData, selectedProperty, annotations, isEditingOverlay]);
 
   // Listen for openAnnotationPanel event from AdminHeader
@@ -352,9 +357,33 @@ export function useMapAnnotationsState({
     if (!selectedProperty) return;
     setIsSavingAnnotations(true);
     try {
+      // Preserve any property_center anchor if present in current property
+      const currentProp = (mapData?.properties || []).find(
+        (p) => Number(p.property_id) === Number(selectedProperty)
+      );
+      let preservedCenter = null;
+      if (currentProp?.annotations) {
+        try {
+          const parsed =
+            typeof currentProp.annotations === "string"
+              ? JSON.parse(currentProp.annotations)
+              : currentProp.annotations;
+          if (Array.isArray(parsed)) {
+            preservedCenter = parsed.find(
+              (a) => a.id === "property_center" || a.type === "property_center"
+            );
+          }
+        } catch (_) {}
+      }
+
+      const toSave =
+        preservedCenter && !nextAnnotations.some((a) => a.id === "property_center")
+          ? [...nextAnnotations, preservedCenter]
+          : nextAnnotations;
+
       await axios.put(
         `${API_BASE_URL}/api/properties/${selectedProperty}/annotations`,
-        { annotations: nextAnnotations },
+        { annotations: toSave },
         getAuthConfig()
       );
       if (notify) showToast("Road & map labels saved successfully to database!", "success");
@@ -367,7 +396,7 @@ export function useMapAnnotationsState({
     } finally {
       setIsSavingAnnotations(false);
     }
-  }, [selectedProperty, handleLotUpdated]);
+  }, [selectedProperty, mapData, handleLotUpdated]);
 
   const handleSaveAnnotations = useCallback(async () => {
     await persistAnnotations(annotations, true);

@@ -130,7 +130,7 @@ const LotsSoldProperties = ({
                   onClick={() => onSelectProperty?.(isSelected ? "all" : property.property_id)}
                   className={`transition-all duration-200 rounded-lg p-2 -mx-2 cursor-pointer ${
                     isSelected
-                      ? "bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-500/40 shadow-xs"
+                      ? "bg-slate-100/70 dark:bg-slate-800/60 ring-1 ring-slate-300 dark:ring-slate-700 shadow-xs"
                       : "hover:bg-gray-50/80 dark:hover:bg-slate-800/50"
                   } ${
                     isAllTime
@@ -147,7 +147,7 @@ const LotsSoldProperties = ({
                       />
                       <span className="truncate">{property.name}</span>
                       {isSelected && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                           Active
                         </span>
                       )}

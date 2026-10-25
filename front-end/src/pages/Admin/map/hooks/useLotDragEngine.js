@@ -194,6 +194,7 @@ export const useLotDragEngine = ({
     setIsDraggingPolygon(true);
 
     let currentCandidate = null;
+    let rafId = null;
 
     const onGlobalMouseMove = (e) => {
       let mouseLatLng = e.latlng;
@@ -206,70 +207,74 @@ export const useLotDragEngine = ({
       }
       if (!mouseLatLng) return;
 
-      const deltaLat = mouseLatLng.lat - startLatLng.lat;
-      const deltaLng = mouseLatLng.lng - startLatLng.lng;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const deltaLat = mouseLatLng.lat - startLatLng.lat;
+        const deltaLng = mouseLatLng.lng - startLatLng.lng;
 
-      let candidateCoords = initialCoords.map(([lat, lng]) => [
-        lat + deltaLat,
-        lng + deltaLng,
-      ]);
+        let candidateCoords = initialCoords.map(([lat, lng]) => [
+          lat + deltaLat,
+          lng + deltaLng,
+        ]);
 
-      if (enableSnapping && mapData?.lots) {
-        for (let i = 0; i < candidateCoords.length; i++) {
-          const corner = candidateCoords[i];
-          const snapTarget = findSnapVertex(
-            corner,
-            mapData.lots,
-            editingLot?.lot_id,
-            map,
-            16
-          );
-          if (snapTarget) {
-            const snapDeltaLat = snapTarget[0] - corner[0];
-            const snapDeltaLng = snapTarget[1] - corner[1];
-            candidateCoords = candidateCoords.map(([lat, lng]) => [
-              lat + snapDeltaLat,
-              lng + snapDeltaLng,
-            ]);
-            break;
-          }
-        }
-      }
-
-      if (editingPolygonRef.current) {
-        editingPolygonRef.current.setLatLngs(candidateCoords);
-      }
-
-      if (cornerMarkersRef.current) {
-        cornerMarkersRef.current.forEach((marker, index) => {
-          if (marker && candidateCoords[index]) {
-            marker.setLatLng(candidateCoords[index]);
-          }
-        });
-      }
-
-      if (centerMoveMarkerRef.current) {
-        centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(candidateCoords));
-      }
-
-      if (midpointMarkersRef?.current) {
-        const n = candidateCoords.length;
-        midpointMarkersRef.current.forEach((marker, index) => {
-          if (marker && n >= 3) {
-            const p1 = candidateCoords[index];
-            const p2 = candidateCoords[(index + 1) % n];
-            if (p1 && p2) {
-              marker.setLatLng([(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]);
+        if (enableSnapping && mapData?.lots) {
+          for (let i = 0; i < candidateCoords.length; i++) {
+            const corner = candidateCoords[i];
+            const snapTarget = findSnapVertex(
+              corner,
+              mapData.lots,
+              editingLot?.lot_id,
+              map,
+              16
+            );
+            if (snapTarget) {
+              const snapDeltaLat = snapTarget[0] - corner[0];
+              const snapDeltaLng = snapTarget[1] - corner[1];
+              candidateCoords = candidateCoords.map(([lat, lng]) => [
+                lat + snapDeltaLat,
+                lng + snapDeltaLng,
+              ]);
+              break;
             }
           }
-        });
-      }
+        }
 
-      dragCoordsRef.current = candidateCoords.map((c) => [...c]);
-      currentCandidate = candidateCoords;
+        if (editingPolygonRef.current) {
+          editingPolygonRef.current.setLatLngs(candidateCoords);
+        }
+
+        if (cornerMarkersRef.current) {
+          cornerMarkersRef.current.forEach((marker, index) => {
+            if (marker && candidateCoords[index]) {
+              marker.setLatLng(candidateCoords[index]);
+            }
+          });
+        }
+
+        if (centerMoveMarkerRef.current) {
+          centerMoveMarkerRef.current.setLatLng(getPolygonCentroid(candidateCoords));
+        }
+
+        if (midpointMarkersRef?.current) {
+          const n = candidateCoords.length;
+          midpointMarkersRef.current.forEach((marker, index) => {
+            if (marker && n >= 3) {
+              const p1 = candidateCoords[index];
+              const p2 = candidateCoords[(index + 1) % n];
+              if (p1 && p2) {
+                marker.setLatLng([(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]);
+              }
+            }
+          });
+        }
+
+        dragCoordsRef.current = candidateCoords.map((c) => [...c]);
+        currentCandidate = candidateCoords;
+      });
     };
 
     const onGlobalMouseUp = () => {
+      if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", onGlobalMouseMove);
       window.removeEventListener("mouseup", onGlobalMouseUp);
       map.off("mousemove", onGlobalMouseMove);
@@ -288,7 +293,7 @@ export const useLotDragEngine = ({
       }
     };
 
-    window.addEventListener("mousemove", onGlobalMouseMove);
+    window.addEventListener("mousemove", onGlobalMouseMove, { passive: true });
     window.addEventListener("mouseup", onGlobalMouseUp);
     map.on("mousemove", onGlobalMouseMove);
     map.on("mouseup", onGlobalMouseUp);

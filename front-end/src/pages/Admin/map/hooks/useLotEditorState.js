@@ -141,6 +141,11 @@ export function useLotEditorState({
     dragCoordsRef.current = initCoords.map((c) => [...c]);
     setEditingCoords(initCoords);
 
+    // Close conflicting editing modes for clean mutual exclusivity
+    window.dispatchEvent(new CustomEvent("closeBlockAdjustPanel"));
+    window.dispatchEvent(new CustomEvent("closeBulkShift"));
+    window.dispatchEvent(new CustomEvent("closeAnnotationPanel"));
+
     setEditingLot({
       isNew: true,
       lot_number: nextNum,
@@ -150,16 +155,30 @@ export function useLotEditorState({
     });
   }, [getNextSuggestedLotNumber, map, mapData, selectedProperty, overlayRotation, dragEngine]);
 
-  // Subscribe to quick add event
+  // Subscribe to quick add and close events
   useEffect(() => {
     const handleOpenQuickAddEvent = () => handleOpenQuickAdd();
+    const handleCloseQuickAdd = () => {
+      setEditingLot(null);
+      setEditingCoords([]);
+    };
+
     window.addEventListener("openQuickAddLot", handleOpenQuickAddEvent);
-    return () => window.removeEventListener("openQuickAddLot", handleOpenQuickAddEvent);
-  }, [handleOpenQuickAdd]);
+    window.addEventListener("closeQuickAddLot", handleCloseQuickAdd);
+    return () => {
+      window.removeEventListener("openQuickAddLot", handleOpenQuickAddEvent);
+      window.removeEventListener("closeQuickAddLot", handleCloseQuickAdd);
+    };
+  }, [handleOpenQuickAdd, setEditingCoords]);
 
   // Subscribe to visual edit event
   useEffect(() => {
     const handleStartVisualEdit = (event) => {
+      // Close conflicting editing modes
+      window.dispatchEvent(new CustomEvent("closeBlockAdjustPanel"));
+      window.dispatchEvent(new CustomEvent("closeBulkShift"));
+      window.dispatchEvent(new CustomEvent("closeAnnotationPanel"));
+
       const { lot_id, lot_number, property_id, coordinates, area_sqm, status } = event.detail;
       const found = mapData?.lots?.find((l) => Number(l.lot_id) === Number(lot_id));
       const lotStatus = status || found?.status || "Available";

@@ -22,11 +22,19 @@ export const MUNICIPALITY_COORDINATES = {
   "arevalo": [10.6861, 122.5186],
 
   // ── 1st District (Southern Iloilo) ──
-  "oton": [10.7372, 122.4998],
+  "brgy. lambuyao": [10.7146, 122.4916],
+  "brgy lambuyao": [10.7146, 122.4916],
+  "lambuyao": [10.7146, 122.4916],
+  "brgy. abilay norte": [10.7372, 122.4998],
+  "brgy abilay norte": [10.7372, 122.4998],
+  "abilay norte": [10.7372, 122.4998],
   "abilay": [10.7372, 122.4998],
-  "tigbauan": [10.6750, 122.3789],
-  "guimbal": [10.6713, 122.3353],
+  "brgy. nanga": [10.6713, 122.3353],
+  "brgy nanga": [10.6713, 122.3353],
   "nanga": [10.6713, 122.3353],
+  "oton": [10.7006, 122.4839],
+  "tigbauan": [10.6750, 122.3789],
+  "guimbal": [10.6631, 122.3197],
   "tubungan": [10.8167, 122.3167],
   "igbaras": [10.7167, 122.2667],
   "miagao": [10.6431, 122.2339],
@@ -120,6 +128,13 @@ export function getPropertyFallbackCoordinates(propertyId, locationString = "", 
 
   // 1. Check auto-saved cache in localStorage
   try {
+    const custom = localStorage.getItem(`propertyCustomCoords_${propIdNum}`);
+    if (custom) {
+      const parsed = JSON.parse(custom);
+      if (Array.isArray(parsed) && parsed.length >= 2 && Number.isFinite(parsed[0]) && Number.isFinite(parsed[1])) {
+        return [parsed[0], parsed[1]];
+      }
+    }
     const cached = localStorage.getItem(`prop_center_${propIdNum}`);
     if (cached) {
       const parsed = JSON.parse(cached);
@@ -146,6 +161,8 @@ export function getPropertyFallbackCoordinates(propertyId, locationString = "", 
  * Known Iloilo / Panay Locations & Municipalities Database (Instant High-Accuracy Local Cache)
  */
 const KNOWN_ILOILO_PLACES = [
+  { keywords: ["lambuyao", "brgy lambuyao", "brgy. lambuyao"], lat: 10.7146, lng: 122.4916, name: "Brgy. Lambuyao, Oton, Iloilo" },
+  { keywords: ["abilay norte", "brgy abilay norte", "brgy. abilay norte", "abilay"], lat: 10.7372, lng: 122.4998, name: "Brgy. Abilay Norte, Oton, Iloilo" },
   { keywords: ["timawa", "timawa i", "timawa ii", "timawa avenue", "molo timawa"], lat: 10.6975, lng: 122.5486, name: "Timawa, Molo, Iloilo City" },
   { keywords: ["molo", "molo plaza", "san pedro molo", "infante", "calumpang", "san juan molo"], lat: 10.6961, lng: 122.5442, name: "Molo, Iloilo City" },
   { keywords: ["mandurriao", "tabucan", "q. abeto", "guzman jesena", "bakhaw", "megaworld", "festive walk", "atria"], lat: 10.7167, lng: 122.5333, name: "Mandurriao, Iloilo City" },
@@ -156,7 +173,7 @@ const KNOWN_ILOILO_PLACES = [
   { keywords: ["city proper", "plaza libertad", "calle real", "delgado", "valeria", "general luna", "ledezma", "iznart"], lat: 10.6969, lng: 122.5708, name: "City Proper, Iloilo City" },
   { keywords: ["pagsanga-an", "pagsangan", "pagsang-an"], lat: 10.7685, lng: 122.5365, name: "Pagsanga-an, Pavia, Iloilo" },
   { keywords: ["pavia", "ungka", "pandac", "tigum", "jibao-an", "amparo", "balabag"], lat: 10.7766, lng: 122.5422, name: "Pavia, Iloilo" },
-  { keywords: ["oton", "cadastre", "abilay", "poblacion oton", "san nicolas oton", "trapiche", "buray"], lat: 10.7006, lng: 122.4839, name: "Oton, Iloilo" },
+  { keywords: ["oton", "poblacion oton", "san nicolas oton", "trapiche", "buray"], lat: 10.7006, lng: 122.4839, name: "Oton, Iloilo" },
   { keywords: ["guimbal", "nanga", "particion", "poblacion guimbal", "camangahan"], lat: 10.6631, lng: 122.3197, name: "Guimbal, Iloilo" },
   { keywords: ["barotac nuevo", "barotac", "tabuc suba barotac", "lagasan", "sohoton"], lat: 10.8931, lng: 122.7058, name: "Barotac Nuevo, Iloilo" },
   { keywords: ["barotac viejo"], lat: 11.0500, lng: 122.8500, name: "Barotac Viejo, Iloilo" },
@@ -337,4 +354,52 @@ export async function geocodeAddress(address) {
   }
 
   return null;
+}
+
+/**
+ * Authoritative coordinate resolver for properties across AdminHeader, EmployeeHeader, and Map views.
+ * Checks:
+ * 1. Explicit property coordinates [lat, lng]
+ * 2. Database annotations (property_center)
+ * 3. LocalStorage custom cached coordinates
+ * 4. Geocoding / Municipality database fallback
+ */
+export function resolvePropertyCoordinatesFromData(p) {
+  if (!p) return [10.7372, 122.4998];
+
+  // 1. Direct coordinates if already attached to property object
+  if (p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length >= 2) {
+    if (typeof p.coordinates[0] === "number" && typeof p.coordinates[1] === "number") {
+      return p.coordinates;
+    }
+  }
+
+  const propId = p.property_id || p.id;
+
+  // 2. Database annotations (property_center)
+  if (p.annotations) {
+    try {
+      const annots = typeof p.annotations === "string" ? JSON.parse(p.annotations) : p.annotations;
+      const centerObj = Array.isArray(annots)
+        ? annots.find((a) => a.type === "property_center" || a.id === "property_center")
+        : annots?.center;
+      if (centerObj && Number.isFinite(centerObj.lat) && Number.isFinite(centerObj.lng)) {
+        return [centerObj.lat, centerObj.lng];
+      }
+    } catch (_) {}
+  }
+
+  // 3. Custom cached coordinates from localStorage
+  try {
+    const custom = localStorage.getItem("propertyCustomCoords_" + propId);
+    if (custom) {
+      const parsed = JSON.parse(custom);
+      if (Array.isArray(parsed) && parsed.length >= 2) {
+        return parsed;
+      }
+    }
+  } catch (_) {}
+
+  // 4. Use the actual address, never an assumed database ID.
+  return getPropertyFallbackCoordinates(propId, p.location, p.property_name || p.name);
 }

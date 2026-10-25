@@ -58,10 +58,20 @@ body {
   z-index: 680 !important;
 }
 
-.map-view-zoomed-in .property-overview-beacon-marker {
+/* Only hide overview beacons for properties that already have lots visible when zoomed in.
+   Empty / draggable property beacons MUST remain visible at close zoom so admins can see & place them! */
+.map-view-zoomed-in .property-overview-beacon-marker.property-beacon-has-lots {
   opacity: 0 !important;
   pointer-events: none !important;
   display: none !important;
+}
+
+.map-view-zoomed-in .property-beacon-empty,
+.map-view-zoomed-in .property-beacon-draggable {
+  display: flex !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 1000 !important;
 }
 
 .property-overview-beacon-marker {

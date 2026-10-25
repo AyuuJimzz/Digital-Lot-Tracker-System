@@ -18,12 +18,31 @@ const safeParseCoordinates = (coords) => {
   return [];
 };
 
+export function isMatchingBlockAnnotation(annotText, blockName) {
+  if (!annotText || !blockName) return false;
+  const cleanA = annotText.trim().toLowerCase();
+  const cleanB = blockName.trim().toLowerCase();
+  if (cleanA === cleanB) return true;
+
+  const matchA = cleanA.match(/(?:blk|block|b)\.?\s*([0-9a-zA-Z-]+)/i);
+  const matchB = cleanB.match(/(?:blk|block|b)\.?\s*([0-9a-zA-Z-]+)/i);
+  if (matchA && matchB && matchA[1].toLowerCase() === matchB[1].toLowerCase()) {
+    const isBlockA = /^\s*(?:blk|block|b)\.?\s*[0-9a-zA-Z-]+/i.test(cleanA);
+    const isBlockB = /^\s*(?:blk|block|b)\.?\s*[0-9a-zA-Z-]+/i.test(cleanB);
+    if (isBlockA && isBlockB) return true;
+  }
+  return false;
+}
+
 export function useBlockAdjustState({
   selectedProperty,
   mapData,
   handleLotUpdated,
   map,
   overlayRotation = 0,
+  annotations = [],
+  setAnnotations,
+  persistAnnotations,
 }) {
   const [isBlockAdjusting, setIsBlockAdjusting] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState(null);
@@ -39,14 +58,28 @@ export function useBlockAdjustState({
   // Listen for open event from AdminHeader
   useEffect(() => {
     const handleOpen = () => {
-      setIsBlockAdjusting((prev) => !prev);
+      setIsBlockAdjusting((prev) => {
+        const next = !prev;
+        if (next) {
+          window.dispatchEvent(new CustomEvent("closeQuickAddLot"));
+          window.dispatchEvent(new CustomEvent("closeBulkShift"));
+          window.dispatchEvent(new CustomEvent("closeAnnotationPanel"));
+        }
+        return next;
+      });
       setScaleX(1.0);
       setScaleY(1.0);
       setOffset({ lat: 0, lng: 0 });
       setRotation(0);
     };
+    const handleClose = () => setIsBlockAdjusting(false);
+
     window.addEventListener("openBlockAdjustPanel", handleOpen);
-    return () => window.removeEventListener("openBlockAdjustPanel", handleOpen);
+    window.addEventListener("closeBlockAdjustPanel", handleClose);
+    return () => {
+      window.removeEventListener("openBlockAdjustPanel", handleOpen);
+      window.removeEventListener("closeBlockAdjustPanel", handleClose);
+    };
   }, []);
 
   // Filter lots belonging to active property
@@ -134,17 +167,6 @@ export function useBlockAdjustState({
     const toXY = (pt) => ({ x: (pt[1] - cLng) * cosLat, y: pt[0] - cLat });
     const toLatLon = (xy) => [cLat + xy.y, cLng + (cosLat ? xy.x / cosLat : xy.x)];
 
-    const intersectLines = (p1, deg1, p2, deg2) => {
-      const d1 = { x: Math.cos((deg1 * Math.PI) / 180), y: Math.sin((deg1 * Math.PI) / 180) };
-      const d2 = { x: Math.cos((deg2 * Math.PI) / 180), y: Math.sin((deg2 * Math.PI) / 180) };
-      const p1xy = toXY(p1);
-      const p2xy = toXY(p2);
-      const denom = d1.x * d2.y - d1.y * d2.x;
-      if (Math.abs(denom) < 1e-9) return null;
-      const t = ((p2xy.x - p1xy.x) * d2.y - (p2xy.y - p1xy.y) * d2.x) / denom;
-      return toLatLon({ x: p1xy.x + t * d1.x, y: p1xy.y + t * d1.y });
-    };
-
     // Collect all valid perimeter edges
     const edgeList = [];
     selectedBlockLots.forEach((lot) => {
@@ -169,7 +191,7 @@ export function useBlockAdjustState({
 
     if (edgeList.length === 0) return null;
 
-    // Discover dominant longitudinal road direction (~54 deg)
+    // Discover dominant longitudinal direction
     let bestLongDeg = 54.0;
     let maxLongWeight = 0;
     for (let a = -90; a < 90; a += 1.0) {
@@ -185,7 +207,7 @@ export function useBlockAdjustState({
       }
     }
 
-    // Discover transverse divider direction (~ -28 deg)
+    // Discover transverse divider direction (~82-90 deg offset)
     let bestTransDeg = bestLongDeg - 90;
     if (bestTransDeg < -90) bestTransDeg += 180;
     let maxTransWeight = 0;
@@ -205,84 +227,74 @@ export function useBlockAdjustState({
       }
     }
 
-    const radLong = (bestLongDeg * Math.PI) / 180;
-    let vX = Math.cos(radLong);
-    let vY = Math.sin(radLong);
-    if (vY < 0) {
-      vX = -vX;
-      vY = -vY;
+    // Refine dominant angles via circular weighted average of matching edges
+    const getRefinedAngle = (targetDeg) => {
+      let sumSin = 0;
+      let sumCos = 0;
+      edgeList.forEach((e) => {
+        let diff = Math.abs(e.deg - targetDeg);
+        if (diff > 90) diff = 180 - diff;
+        if (diff <= 12) {
+          const r = (e.deg * 2 * Math.PI) / 180;
+          sumSin += e.len * Math.sin(r);
+          sumCos += e.len * Math.cos(r);
+        }
+      });
+      return (Math.atan2(sumSin, sumCos) * 180 / Math.PI) / 2;
+    };
+
+    const angle1 = getRefinedAngle(bestLongDeg);
+    const angle2 = getRefinedAngle(bestTransDeg);
+
+    const r1 = (angle1 * Math.PI) / 180;
+    const r2 = (angle2 * Math.PI) / 180;
+    let e1 = { x: Math.cos(r1), y: Math.sin(r1) };
+    let e2 = { x: Math.cos(r2), y: Math.sin(r2) };
+    let det = e1.x * e2.y - e1.y * e2.x;
+
+    if (Math.abs(det) < 0.1) {
+      e2 = { x: -e1.y, y: e1.x };
+      det = e1.x * e2.y - e1.y * e2.x;
     }
-    const uX = vY;
-    const uY = -vX;
 
-    // Partition edges and filter out diagonal corner cuts / chamfers
-    const transEdges = [];
-    const longEdges = [];
-    edgeList.forEach((e) => {
-      let diffLong = Math.abs(e.deg - bestLongDeg);
-      if (diffLong > 90) diffLong = 180 - diffLong;
-      let diffTrans = Math.abs(e.deg - bestTransDeg);
-      if (diffTrans > 90) diffTrans = 180 - diffTrans;
+    // Project all lot vertices onto the 2D affine basis (e1, e2) to guarantee
+    // the bounding parallelogram tightly encloses 100% of all vertices with zero clipping.
+    let minU = Infinity;
+    let maxU = -Infinity;
+    let minV = Infinity;
+    let maxV = -Infinity;
 
-      if (diffLong < diffTrans) {
-        if (diffLong <= 16) longEdges.push(e);
-      } else {
-        if (diffTrans <= 16) transEdges.push(e);
-      }
+    selectedBlockLots.forEach((lot) => {
+      const coords = safeParseCoordinates(lot.coordinates);
+      if (!Array.isArray(coords)) return;
+      coords.forEach(([lat, lng]) => {
+        const xy = toXY([lat, lng]);
+        const u = (xy.x * e2.y - xy.y * e2.x) / det;
+        const v = (-xy.x * e1.y + xy.y * e1.x) / det;
+        if (u < minU) minU = u;
+        if (u > maxU) maxU = u;
+        if (v < minV) minV = v;
+        if (v > maxV) maxV = v;
+      });
     });
 
-    let topEdge = null, bottomEdge = null, leftEdge = null, rightEdge = null;
-    if (transEdges.length >= 2 && longEdges.length >= 2) {
-      let maxV = -Infinity, minV = Infinity;
-      transEdges.forEach((e) => {
-        const px = (e.mid[1] - cLng) * cosLat;
-        const py = e.mid[0] - cLat;
-        const v = px * vX + py * vY;
-        if (v > maxV) { maxV = v; topEdge = e; }
-        if (v < minV) { minV = v; bottomEdge = e; }
-      });
+    const toPt = (u, v) => toLatLon({ x: u * e1.x + v * e2.x, y: u * e1.y + v * e2.y });
 
-      let minU = Infinity, maxU = -Infinity;
-      longEdges.forEach((e) => {
-        const px = (e.mid[1] - cLng) * cosLat;
-        const py = e.mid[0] - cLat;
-        const u = px * uX + py * uY;
-        if (u < minU) { minU = u; leftEdge = e; }
-        if (u > maxU) { maxU = u; rightEdge = e; }
-      });
-    }
+    const c00 = toPt(minU, minV);
+    const c10 = toPt(maxU, minV);
+    const c11 = toPt(maxU, maxV);
+    const c01 = toPt(minU, maxV);
+    const allCorners = [c00, c10, c11, c01];
 
-    let nw = null, ne = null, se = null, sw = null;
-    if (topEdge && bottomEdge && leftEdge && rightEdge) {
-      nw = intersectLines(topEdge.mid, topEdge.deg, leftEdge.mid, leftEdge.deg);
-      ne = intersectLines(topEdge.mid, topEdge.deg, rightEdge.mid, rightEdge.deg);
-      se = intersectLines(bottomEdge.mid, bottomEdge.deg, rightEdge.mid, rightEdge.deg);
-      sw = intersectLines(bottomEdge.mid, bottomEdge.deg, leftEdge.mid, leftEdge.deg);
-    }
+    // Partition and assign NW, NE, SE, SW based on geographic y (North) and x (East)
+    const sortedByY = [...allCorners].sort((a, b) => toXY(b).y - toXY(a).y);
+    const topTwo = [sortedByY[0], sortedByY[1]].sort((a, b) => toXY(a).x - toXY(b).x);
+    const bottomTwo = [sortedByY[2], sortedByY[3]].sort((a, b) => toXY(a).x - toXY(b).x);
 
-    // Fallback if geometric intersection fails
-    if (!nw || !ne || !se || !sw) {
-      let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
-      selectedBlockLots.forEach((lot) => {
-        const coords = safeParseCoordinates(lot.coordinates);
-        if (!Array.isArray(coords)) return;
-        coords.forEach(([lat, lng]) => {
-          const px = (lng - cLng) * cosLat;
-          const py = lat - cLat;
-          const u = px * uX + py * uY;
-          const v = px * vX + py * vY;
-          if (u < minU) minU = u;
-          if (u > maxU) maxU = u;
-          if (v < minV) minV = v;
-          if (v > maxV) maxV = v;
-        });
-      });
-      const toGPS = (u, v) => toLatLon({ x: u * uX + v * vX, y: u * uY + v * vY });
-      nw = toGPS(minU, maxV);
-      ne = toGPS(maxU, maxV);
-      se = toGPS(maxU, minV);
-      sw = toGPS(minU, minV);
-    }
+    const nw = topTwo[0];
+    const ne = topTwo[1];
+    const se = bottomTwo[1];
+    const sw = bottomTwo[0];
 
     const angleOf = (pA, pB) => {
       let deg = (Math.atan2(pB[0] - pA[0], (pB[1] - pA[1]) * cosLat) * 180) / Math.PI;
@@ -357,6 +369,29 @@ export function useBlockAdjustState({
     });
     return mapResult;
   }, [selectedBlockLots, baseBoundaryQuad]);
+
+  // ── 2b. Precomputed UV Map for matching block text annotations ────
+  const originalAnnotationUVMap = useMemo(() => {
+    if (!annotations || annotations.length === 0 || !baseBoundaryQuad || !selectedBlock) {
+      return new Map();
+    }
+    const mapResult = new Map();
+    annotations.forEach((annot) => {
+      if (!annot || annot.deleted) return;
+      if (isMatchingBlockAnnotation(annot.text, selectedBlock)) {
+        const lat = Number(annot.lat);
+        const lng = Number(annot.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          const uv = baseBoundaryQuad.baseInverse(lat, lng);
+          mapResult.set(String(annot.id), {
+            uv,
+            initialRotation: Number(annot.rotation) || 0,
+          });
+        }
+      }
+    });
+    return mapResult;
+  }, [annotations, baseBoundaryQuad, selectedBlock]);
 
   // ── 3. Active Quad Transformer (With Offset & Rotation) ────────
   // Provides forward mapping and mouse inverse mapping incorporating current
@@ -454,6 +489,23 @@ export function useBlockAdjustState({
     return mapResult;
   }, [selectedBlockLots, activeQuad, originalLotUVMap, scaleX, scaleY]);
 
+  // ── 4b. Real-Time Transformed Annotations Map ──────────────────
+  const transformedAnnotationsMap = useMemo(() => {
+    if (!activeQuad || originalAnnotationUVMap.size === 0) return new Map();
+    const mapResult = new Map();
+
+    originalAnnotationUVMap.forEach(({ uv, initialRotation }, annotId) => {
+      const [newLat, newLng] = activeQuad.forward(uv.s * scaleX, uv.t * scaleY);
+      mapResult.set(String(annotId), {
+        lat: newLat,
+        lng: newLng,
+        rotation: (initialRotation + rotation) % 360,
+      });
+    });
+
+    return mapResult;
+  }, [activeQuad, originalAnnotationUVMap, scaleX, scaleY, rotation]);
+
   // ── 5. Controlling Bounding Box Geometry ────────────────────────
   // The dashed box and handles strictly match the active quad transformation
   const boxGeometry = useMemo(() => {
@@ -508,6 +560,7 @@ export function useBlockAdjustState({
         initScaleY: scaleY,
       };
 
+      let rafId = null;
       const onMouseMove = (moveEvent) => {
         if (!dragHandleRef.current || !activeQuad) return;
         let latLng = moveEvent.latlng;
@@ -520,43 +573,47 @@ export function useBlockAdjustState({
         }
         if (!latLng) return;
 
-        const { s, t } = activeQuad.inverse(latLng.lat, latLng.lng);
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          const { s, t } = activeQuad.inverse(latLng.lat, latLng.lng);
 
-        if (handleKey === "right") {
-          // Pulling right side expands width
-          const nextScaleX = Math.max(0.3, Math.min(3.0, s));
-          setScaleX(Math.round(nextScaleX * 100) / 100);
-        } else if (handleKey === "left") {
-          // Pulling left side expands width
-          const nextScaleX = Math.max(0.3, Math.min(3.0, -s));
-          setScaleX(Math.round(nextScaleX * 100) / 100);
-        } else if (handleKey === "top") {
-          // Pulling top side expands length/height
-          const nextScaleY = Math.max(0.3, Math.min(3.0, t));
-          setScaleY(Math.round(nextScaleY * 100) / 100);
-        } else if (handleKey === "bottom") {
-          // Pulling bottom side expands length/height
-          const nextScaleY = Math.max(0.3, Math.min(3.0, -t));
-          setScaleY(Math.round(nextScaleY * 100) / 100);
-        } else if (
-          handleKey === "ne" ||
-          handleKey === "se" ||
-          handleKey === "nw" ||
-          handleKey === "sw"
-        ) {
-          // Corner handle: proportional uniform scale
-          const factorS = Math.abs(s);
-          const factorT = Math.abs(t);
-          const avg = Math.max(0.3, Math.min(3.0, (factorS + factorT) / 2));
-          const rounded = Math.round(avg * 100) / 100;
-          setScaleX(rounded);
-          setScaleY(rounded);
-        }
+          if (handleKey === "right") {
+            // Pulling right side expands width
+            const nextScaleX = Math.max(0.3, Math.min(3.0, s));
+            setScaleX(Math.round(nextScaleX * 100) / 100);
+          } else if (handleKey === "left") {
+            // Pulling left side expands width
+            const nextScaleX = Math.max(0.3, Math.min(3.0, -s));
+            setScaleX(Math.round(nextScaleX * 100) / 100);
+          } else if (handleKey === "top") {
+            // Pulling top side expands length/height
+            const nextScaleY = Math.max(0.3, Math.min(3.0, t));
+            setScaleY(Math.round(nextScaleY * 100) / 100);
+          } else if (handleKey === "bottom") {
+            // Pulling bottom side expands length/height
+            const nextScaleY = Math.max(0.3, Math.min(3.0, -t));
+            setScaleY(Math.round(nextScaleY * 100) / 100);
+          } else if (
+            handleKey === "ne" ||
+            handleKey === "se" ||
+            handleKey === "nw" ||
+            handleKey === "sw"
+          ) {
+            // Corner handle: proportional uniform scale
+            const factorS = Math.abs(s);
+            const factorT = Math.abs(t);
+            const avg = Math.max(0.3, Math.min(3.0, (factorS + factorT) / 2));
+            const rounded = Math.round(avg * 100) / 100;
+            setScaleX(rounded);
+            setScaleY(rounded);
+          }
+        });
       };
 
       const onMouseUp = () => {
         dragHandleRef.current = null;
         setActiveHandle(null);
+        if (rafId) cancelAnimationFrame(rafId);
         if (map) map.dragging.enable();
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", onMouseUp);
@@ -564,7 +621,7 @@ export function useBlockAdjustState({
         map.off("mouseup", onMouseUp);
       };
 
-      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mousemove", onMouseMove, { passive: true });
       window.addEventListener("mouseup", onMouseUp);
       map.on("mousemove", onMouseMove);
       map.on("mouseup", onMouseUp);
@@ -589,25 +646,32 @@ export function useBlockAdjustState({
       startDragPointRef.current = e.latlng;
       initOffsetRef.current = { ...offset };
 
+      let rafId = null;
       const onMove = (moveEvent) => {
         if (!isDraggingBlockRef.current || !startDragPointRef.current) return;
-        const dLat = moveEvent.latlng.lat - startDragPointRef.current.lat;
-        const dLng = moveEvent.latlng.lng - startDragPointRef.current.lng;
-        setOffset({
-          lat: initOffsetRef.current.lat + dLat,
-          lng: initOffsetRef.current.lng + dLng,
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          const dLat = moveEvent.latlng.lat - startDragPointRef.current.lat;
+          const dLng = moveEvent.latlng.lng - startDragPointRef.current.lng;
+          setOffset({
+            lat: initOffsetRef.current.lat + dLat,
+            lng: initOffsetRef.current.lng + dLng,
+          });
         });
       };
 
       const onUp = () => {
         isDraggingBlockRef.current = false;
+        if (rafId) cancelAnimationFrame(rafId);
         map.dragging.enable();
         map.off("mousemove", onMove);
         map.off("mouseup", onUp);
+        window.removeEventListener("mouseup", onUp);
       };
 
       map.on("mousemove", onMove);
       map.on("mouseup", onUp);
+      window.addEventListener("mouseup", onUp);
     },
     [map, offset]
   );
@@ -714,11 +778,37 @@ export function useBlockAdjustState({
         "success"
       );
 
+      // Prepare matching block annotation updates before resetting transformations
+      let updatedAnnotations = null;
+      if (transformedAnnotationsMap.size > 0 && persistAnnotations && annotations) {
+        updatedAnnotations = annotations.map((a) => {
+          const aIdStr = String(a.id);
+          if (transformedAnnotationsMap.has(aIdStr)) {
+            const transformed = transformedAnnotationsMap.get(aIdStr);
+            return {
+              ...a,
+              lat: transformed.lat,
+              lng: transformed.lng,
+              rotation: transformed.rotation,
+            };
+          }
+          return a;
+        });
+      }
+
       // Reset local transformation states
       setScaleX(1.0);
       setScaleY(1.0);
       setOffset({ lat: 0, lng: 0 });
       setRotation(0);
+
+      // Persist matching block annotation changes to database
+      if (updatedAnnotations) {
+        if (setAnnotations) {
+          setAnnotations(updatedAnnotations);
+        }
+        await persistAnnotations(updatedAnnotations, false);
+      }
 
       if (handleLotUpdated) {
         await handleLotUpdated();
@@ -734,7 +824,16 @@ export function useBlockAdjustState({
     } finally {
       setIsSaving(false);
     }
-  }, [transformedLotsMap, selectedBlock, selectedProperty, handleLotUpdated]);
+  }, [
+    transformedLotsMap,
+    transformedAnnotationsMap,
+    selectedBlock,
+    selectedProperty,
+    handleLotUpdated,
+    persistAnnotations,
+    annotations,
+    setAnnotations,
+  ]);
 
   const handleClose = useCallback(() => {
     handleReset();
@@ -752,6 +851,7 @@ export function useBlockAdjustState({
     },
     selectedBlockLots,
     transformedLotsMap,
+    transformedAnnotationsMap,
     boxGeometry,
     blockCentroid,
     scaleX,

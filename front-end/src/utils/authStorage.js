@@ -70,7 +70,7 @@ export function clearUserDataCache() {
 export function clearStoredAuth(expectedToken) {
   if (expectedToken !== undefined && getStoredToken() !== expectedToken) return false;
 
-  ["authToken", "token", "role", "user", "password_reset_required"].forEach((key) =>
+  ["authToken", "token", "role", "user", "password_reset_required", "selectedProperty"].forEach((key) =>
     localStorage.removeItem(key)
   );
   delete axios.defaults.headers.common.Authorization;

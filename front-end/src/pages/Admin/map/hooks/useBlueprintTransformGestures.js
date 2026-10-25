@@ -21,6 +21,7 @@ export function useBlueprintTransformGestures({
   unrotatedSpanRef,
   rawOverlayRef,
   originalUploadedImageRef,
+  handlePropertyMoved,
 }) {
   const handleOverlayCornerDragStart = useCallback(
     (corner, currentBounds) => {
@@ -133,6 +134,12 @@ export function useBlueprintTransformGestures({
           unrotatedSpan: unrotatedSpanRef.current,
         });
       }
+
+      if (selectedProperty && handlePropertyMoved) {
+        const centerLat = (finalBounds[0][0] + finalBounds[1][0]) / 2;
+        const centerLng = (finalBounds[0][1] + finalBounds[1][1]) / 2;
+        handlePropertyMoved(selectedProperty, [centerLat, centerLng], true);
+      }
     }
   }, [
     map,
@@ -146,6 +153,7 @@ export function useBlueprintTransformGestures({
     rawOverlayRef,
     originalUploadedImageRef,
     unrotatedSpanRef,
+    handlePropertyMoved,
   ]);
 
   const handleScaleOverlay = useCallback(
@@ -175,6 +183,10 @@ export function useBlueprintTransformGestures({
           });
         }
 
+        if (selectedProperty && handlePropertyMoved) {
+          handlePropertyMoved(selectedProperty, [cLat, cLng], true);
+        }
+
         return newBounds;
       });
     },
@@ -189,6 +201,7 @@ export function useBlueprintTransformGestures({
       rawOverlayRef,
       originalUploadedImageRef,
       unrotatedSpanRef,
+      handlePropertyMoved,
     ]
   );
 

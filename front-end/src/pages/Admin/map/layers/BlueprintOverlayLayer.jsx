@@ -53,12 +53,17 @@ export const BlueprintOverlayLayer = ({
   rawOverlayRef,
   originalUploadedImageRef,
   saveBlueprintOverlay,
+  handlePropertyMoved,
   overlayLineColor,
   overlayMultiply,
 }) => {
   if (!overlayImage || !overlayBounds || !overlayVisible) return null;
 
-  const corners = isEditingOverlay
+  // Hide alignment boundary frame and handles when zoomed out in regional overview (< 16.5)
+  // so corner markers and dashed polygons don't clutter the satellite overview map
+  const isZoomedForEditing = !map || map.getZoom() >= 16.5;
+
+  const corners = isEditingOverlay && isZoomedForEditing
     ? getRotatedBlueprintCorners(overlayBounds, overlayRotation, unrotatedSpanRef?.current)
     : null;
 
@@ -230,6 +235,13 @@ export const BlueprintOverlayLayer = ({
                   multiply: overlayMultiply,
                   unrotatedSpan: unrotatedSpanRef?.current,
                 });
+              }
+
+              // Auto-sync property anchor with the dragged blueprint location!
+              if (selectedProperty && handlePropertyMoved) {
+                const centerLat = (finalBounds[0][0] + finalBounds[1][0]) / 2;
+                const centerLng = (finalBounds[0][1] + finalBounds[1][1]) / 2;
+                handlePropertyMoved(selectedProperty, [centerLat, centerLng], true);
               }
             },
           }}

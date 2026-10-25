@@ -1,5 +1,5 @@
 export const getAuthConfig = () => {
-  const token = localStorage.getItem("authToken");
+  const token = localStorage.getItem("authToken") || localStorage.getItem("token");
   return { withCredentials: true, headers: token ? { Authorization: `Bearer ${token}` } : {} };
 };
 

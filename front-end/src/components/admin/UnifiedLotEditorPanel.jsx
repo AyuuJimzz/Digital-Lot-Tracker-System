@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef } from "react";
 import ReactDOM from "react-dom";
 import {
   GripHorizontal,
@@ -24,9 +24,113 @@ export function UnifiedLotEditorPanel({
   onSaveAndNext,
   onCancel,
   isSaving = false,
-  floatingPos = { x: 380, y: 110 },
-  onMouseDownHeader,
 }) {
+  // Ultra-smooth local floating draggable position (persisted in sessionStorage)
+  const [floatingPos, setFloatingPos] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("unifiedLotPanelPos");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            Number.isFinite(parsed.x) &&
+            Number.isFinite(parsed.y) &&
+            parsed.x >= 0 &&
+            parsed.x < window.innerWidth - 100 &&
+            parsed.y >= 0 &&
+            parsed.y < window.innerHeight - 100
+          ) {
+            return parsed;
+          }
+        }
+      } catch (_) {}
+      const width = 340;
+      const initialX = Math.max(16, Math.floor(window.innerWidth / 2 - width / 2));
+      return { x: initialX, y: 100 };
+    }
+    return { x: 380, y: 100 };
+  });
+
+  const isDraggingRef = useRef(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+
+  const handleMouseDownHeader = (e) => {
+    if (e.target.closest("button") || e.target.closest("input") || e.target.closest("select")) return;
+    if (e.button !== 0) return;
+    e.preventDefault();
+    isDraggingRef.current = true;
+    dragOffsetRef.current = {
+      x: e.clientX - floatingPos.x,
+      y: e.clientY - floatingPos.y,
+    };
+
+    let rafId = null;
+    const handleMouseMove = (moveEvent) => {
+      if (!isDraggingRef.current) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const panelWidth = 340;
+        const newX = Math.max(10, Math.min(window.innerWidth - panelWidth - 10, moveEvent.clientX - dragOffsetRef.current.x));
+        const newY = Math.max(10, Math.min(window.innerHeight - 320, moveEvent.clientY - dragOffsetRef.current.y));
+        setFloatingPos({ x: newX, y: newY });
+      });
+    };
+
+    const handleMouseUp = (upEvent) => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      const panelWidth = 340;
+      const finalX = Math.max(10, Math.min(window.innerWidth - panelWidth - 10, upEvent.clientX - dragOffsetRef.current.x));
+      const finalY = Math.max(10, Math.min(window.innerHeight - 320, upEvent.clientY - dragOffsetRef.current.y));
+      try {
+        sessionStorage.setItem("unifiedLotPanelPos", JSON.stringify({ x: finalX, y: finalY }));
+      } catch (_) {}
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleTouchStartHeader = (e) => {
+    if (e.target.closest("button") || e.target.closest("input") || e.target.closest("select")) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    isDraggingRef.current = true;
+    dragOffsetRef.current = {
+      x: touch.clientX - floatingPos.x,
+      y: touch.clientY - floatingPos.y,
+    };
+
+    let rafId = null;
+    const handleTouchMove = (moveEvent) => {
+      if (!isDraggingRef.current || !moveEvent.touches[0]) return;
+      const t = moveEvent.touches[0];
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const panelWidth = 340;
+        const newX = Math.max(10, Math.min(window.innerWidth - panelWidth - 10, t.clientX - dragOffsetRef.current.x));
+        const newY = Math.max(10, Math.min(window.innerHeight - 320, t.clientY - dragOffsetRef.current.y));
+        setFloatingPos({ x: newX, y: newY });
+      });
+    };
+
+    const handleTouchEnd = () => {
+      isDraggingRef.current = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      try {
+        sessionStorage.setItem("unifiedLotPanelPos", JSON.stringify(floatingPos));
+      } catch (_) {}
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+  };
+
   if (!isOpen || typeof document === "undefined") return null;
 
   return ReactDOM.createPortal(
@@ -41,12 +145,13 @@ export function UnifiedLotEditorPanel({
     >
       {/* ── Header ──────────────────────────────────── */}
       <div
-        onMouseDown={onMouseDownHeader}
+        onMouseDown={handleMouseDownHeader}
+        onTouchStart={handleTouchStartHeader}
         className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800 cursor-move active:cursor-grabbing select-none"
-        title="Hold and drag to move"
+        title="Hold and drag to move panel anywhere"
       >
         <div className="flex items-center gap-2">
-          <GripHorizontal className="w-4 h-4 text-slate-500" />
+          <GripHorizontal className="w-4 h-4 text-slate-500 hover:text-slate-300 transition" />
           <span className={`w-2 h-2 rounded-full ${isNewLot ? "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]" : "bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.9)]"}`} />
           <span className="font-bold text-white text-sm tracking-wide">
             {isNewLot ? "Quick Add Lot" : `Edit ${lotNumber || "Lot"}`}

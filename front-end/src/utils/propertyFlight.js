@@ -63,6 +63,8 @@ export function createPropertyFlight(map, onInterrupt) {
     if (straight) {
       const e = ease(t);
       const zoomDelta = to.zoom - from.zoom;
+      // True visual straight-line tracking: corrects for exponential WebMercator zoom scaling
+      // so the clicked target moves in a 100% straight screen path directly into the center without curving.
       const u = zoomDelta > 0
         ? 1 - (1 - e) * Math.pow(2, -zoomDelta * e)
         : e;
@@ -110,6 +112,7 @@ export function createPropertyFlight(map, onInterrupt) {
     const screensAwayAt19 = screenDistanceAt19 / viewport;
 
     // True Geodesic Altitude Calculation:
+    const wasActive = !!trajectory;
     // Scale flight altitude according to physical distance so large inter-province
     // journeys (e.g. Iloilo -> Boracay ~180km) pull all the way back to island overview
     // (Zoom 9-10), while local switches (<15km) stay at comfortable town level (Zoom 13-14).
@@ -117,15 +120,14 @@ export function createPropertyFlight(map, onInterrupt) {
     // For very close local hops (<1km), provide a gentle, polished 3D pop arc (0.5 to 1.2 levels):
     const localLift = Math.min(1.2, 0.4 + Math.min(1, screensAwayAt19) * 0.8);
     const minTripZoom = Math.min(startZoom, zoom);
+    // When switching properties (especially mid-flight retargeting), ensure a satisfying bounce arc:
+    const bounceLift = wasActive ? 0.8 : (screensAwayAt19 < 2 ? localLift : 0.4);
     // Cruise altitude: never dive into space if already in wide overview,
     // and rises to idealOverviewZoom on long cross-island flights:
-    const cruiseZoom = Math.max(map.getMinZoom(), Math.min(minTripZoom - (screensAwayAt19 < 2 ? localLift : 0), idealOverviewZoom));
+    const cruiseZoom = Math.max(map.getMinZoom(), Math.min(minTripZoom - bounceLift, idealOverviewZoom));
     const phaseDelay = 0.30;
-    const wasActive = !!trajectory;
     const destLatLng = latLng(coordinates);
-    const isTargetVisible = typeof map.getBounds === "function" && map.getBounds().contains(destLatLng);
-    const isOverviewDirect = options.straight !== false && !wasActive && startZoom < 17.5 && startZoom < zoom && isTargetVisible;
-    const isStraight = Boolean(options.straight || isOverviewDirect);
+    const isStraight = Boolean(options.straight);
     trajectory = {
       from: { x: from.x, y: from.y, zoom: startZoom },
       to: { x: to.x, y: to.y, zoom },

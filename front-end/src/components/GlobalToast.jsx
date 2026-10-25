@@ -44,7 +44,13 @@ export default function GlobalToast() {
       const { id, message, type = "success", duration = 4000 } = e.detail || {};
       if (!message) return;
       const newToast = { id: id || (Date.now() + Math.random()), message, type };
-      setToasts((prev) => [...prev.slice(-3), newToast]); // Keep max 4 visible
+
+      setToasts((prev) => {
+        // Anti-spam deduplication: If identical message already exists, dismiss older one
+        const filtered = prev.filter((t) => t.message !== message);
+        // Keep at most 2 toasts visible so screen isn't cluttered
+        return [...filtered.slice(-1), newToast];
+      });
 
       if (duration > 0) {
         setTimeout(() => {

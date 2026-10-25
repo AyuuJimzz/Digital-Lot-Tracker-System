@@ -21,7 +21,7 @@ import { useBlueprintImageProcessing } from "./useBlueprintImageProcessing";
 
 export { getRotatedBlueprintCorners };
 
-export function useBlueprintOverlayState({ map, selectedProperty }) {
+export function useBlueprintOverlayState({ map, selectedProperty, handlePropertyMoved }) {
   const [overlayImage, setOverlayImage] = useState(null);
   const [overlayBounds, setOverlayBounds] = useState(null);
   const [overlayOpacity, setOverlayOpacity] = useState(1);
@@ -139,6 +139,7 @@ export function useBlueprintOverlayState({ map, selectedProperty }) {
     unrotatedSpanRef,
     rawOverlayRef,
     originalUploadedImageRef,
+    handlePropertyMoved,
   });
 
   // Sub-hook 3: Image styling, crop, and upload processing

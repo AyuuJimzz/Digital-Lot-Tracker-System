@@ -92,31 +92,90 @@ export function useEmployeeMapView() {
             (l) => Number(l.property_id) === Number(p.property_id) && l.coordinates && l.coordinates.length > 0
           );
 
+          let bounds = null;
           if (propLots.length > 0) {
             let sumLat = 0;
             let sumLng = 0;
             let totalPts = 0;
+            let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
             propLots.forEach((l) => {
-              l.coordinates.forEach(([lat, lng]) => {
+              l.coordinates?.forEach(([lat, lng]) => {
                 sumLat += lat;
                 sumLng += lng;
                 totalPts++;
+                if (lat < minLat) minLat = lat;
+                if (lat > maxLat) maxLat = lat;
+                if (lng < minLng) minLng = lng;
+                if (lng > maxLng) maxLng = lng;
               });
             });
             if (totalPts > 0) {
               coords = [sumLat / totalPts, sumLng / totalPts];
+              bounds = { south: minLat, north: maxLat, west: minLng, east: maxLng };
               try {
                 localStorage.setItem("propertyCustomCoords_" + p.property_id, JSON.stringify(coords));
               } catch (_) {}
             }
           } else {
-            try {
-              const cachedCoords = localStorage.getItem("propertyCustomCoords_" + p.property_id);
-              if (cachedCoords) {
-                coords = JSON.parse(cachedCoords);
-              }
-            } catch (_) {}
+            // Check if custom center anchor was saved in database annotations
+            let foundInDb = false;
+            if (p.annotations) {
+              try {
+                const annots =
+                  typeof p.annotations === "string" ? JSON.parse(p.annotations) : p.annotations;
+                const centerObj = Array.isArray(annots)
+                  ? annots.find((a) => a.type === "property_center" || a.id === "property_center")
+                  : annots?.center;
+                if (centerObj && Number.isFinite(centerObj.lat) && Number.isFinite(centerObj.lng)) {
+                  coords = [centerObj.lat, centerObj.lng];
+                  foundInDb = true;
+                }
+              } catch (_) {}
+            }
 
+            if (!foundInDb) {
+              try {
+                const cachedCoords = localStorage.getItem("propertyCustomCoords_" + p.property_id);
+                if (cachedCoords) {
+                  coords = JSON.parse(cachedCoords);
+                  foundInDb = true;
+                }
+              } catch (_) {}
+            }
+
+            // Anti-Collision Staggering:
+            // Stagger slightly (~240m away) only if no explicit position was previously saved,
+            // preventing multiple overlapping beacons on brand-new properties with identical addresses.
+            if (!foundInDb) {
+              const hasCollision = (mapData.properties || []).some((other) => {
+                if (Number(other.property_id) === Number(p.property_id) || other.status === "inactive") return false;
+                const isOlderOrHasLots = (other.total_lots > 0) || (Number(other.property_id) < Number(p.property_id));
+                if (!isOlderOrHasLots) return false;
+
+                const sameLocation = Boolean(
+                  other.location &&
+                  p.location &&
+                  other.location.trim().toLowerCase() === p.location.trim().toLowerCase()
+                );
+
+                const otherCoords = getPropertyFallbackCoordinates(other.property_id, other.location, other.property_name);
+                const isPhysicallyOverlapping =
+                  Array.isArray(otherCoords) &&
+                  otherCoords.length >= 2 &&
+                  Math.hypot(coords[0] - otherCoords[0], coords[1] - otherCoords[1]) < 0.0014;
+
+                return sameLocation || isPhysicallyOverlapping;
+              });
+
+              if (hasCollision) {
+                const angle = ((Number(p.property_id) * 73) % 360) * (Math.PI / 180);
+                const dist = 0.0022; // ~240m offset
+                coords = [coords[0] + Math.sin(angle) * dist, coords[1] + Math.cos(angle) * dist];
+                try {
+                  localStorage.setItem("propertyCustomCoords_" + p.property_id, JSON.stringify(coords));
+                } catch (_) {}
+              }
+            }
           }
 
           return {
@@ -124,6 +183,7 @@ export function useEmployeeMapView() {
             name: p.property_name || `Property ${p.property_id}`,
             location: p.location,
             coordinates: coords || [10.7372, 122.4998],
+            bounds: bounds,
             hasLots: propLots.length > 0,
             lotCount: (mapData.lots || []).filter(
               (lot) => Number(lot.property_id) === Number(p.property_id)
@@ -146,13 +206,6 @@ export function useEmployeeMapView() {
         if (fallbackProp) {
           setSelectedProperty(fallbackProp.id);
           localStorage.setItem("selectedProperty", fallbackProp.id.toString());
-          if (fallbackProp.coordinates) {
-            window.dispatchEvent(
-              new CustomEvent("selectProperty", {
-                detail: { propertyId: fallbackProp.id, coordinates: fallbackProp.coordinates },
-              })
-            );
-          }
         }
       }
     }

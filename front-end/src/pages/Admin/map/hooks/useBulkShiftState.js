@@ -18,7 +18,15 @@ export function useBulkShiftState({
   // Listen for openMoveAllLots event from AdminHeader Manage Lots
   useEffect(() => {
     const handleOpenMoveAllLotsEvent = () => {
-      setIsBulkShifting((prev) => !prev);
+      setIsBulkShifting((prev) => {
+        const next = !prev;
+        if (next) {
+          window.dispatchEvent(new CustomEvent("closeBlockAdjustPanel"));
+          window.dispatchEvent(new CustomEvent("closeQuickAddLot"));
+          window.dispatchEvent(new CustomEvent("closeAnnotationPanel"));
+        }
+        return next;
+      });
       setBulkShiftOffset({ lat: 0, lng: 0 });
     };
     window.addEventListener("openMoveAllLots", handleOpenMoveAllLotsEvent);
@@ -29,12 +37,27 @@ export function useBulkShiftState({
   // Listen for toggleBulkShiftLots event from AdminHeader
   useEffect(() => {
     const handleToggleBulkShift = () => {
-      setIsBulkShifting((prev) => !prev);
+      setIsBulkShifting((prev) => {
+        const next = !prev;
+        if (next) {
+          window.dispatchEvent(new CustomEvent("closeBlockAdjustPanel"));
+          window.dispatchEvent(new CustomEvent("closeQuickAddLot"));
+          window.dispatchEvent(new CustomEvent("closeAnnotationPanel"));
+        }
+        return next;
+      });
       setBulkShiftOffset({ lat: 0, lng: 0 });
     };
     window.addEventListener("toggleBulkShiftLots", handleToggleBulkShift);
     return () =>
       window.removeEventListener("toggleBulkShiftLots", handleToggleBulkShift);
+  }, []);
+
+  // Listen for closeBulkShift event
+  useEffect(() => {
+    const handleClose = () => setIsBulkShifting(false);
+    window.addEventListener("closeBulkShift", handleClose);
+    return () => window.removeEventListener("closeBulkShift", handleClose);
   }, []);
 
   // Save bulk shifted coordinates to database (opens in-app confirmation modal)

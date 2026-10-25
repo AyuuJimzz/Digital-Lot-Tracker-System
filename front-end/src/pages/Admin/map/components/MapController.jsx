@@ -140,8 +140,44 @@ export function MapController({
     const targetProp = properties.find((p) => Number(p.id) === Number(selectedProperty));
     if (targetProp && targetProp.coordinates) {
       initialFlyDoneRef.current = true;
-      const savedView = targetProp.lotCount === 0 ? loadPropertyMapView(selectedProperty) : null;
-      map.setView(savedView?.center || targetProp.coordinates, savedView?.zoom || 19, { animate: false });
+      let centerCoords, targetZoom;
+
+      if (targetProp.lotCount === 0) {
+        // For empty properties (0 lots), center on saved beacon view or property center
+        const savedView = loadPropertyMapView(selectedProperty);
+        const isValidSavedView =
+          savedView?.center &&
+          Array.isArray(savedView.center) &&
+          map.distance(savedView.center, targetProp.coordinates) < 800;
+        centerCoords = isValidSavedView ? savedView.center : targetProp.coordinates;
+        targetZoom = isValidSavedView ? savedView.zoom : 19;
+      } else {
+        // For properties with lots, ALWAYS prioritize fitting the actual subdivision bounds!
+        // Clear any stale single-lot zoomed view from previous sessions so refresh is clean
+        try { localStorage.removeItem("propertyMapView_" + selectedProperty); } catch (_) {}
+
+        if (targetProp.bounds) {
+          centerCoords = [
+            (targetProp.bounds.south + targetProp.bounds.north) / 2,
+            (targetProp.bounds.west + targetProp.bounds.east) / 2,
+          ];
+          try {
+            const fitZ = map.getBoundsZoom(
+              [[targetProp.bounds.south, targetProp.bounds.west], [targetProp.bounds.north, targetProp.bounds.east]],
+              false,
+              [40, 40]
+            );
+            targetZoom = Number.isFinite(fitZ) ? Math.min(18.2, Math.max(16.5, fitZ)) : 17.8;
+          } catch (_) {
+            targetZoom = 17.8;
+          }
+        } else {
+          centerCoords = targetProp.coordinates;
+          targetZoom = 18.0;
+        }
+      }
+
+      map.setView(centerCoords, targetZoom, { animate: false });
       map.invalidateSize({ animate: false });
     }
   }, [map, properties, selectedProperty]);

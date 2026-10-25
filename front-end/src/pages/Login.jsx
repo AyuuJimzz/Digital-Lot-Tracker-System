@@ -85,6 +85,9 @@ function Login({ setRole }) {
       const userRole = response.data.user.role;
       const passwordResetRequired = response.data.password_reset_required;
       clearUserDataCache();
+      try {
+        localStorage.removeItem("selectedProperty");
+      } catch (_) {}
       // Save JWT token for cross-origin deployments (Vercel + Render)
       if (response.data.token) {
         localStorage.setItem("authToken", response.data.token);

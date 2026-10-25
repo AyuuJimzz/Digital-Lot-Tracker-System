@@ -41,17 +41,23 @@ export function usePropertyMapNavigation(map, options) {
 
   useEffect(() => {
     if (!map) return;
-    let target = null, targetZoom = 19, userMoved = false, flightToken = 0, navigationIntent = 0;
+    let target = null, targetZoom = 19, userMoved = false, flightToken = 0;
     let cancelPreload;
     const flight = createPropertyFlight(map, () => cancelFlight());
     const container = map.getContainer();
     const rememberEmptyPropertyView = () => {
+      if (flyingMaps.has(map)) return; // Never record in-flight position
       const { properties = [], selectedProperty } = latest.current;
       const property = properties.find((item) => Number(item.id) === Number(selectedProperty));
-      if (property && property.lotCount === 0) savePropertyMapView(selectedProperty, map);
+      // Only remember view if camera is actually settled within 800m of this property
+      if (property && property.lotCount === 0 && property.coordinates) {
+        const center = map.getCenter();
+        if (map.distance(center, property.coordinates) < 800) {
+          savePropertyMapView(selectedProperty, map);
+        }
+      }
     };
     const cancelFlight = () => {
-      navigationIntent++;
       const wasFlying = flyingMaps.has(map);
       cancelPreload?.();
       flightToken++;
@@ -104,6 +110,9 @@ export function usePropertyMapNavigation(map, options) {
         const localDuration = Math.max(distanceDuration, zoomDuration);
         duration = Math.min(1.8, Math.max(1.4, localDuration));
       }
+      if (flightOptions.straight) {
+        duration = Math.min(duration, 1.4);
+      }
       const wasFlying = flyingMaps.has(map);
       // Finish wheel motion before marking this flight active: its moveend must
       // not accidentally finish a newly requested flight at the same location.
@@ -123,23 +132,9 @@ export function usePropertyMapNavigation(map, options) {
     };
     const navigate = (coordinates, requestedZoom = 19, flightOptions = {}) => {
       latest.current.onNavigationIntent?.();
-      const intent = ++navigationIntent;
-      const startWhenCorridorReady = () => {
-        if (intent !== navigationIntent) return;
-        const warmup = flightWarmupRef.current;
-        if (!warmup?.settled) {
-          // A first cold-cache flight waits for the bounded high-priority corridor.
-          // Property selection still updates immediately, and later clicks replace
-          // an earlier destination while this one-time warmup is in progress.
-          warmup.ready.finally(() => {
-            if (flightWarmupRef.current !== warmup) startWhenCorridorReady();
-            else if (intent === navigationIntent) startNavigate(coordinates, requestedZoom, flightOptions);
-          });
-          return;
-        }
-        startNavigate(coordinates, requestedZoom, flightOptions);
-      };
-      startWhenCorridorReady();
+      // Immediate, responsive flight takeoff without blocking on network warmup promises.
+      // Corridor tiles stream concurrently in the background while the camera is in motion.
+      startNavigate(coordinates, requestedZoom, flightOptions);
     };
     const onUserInterrupt = () => {
       if (!flyingMaps.has(map)) return;
@@ -148,14 +143,51 @@ export function usePropertyMapNavigation(map, options) {
     };
     const onNavigate = (event) => navigate(event.detail?.coordinates, event.detail?.zoom);
     const onSelect = (event) => {
-      const { propertyId, coordinates, autoSwiped, straight } = event.detail || {};
+      const { propertyId, coordinates, autoSwiped, fromBeaconClick, straight } = event.detail || {};
       if (propertyId == null) return;
       latest.current.setSelectedProperty?.(propertyId);
       if (autoSwiped) return;
       const property = latest.current.properties?.find((item) => Number(item.id) === Number(propertyId));
-      const savedView = property?.lotCount === 0 ? loadPropertyMapView(propertyId) : null;
-      navigate(savedView?.center || property?.coordinates || coordinates, savedView?.zoom || 19,
-        straight ? { straight: true } : {});
+      const propCoords = property?.coordinates || coordinates;
+
+      // Only fly straight when explicitly triggered by clicking an overview beacon pin.
+      // Switching properties via header dropdown or rapid retargeting must ALWAYS bounce (parabolic arc).
+      const isBeaconClickFromOverview = Boolean(fromBeaconClick && map.getZoom() < 18);
+      const useStraight = Boolean(isBeaconClickFromOverview || (fromBeaconClick && straight));
+
+      // For empty properties (0 lots), ALWAYS navigate dead-center directly to the yellow beacon pin!
+      if (property?.lotCount === 0 && propCoords) {
+        const savedView = loadPropertyMapView(propertyId);
+        const isValidSavedView =
+          savedView?.center &&
+          Array.isArray(savedView.center) &&
+          map.distance(savedView.center, propCoords) < 800;
+        const targetCenter = isValidSavedView ? savedView.center : propCoords;
+        const targetZoom = isValidSavedView ? savedView.zoom : 19;
+        navigate(targetCenter, targetZoom, useStraight ? { straight: true } : {});
+        return;
+      }
+
+      // For properties with mapped lots, calculate ideal framing zoom so all blocks fit comfortably
+      let idealBoundsZoom = 17.8;
+      let idealBoundsCenter = propCoords;
+      if (property?.bounds && map) {
+        const { south, north, west, east } = property.bounds;
+        idealBoundsCenter = [(south + north) / 2, (west + east) / 2];
+        try {
+          const fitZ = map.getBoundsZoom(
+            [[south, west], [north, east]],
+            false,
+            [50, 50]
+          );
+          if (Number.isFinite(fitZ)) {
+            // Keep zoom within comfortable reading range (16.5 to 18.2)
+            idealBoundsZoom = Math.min(18.2, Math.max(16.5, fitZ));
+          }
+        } catch (_) {}
+      }
+
+      navigate(idealBoundsCenter, idealBoundsZoom, useStraight ? { straight: true } : {});
     };
     const onDragStart = () => {
       cancelFlight();
@@ -169,9 +201,80 @@ export function usePropertyMapNavigation(map, options) {
       }
       if (!userMoved) return;
       userMoved = false;
-      // Panning to align an empty property must not silently select a nearby
-      // property with existing lots. Keep this browser's view for the chosen ID.
       rememberEmptyPropertyView();
+
+      // Viewport Auto-Sync: Automatically sync the active property and header dropdown
+      // to whichever subdivision the user has slid/panned over
+      const { properties = [], selectedProperty } = latest.current;
+      if (properties.length > 0) {
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+
+        // If the user is currently viewing an empty property, don't auto-switch away
+        // if they are still panning around within its local area (< 1000m)
+        const currentProp = properties.find((item) => Number(item.id) === Number(selectedProperty));
+        if (
+          currentProp &&
+          currentProp.lotCount === 0 &&
+          currentProp.coordinates &&
+          map.distance(center, currentProp.coordinates) < 1000
+        ) {
+          return;
+        }
+
+        let closestProperty = null;
+        let minDistance = Infinity;
+
+        for (const prop of properties) {
+          if (!prop.coordinates || !Array.isArray(prop.coordinates)) continue;
+
+          // 1. Direct hit inside lot bounds if available
+          if (prop.bounds) {
+            const { south, north, west, east } = prop.bounds;
+            const padLat = 0.0006;
+            const padLng = 0.0006;
+            if (
+              center.lat >= south - padLat &&
+              center.lat <= north + padLat &&
+              center.lng >= west - padLng &&
+              center.lng <= east + padLng
+            ) {
+              closestProperty = prop;
+              minDistance = 0;
+              break;
+            }
+          }
+
+          // 2. Proximity to property center
+          const dist = map.distance(center, prop.coordinates);
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestProperty = prop;
+          }
+        }
+
+        // Adaptive proximity threshold: allows smooth sliding across subdivisions
+        const maxThreshold = Math.max(650, Math.min(2500, Math.pow(2, 19 - zoom) * 650));
+
+        if (
+          closestProperty &&
+          Number(closestProperty.id) !== Number(selectedProperty) &&
+          minDistance <= maxThreshold
+        ) {
+          const newPropId = closestProperty.id.toString();
+          latest.current.setSelectedProperty?.(newPropId);
+          localStorage.setItem("selectedProperty", newPropId);
+          window.dispatchEvent(
+            new CustomEvent("selectProperty", {
+              detail: {
+                propertyId: closestProperty.id,
+                coordinates: closestProperty.coordinates,
+                autoSwiped: true, // Prevents abrupt camera re-centering/jump
+              },
+            })
+          );
+        }
+      }
     };
     map.on("dragstart", onDragStart);
     map.on("moveend", onMoveEnd);

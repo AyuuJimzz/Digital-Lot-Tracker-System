@@ -97,48 +97,6 @@ const createCornerDotIcon = () => {
   });
 };
 
-// Center Badge Icon
-const createBlockCenterIcon = (blockName, count, scaleX, scaleY) => {
-  const pctX = Math.round(scaleX * 100);
-  const pctY = Math.round(scaleY * 100);
-  return L.divIcon({
-    className: "custom-block-badge-icon",
-    html: `
-      <div style="
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(15, 23, 42, 0.95);
-        border: 2px solid #818cf8;
-        box-shadow: 0 0 16px rgba(99, 102, 241, 0.6);
-        color: #ffffff;
-        font-family: ui-sans-serif, system-ui, sans-serif;
-        font-weight: 800;
-        font-size: 11px;
-        padding: 5px 12px;
-        border-radius: 9999px;
-        white-space: nowrap;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        cursor: move;
-        user-select: none;
-      ">
-        <span style="width: 7px; height: 7px; border-radius: 50%; background: #818cf8;"></span>
-        <span>${blockName}</span>
-        <span style="opacity: 0.6; font-size: 10px;">(${count} lots)</span>
-        ${
-          pctX !== 100 || pctY !== 100
-            ? `<span style="background: rgba(99,102,241,0.3); border: 1px solid rgba(129,140,248,0.4); border-radius: 4px; padding: 1px 4px; font-size: 9px; color: #a5b4fc;">W:${pctX}% L:${pctY}%</span>`
-            : ""
-        }
-      </div>
-    `,
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
-  });
-};
 
 export function BlockAdjustLayer({
   isBlockAdjusting,
@@ -154,7 +112,7 @@ export function BlockAdjustLayer({
 }) {
   if (!isBlockAdjusting || !selectedBlock || !boxGeometry) return null;
 
-  const { polygon, sides, corners, sideAngles, totalAngle = 0, center } = boxGeometry;
+  const { polygon, sides, corners, sideAngles, totalAngle = 0 } = boxGeometry;
 
   return (
     <>
@@ -322,18 +280,6 @@ export function BlockAdjustLayer({
           </>
         )}
 
-        {/* ── Block Centroid Drag Badge (moves synchronously with active block) ── */}
-        {(center || blockCentroid) && (
-          <Marker
-            position={center || blockCentroid}
-            icon={createBlockCenterIcon(selectedBlock, selectedBlockLots.length, scaleX, scaleY)}
-            eventHandlers={{
-              mousedown: (e) => {
-                if (handleStartBlockDrag) handleStartBlockDrag(e);
-              },
-            }}
-          />
-        )}
       </Pane>
     </>
   );

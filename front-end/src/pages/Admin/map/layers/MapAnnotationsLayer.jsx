@@ -8,6 +8,8 @@ export const MapAnnotationsLayer = ({
   showAnnotationPanel,
   isBulkShifting,
   bulkShiftOffset = { lat: 0, lng: 0 },
+  isBlockAdjusting,
+  transformedAnnotationsMap,
   activeAnnotationId,
   selectedAnnotationIds = [],
   createRoadLabelIcon,
@@ -30,10 +32,24 @@ export const MapAnnotationsLayer = ({
           Number(item.property_id) === Number(selectedProperty);
         const isInteractive =
           isEditingAnnotations && showAnnotationPanel && isThisPropActive && !isBulkShifting;
-        const itemLat =
-          isBulkShifting && isThisPropActive ? item.lat + bulkShiftOffset.lat : item.lat;
-        const itemLng =
-          isBulkShifting && isThisPropActive ? item.lng + bulkShiftOffset.lng : item.lng;
+        let itemLat = item.lat;
+        let itemLng = item.lng;
+        let itemRotation = item.rotation || 0;
+
+        if (isBulkShifting && isThisPropActive) {
+          itemLat = item.lat + bulkShiftOffset.lat;
+          itemLng = item.lng + bulkShiftOffset.lng;
+        } else if (isBlockAdjusting && isThisPropActive && transformedAnnotationsMap?.has(String(item.id))) {
+          const transformed = transformedAnnotationsMap.get(String(item.id));
+          itemLat = transformed.lat;
+          itemLng = transformed.lng;
+          itemRotation = transformed.rotation;
+        }
+
+        const itemToRender =
+          itemLat !== item.lat || itemLng !== item.lng || itemRotation !== (item.rotation || 0)
+            ? { ...item, lat: itemLat, lng: itemLng, rotation: itemRotation }
+            : item;
 
         const isSelected =
           isThisPropActive &&
@@ -48,7 +64,7 @@ export const MapAnnotationsLayer = ({
             draggable={isInteractive}
             interactive={isInteractive}
             icon={createRoadLabelIcon(
-              item,
+              itemToRender,
               isInteractive,
               isSelected
             )}

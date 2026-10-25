@@ -7,53 +7,11 @@ import { clearStoredAuth } from "../../utils/authStorage";
 import { AccountMenu } from "../AccountMenu";
 import { showToast } from "../GlobalToast";
 import {
-  geocodeAddress,
-  getPropertyFallbackCoordinates,
+  resolvePropertyCoordinatesFromData,
 } from "../../utils/geocoding";
 
-// Robust coordinate resolver that checks direct coords, localStorage, town database, and geocoding
 const resolvePropertyCoords = (p) => {
-  if (!p) return [10.7372, 122.4998];
-
-  // 1. Direct coordinates if already attached to property object
-  if (p.coordinates && Array.isArray(p.coordinates) && p.coordinates.length >= 2) {
-    if (typeof p.coordinates[0] === "number" && typeof p.coordinates[1] === "number") {
-      return p.coordinates;
-    }
-  }
-
-  const propId = p.property_id || p.id;
-
-  // 2. Custom cached coordinates from localStorage
-  try {
-    const custom = localStorage.getItem("propertyCustomCoords_" + propId);
-    if (custom) {
-      const parsed = JSON.parse(custom);
-      if (Array.isArray(parsed) && parsed.length >= 2) {
-        return parsed;
-      }
-    }
-  } catch (e) {}
-
-  // 3. Use the actual address, never an assumed database ID.
-  const fallback = getPropertyFallbackCoordinates(propId, p.location, p.property_name || p.name);
-  if (fallback[0] !== 10.7202 || fallback[1] !== 122.5621) return fallback;
-
-  // 4. Dynamic geocoding
-  if (p.location || p.property_name || p.name) {
-    const query = p.location || p.property_name || p.name;
-    geocodeAddress(query).then((geo) => {
-      if (geo && geo.lat && geo.lng) {
-        try {
-          if (!localStorage.getItem("propertyCustomCoords_" + propId)) {
-            localStorage.setItem("propertyCustomCoords_" + propId, JSON.stringify([geo.lat, geo.lng]));
-          }
-        } catch (e) {}
-      }
-    }).catch(() => {});
-  }
-
-  return fallback;
+  return resolvePropertyCoordinatesFromData(p);
 };
 
 export function AdminHeader({ sidebarCollapsed }) {

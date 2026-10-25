@@ -127,19 +127,26 @@ export const useAdminViewMap = () => {
           (l) => Number(l.property_id) === Number(p.property_id) && l.coordinates && l.coordinates.length > 0
         );
 
+        let bounds = null;
         if (propLots.length > 0) {
           let sumLat = 0;
           let sumLng = 0;
           let totalPts = 0;
+          let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
           propLots.forEach((l) => {
             l.coordinates.forEach(([lat, lng]) => {
               sumLat += lat;
               sumLng += lng;
               totalPts++;
+              if (lat < minLat) minLat = lat;
+              if (lat > maxLat) maxLat = lat;
+              if (lng < minLng) minLng = lng;
+              if (lng > maxLng) maxLng = lng;
             });
           });
           if (totalPts > 0) {
             coords = [sumLat / totalPts, sumLng / totalPts];
+            bounds = { south: minLat, north: maxLat, west: minLng, east: maxLng };
             try {
               localStorage.setItem(
                 "propertyCustomCoords_" + p.property_id,
@@ -148,13 +155,70 @@ export const useAdminViewMap = () => {
             } catch (e) {}
           }
         } else {
-          try {
-            const saved = localStorage.getItem("propertyCustomCoords_" + p.property_id);
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              if (Array.isArray(parsed) && parsed.length >= 2) coords = parsed;
+          // Check if custom center anchor was saved in database annotations
+          let foundInDb = false;
+          if (p.annotations) {
+            try {
+              const annots =
+                typeof p.annotations === "string" ? JSON.parse(p.annotations) : p.annotations;
+              const centerObj = Array.isArray(annots)
+                ? annots.find((a) => a.type === "property_center" || a.id === "property_center")
+                : annots?.center;
+              if (centerObj && Number.isFinite(centerObj.lat) && Number.isFinite(centerObj.lng)) {
+                coords = [centerObj.lat, centerObj.lng];
+                foundInDb = true;
+              }
+            } catch (e) {}
+          }
+
+          if (!foundInDb) {
+            try {
+              const saved = localStorage.getItem("propertyCustomCoords_" + p.property_id);
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length >= 2) {
+                  coords = parsed;
+                  foundInDb = true;
+                }
+              }
+            } catch (e) {}
+          }
+
+          // Anti-Collision Staggering:
+          // Stagger slightly (~240m away) only if no explicit position was previously saved,
+          // preventing multiple overlapping beacons on brand-new properties with identical addresses.
+          if (!foundInDb) {
+            const hasCollision = (mapData.properties || []).some((other) => {
+              if (Number(other.property_id) === Number(p.property_id) || other.status === "inactive") return false;
+              const isOlderOrHasLots = (other.total_lots > 0) || (Number(other.property_id) < Number(p.property_id));
+              if (!isOlderOrHasLots) return false;
+
+              // Check if locations match textually
+              const sameLocation = Boolean(
+                other.location &&
+                p.location &&
+                other.location.trim().toLowerCase() === p.location.trim().toLowerCase()
+              );
+
+              // Check physical proximity (< 150 meters)
+              const otherCoords = getPropertyFallbackCoordinates(other.property_id, other.location, other.property_name);
+              const isPhysicallyOverlapping =
+                Array.isArray(otherCoords) &&
+                otherCoords.length >= 2 &&
+                Math.hypot(coords[0] - otherCoords[0], coords[1] - otherCoords[1]) < 0.0014;
+
+              return sameLocation || isPhysicallyOverlapping;
+            });
+
+            if (hasCollision) {
+              const angle = ((Number(p.property_id) * 73) % 360) * (Math.PI / 180);
+              const dist = 0.0022; // ~240m offset
+              coords = [coords[0] + Math.sin(angle) * dist, coords[1] + Math.cos(angle) * dist];
+              try {
+                localStorage.setItem("propertyCustomCoords_" + p.property_id, JSON.stringify(coords));
+              } catch (_) {}
             }
-          } catch (e) {}
+          }
         }
 
         const validCoords =
@@ -167,6 +231,7 @@ export const useAdminViewMap = () => {
           name: p.property_name,
           location: p.location,
           coordinates: validCoords,
+          bounds: bounds,
           lotCount: (mapData.lots || []).filter(
             (l) => Number(l.property_id) === Number(p.property_id)
           ).length,
@@ -179,25 +244,24 @@ export const useAdminViewMap = () => {
   // Fallback if selected property becomes invalid or inactive (e.g. fresh browser session)
   useEffect(() => {
     if (mapData && Array.isArray(mapData.properties) && mapData.properties.length > 0) {
+      if (mapQuery.isFetching) return;
       const exists = mapData.properties.some(
         (p) => p.status !== "inactive" && Number(p.property_id) === Number(selectedProperty)
       );
       if (!exists && properties.length > 0) {
+        try {
+          localStorage.removeItem("propertyCustomCoords_" + selectedProperty);
+          localStorage.removeItem("propertyMapView_" + selectedProperty);
+        } catch (_) {}
+
         const fallbackProp = properties[0];
         if (fallbackProp) {
           setSelectedProperty(fallbackProp.id.toString());
           localStorage.setItem("selectedProperty", fallbackProp.id.toString());
-          if (fallbackProp.coordinates) {
-            window.dispatchEvent(
-              new CustomEvent("selectProperty", {
-                detail: { propertyId: fallbackProp.id, coordinates: fallbackProp.coordinates },
-              })
-            );
-          }
         }
       }
     }
-  }, [mapData, properties, selectedProperty]);
+  }, [mapData, properties, selectedProperty, mapQuery.isFetching]);
 
   // Active property IDs set
   const activePropertyIds = useMemo(() => {
@@ -239,10 +303,87 @@ export const useAdminViewMap = () => {
       });
   }, [mapData, activePropertyIds]);
 
+  // Property position updater (handles drag & blueprint alignment sync)
+  const handlePropertyMoved = useCallback(async (propertyId, newCoords, silent = false) => {
+    if (!propertyId || !newCoords || !Array.isArray(newCoords)) return;
+    const [lat, lng] = newCoords;
+
+    const prop = (mapData?.properties || []).find(
+      (p) => Number(p.property_id) === Number(propertyId)
+    );
+    const propName = prop?.property_name || `Property #${propertyId}`;
+
+    try {
+      localStorage.setItem("propertyCustomCoords_" + propertyId, JSON.stringify([lat, lng]));
+
+      let existingAnnots = [];
+      if (prop?.annotations) {
+        const parsed =
+          typeof prop.annotations === "string" ? JSON.parse(prop.annotations) : prop.annotations;
+        if (Array.isArray(parsed)) {
+          existingAnnots = parsed.filter(
+            (a) => a.id !== "property_center" && a.type !== "property_center"
+          );
+        }
+      }
+
+      await axios.put(
+        `${API_BASE_URL}/api/properties/${propertyId}/annotations`,
+        {
+          annotations: [
+            ...existingAnnots,
+            { id: "property_center", type: "property_center", lat, lng, manual: true },
+          ],
+        },
+        getAuthConfig()
+      );
+
+      setMapData((prev) => {
+        if (!prev || !Array.isArray(prev.properties)) return prev;
+        return {
+          ...prev,
+          properties: prev.properties.map((p) => {
+            if (Number(p.property_id) !== Number(propertyId)) return p;
+            let existingAnnots = [];
+            if (p.annotations) {
+              try {
+                const parsed =
+                  typeof p.annotations === "string" ? JSON.parse(p.annotations) : p.annotations;
+                if (Array.isArray(parsed)) {
+                  existingAnnots = parsed.filter(
+                    (a) => a.id !== "property_center" && a.type !== "property_center"
+                  );
+                }
+              } catch (_) {}
+            }
+            return {
+              ...p,
+              annotations: [
+                ...existingAnnots,
+                { id: "property_center", type: "property_center", lat, lng, manual: true },
+              ],
+            };
+          }),
+        };
+      });
+
+      if (!silent) {
+        showToast(`📍 Placed "${propName}" to new location!`, "success", 2200);
+      }
+      if (handleLotUpdated) await handleLotUpdated();
+    } catch (err) {
+      console.error("Failed to move property:", err);
+      if (!silent) {
+        showToast(err.response?.data?.error || "Failed to update property position", "error", 3500);
+      }
+    }
+  }, [mapData, handleLotUpdated, setMapData]);
+
   // ── 1. Sub-Hook: Blueprint Image Overlay Engine ──
   const overlayState = useBlueprintOverlayState({
     map,
     selectedProperty,
+    handlePropertyMoved,
   });
 
   // ── 2. Sub-Hook: Road Labels & Map Annotations ──
@@ -283,6 +424,9 @@ export const useAdminViewMap = () => {
     handleLotUpdated,
     map,
     overlayRotation: overlayState.overlayRotation,
+    annotations: annotationsState.annotations,
+    setAnnotations: annotationsState.setAnnotations,
+    persistAnnotations: annotationsState.persistAnnotations,
   });
 
   // Handle duplicating / cloning a lot with auto-incremented identifier & adjacent offset
@@ -660,7 +804,12 @@ export const useAdminViewMap = () => {
             localStorage.setItem("selectedProperty", property.id.toString());
             window.dispatchEvent(
               new CustomEvent("selectProperty", {
-                detail: { propertyId: property.id, coordinates: property.coordinates },
+                detail: {
+                  propertyId: property.id,
+                  coordinates: property.coordinates,
+                  straight: true,
+                  fromBeaconClick: true,
+                },
               })
             );
           },
@@ -671,6 +820,7 @@ export const useAdminViewMap = () => {
 
   return {
     // Master Core Map State
+    handlePropertyMoved,
     mapData,
     mapError: mapQuery.error,
     retryMapData: refetchMapData,

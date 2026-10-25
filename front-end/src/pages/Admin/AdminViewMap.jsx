@@ -88,6 +88,7 @@ function AdminViewMap() {
     renderLot,
     showLotTooltips,
     isBulkShifting,
+    isBlockAdjusting,
     isTouchDevice,
     shiftedPropertyId,
     bulkShiftOffset,
@@ -110,8 +111,6 @@ function AdminViewMap() {
     handleSaveUnifiedAndNext,
     setEditingCoords,
     isSavingCoords,
-    floatingPos,
-    handleFloatingMouseDown,
     selectedLot,
     setSelectedLot,
     isOffcanvasOpen,
@@ -189,6 +188,40 @@ function AdminViewMap() {
     setIsEditingAnnotations,
   } = mapState;
 
+  const activeProperty = (properties || []).find((p) => Number(p.id) === Number(selectedProperty));
+  const hasLots = (activeProperty?.lotCount || 0) > 0;
+
+  let initialCenter = selectedPropertyCoords;
+  if (!initialCenter || !Array.isArray(initialCenter) || initialCenter.length < 2) {
+    try {
+      const custom = localStorage.getItem("propertyCustomCoords_" + selectedProperty);
+      if (custom) {
+        const parsed = JSON.parse(custom);
+        if (Array.isArray(parsed) && parsed.length >= 2) initialCenter = parsed;
+      }
+    } catch (_) {}
+  }
+  if (!initialCenter || !Array.isArray(initialCenter) || initialCenter.length < 2) {
+    initialCenter = [10.7145, 122.4916];
+  }
+
+  // Properties with lots must always initialize at comfortable subdivision overview zoom (17.8)
+  // Stale single-lot zoom from propertyMapView_ is ignored when lots exist
+  let initialZoom = 17.8;
+  if (!hasLots) {
+    try {
+      const savedViewStr = localStorage.getItem("propertyMapView_" + selectedProperty);
+      if (savedViewStr) {
+        const parsed = JSON.parse(savedViewStr);
+        if (Number.isFinite(parsed?.zoom)) initialZoom = parsed.zoom;
+      } else {
+        initialZoom = 19;
+      }
+    } catch (_) {
+      initialZoom = 19;
+    }
+  }
+
   return (
     <div
       ref={mapWrapperRef}
@@ -196,8 +229,8 @@ function AdminViewMap() {
       style={{ height: "calc(100vh - 3.5rem)", zIndex: 1 }}
     >
       <MapContainer
-        center={properties && properties.length > 0 ? selectedPropertyCoords : [10.90, 122.60]}
-        zoom={properties && properties.length > 0 ? 19 : 9}
+        center={initialCenter}
+        zoom={initialZoom}
         preferCanvas={true}
         zoomDelta={0.25}
         zoomSnap={0}
@@ -256,7 +289,20 @@ function AdminViewMap() {
         {/* ── Zoomed-Out Overview Green Property Location Beacons ── */}
         <OverviewBeaconsLayer
           properties={properties}
+          selectedProperty={selectedProperty}
           setSelectedProperty={setSelectedProperty}
+          onPropertyMoved={mapState.handlePropertyMoved}
+          isAdmin={true}
+          currentZoom={mapState.currentZoom}
+          isAligningBlueprint={
+            Boolean(
+              mapState.overlayImage ||
+              mapState.isEditingOverlay ||
+              mapState.isPreparingOverlay ||
+              (mapState.lotImport?.candidates?.length > 0) ||
+              Boolean(mapState.lotImport?.draft)
+            )
+          }
         />
 
         {/* ── Projected Candidate Lots During Blueprint Import ── */}
@@ -283,17 +329,21 @@ function AdminViewMap() {
         </Pane>
 
         {/* ── Active Coordinate Editing Polygon & Vertex Handles ── */}
-        <EditingLotLayer {...mapState} />
+        {editingLot && !isBulkShifting && !isBlockAdjusting && (
+          <EditingLotLayer {...mapState} />
+        )}
 
         {/* ── Block Adjust & Expand Bounding Aura Layer ── */}
-        <BlockAdjustLayer {...mapState} />
+        {isBlockAdjusting && !editingLot && !isBulkShifting && (
+          <BlockAdjustLayer {...mapState} />
+        )}
 
         {/* ── Road & Map Text Labels Layer ── */}
         <MapAnnotationsLayer {...mapState} />
       </MapContainer>
 
       {/* Unified Lot Editor Panel */}
-      {editingLot && !isBulkShifting && (
+      {editingLot && !isBulkShifting && !isBlockAdjusting && (
         <UnifiedLotEditorPanel
           isOpen={Boolean(editingLot)}
           isNewLot={Boolean(editingLot?.isNew)}
@@ -344,16 +394,18 @@ function AdminViewMap() {
             setEditingCoords([]);
           }}
           isSaving={isSavingCoords}
-          floatingPos={floatingPos}
-          onMouseDownHeader={handleFloatingMouseDown}
         />
       )}
 
       {/* Floating Bulk Shift Alignment Editor Panel */}
-      <BulkShiftAlignmentPanel {...mapState} />
+      {isBulkShifting && !editingLot && !isBlockAdjusting && (
+        <BulkShiftAlignmentPanel {...mapState} />
+      )}
 
       {/* Floating Block Adjust & Expand Editor Panel */}
-      <BlockAdjustPanel {...mapState} />
+      {isBlockAdjusting && !editingLot && !isBulkShifting && (
+        <BlockAdjustPanel {...mapState} />
+      )}
 
       {/* In-App Bulk Shift Confirmation Modal */}
       <BulkShiftModal {...mapState} />
@@ -480,6 +532,16 @@ function AdminViewMap() {
             if (selectedProperty) {
               overlayBlobCacheRef.current.delete(selectedProperty);
             }
+
+            // Auto-sync property location with where the blueprint was placed before removing
+            if (overlayBounds && selectedProperty && mapState.handlePropertyMoved) {
+              const lastCenter = [
+                (overlayBounds[0][0] + overlayBounds[1][0]) / 2,
+                (overlayBounds[0][1] + overlayBounds[1][1]) / 2,
+              ];
+              await mapState.handlePropertyMoved(selectedProperty, lastCenter, true);
+            }
+
             setOverlayImage(null);
             setOverlayBounds(null);
             setIsEditingOverlay(false);
@@ -492,6 +554,7 @@ function AdminViewMap() {
             if (selectedProperty) {
               await removeBlueprintOverlay(selectedProperty);
             }
+            setShowOverlayPanel(false);
           }}
           onClose={() => setShowOverlayPanel(false)}
         />

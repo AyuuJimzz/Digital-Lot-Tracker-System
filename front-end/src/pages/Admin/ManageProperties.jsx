@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, CheckCircle2, X } from "lucide-react";
 import { API_BASE_URL } from "../../config/api";
 import { showToast } from "../../components/GlobalToast";
@@ -12,8 +12,10 @@ import {
   PropertySubmittingOverlay,
   resolvePropertyCoordinates,
 } from "../../components/admin/properties";
+import { getPropertyFallbackCoordinates } from "../../utils/geocoding";
 
 const ManageProperties = () => {
+  const queryClient = useQueryClient();
   const propertiesQuery = useQuery({
     queryKey: ["properties"],
     initialData: () => {
@@ -41,6 +43,8 @@ const ManageProperties = () => {
   const [formData, setFormData] = useState({
     property_name: "",
     location: "",
+    latitude: "",
+    longitude: "",
     total_lots: 0,
     status: "active",
   });
@@ -67,12 +71,16 @@ const ManageProperties = () => {
   }, [propertiesQuery.error, navigate]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (e?.target) {
+      const { name, value } = e.target;
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    } else if (e && typeof e === "object") {
+      setFormData((prev) => ({ ...prev, ...e }));
+    }
   };
 
   const resetForm = () => {
-    setFormData({ property_name: "", location: "", total_lots: 0, status: "active" });
+    setFormData({ property_name: "", location: "", latitude: "", longitude: "", total_lots: 0, status: "active" });
     setEditingProperty(null);
     setShowForm(false);
   };
@@ -94,28 +102,106 @@ const ManageProperties = () => {
         ? `${API_BASE_URL}/api/properties/${editingProperty.property_id}`
         : `${API_BASE_URL}/api/properties`;
 
+      const payload = {
+        property_name: formData.property_name,
+        location: formData.location,
+        total_lots: formData.total_lots,
+        status: formData.status,
+      };
+
       if (editingProperty) {
-        await axios.put(url, formData, authConfig);
+        await axios.put(url, payload, authConfig);
       } else {
-        const res = await axios.post(url, formData, authConfig);
+        const res = await axios.post(url, payload, authConfig);
         createdPropId = res.data?.property_id;
       }
 
       setSubmitStatus("Locating property coordinates on map...");
 
-      // Automatically search/geocode the address for GPS coordinates
-      if (formData.location || formData.property_name) {
-        const targetId = createdPropId || editingProperty?.property_id;
-        const resolvedCoords = await resolvePropertyCoordinates(
+      const targetId = createdPropId || editingProperty?.property_id;
+      const customLat = parseFloat(formData.latitude);
+      const customLng = parseFloat(formData.longitude);
+      let resolvedCoords = null;
+
+      if (Number.isFinite(customLat) && Number.isFinite(customLng) && targetId) {
+        // 1. Save custom coordinates to localStorage
+        localStorage.setItem(
+          "propertyCustomCoords_" + targetId,
+          JSON.stringify([customLat, customLng])
+        );
+
+        // 2. Persist custom coordinates directly into database annotations
+        try {
+          let existingAnnots = [];
+          if (editingProperty?.annotations) {
+            const parsed =
+              typeof editingProperty.annotations === "string"
+                ? JSON.parse(editingProperty.annotations)
+                : editingProperty.annotations;
+            if (Array.isArray(parsed)) existingAnnots = parsed.filter((a) => a.id !== "property_center");
+          }
+          await axios.put(
+            `${API_BASE_URL}/api/properties/${targetId}/annotations`,
+            {
+              annotations: [
+                ...existingAnnots,
+                { id: "property_center", type: "property_center", lat: customLat, lng: customLng, manual: true },
+              ],
+            },
+            authConfig
+          );
+        } catch (_) {}
+      } else if (formData.location || formData.property_name) {
+        // Fallback to geocoding if no manual GPS coordinates were provided
+        resolvedCoords = await resolvePropertyCoordinates(
           formData.location,
           formData.property_name
         );
+
+        // Anti-collision staggering: If resolved coordinates overlap with an existing property (<150m or same address),
+        // stagger them immediately so the new property gets its OWN distinct coordinates and camera anchor!
+        if (resolvedCoords && (!Number.isFinite(customLat) || !Number.isFinite(customLng))) {
+          const existingProps = propertiesQuery.data || [];
+          const hasCollision = existingProps.some((other) => {
+            if (Number(other.property_id) === Number(targetId) || other.status === "inactive") return false;
+            const sameLocation = other.location && formData.location && other.location.trim().toLowerCase() === formData.location.trim().toLowerCase();
+            const otherCoords = getPropertyFallbackCoordinates(other.property_id, other.location, other.property_name);
+            const physicallyClose = Array.isArray(otherCoords) && Math.hypot(resolvedCoords[0] - otherCoords[0], resolvedCoords[1] - otherCoords[1]) < 0.0014;
+            return sameLocation || physicallyClose;
+          });
+          if (hasCollision) {
+            const angle = ((Number(targetId || Date.now()) * 73) % 360) * (Math.PI / 180);
+            const dist = 0.0022; // ~240m offset
+            resolvedCoords = [resolvedCoords[0] + Math.sin(angle) * dist, resolvedCoords[1] + Math.cos(angle) * dist];
+          }
+        }
 
         if (resolvedCoords && targetId) {
           localStorage.setItem(
             "propertyCustomCoords_" + targetId,
             JSON.stringify(resolvedCoords)
           );
+
+          try {
+            let existingAnnots = [];
+            if (editingProperty?.annotations) {
+              const parsed =
+                typeof editingProperty.annotations === "string"
+                  ? JSON.parse(editingProperty.annotations)
+                  : editingProperty.annotations;
+              if (Array.isArray(parsed)) existingAnnots = parsed.filter((a) => a.id !== "property_center");
+            }
+            await axios.put(
+              `${API_BASE_URL}/api/properties/${targetId}/annotations`,
+              {
+                annotations: [
+                  ...existingAnnots,
+                  { id: "property_center", type: "property_center", lat: resolvedCoords[0], lng: resolvedCoords[1], auto: true },
+                ],
+              },
+              authConfig
+            );
+          } catch (_) {}
         }
       }
 
@@ -125,7 +211,14 @@ const ManageProperties = () => {
       try {
         sessionStorage.removeItem("propertiesCache");
         sessionStorage.removeItem("mapDataCache");
+        sessionStorage.removeItem("gde_map_data_cache_admin");
+        sessionStorage.removeItem("gde_map_data_cache_employee");
       } catch (err) {}
+
+      if (queryClient) {
+        queryClient.invalidateQueries({ queryKey: ["map-data"] });
+        queryClient.invalidateQueries({ queryKey: ["properties"] });
+      }
 
       window.dispatchEvent(new CustomEvent("propertiesUpdated"));
       await propertiesQuery.refetch();
@@ -133,7 +226,22 @@ const ManageProperties = () => {
 
       if (!editingProperty && createdPropId) {
         setSubmitStatus("Redirecting to map view...");
-        localStorage.setItem("selectedProperty", createdPropId.toString());
+        const newIdStr = createdPropId.toString();
+        localStorage.setItem("selectedProperty", newIdStr);
+
+        const initialCoords = (Number.isFinite(customLat) && Number.isFinite(customLng))
+          ? [customLat, customLng]
+          : resolvedCoords;
+
+        if (initialCoords && Array.isArray(initialCoords) && initialCoords.length >= 2) {
+          try {
+            localStorage.setItem("propertyMapView_" + newIdStr, JSON.stringify({
+              center: initialCoords,
+              zoom: 19,
+            }));
+          } catch (_) {}
+        }
+
         // Automatically direct user straight to the map location!
         navigate("/manage-lots");
       } else {
@@ -152,9 +260,30 @@ const ManageProperties = () => {
 
   const handleEdit = (property) => {
     setEditingProperty(property);
+    let lat = "";
+    let lng = "";
+    if (property.annotations) {
+      try {
+        const parsed =
+          typeof property.annotations === "string" ? JSON.parse(property.annotations) : property.annotations;
+        const center = Array.isArray(parsed)
+          ? parsed.find((a) => a.type === "property_center" || a.id === "property_center")
+          : parsed?.center;
+        if (center) {
+          lat = center.lat;
+          lng = center.lng;
+        }
+      } catch (_) {}
+    }
+    if (!lat && property.coordinates && Array.isArray(property.coordinates)) {
+      lat = property.coordinates[0];
+      lng = property.coordinates[1];
+    }
     setFormData({
       property_name: property.property_name,
       location: property.location,
+      latitude: lat || "",
+      longitude: lng || "",
       total_lots: property.total_lots || 0,
       status: property.status,
     });
@@ -222,6 +351,7 @@ const ManageProperties = () => {
         sessionStorage.removeItem("propertiesCache");
         sessionStorage.removeItem("mapDataCache");
         localStorage.removeItem("propertyCustomCoords_" + propertyId);
+        localStorage.removeItem("propertyMapView_" + propertyId);
         if (Number(localStorage.getItem("selectedProperty")) === Number(propertyId)) {
           localStorage.removeItem("selectedProperty");
         }
