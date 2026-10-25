@@ -1,11 +1,16 @@
+# Dependencies
 node_modules/
 back-end/node_modules/
 front-end/node_modules/
+
+# Production Builds
 build/
 front-end/build/
 dist/
 dist-ssr/
 *.local
+
+# Environment Variables & Secrets
 .env
 .env.local
 .env.development.local
@@ -13,6 +18,22 @@ dist-ssr/
 .env.production.local
 *.env
 !front-end/.env
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+
+# Database & State Backups
+database_Backup/
+*.sql
+back-end/config/system_state.json
+
+# Local Media & Asset Dumps
+demo-video/
+mapsPDF/
+
+# Logs & Debugging
 logs/
 *.log
 npm-debug.log*
@@ -20,23 +41,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-back-end/config/system_state.json
-back-end/src/data/
-demo-video/
-mapsPDF/
-scratch/
-database_Backup/
-*.sql
-old data customer/
-back-end/scripts/data/
-*.pem
-*.key
-*.crt
-*.pfx
-*.p12
-md/
-docs/PDF-LOT-IMPORT-TROUBLESHOOTING.md
-.agents/
+
+# IDE & Editor Files
 .vscode/*
 !.vscode/extensions.json
 .idea/
@@ -47,7 +53,9 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary & Test Caches
 tmp/
+.cache/
 .jest-tmp-cache/
 front-end/.jest-tmp-cache/
-.cache/
