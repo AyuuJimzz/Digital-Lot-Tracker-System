@@ -41,7 +41,10 @@ async function pullCloudDb() {
   const localConn = await mysql.createConnection(localConfig);
   console.log('✅ Connected to Local MySQL!\n');
 
-  const tables = [
+  const [aivenTablesRes] = await aivenConn.query('SHOW TABLES');
+  const aivenTableNames = aivenTablesRes.map(t => Object.values(t)[0]);
+
+  const coreTables = [
     'properties',
     'admins',
     'employees',
@@ -52,6 +55,9 @@ async function pullCloudDb() {
     'system_state',
     'account_login_history'
   ];
+
+  // Prioritize core tables, then include any extra tables present on Aiven
+  const tables = [...new Set([...coreTables.filter(t => aivenTableNames.includes(t)), ...aivenTableNames])];
 
   await localConn.query('SET FOREIGN_KEY_CHECKS = 0');
   await localConn.query("SET SESSION sql_mode = 'ANSI_QUOTES,NO_ENGINE_SUBSTITUTION'");
@@ -100,17 +106,24 @@ async function pullCloudDb() {
 
   console.log('\n🎉 Finished transferring Live Aiven data into Local MySQL!');
 
-  // Run payment terms migration on local to ensure new payment columns are preserved
-  console.log('\nRunning migrate_payment_terms.js on local database to preserve new quotation columns...');
+  // Run payment terms migration and schema setup on local to ensure all columns and indexes are verified
+  console.log('\nEnsuring schema integrity, indexes, and payment terms on local database...');
   const { migratePaymentTerms } = require('./migrate_payment_terms');
   await migratePaymentTerms();
+  const { setupSchema } = require('./setup_schema');
+  await setupSchema();
 }
 
 if (require.main === module) {
-  pullCloudDb().catch(err => {
-    console.error('❌ Sync failed:', err);
-    process.exit(1);
-  });
+  pullCloudDb()
+    .then(() => {
+      console.log('✅ Sync and schema setup completed successfully!');
+      process.exit(0);
+    })
+    .catch(err => {
+      console.error('❌ Sync failed:', err);
+      process.exit(1);
+    });
 }
 
 module.exports = { pullCloudDb };

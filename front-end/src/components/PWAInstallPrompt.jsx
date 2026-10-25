@@ -25,6 +25,15 @@ export default function PWAInstallPrompt() {
     window.addEventListener("resize", handleResize);
     window.addEventListener("orientationchange", handleResize);
 
+    // Skip prompt on local development environments (never interrupt developer workflow)
+    if (
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1")
+    ) {
+      return;
+    }
+
     // Check if already running in standalone/installed mode
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -33,8 +42,12 @@ export default function PWAInstallPrompt() {
 
     if (isStandalone) return;
 
-    // Check if user dismissed prompt in current browser tab/session
-    if (sessionStorage.getItem("pwa_install_dismissed_session")) return;
+    // Check if user dismissed prompt in current session or within last 7 days
+    try {
+      const dismissedUntil = localStorage.getItem("pwa_install_dismissed_until");
+      if (dismissedUntil && Number(dismissedUntil) > Date.now()) return;
+      if (sessionStorage.getItem("pwa_install_dismissed_session")) return;
+    } catch (_) {}
 
     // ── Case 1: Chrome fired beforeinstallprompt BEFORE React mounted ──
     if (window.__pwaInstallEvent) {
@@ -57,8 +70,15 @@ export default function PWAInstallPrompt() {
       }
     };
 
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        handleDismiss();
+      }
+    };
+
     window.addEventListener("beforeinstallprompt", handleNativeEvent);
     window.addEventListener("pwa-install-available", handleBridgeEvent);
+    window.addEventListener("keydown", handleKeyDown);
 
     // iPad / Mac Safari (Exclude iPhones)
     const isAppleTabletOrMac =
@@ -76,22 +96,30 @@ export default function PWAInstallPrompt() {
       window.removeEventListener("orientationchange", handleResize);
       window.removeEventListener("beforeinstallprompt", handleNativeEvent);
       window.removeEventListener("pwa-install-available", handleBridgeEvent);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      setShowPrompt(false);
-    }
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        try { localStorage.setItem("pwa_installed", "true"); } catch (_) {}
+      }
+    } catch (_) {}
+    setShowPrompt(false);
     setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    sessionStorage.setItem("pwa_install_dismissed_session", "true");
+    try {
+      // Dismiss for 7 days in localStorage + current browser session
+      localStorage.setItem("pwa_install_dismissed_until", String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      sessionStorage.setItem("pwa_install_dismissed_session", "true");
+    } catch (_) {}
   };
 
   // Do NOT render on mobile phone screens

@@ -368,7 +368,7 @@ const AdminDashboard = () => {
       {/* Stat Cards — 2 cols on tablet, 3 cols on desktop */}
       <div
         className={`grid grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity duration-200 ${
-          statsLoading ? "opacity-60 pointer-events-none" : "opacity-100"
+          statsLoading ? "opacity-60" : "opacity-100"
         }`}
       >
         <StatCard

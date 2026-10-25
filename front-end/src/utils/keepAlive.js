@@ -18,6 +18,8 @@ const KEEP_ALIVE_INTERVAL_MS = 14 * 60 * 1000; // 14 minutes
 const BACKEND_URL = API_BASE_URL;
 
 let pingTimer = null;
+let lastPingTime = 0;
+let visibilityHandler = null;
 
 function sendPing() {
   if (
@@ -27,6 +29,8 @@ function sendPing() {
   ) {
     return; // Skip keep-alive on local development
   }
+
+  lastPingTime = Date.now();
 
   const run = () => {
     const controller = new AbortController();
@@ -60,6 +64,20 @@ export function startKeepAlive() {
 
   // Then ping every 14 minutes
   pingTimer = setInterval(sendPing, KEEP_ALIVE_INTERVAL_MS);
+
+  // Pre-warm backend immediately when user returns to an idle tab
+  if (typeof document !== "undefined") {
+    visibilityHandler = () => {
+      if (document.visibilityState === "visible") {
+        const idleDurationMs = Date.now() - lastPingTime;
+        // If tab was idle for more than 10 minutes, fire immediate pre-warm ping
+        if (idleDurationMs > 10 * 60 * 1000) {
+          sendPing();
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", visibilityHandler);
+  }
 }
 
 /**
@@ -69,5 +87,9 @@ export function stopKeepAlive() {
   if (pingTimer) {
     clearInterval(pingTimer);
     pingTimer = null;
+  }
+  if (typeof document !== "undefined" && visibilityHandler) {
+    document.removeEventListener("visibilitychange", visibilityHandler);
+    visibilityHandler = null;
   }
 }

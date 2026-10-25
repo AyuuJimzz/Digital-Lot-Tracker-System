@@ -77,7 +77,7 @@ async function run() {
   if (cliInput) {
     connectionConfig = parseUri(cliInput);
     if (!connectionConfig) {
-      console.log('⚠️ Ang na-pass na text ay hindi valid na MySQL URI.');
+      console.log('⚠️ The provided argument is not a valid MySQL URI.');
     }
   }
 
@@ -85,7 +85,7 @@ async function run() {
   if (!connectionConfig && process.env.AIVEN_SERVICE_URI) {
     connectionConfig = parseUri(process.env.AIVEN_SERVICE_URI);
     if (connectionConfig) {
-      console.log('🔍 Natagpuan ang AIVEN_SERVICE_URI sa iyong .env file!');
+      console.log('🔍 Found AIVEN_SERVICE_URI in .env file!');
     }
   }
 
@@ -100,30 +100,30 @@ async function run() {
       multipleStatements: true,
       ssl: getSslConfig(process.env.DB_HOST)
     };
-    console.log('🔍 Gagamitin ang Aiven credentials mula sa .env (DB_HOST).');
+    console.log('🔍 Using Aiven credentials from .env (DB_HOST).');
   }
 
   // 4. If still not configured, prompt the user to paste their Aiven Service URI
   if (!connectionConfig) {
-    console.log('📋 Paano kunin ang Aiven Service URI:');
-    console.log('   1. Buksan ang iyong Aiven Dashboard (https://console.aiven.io)');
-    console.log('   2. Piliin ang iyong MySQL service');
-    console.log('   3. I-click ang "Copy" button sa tapat ng "Service URI"\n');
+    console.log('📋 How to retrieve your Aiven Service URI:');
+    console.log('   1. Open your Aiven Dashboard (https://console.aiven.io)');
+    console.log('   2. Select your MySQL service');
+    console.log('   3. Click the "Copy" button next to "Service URI"\n');
 
-    const inputUri = await promptUser('👉 I-paste dito ang iyong Aiven Service URI: ');
+    const inputUri = await promptUser('👉 Paste your Aiven Service URI here: ');
     if (!inputUri) {
-      console.log('\n❌ Walang na-paste na URI. Kinakansela ang sync.');
+      console.log('\n❌ No URI provided. Cancelling sync.');
       process.exit(1);
     }
 
     connectionConfig = parseUri(inputUri);
     if (!connectionConfig) {
-      console.log('\n❌ Invalid ang na-paste na URI format. Siguraduhing nagsisimula ito sa mysql://');
+      console.log('\n❌ Invalid URI format. Ensure it begins with mysql://');
       process.exit(1);
     }
 
     // Ask to save in .env for future ease
-    const saveChoice = await promptUser('\n💾 Gusto mo bang i-save ito sa .env para 1-click na lang sa susunod? (y/n): ');
+    const saveChoice = await promptUser('\n💾 Save this to .env for 1-click execution in the future? (y/n): ');
     if (saveChoice.toLowerCase().startsWith('y')) {
       try {
         let currentEnv = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
@@ -133,28 +133,28 @@ async function run() {
           currentEnv += `\n# Aiven Cloud MySQL Sync URI\nAIVEN_SERVICE_URI=${inputUri}\n`;
         }
         fs.writeFileSync(envPath, currentEnv, 'utf8');
-        console.log('✅ Matagumpay na na-save sa .env! Sa susunod, `npm run db:sync-cloud` na lang ang kailangan.');
+        console.log('✅ Successfully saved to .env! You can now run `npm run db:sync-cloud`.');
       } catch (e) {
-        console.log('⚠️ Hindi na-save sa .env:', e.message);
+        console.log('⚠️ Could not save to .env:', e.message);
       }
     }
   }
 
-  console.log(`\n⏳ Kumukonekta sa Aiven MySQL (${connectionConfig.host}:${connectionConfig.port})...`);
+  console.log(`\n⏳ Connecting to Aiven MySQL (${connectionConfig.host}:${connectionConfig.port})...`);
   let connection;
   try {
     connection = await mysql.createConnection(connectionConfig);
-    console.log('✅ Matagumpay na nakakonekta sa Aiven Cloud!');
+    console.log('✅ Connected to Aiven Cloud MySQL successfully!');
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 0;');
     await connection.query('SET SESSION sql_require_primary_key = 0;');
 
     if (fs.existsSync(masterFile)) {
-      console.log(`\n📦 Ina-upload ang 00_golden_dragon_corp_FULL_BACKUP.sql...`);
+      console.log(`\n📦 Uploading 00_golden_dragon_corp_FULL_BACKUP.sql...`);
       let sqlContent = fs.readFileSync(masterFile, 'utf8');
       sqlContent = sqlContent.replace(/^USE\s+[^;]+;/gmi, '');
       await connection.query(sqlContent);
-      console.log(`  ✅ Lahat ng tables, properties, annotations, at lots ay nai-import na!`);
+      console.log(`  ✅ All tables, properties, annotations, and lots imported successfully!`);
     } else {
       const sqlFiles = [
         '01_golden_dragon_corp_properties.sql',
@@ -170,7 +170,7 @@ async function run() {
       for (const file of sqlFiles) {
         const filePath = path.join(backupDir, file);
         if (!fs.existsSync(filePath)) continue;
-        console.log(`Ina-upload ang ${file}...`);
+        console.log(`Uploading ${file}...`);
         let sqlContent = fs.readFileSync(filePath, 'utf8');
         sqlContent = sqlContent.replace(/^USE\s+[^;]+;/gmi, '');
         await connection.query(sqlContent);
@@ -179,9 +179,9 @@ async function run() {
     }
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 1;');
-    console.log('\n🎉 TAPOS NA! 100% UPDATED NA ANG IYONG AIVEN CLOUD DATABASE!\n');
+    console.log('\n🎉 SUCCESS! Aiven Cloud database synchronized completely.\n');
   } catch (error) {
-    console.error('\n❌ Error habang nag-i-import sa Aiven:', error.message);
+    console.error('\n❌ Error during Aiven database import:', error.message);
     process.exitCode = 1;
   } finally {
     if (connection) await connection.end();

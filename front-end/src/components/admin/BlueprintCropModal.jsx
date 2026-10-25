@@ -349,7 +349,7 @@ export function BlueprintCropModal({ isOpen, imageUrl, onApplyCrop, onClose }) {
           <span className="flex items-center gap-1.5">
             <HelpCircle className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span>
-              <strong>Tip:</strong> Mag-scroll para mag-zoom. I-hold ang <strong>Spacebar</strong> o piliin ang <strong>Move Screen</strong> para i-drag at ilipat ang view.
+              <strong>Tip:</strong> Scroll to zoom. Hold <strong>Spacebar</strong> or select <strong>Move Screen</strong> to drag and pan the view.
             </span>
           </span>
           <span className="text-slate-400 font-mono">

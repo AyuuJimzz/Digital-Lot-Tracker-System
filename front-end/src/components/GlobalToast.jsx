@@ -65,6 +65,24 @@ export default function GlobalToast() {
     };
   }, [removeToast]);
 
+  // ── Real-Time Network Connectivity Resilience (Alerts field staff during signal drops) ──
+  useEffect(() => {
+    const handleOffline = () => {
+      showToast("You are currently offline. Check your internet connection.", "warning", 0);
+    };
+    const handleOnline = () => {
+      showToast("Connection restored. You are back online.", "success", 4000);
+    };
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
+
   if (toasts.length === 0) return null;
 
   return (

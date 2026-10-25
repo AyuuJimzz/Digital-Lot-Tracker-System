@@ -174,16 +174,16 @@ body {
 .map-wheel-zooming .leaflet-overlay-pane,
 .map-wheel-zooming .leaflet-marker-pane {
   will-change: transform;
-  transform: translateZ(0); /* 🚀 Pinupwersa ang GPU VRAM allocation */
+  transform: translateZ(0); /* 🚀 Forces GPU VRAM layer promotion */
   backface-visibility: hidden;
 }
 
-/* 🖼️ High Resolution at Anti-Aliasing para sa Satellite Tiles: */
+/* 🖼️ High Resolution & Anti-Aliasing for Satellite Tiles: */
 .map-is-flying .leaflet-tile,
 .map-is-flying .leaflet-image-layer,
 .map-wheel-zooming .leaflet-tile,
 .map-wheel-zooming .leaflet-image-layer {
-  image-rendering: -webkit-optimize-contrast; /* Mas malinaw at crisp habang nagzo-zoom */
+  image-rendering: -webkit-optimize-contrast; /* Crisp and sharp rendering during zoom */
   backface-visibility: hidden;
   transform: translate3d(0, 0, 0);
   transition: none !important;

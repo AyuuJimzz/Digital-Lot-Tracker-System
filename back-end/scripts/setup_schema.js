@@ -34,6 +34,10 @@ const statements = [
   "ALTER TABLE transactions ADD COLUMN terms_months INT NULL DEFAULT NULL",
   "ALTER TABLE transactions ADD COLUMN monthly_amortization DECIMAL(12,2) NULL DEFAULT NULL",
   "ALTER TABLE transactions MODIFY COLUMN payment_type VARCHAR(50) NOT NULL DEFAULT 'Cash'",
+  "CREATE INDEX idx_customers_employee ON customers (employee_id)",
+  "CREATE INDEX idx_transactions_employee ON transactions (employee_id)",
+  "CREATE INDEX idx_transactions_lot_cust ON transactions (lot_id, customer_id)",
+  "CREATE INDEX idx_lots_property_status ON lots (property_id, status)",
 ];
 
 function getCustomPool(uriString) {
@@ -48,7 +52,9 @@ function getCustomPool(uriString) {
     database: parsed.pathname.replace(/^\//, "") || "defaultdb",
     ssl: getDatabaseSslConfig(parsed.hostname, cleanUri.includes("ssl-mode") || process.env.DB_SSL === "true"),
     waitForConnections: true,
-    connectionLimit: 6,
+    connectionLimit: 5,
+    maxIdle: 2,
+    idleTimeout: 30000,
   }).promise();
 }
 
@@ -61,7 +67,12 @@ async function setupSchema(options = {}) {
       console.log(`Applied: ${statement}`);
       if (statement.includes("is_non_saleable")) isNonSaleableNewlyAdded = true;
     } catch (error) {
-      if (error.code === "ER_DUP_FIELDNAME") {
+      if (
+        error.code === "ER_DUP_FIELDNAME" ||
+        error.code === "ER_DUP_KEYNAME" ||
+        error.errno === 1060 ||
+        error.errno === 1061
+      ) {
         console.log(`Already present: ${statement}`);
       } else {
         throw error;

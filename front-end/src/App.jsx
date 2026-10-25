@@ -37,13 +37,19 @@ const MaintenancePage = React.lazy(() => import("./pages/MaintenancePage"));
 function App() {
   const [, setRole] = useState(localStorage.getItem("role") || null);
 
-  // ── Real-Time Concurrent Session Heartbeat (throttled to 15s to protect Render 0.1 vCPU & DB connections) ──
+  // ── Real-Time Concurrent Session Heartbeat (optimized to 60s background + instant on focus to preserve Render free vCPU & DB resources) ──
   useEffect(() => {
+    let lastCheckMs = 0;
     const verifySession = async () => {
       // Skip background timer ticks if tab/tablet screen is sleeping/minimized
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
         return;
       }
+
+      // Guard against double-firing when 'visibilitychange' and 'focus' fire simultaneously
+      const now = Date.now();
+      if (now - lastCheckMs < 3000) return;
+      lastCheckMs = now;
 
       const activeToken = localStorage.getItem("authToken") || localStorage.getItem("token");
       if (!activeToken) return;
@@ -52,14 +58,15 @@ function App() {
         await axios.get(`${API_BASE_URL}/api/auth/check-session`, {
           headers: { Authorization: `Bearer ${activeToken}` },
           withCredentials: true,
+          timeout: 6000,
         });
       } catch (err) {
         // Global axios interceptor in api.js automatically dispatches concurrentSessionKickedOut
       }
     };
 
-    // Run check every 15 seconds and immediately whenever user switches back/unlocks device
-    const interval = setInterval(verifySession, 15000);
+    // Run check every 60 seconds and immediately whenever user switches back/unlocks device
+    const interval = setInterval(verifySession, 60000);
     const handleVisibilityOrFocus = () => {
       if (typeof document === "undefined" || document.visibilityState === "visible") {
         verifySession();
