@@ -1,6 +1,6 @@
 -- ======================================================
 -- Golden Dragon Estate Platform — Automated Cloud Backup
--- Generated: 2026-10-26T09:56:03.310Z
+-- Generated: 2026-10-26T21:19:01.010Z
 -- Source Host: golden-dragon-estate-database-goldendragonestate.d.aivencloud.com:10488
 -- Database: defaultdb
 -- ======================================================
@@ -1678,7 +1678,7 @@ INSERT INTO `system_state` (`state_key`, `state_value`, `updated_at`) VALUES
   ('developerPin', '"5551"', '2026-09-23 21:51:52'),
   ('maintenanceMode', 'false', '2026-10-21 03:43:26'),
   ('non_saleable_manual_exclusions', '[7867,7868,7869,7870,7871,7961,7962]', '2026-10-19 14:03:33'),
-  ('non_saleable_migration_meta', '{"executed_at":"2026-10-26T09:53:46.725Z","completed_without_conflicts":true,"total_parcels":695,"candidate_count":22,"flagged_count":17,"skipped_exclusions":[7867,7868,7869,7870,7871,7961,7962],"preflight_conflicts_count":0,"write_time_skipped_count":0}', '2026-10-26 09:53:46'),
+  ('non_saleable_migration_meta', '{"executed_at":"2026-10-26T10:09:21.140Z","completed_without_conflicts":true,"total_parcels":695,"candidate_count":22,"flagged_count":17,"skipped_exclusions":[7867,7868,7869,7870,7871,7961,7962],"preflight_conflicts_count":0,"write_time_skipped_count":0}', '2026-10-26 10:09:21'),
   ('reminder_cutoff', '2026-10-01 16:50:05', '2026-10-01 16:50:05'),
   ('subdivision_chart_colors', '{"49":"#56d9f0","50":"#da6767"}', '2026-10-21 22:13:51');
 /*!40000 ALTER TABLE `system_state` ENABLE KEYS */;
@@ -1701,7 +1701,7 @@ CREATE TABLE "account_login_history" (
   KEY "idx_login_account" ("account_role","account_id","signed_in_at")
 );
 
--- Dumping data for table `account_login_history` (136 records)
+-- Dumping data for table `account_login_history` (138 records)
 LOCK TABLES `account_login_history` WRITE;
 /*!40000 ALTER TABLE `account_login_history` DISABLE KEYS */;
 INSERT INTO `account_login_history` (`login_id`, `account_role`, `account_id`, `session_hash`, `device`, `ip_address`, `signed_in_at`) VALUES
@@ -1841,10 +1841,12 @@ INSERT INTO `account_login_history` (`login_id`, `account_role`, `account_id`, `
   (133, 'employee', 25, '29583f7bfb520f43cfd558ee9ea4bc594023d8507c9b2038f8d85994fe5191fe', 'Windows PC · Chrome', '10.31.242.5', '2026-10-26 03:21:54'),
   (134, 'admin', 2, 'ce14601abcd406fe77fc95e68e78e3d71045d1efce1e92090006a86402e42483', 'Windows PC · Chrome', '10.31.55.151', '2026-10-26 03:53:42'),
   (135, 'admin', 3, 'ed75c669ac5b29007cce93a82537f5d7f27fe907b04bb8eb52733f85bc357435', 'Windows PC · Chrome', '10.31.55.151', '2026-10-26 04:44:50'),
-  (136, 'admin', 2, '15da28680dc81d701db67af269f0c1c66af274c5fd4af7278a2b5e10ec6e7a17', 'Windows PC · Edge', '10.30.47.157', '2026-10-26 08:31:42');
+  (136, 'admin', 2, '15da28680dc81d701db67af269f0c1c66af274c5fd4af7278a2b5e10ec6e7a17', 'Windows PC · Edge', '10.30.47.157', '2026-10-26 08:31:42'),
+  (137, 'admin', 2, '5c433f65ad4add05c56f08a66b3af113e1e119368b1249df444a2b44dda52c59', 'Windows PC · Edge', '10.31.242.5', '2026-10-26 12:52:20'),
+  (138, 'admin', 2, '285857894105d476f44ee461ce24e8aca5940b64eb0b502548094a9ec2e6e5e6', 'Windows PC · Edge', '10.31.55.151', '2026-10-26 13:06:11');
 /*!40000 ALTER TABLE `account_login_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
--- Dump completed on 2026-10-26T09:56:08.337Z
+-- Dump completed on 2026-10-26T21:19:05.816Z
