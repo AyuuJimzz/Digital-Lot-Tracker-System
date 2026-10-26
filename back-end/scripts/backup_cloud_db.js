@@ -206,7 +206,8 @@ async function backupCloudDatabase() {
     const fileSizeBytes = fs.statSync(snapshotPath).size;
     const fileSizeKb = (fileSizeBytes / 1024).toFixed(2);
 
-    // Snapshot rotation: Keep only the latest 10 snapshots by actual file modification time
+    // Snapshot rotation: Keep only the latest 30 snapshots by actual file modification time (30-day retention)
+    const MAX_SNAPSHOTS = 30;
     const existingSnapshots = fs
       .readdirSync(snapshotsDir)
       .filter((file) => file.startsWith('aiven_backup_') && file.endsWith('.sql'))
@@ -217,8 +218,8 @@ async function backupCloudDatabase() {
       .sort((a, b) => a.mtime - b.mtime)
       .map((item) => item.file);
 
-    if (existingSnapshots.length > 10) {
-      const toDelete = existingSnapshots.slice(0, existingSnapshots.length - 10);
+    if (existingSnapshots.length > MAX_SNAPSHOTS) {
+      const toDelete = existingSnapshots.slice(0, existingSnapshots.length - MAX_SNAPSHOTS);
       for (const oldFile of toDelete) {
         fs.unlinkSync(path.join(snapshotsDir, oldFile));
         console.log(`🧹 Pruned old snapshot: ${oldFile}`);
