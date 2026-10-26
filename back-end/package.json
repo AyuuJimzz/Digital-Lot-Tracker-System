@@ -17,9 +17,7 @@
     "db:migrate-sale-date-audit": "node scripts/migrate_sale_date_audit.js",
     "db:preflight": "node scripts/production_preflight.js",
     "db:export": "node scripts/export_backup.js",
-    "db:sync-cloud": "node scripts/import_cloud_db.js",
-    "db:pull-cloud": "node scripts/pull_cloud_db.js",
-    "db:backup-cloud": "node scripts/backup_cloud_db.js"
+    "db:pull-cloud": "node scripts/pull_cloud_db.js"
   },
   "keywords": [],
   "author": "",

@@ -16,8 +16,7 @@
     "db:setup": "npm --prefix back-end run db:setup",
     "db:export": "npm --prefix back-end run db:export",
     "db:sync-cloud": "npm --prefix back-end run db:sync-cloud",
-    "db:pull-cloud": "npm --prefix back-end run db:pull-cloud",
-    "db:backup-cloud": "npm --prefix back-end run db:backup-cloud"
+    "db:pull-cloud": "npm --prefix back-end run db:pull-cloud"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
