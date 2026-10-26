@@ -1,0 +1,49 @@
+name: Automated Cloud Database Backup
+
+on:
+  schedule:
+    # Runs every day at 18:00 UTC (02:00 AM Philippine Standard Time)
+    - cron: "0 18 * * *"
+  workflow_dispatch: # Allows 1-click manual trigger from the GitHub Actions tab anytime!
+
+permissions:
+  contents: write
+
+jobs:
+  cloud-backup:
+    name: Backup Aiven Cloud Database
+    runs-on: ubuntu-latest
+    # Safety Lock: Strictly runs ONLY on the official Golden Dragon Estate repository
+    if: github.repository == 'goldendragonestate/Digital-Lot-Tracker-System'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Cloud Database Backup
+        run: node back-end/scripts/backup_cloud_db.js
+        env:
+          AIVEN_SERVICE_URI: ${{ secrets.AIVEN_SERVICE_URI }}
+
+      - name: Commit and Push Snapshot to Private Repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f database_Backup/backup_history/ database_Backup/latest_cloud_backup*.sql
+          git add -u database_Backup/
+          if git diff --staged --quiet; then
+            echo "No database snapshot changes to commit."
+          else
+            git commit -m "chore(backup): automated cloud database snapshot [skip ci]"
+            git push
+          fi

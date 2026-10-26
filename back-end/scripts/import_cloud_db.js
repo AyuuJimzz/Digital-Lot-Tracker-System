@@ -55,17 +55,27 @@ async function run() {
   console.log('======================================================\n');
 
   const backupDir = path.join(__dirname, '..', '..', 'database_Backup');
-  const masterFile = path.join(backupDir, '00_golden_dragon_corp_FULL_BACKUP.sql');
-  const requiredTableFiles = [
-    '01_golden_dragon_corp_properties.sql',
-    '02_golden_dragon_corp_lots.sql',
-    '03_golden_dragon_corp_customers.sql',
-    '04_golden_dragon_corp_admins.sql',
-    '05_golden_dragon_corp_employees.sql',
-    '06_golden_dragon_corp_transactions.sql',
-  ];
-  if (!fs.existsSync(masterFile) && requiredTableFiles.some((file) => !fs.existsSync(path.join(backupDir, file)))) {
-    console.error('❌ Missing local database backup. db:sync-cloud was cancelled before connecting to Aiven.');
+  const snapshotsDir = path.join(backupDir, 'backup_history');
+
+  let masterFile = null;
+  const latestCandidates = fs.existsSync(backupDir)
+    ? fs.readdirSync(backupDir).filter((file) => file.startsWith('latest_cloud_backup') && file.endsWith('.sql'))
+    : [];
+
+  if (latestCandidates.length > 0) {
+    masterFile = path.join(backupDir, latestCandidates[0]);
+  } else if (fs.existsSync(snapshotsDir)) {
+    const snapshots = fs
+      .readdirSync(snapshotsDir)
+      .filter((file) => file.endsWith('.sql'))
+      .sort();
+    if (snapshots.length > 0) {
+      masterFile = path.join(snapshotsDir, snapshots[snapshots.length - 1]);
+    }
+  }
+
+  if (!masterFile || !fs.existsSync(masterFile)) {
+    console.error('❌ Missing database backup snapshot. db:sync-cloud was cancelled before connecting to Aiven.');
     process.exitCode = 1;
     return;
   }
@@ -149,34 +159,11 @@ async function run() {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0;');
     await connection.query('SET SESSION sql_require_primary_key = 0;');
 
-    if (fs.existsSync(masterFile)) {
-      console.log(`\n📦 Uploading 00_golden_dragon_corp_FULL_BACKUP.sql...`);
-      let sqlContent = fs.readFileSync(masterFile, 'utf8');
-      sqlContent = sqlContent.replace(/^USE\s+[^;]+;/gmi, '');
-      await connection.query(sqlContent);
-      console.log(`  ✅ All tables, properties, annotations, and lots imported successfully!`);
-    } else {
-      const sqlFiles = [
-        '01_golden_dragon_corp_properties.sql',
-        '02_golden_dragon_corp_lots.sql',
-        '03_golden_dragon_corp_customers.sql',
-        '04_golden_dragon_corp_admins.sql',
-        '05_golden_dragon_corp_employees.sql',
-        '06_golden_dragon_corp_transactions.sql',
-        '07_password_reset_columns.sql',
-        '08_golden_dragon_corp_sale_date_audit.sql',
-      ];
-
-      for (const file of sqlFiles) {
-        const filePath = path.join(backupDir, file);
-        if (!fs.existsSync(filePath)) continue;
-        console.log(`Uploading ${file}...`);
-        let sqlContent = fs.readFileSync(filePath, 'utf8');
-        sqlContent = sqlContent.replace(/^USE\s+[^;]+;/gmi, '');
-        await connection.query(sqlContent);
-        console.log(`  ✅ ${file} uploaded!`);
-      }
-    }
+    console.log(`\n📦 Uploading ${path.basename(masterFile)}...`);
+    let sqlContent = fs.readFileSync(masterFile, 'utf8');
+    sqlContent = sqlContent.replace(/^USE\s+[^;]+;/gmi, '');
+    await connection.query(sqlContent);
+    console.log(`  ✅ All tables, properties, annotations, and lots imported successfully!`);
 
     await connection.query('SET FOREIGN_KEY_CHECKS = 1;');
     console.log('\n🎉 SUCCESS! Aiven Cloud database synchronized completely.\n');
