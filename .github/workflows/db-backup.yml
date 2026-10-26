@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     # Safety Lock: Strictly runs ONLY on the official Golden Dragon Estate repository
     if: github.repository == 'goldendragonestate/Digital-Lot-Tracker-System'
+    env:
+      TZ: "Asia/Manila"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4

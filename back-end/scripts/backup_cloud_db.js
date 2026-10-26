@@ -7,6 +7,11 @@ const path = require('path');
 
 require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
+// Enforce Philippine Standard Time (PST, UTC+8) for all backup filenames & timestamps
+if (!process.env.TZ) {
+  process.env.TZ = 'Asia/Manila';
+}
+
 function parseConnectionConfig() {
   const aivenUri = process.env.AIVEN_SERVICE_URI;
   if (aivenUri && aivenUri.trim()) {
